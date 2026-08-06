@@ -166,6 +166,22 @@ Verified on 2026-08-07:
 
 R0-04 changes dependency-selection and validation behavior only. It does not download dependencies, build libmpv, or claim that the pinned Windows toolchain has been executed in this environment.
 
+### R0-05 — Complete
+
+Verified on 2026-08-07:
+
+- `ADR-0001` selects the in-process libmpv Render API and explicitly rejects `--wid`/native child-window embedding, an external `mpv.exe` playback process, deprecated `opengl-cb`, and CPU frame-copy rendering for the MVP;
+- `ADR-0002` fixes Qt Quick to OpenGL and selects `QQuickFramebufferObject` plus a dedicated renderer as the first-release composition path;
+- GUI, playback, and Qt Quick render-thread responsibilities are separated, with no normal libmpv client calls or QML access from the render thread;
+- render update and wakeup callbacks are signal-only bridges and cannot execute rendering, blocking work, or application-state mutation;
+- initialization requires the OpenGL backend before `QGuiApplication`, an initialized mpv core, a current render-thread OpenGL context, and a ready render context before video playback starts;
+- shutdown invalidates callbacks, waits for active rendering to leave its critical section, frees the render context while the matching OpenGL context is current, and destroys the mpv core only afterward;
+- OpenGL or render-context initialization failure is an explicit startup/render error and does not silently fall back to `wid`, another Qt graphics API, or a second renderer;
+- the existing bootstrap already calls `QQuickWindow::setGraphicsApi(OpenGL)` before constructing `QGuiApplication`;
+- no source code, dependency, public interface, configuration value, or runtime behavior changed.
+
+R0-05 freezes the rendering architecture and lifecycle contract. Actual libmpv rendering, runtime thread assertions, resize/DPI behavior, and shutdown-race tests remain assigned to Stages R2 and R4.
+
 ## Architecture boundary
 
 ```text
@@ -329,8 +345,8 @@ A file may receive new code only when the code has the same responsibility and r
 - Third-party license inventory: `LICENSES/README.md`
 - Toolchain version manifest: `cmake/DependencyVersions.cmake`
 - Shared dependency paths: `cmake/DependencyPaths.cmake`
-- Render API decision: `docs/decisions/ADR-0001-libmpv-render-api.md`
-- OpenGL decision: `docs/decisions/ADR-0002-opengl-first.md`
+- Render embedding and lifecycle decision: `docs/decisions/ADR-0001-libmpv-render-api.md`
+- OpenGL and Qt Quick FBO decision: `docs/decisions/ADR-0002-opengl-first.md`
 - Playback-state ownership: `docs/decisions/ADR-0003-single-playback-owner.md`
 - QML boundaries: `docs/decisions/ADR-0004-qml-boundaries.md`
 - Media fixture policy: `docs/testing/media-fixture-policy.md`
@@ -348,14 +364,18 @@ Validated in the generation environment:
 - the workspace bootstrap does not create or modify Qt, CMake, or Ninja directories;
 - the libmpv manifest contract includes the pinned mpv release/tag/commit and FFmpeg release;
 - no third-party SDK, archive, runtime binary, cache, or generated build output was added to the repository;
-- previous R0-01 through R0-03 documentation and architecture records remain present.
+- previous R0-01 through R0-04 documentation and architecture records remain present;
+- the R0-05 ADRs explicitly choose Render API over `wid` and define OpenGL, QQuickFramebufferObject, thread ownership, callback constraints, initialization, failure, and destruction order;
+- `src/app/main.cpp` invokes graphics backend configuration before `QGuiApplication`, and `GraphicsBackendBootstrap` selects `QSGRendererInterface::OpenGL`;
+- R0-05 introduces no parallel renderer, native-window fallback, new dependency, or runtime implementation.
 
 Not executed in the generation environment:
 
 - Windows PowerShell script execution, because the connected execution environment is not Windows and does not contain PowerShell;
 - exact Windows/Visual Studio/MSVC/Qt/CMake/Ninja verification, because the pinned Windows toolchain is not installed in the environment;
 - Qt configure, compilation, QML runtime launch, or CTest for the same reason;
-- libmpv binary verification, because libmpv integration begins in Stage R2;
+- libmpv Render API initialization and frame rendering, because those implementations begin in Stages R2 and R4;
+- render-thread assertions, resize/DPI/minimize behavior, repeated render-context creation/destruction, and shutdown-race tests, because the render modules do not exist yet;
 - binary license scanning, because no Qt, libmpv, FFmpeg, or transitive runtime binary is committed;
 - legal-counsel and codec-patent review, which remain required before public distribution.
 
@@ -365,6 +385,7 @@ The first Windows validation action after cloning is to install the exact matrix
 
 ### 2026-08-07
 
+- Completed Atomic Task R0-05 by freezing the libmpv Render API, OpenGL/QQuickFramebufferObject integration, thread ownership, callback behavior, startup failure policy, and render-before-core shutdown order.
 - Completed Atomic Task R0-04 by pinning the Windows/MSVC/Qt/CMake/Ninja/mpv/FFmpeg matrix, replacing automatic tool discovery with exact versioned sibling paths, and adding strict dependency and Git-boundary validation.
 - Completed Atomic Task R0-03 by selecting the LGPL-compatible dynamic-linking route for Qt, libmpv, and FFmpeg and defining source, notice, manifest, transitive-dependency, and release-blocking requirements.
 - Completed Atomic Task R0-02 by freezing the first-release scope, adding observable acceptance for every mandatory MVP capability group, and separating deferred and excluded capabilities.
