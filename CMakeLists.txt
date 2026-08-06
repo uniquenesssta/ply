@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.31.12)
 
 project(
     ModularMpvPlayer
@@ -9,8 +9,8 @@ project(
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-include(DependencyPaths)
 include(DependencyVersions)
+include(DependencyPaths)
 include(CompilerOptions)
 include(CompilerWarnings)
 include(Sanitizers)
@@ -22,7 +22,7 @@ option(PLAYER_ENABLE_SANITIZERS "Enable supported sanitizers in development buil
 option(PLAYER_ENABLE_CLANG_TIDY "Enable clang-tidy for project targets" OFF)
 
 find_package(
-    Qt6 ${PLAYER_QT_MIN_VERSION}
+    Qt6 ${PLAYER_QT_VERSION} EXACT
     REQUIRED COMPONENTS
         Core
         Gui
@@ -31,7 +31,7 @@ find_package(
         QuickControls2
 )
 
-qt_standard_project_setup(REQUIRES ${PLAYER_QT_MIN_VERSION})
+qt_standard_project_setup(REQUIRES ${PLAYER_QT_VERSION})
 
 add_subdirectory(src)
 

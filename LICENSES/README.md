@@ -2,11 +2,23 @@
 
 ## Status and purpose
 
-This document records the R0-03 dependency-license decisions for the Windows-first desktop player. It is an engineering compliance baseline, not legal advice.
+This document records the dependency-license decisions for the Windows-first desktop player. It is an engineering compliance baseline, not legal advice.
 
-The repository currently bundles no Qt, libmpv, FFmpeg, codec, platform-runtime, or other third-party binaries. Exact versions and hashes are pinned in R0-04; the actual binary manifest is verified again when libmpv is introduced and when the distributable package is assembled.
+The repository currently bundles no Qt, libmpv, FFmpeg, codec, platform-runtime, or other third-party binaries. R0-04 pins the versions and immutable upstream identity used for acquisition. Artifact SHA-256 values are recorded only after the exact source archives and binaries exist; the actual binary manifest is verified again when libmpv is introduced and when the distributable package is assembled.
 
 Distribution is prohibited if the shipped binaries, source archives, build options, notices, or license obligations cannot be matched exactly.
+
+## Pinned dependency identities
+
+The authoritative build-time values live in `cmake/DependencyVersions.cmake`:
+
+| Component | Pinned identity |
+|---|---|
+| Qt | `6.8.3`, official MSVC 2022 64-bit open-source kit/source archive |
+| mpv/libmpv | `0.41.0`, signed tag `v0.41.0`, commit `41f6a645068483470267271e1d09966ca3b9f413` |
+| FFmpeg | `8.0.3`, official release source used by the project-controlled libmpv build |
+
+These values identify the approved source baseline; they do not approve an unverified prebuilt DLL or replace the release-time dependency scan.
 
 ## Selected distribution model
 
@@ -26,19 +38,18 @@ A future Qt commercial-license path is possible only after an explicit user deci
 
 ### Approved source and license path
 
-- Source authority: the official Qt source archive and Qt Online Installer packages corresponding to the patch version pinned in R0-04.
-- Release family: Qt 6.8 series unless a later Atomic Task deliberately changes the baseline.
+- Source authority: the official Qt `6.8.3` source archive and Qt Online Installer MSVC 2022 64-bit package.
 - Approved application modules at the current scaffold stage: Qt Core, Qt Gui, Qt Qml, Qt Quick, and Qt Quick Controls 2.
 - License route: GNU Lesser General Public License version 3 for the approved open-source Qt libraries, dynamically linked as Qt DLLs and plugins.
 - Qt modules listed by Qt as GPL-only for open-source use are not approved for this product without a separate scope and licensing decision.
 
-The current approved modules are not on Qt 6.8's GPL-only module list. Their exact shipped plugins and embedded third-party components must still be derived from the selected Qt package and SBOM rather than assumed from the module name.
+The current approved modules are not treated as proof of the complete shipping inventory. Exact plugins and embedded third-party components must be derived from the selected Qt package and SBOM.
 
 ### Distribution obligations
 
 Before shipping a Qt-based package, the release process must:
 
-1. include the applicable LGPLv3 and GPLv3 license texts supplied with the selected Qt distribution;
+1. include the applicable LGPLv3 and GPLv3 license texts supplied with Qt `6.8.3`;
 2. state that the product uses Qt and identify the exact Qt version and modules shipped;
 3. provide the complete corresponding Qt source for the shipped libraries, including applied modifications, through a project-controlled source archive or a legally sufficient written offer;
 4. preserve the user's ability to replace or relink the dynamically linked Qt libraries and run the resulting application;
@@ -53,8 +64,8 @@ A link only to a third-party-hosted Qt source page is not treated as the project
 
 ### Approved source and build mode
 
-- Source authority: an official signed or otherwise verifiable release tag from `mpv-player/mpv`.
-- Exact tag and commit: pinned in R0-04 before dependency download or compilation.
+- Source authority: the official signed mpv release tag `v0.41.0`.
+- Release commit: `41f6a645068483470267271e1d09966ca3b9f413`.
 - Build ownership: project-controlled, reproducible build; arbitrary prebuilt libmpv DLLs are not accepted.
 - License mode: LGPLv2.1-or-later build using Meson's `-Dgpl=false` option.
 - Linkage: the application links dynamically to the libmpv DLL and import library.
@@ -79,8 +90,7 @@ If the selected mpv feature set requires GPL-only code, the feature must be remo
 
 ### Approved source and configuration
 
-- Source authority: an official FFmpeg release tag or commit matched to the selected mpv build.
-- Exact tag and commit: pinned with the libmpv dependency record.
+- Source authority: the official FFmpeg `8.0.3` release source selected for the project-controlled mpv `0.41.0` build.
 - License route: LGPLv2.1-or-later configuration.
 - Prohibited configure options: `--enable-gpl` and `--enable-nonfree`.
 - Preferred linkage: separate FFmpeg DLLs dynamically linked by libmpv, so replacement and license boundaries remain explicit.
@@ -93,7 +103,7 @@ GPL libraries and wrappers such as x264/x265, or any component that forces FFmpe
 
 The release record for FFmpeg must include:
 
-- exact source tag/commit and corresponding source archive;
+- exact source release and corresponding source archive hash;
 - FFmpeg license and copying files from that source;
 - full configure command, compiler identification, and enabled external-library list;
 - `git diff` or an equivalent changes patch;
@@ -145,10 +155,10 @@ The installer, About dialog, download page, and EULA must use the same dependenc
 
 A distributable build fails the license gate unless all of the following are true:
 
-- Qt modules and plugins are from the approved license path and exact version;
+- Qt modules and plugins are from the approved `6.8.3` license path;
 - Qt remains dynamically replaceable and the corresponding source is retained under project control;
-- libmpv was built from the approved official source with `-Dgpl=false`;
-- FFmpeg was built without `--enable-gpl` and without `--enable-nonfree`;
+- libmpv was built from mpv `v0.41.0` commit `41f6a645068483470267271e1d09966ca3b9f413` with `-Dgpl=false`;
+- FFmpeg `8.0.3` was built without `--enable-gpl` and without `--enable-nonfree`;
 - binary dependency scanning matches the declared manifest;
 - every transitive component has an approved license record;
 - exact license and notice files are included;
@@ -158,8 +168,8 @@ A distributable build fails the license gate unless all of the following are tru
 
 Copyright-license compliance does not itself grant patent rights. Codec patent exposure and regional distribution requirements remain separate release decisions.
 
-## R0-03 boundary
+## Atomic Task boundary
 
-R0-03 selects the license route, authoritative source locations, linkage policy, prohibited configurations, required notices, and release gates. R0-04 must pin exact dependency versions and hashes. R2-01 and packaging tasks must verify the real binaries against this policy.
+R0-03 selected the license route, authoritative source locations, linkage policy, prohibited configurations, required notices, and release gates. R0-04 pins the exact Qt, mpv/libmpv, and FFmpeg source identities in the shared version manifest. R2-01 and packaging tasks must acquire/build the artifacts, record their hashes and complete dependency graph, and verify the real binaries against this policy.
 
 No third-party runtime binary is approved or considered shipped by this document alone.

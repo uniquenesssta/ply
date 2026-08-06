@@ -7,11 +7,12 @@ A Windows-first, cross-platform-ready desktop player project. The product name i
 This repository is the first Git-ready framework commit. It currently provides:
 
 - a modular CMake/Ninja build entry;
-- a Qt 6.8+ Qt Quick application bootstrap;
+- a Qt 6.8.3 Qt Quick application bootstrap;
 - OpenGL selection before `QGuiApplication` creation;
 - a diagnostic QML loading boundary;
 - a minimal QML shell split into application window, player screen, video surface, player chrome, and theme ownership;
 - architecture decisions and the full development task book;
+- a pinned Windows/MSVC/Qt/CMake/Ninja/mpv/FFmpeg version matrix;
 - stable configure, build, and test entry scripts;
 - no bundled third-party runtime binaries.
 
@@ -144,10 +145,26 @@ Verified on 2026-08-07:
 - FFmpeg must remain LGPL-compatible and must not use `--enable-gpl` or `--enable-nonfree`;
 - static linking, unknown-license components, untracked transitive dependencies, missing corresponding source, and mismatched notices are release blockers;
 - packaging records must include exact versions, hashes, build options, linkage, notices, corresponding source, modifications, and dependency scans;
-- exact dependency versions and hashes remain assigned to R0-04, while actual binary verification remains assigned to integration and packaging tasks;
+- exact dependency versions are assigned to R0-04, while acquired artifact hashes and actual binary verification remain assigned to integration and packaging tasks;
 - no source code, dependency binary, build configuration, interface, or runtime behavior changed.
 
 R0-03 defines the engineering compliance route and release gate. It does not constitute legal advice or approve any binary that has not yet been selected and audited.
+
+### R0-04 — Complete
+
+Verified on 2026-08-07:
+
+- `cmake/DependencyVersions.cmake` is the single exact version source used by CMake and PowerShell tooling;
+- Windows, Windows SDK, Visual Studio, MSVC, Qt, CMake, Ninja, mpv/libmpv, FFmpeg, and C++ versions are pinned;
+- Qt, CMake, Ninja, libmpv, downloads, and FetchContent cache use one versioned repository-parent layout whose committed paths all begin with `../`;
+- automatic highest-version selection and generic unversioned tool paths were removed;
+- CMake requires the exact Qt patch and the pinned minimum CMake release;
+- PowerShell verification rejects mismatched toolchain versions and validates an installed libmpv manifest when Stage R2 files are present;
+- the bootstrap script creates only project-owned shared staging/cache directories and does not create or modify Qt, CMake, or Ninja installations;
+- clean-tree verification confirms shared dependencies resolve outside the repository and rejects staged SDK/cache/build directories;
+- no third-party SDK, archive, runtime binary, or generated build output was added to Git.
+
+R0-04 changes dependency-selection and validation behavior only. It does not download dependencies, build libmpv, or claim that the pinned Windows toolchain has been executed in this environment.
 
 ## Architecture boundary
 
@@ -190,36 +207,75 @@ src/presentation/qml/theme/Theme.qml
   Owns the small set of visual tokens required by the current shell.
 ```
 
-## Required toolchain
+## Pinned toolchain matrix
 
-Install on Windows:
+`cmake/DependencyVersions.cmake` is authoritative for development, CI, dependency acquisition, and release builds.
 
-- Git for Windows;
-- Visual Studio 2022 Community or Build Tools with **Desktop development with C++**;
-- MSVC v143 x64/x86 build tools and a Windows 10/11 SDK;
-- Qt 6.8 or newer with the **MSVC 2022 64-bit** kit;
-- PowerShell 7 or Windows PowerShell.
+| Component | Pinned baseline |
+|---|---|
+| Supported Windows minimum | Windows 10 22H2, build `10.0.19045` |
+| Primary Windows validation family | Windows 11 24H2, build `10.0.26100` |
+| Windows SDK | SDK family `10.0.26100.0`, servicing release `10.0.26100.8876` |
+| Visual Studio | Visual Studio 2022 `17.14.37`, installation build `17.14.37516.0` |
+| MSVC | v143 toolset `14.44`, compiler family `19.44`, x64 target |
+| Qt | Qt `6.8.3`, MSVC 2022 64-bit kit |
+| CMake | `3.31.12` |
+| Ninja | `1.13.2` |
+| mpv/libmpv | `0.41.0`, signed tag `v0.41.0`, commit `41f6a645068483470267271e1d09966ca3b9f413` |
+| FFmpeg for libmpv build | `8.0.3`, LGPL-compatible configuration required by R0-03 |
+| C++ | C++20 |
 
-Keep reusable portable packages directly beside the repository:
+A version change requires a separately reviewable Atomic Task. Local development and CI must not select a newer compatible installation silently.
+
+## Shared dependency workspace
+
+Keep reusable packages directly beside every repository that uses this baseline:
 
 ```text
 <parent>/
-├─ Qt/<version>/msvc2022_64/
-├─ libmpv/windows-x64/          # required from R2 onward
-├─ cmake/                       # optional standalone portable CMake
-├─ ninja/                       # optional standalone portable Ninja
+├─ Qt/6.8.3/msvc2022_64/
+├─ libmpv/0.41.0/windows-x64/
+├─ cmake/3.31.12/bin/cmake.exe
+├─ ninja/1.13.2/ninja.exe
 ├─ downloads/
 ├─ cache/cmake/fetchcontent/
 └─ <repository>/
 ```
 
-There is intentionally no named dependency-root directory. Every committed dependency path starts with `../`, so changing the repository folder name or moving the whole parent directory does not require editing paths.
+Committed dependency paths are derived from the pinned version manifest and always begin with `../`. There is no named aggregate dependency-root directory and no absolute machine path in source control.
 
-CMake 3.25 or newer and Ninja are discovered in this order: standalone copies under `../cmake` and `../ninja`, Qt Online Installer tools under `../Qt/Tools`, then system `PATH`. You therefore do not need to download duplicate copies when the Qt installation already contains them. `libmpv` is not required for this initial scaffold; its exact build and version will be pinned before R2-01.
+The same parent-level Qt, libmpv, CMake, Ninja, download archive, and FetchContent cache can be reused by a second sibling repository. Deleting this repository's `build/` directory does not delete or redownload those shared dependencies.
+
+`scripts/bootstrap-workspace.ps1` creates only these project-owned locations when missing:
+
+```text
+../libmpv/0.41.0/windows-x64/
+../downloads/
+../cache/cmake/fetchcontent/
+```
+
+It never creates or modifies installed Qt, CMake, or Ninja directories.
+
+When the libmpv SDK is installed during R2, its root must contain `dependency-manifest.json` with at least:
+
+```json
+{
+  "mpv": {
+    "version": "0.41.0",
+    "tag": "v0.41.0",
+    "commit": "41f6a645068483470267271e1d09966ca3b9f413"
+  },
+  "ffmpeg": {
+    "version": "8.0.3"
+  }
+}
+```
+
+Artifact SHA-256 values, complete build flags, and transitive dependency records are added to that manifest when the source archives and binaries actually exist; they are not guessed in R0-04.
 
 ## Configure and build
 
-Open an x64 Native Tools Command Prompt for Visual Studio 2022, then run:
+Install the exact pinned toolchain under the shared workspace and open the x64 Native Tools Command Prompt for Visual Studio 2022 `17.14.37`, then run:
 
 ```powershell
 ./scripts/verify-project-layout.ps1
@@ -229,9 +285,7 @@ Open an x64 Native Tools Command Prompt for Visual Studio 2022, then run:
 ./scripts/build.ps1
 ```
 
-`bootstrap-workspace.ps1` creates only the project-owned shared locations `../libmpv/windows-x64`, `../downloads`, and `../cache/cmake/fetchcontent`. It does not create or modify the installed `../Qt`, `../cmake`, or `../ninja` directories, and it does not download packages.
-
-The active MSVC target must be x64. `scripts/verify-dependencies.ps1` rejects an x86 developer shell before CMake configuration, because a 32-bit compiler cannot consume the Qt MSVC 2022 64-bit kit.
+`verify-dependencies.ps1` rejects a mismatched Qt patch, CMake/Ninja version, Visual Studio release, MSVC compiler family, Windows SDK, or target architecture. It reports libmpv as optional until Stage R2; once libmpv headers exist, the version manifest becomes mandatory.
 
 Run the generated executable from:
 
@@ -261,6 +315,7 @@ git push -u origin main
 Before committing, verify that no build output or local runtime files are staged:
 
 ```powershell
+./scripts/verify-clean-tree.ps1
 git status
 ```
 
@@ -272,6 +327,8 @@ A file may receive new code only when the code has the same responsibility and r
 
 - Full execution plan: `docs/plans/Qt6-libmpv播放器-完整模块化开发任务书.md`
 - Third-party license inventory: `LICENSES/README.md`
+- Toolchain version manifest: `cmake/DependencyVersions.cmake`
+- Shared dependency paths: `cmake/DependencyPaths.cmake`
 - Render API decision: `docs/decisions/ADR-0001-libmpv-render-api.md`
 - OpenGL decision: `docs/decisions/ADR-0002-opengl-first.md`
 - Playback-state ownership: `docs/decisions/ADR-0003-single-playback-owner.md`
@@ -282,32 +339,33 @@ A file may receive new code only when the code has the same responsibility and r
 
 Validated in the generation environment:
 
-- CMake preset JSON is syntactically valid.
-- Top-level CMake parsing reaches the Qt dependency-resolution boundary without an earlier syntax or module-reference failure.
-- The repository contains no build output, runtime database, logs, or IDE state.
-- CMake module and source references resolve to files inside the repository.
-- QML root, shell, screen, feature, and theme files are present with distinct responsibilities.
-- The R0-02 README scope matches the task book's mandatory, deferred, and excluded capability lists.
-- Every mandatory MVP capability group has an observable acceptance condition.
-- The R0-03 inventory covers every dependency category required by the task book.
-- The selected Qt, mpv, and FFmpeg license modes match their official licensing documentation.
-- The documented release gate rejects GPL-enabled/nonfree configurations, unverified binaries, and untracked transitive dependencies.
+- `CMakePresets.json` is syntactically valid and requires CMake `3.31.12`;
+- `cmake/DependencyVersions.cmake` parses successfully and contains every required matrix entry exactly once;
+- CMake and PowerShell derive the same exact versioned repository-parent paths;
+- every committed shared dependency path begins with `../` and no absolute path is stored;
+- CMake requests Qt `6.8.3` with `EXACT` matching;
+- the PowerShell dependency scripts use the version manifest rather than selecting the highest discovered installation;
+- the workspace bootstrap does not create or modify Qt, CMake, or Ninja directories;
+- the libmpv manifest contract includes the pinned mpv release/tag/commit and FFmpeg release;
+- no third-party SDK, archive, runtime binary, cache, or generated build output was added to the repository;
+- previous R0-01 through R0-03 documentation and architecture records remain present.
 
 Not executed in the generation environment:
 
-- Qt configure and compilation, because Qt 6 is not installed in the container.
-- QML runtime launch, for the same reason.
-- libmpv verification, because libmpv integration is not part of this framework commit.
-- Runtime MVP acceptance, because R0-02 defines scope and does not implement playback capabilities.
-- Binary license scanning, because no Qt, libmpv, FFmpeg, or transitive runtime binary has been selected or committed yet.
-- Legal-counsel and codec-patent review, which remain required before public distribution.
+- Windows PowerShell script execution, because the connected execution environment is not Windows and does not contain PowerShell;
+- exact Windows/Visual Studio/MSVC/Qt/CMake/Ninja verification, because the pinned Windows toolchain is not installed in the environment;
+- Qt configure, compilation, QML runtime launch, or CTest for the same reason;
+- libmpv binary verification, because libmpv integration begins in Stage R2;
+- binary license scanning, because no Qt, libmpv, FFmpeg, or transitive runtime binary is committed;
+- legal-counsel and codec-patent review, which remain required before public distribution.
 
-The first local action after cloning is to place the Qt MSVC kit under `../Qt/<version>/msvc2022_64`, then run `scripts/verify-dependencies.ps1`, `scripts/configure.ps1`, and `scripts/build.ps1` from an MSVC developer shell.
+The first Windows validation action after cloning is to install the exact matrix under the documented sibling paths, open the pinned x64 Visual Studio developer shell, and run `scripts/verify-dependencies.ps1`, `scripts/configure.ps1`, `scripts/build.ps1`, and `scripts/test.ps1`.
 
 ## Change Log
 
 ### 2026-08-07
 
+- Completed Atomic Task R0-04 by pinning the Windows/MSVC/Qt/CMake/Ninja/mpv/FFmpeg matrix, replacing automatic tool discovery with exact versioned sibling paths, and adding strict dependency and Git-boundary validation.
 - Completed Atomic Task R0-03 by selecting the LGPL-compatible dynamic-linking route for Qt, libmpv, and FFmpeg and defining source, notice, manifest, transitive-dependency, and release-blocking requirements.
 - Completed Atomic Task R0-02 by freezing the first-release scope, adding observable acceptance for every mandatory MVP capability group, and separating deferred and excluded capabilities.
 - Completed and verified Atomic Task R0-01 governance and repository baseline; confirmed all required root artifacts and a generated-artifact-free tracked Git tree.

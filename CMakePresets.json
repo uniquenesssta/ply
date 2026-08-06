@@ -2,8 +2,8 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 25,
-    "patch": 0
+    "minor": 31,
+    "patch": 12
   },
   "configurePresets": [
     {
@@ -13,8 +13,6 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "PLAYER_LIBMPV_ROOT": "../libmpv/windows-x64",
-        "PLAYER_FETCHCONTENT_ROOT": "../cache/cmake/fetchcontent",
         "PLAYER_BUILD_TESTS": "ON"
       }
     },

@@ -7,12 +7,15 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$modulePath = Join-Path $PSScriptRoot "modules/DependencyPaths.psm1"
-Import-Module $modulePath -Force
+$versionModulePath = Join-Path $PSScriptRoot "modules/DependencyVersions.psm1"
+$pathModulePath = Join-Path $PSScriptRoot "modules/DependencyPaths.psm1"
+Import-Module $versionModulePath -Force
+Import-Module $pathModulePath -Force
 
 Push-Location $projectRoot
 try {
-    $layout = Get-PlayerWorkspaceLayout -ProjectRoot $projectRoot
+    $versions = Get-PlayerDependencyVersions -ProjectRoot $projectRoot
+    $layout = Get-PlayerWorkspaceLayout -ProjectRoot $projectRoot -Versions $versions
     $cmake = Resolve-PlayerCMake -Layout $layout
 
     & $cmake --build --preset $Preset

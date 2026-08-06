@@ -13,6 +13,8 @@ $requiredFiles = @(
     "cmake/DependencyVersions.cmake",
     "cmake/Sanitizers.cmake",
     "cmake/StaticAnalysis.cmake",
+    "scripts/modules/DependencyPaths.psm1",
+    "scripts/modules/DependencyVersions.psm1",
     "src/CMakeLists.txt",
     "src/app/CMakeLists.txt",
     "src/app/main.cpp",

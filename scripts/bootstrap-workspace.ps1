@@ -2,22 +2,26 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$modulePath = Join-Path $PSScriptRoot "modules/DependencyPaths.psm1"
-Import-Module $modulePath -Force
+$versionModulePath = Join-Path $PSScriptRoot "modules/DependencyVersions.psm1"
+$pathModulePath = Join-Path $PSScriptRoot "modules/DependencyPaths.psm1"
+Import-Module $versionModulePath -Force
+Import-Module $pathModulePath -Force
 
 Push-Location $projectRoot
 try {
-    $layout = Get-PlayerWorkspaceLayout -ProjectRoot $projectRoot
+    $versions = Get-PlayerDependencyVersions -ProjectRoot $projectRoot
+    $layout = Get-PlayerWorkspaceLayout -ProjectRoot $projectRoot -Versions $versions
     Initialize-PlayerDependencyLayout -Layout $layout
 
-    Write-Host "Repository-parent dependency layout is ready:"
-    Write-Host "  Parent:       .."
-    Write-Host "  Qt:           ../Qt/<version>/msvc2022_64"
-    Write-Host "  libmpv:       ../libmpv/windows-x64"
-    Write-Host "  CMake:        ../cmake"
-    Write-Host "  Ninja:        ../ninja"
-    Write-Host "  Downloads:    ../downloads"
-    Write-Host "  Cache:        ../cache"
+    Write-Host "Pinned repository-parent dependency layout is ready:"
+    Write-Host "  Qt:           $($layout.QtRootRelative)"
+    Write-Host "  libmpv:       $($layout.LibMpvRootRelative)"
+    Write-Host "  CMake:        $($layout.CMakeRootRelative)"
+    Write-Host "  Ninja:        $($layout.NinjaRootRelative)"
+    Write-Host "  Downloads:    $($layout.DownloadsRootRelative)"
+    Write-Host "  FetchContent: $($layout.FetchContentRootRelative)"
+    Write-Host ""
+    Write-Host "Qt, CMake, and Ninja installation directories are not created or modified by this script."
 }
 finally {
     Pop-Location

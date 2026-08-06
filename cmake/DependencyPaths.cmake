@@ -1,104 +1,57 @@
 include_guard(GLOBAL)
 
-# Reusable third-party packages live directly beside the repository.
-# The repository name and its absolute location are irrelevant; every committed
-# path starts from the source directory and moves exactly one level up with ../.
-#
-# Example:
-#   ../Qt/<version>/msvc2022_64
-#   ../libmpv/windows-x64
-#   ../cache/cmake/fetchcontent
-#
-# CMake may normalize these paths internally while configuring, but source-
-# controlled files never store a machine-specific absolute path.
-set(
+foreach(_required_version_variable IN ITEMS
+    PLAYER_QT_VERSION
+    PLAYER_CMAKE_VERSION
+    PLAYER_NINJA_VERSION
+    PLAYER_MPV_VERSION
+)
+    if(NOT DEFINED ${_required_version_variable} OR "${${_required_version_variable}}" STREQUAL "")
+        message(FATAL_ERROR
+            "${_required_version_variable} must be defined by cmake/DependencyVersions.cmake before DependencyPaths is included."
+        )
+    endif()
+endforeach()
+
+# Reusable third-party packages live directly beside the repository. These are
+# the only committed dependency locations; every path begins with ../ and can be
+# reused by another repository placed under the same parent directory.
+set(PLAYER_QT_ROOT "../Qt/${PLAYER_QT_VERSION}/msvc2022_64" CACHE INTERNAL "Pinned Qt kit root")
+set(PLAYER_LIBMPV_ROOT "../libmpv/${PLAYER_MPV_VERSION}/windows-x64" CACHE INTERNAL "Pinned libmpv SDK/runtime root")
+set(PLAYER_CMAKE_ROOT "../cmake/${PLAYER_CMAKE_VERSION}" CACHE INTERNAL "Pinned portable CMake root")
+set(PLAYER_NINJA_ROOT "../ninja/${PLAYER_NINJA_VERSION}" CACHE INTERNAL "Pinned portable Ninja root")
+set(PLAYER_DOWNLOADS_ROOT "../downloads" CACHE INTERNAL "Shared dependency download archive root")
+set(PLAYER_FETCHCONTENT_ROOT "../cache/cmake/fetchcontent" CACHE INTERNAL "Shared CMake FetchContent cache")
+
+function(player_validate_dependency_path variable_name)
+    set(_path "${${variable_name}}")
+    if(IS_ABSOLUTE "${_path}" OR NOT "${_path}" MATCHES "^\\.\\./")
+        message(FATAL_ERROR
+            "${variable_name} must be repository-parent-relative and begin with ../; received '${_path}'."
+        )
+    endif()
+endfunction()
+
+foreach(_dependency_path_variable IN ITEMS
     PLAYER_QT_ROOT
-    ""
-    CACHE STRING
-    "Repository-parent-relative Qt MSVC 2022 x64 kit root discovered under ../Qt"
-)
-
-set(
     PLAYER_LIBMPV_ROOT
-    "../libmpv/windows-x64"
-    CACHE STRING
-    "Repository-parent-relative libmpv SDK root; integration begins in R2"
-    FORCE
-)
-
-set(
+    PLAYER_CMAKE_ROOT
+    PLAYER_NINJA_ROOT
+    PLAYER_DOWNLOADS_ROOT
     PLAYER_FETCHCONTENT_ROOT
-    "../cache/cmake/fetchcontent"
-    CACHE STRING
-    "Repository-parent-relative shared CMake FetchContent cache"
-    FORCE
 )
+    player_validate_dependency_path(${_dependency_path_variable})
+endforeach()
 
-set(_player_parent_root "${CMAKE_SOURCE_DIR}/..")
+set(_player_qt_root "${CMAKE_SOURCE_DIR}/${PLAYER_QT_ROOT}")
 set(_player_fetchcontent_root "${CMAKE_SOURCE_DIR}/${PLAYER_FETCHCONTENT_ROOT}")
 set(FETCHCONTENT_BASE_DIR "${_player_fetchcontent_root}" CACHE PATH "Shared FetchContent base directory" FORCE)
 
-function(player_find_default_qt_root output_variable)
-    set(_qt_candidates)
-
-    foreach(_qt_base IN ITEMS
-        "${_player_parent_root}/Qt"
-        "${_player_parent_root}/qt"
-    )
-        if(EXISTS "${_qt_base}")
-            file(
-                GLOB _qt_version_candidates
-                LIST_DIRECTORIES TRUE
-                "${_qt_base}/*/msvc2022_64"
-            )
-            list(APPEND _qt_candidates ${_qt_version_candidates})
-
-            if(EXISTS "${_qt_base}/msvc2022_64")
-                list(APPEND _qt_candidates "${_qt_base}/msvc2022_64")
-            endif()
-        endif()
-    endforeach()
-
-    list(REMOVE_DUPLICATES _qt_candidates)
-    list(SORT _qt_candidates COMPARE NATURAL ORDER DESCENDING)
-
-    foreach(_candidate IN LISTS _qt_candidates)
-        if(EXISTS "${_candidate}/lib/cmake/Qt6/Qt6Config.cmake")
-            file(RELATIVE_PATH _relative_qt_root "${CMAKE_SOURCE_DIR}" "${_candidate}")
-            set(${output_variable} "${_relative_qt_root}" PARENT_SCOPE)
-            return()
-        endif()
-    endforeach()
-
-    set(${output_variable} "" PARENT_SCOPE)
-endfunction()
-
-if(PLAYER_QT_ROOT STREQUAL "")
-    player_find_default_qt_root(_player_qt_root)
-    set(
-        PLAYER_QT_ROOT
-        "${_player_qt_root}"
-        CACHE STRING
-        "Repository-parent-relative Qt MSVC 2022 x64 kit root discovered under ../Qt"
-        FORCE
-    )
-endif()
-
-if(PLAYER_QT_ROOT STREQUAL "")
-    message(FATAL_ERROR
-        "Qt 6 was not found in the repository parent directory.\n"
-        "Expected: ../Qt/<version>/msvc2022_64\n"
-        "Install the Qt MSVC 2022 64-bit kit beside the repository."
-    )
-endif()
-
-set(_player_qt_root "${CMAKE_SOURCE_DIR}/${PLAYER_QT_ROOT}")
-
 if(NOT EXISTS "${_player_qt_root}/lib/cmake/Qt6/Qt6Config.cmake")
     message(FATAL_ERROR
-        "PLAYER_QT_ROOT is invalid: ${PLAYER_QT_ROOT}\n"
-        "Expected Qt6Config.cmake under lib/cmake/Qt6.\n"
-        "Qt must remain at ../Qt/<version>/msvc2022_64."
+        "Pinned Qt ${PLAYER_QT_VERSION} MSVC 2022 x64 kit was not found.\n"
+        "Expected: ${PLAYER_QT_ROOT}/lib/cmake/Qt6/Qt6Config.cmake\n"
+        "Run scripts/bootstrap-workspace.ps1 for the required layout, then install the exact Qt kit."
     )
 endif()
 
