@@ -17,6 +17,22 @@ This repository is the first Git-ready framework commit. It currently provides:
 
 The scaffold intentionally does **not** yet implement libmpv loading, playback commands, playback state, rendering, persistence, settings, playlists, platform integrations, or packaging. Those responsibilities will be introduced only in their Atomic Tasks.
 
+## Atomic Task status
+
+### R0-01 — Complete
+
+Verified on 2026-08-07:
+
+- the Git repository is initialized on `main`;
+- `ALL_AI_CODE.md` and `AI_PROJECT_RULES.md` are readable at the repository root;
+- `README.md` contains the project baseline and canonical `Change Log`;
+- the complete development task book is tracked under `docs/plans/`;
+- the top-level `CMakeLists.txt` is present;
+- `.gitignore` excludes CMake/Qt outputs, runtime logs and databases, IDE state, packaging output, and local environment files;
+- the tracked Git tree contains no build output, generated runtime data, database files, logs, or IDE state.
+
+No source, dependency, interface, configuration, or runtime behavior changed for R0-01. The existing first commit already contained the required governance and repository baseline, so this Atomic Task records and verifies that baseline without duplicating files or modifying later-stage implementation.
+
 ## Architecture boundary
 
 ```text
@@ -167,6 +183,7 @@ The first local action after cloning is to place the Qt MSVC kit under `../Qt/<v
 
 ### 2026-08-07
 
+- Completed and verified Atomic Task R0-01 governance and repository baseline; confirmed all required root artifacts and a generated-artifact-free tracked Git tree.
 - Disabled automatic C++ QML type registration for the QML-only scaffold so Qt does not feed an empty or malformed generated metatypes JSON file to `qmltyperegistrar`; this must be removed when the first `Q_OBJECT`/`QML_ELEMENT` type is introduced.
 - Fixed workspace bootstrap path resolution so PowerShell location changes cannot redirect `../` creation into the Visual Studio installation directory.
 - Stopped bootstrap from creating or touching Qt, CMake, and Ninja installation directories.
