@@ -134,6 +134,21 @@ Verified on 2026-08-07:
 
 R0-02 freezes product boundaries only. It does not claim that any MVP playback capability is already implemented or verified at runtime.
 
+### R0-03 — Complete
+
+Verified on 2026-08-07:
+
+- `LICENSES/README.md` identifies authoritative sources and distribution obligations for Qt, libmpv, FFmpeg, transitive dependencies, and the MSVC runtime;
+- the selected Qt open-source route uses dynamically linked LGPLv3 components and excludes GPL-only Qt modules unless separately approved;
+- libmpv must be built reproducibly from the official mpv source with `-Dgpl=false` and may not be replaced by an unverified prebuilt DLL;
+- FFmpeg must remain LGPL-compatible and must not use `--enable-gpl` or `--enable-nonfree`;
+- static linking, unknown-license components, untracked transitive dependencies, missing corresponding source, and mismatched notices are release blockers;
+- packaging records must include exact versions, hashes, build options, linkage, notices, corresponding source, modifications, and dependency scans;
+- exact dependency versions and hashes remain assigned to R0-04, while actual binary verification remains assigned to integration and packaging tasks;
+- no source code, dependency binary, build configuration, interface, or runtime behavior changed.
+
+R0-03 defines the engineering compliance route and release gate. It does not constitute legal advice or approve any binary that has not yet been selected and audited.
+
 ## Architecture boundary
 
 ```text
@@ -256,6 +271,7 @@ A file may receive new code only when the code has the same responsibility and r
 ## Documentation
 
 - Full execution plan: `docs/plans/Qt6-libmpv播放器-完整模块化开发任务书.md`
+- Third-party license inventory: `LICENSES/README.md`
 - Render API decision: `docs/decisions/ADR-0001-libmpv-render-api.md`
 - OpenGL decision: `docs/decisions/ADR-0002-opengl-first.md`
 - Playback-state ownership: `docs/decisions/ADR-0003-single-playback-owner.md`
@@ -273,6 +289,9 @@ Validated in the generation environment:
 - QML root, shell, screen, feature, and theme files are present with distinct responsibilities.
 - The R0-02 README scope matches the task book's mandatory, deferred, and excluded capability lists.
 - Every mandatory MVP capability group has an observable acceptance condition.
+- The R0-03 inventory covers every dependency category required by the task book.
+- The selected Qt, mpv, and FFmpeg license modes match their official licensing documentation.
+- The documented release gate rejects GPL-enabled/nonfree configurations, unverified binaries, and untracked transitive dependencies.
 
 Not executed in the generation environment:
 
@@ -280,6 +299,8 @@ Not executed in the generation environment:
 - QML runtime launch, for the same reason.
 - libmpv verification, because libmpv integration is not part of this framework commit.
 - Runtime MVP acceptance, because R0-02 defines scope and does not implement playback capabilities.
+- Binary license scanning, because no Qt, libmpv, FFmpeg, or transitive runtime binary has been selected or committed yet.
+- Legal-counsel and codec-patent review, which remain required before public distribution.
 
 The first local action after cloning is to place the Qt MSVC kit under `../Qt/<version>/msvc2022_64`, then run `scripts/verify-dependencies.ps1`, `scripts/configure.ps1`, and `scripts/build.ps1` from an MSVC developer shell.
 
@@ -287,6 +308,7 @@ The first local action after cloning is to place the Qt MSVC kit under `../Qt/<v
 
 ### 2026-08-07
 
+- Completed Atomic Task R0-03 by selecting the LGPL-compatible dynamic-linking route for Qt, libmpv, and FFmpeg and defining source, notice, manifest, transitive-dependency, and release-blocking requirements.
 - Completed Atomic Task R0-02 by freezing the first-release scope, adding observable acceptance for every mandatory MVP capability group, and separating deferred and excluded capabilities.
 - Completed and verified Atomic Task R0-01 governance and repository baseline; confirmed all required root artifacts and a generated-artifact-free tracked Git tree.
 - Disabled automatic C++ QML type registration for the QML-only scaffold so Qt does not feed an empty or malformed generated metatypes JSON file to `qmltyperegistrar`; this must be removed when the first `Q_OBJECT`/`QML_ELEMENT` type is introduced.
