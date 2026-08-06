@@ -6,6 +6,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $requiredFiles = @(
     "CMakeLists.txt",
     "CMakePresets.json",
+    "cmake/CMakeLists.txt",
     "cmake/AppTargets.cmake",
     "cmake/CompilerOptions.cmake",
     "cmake/CompilerWarnings.cmake",
@@ -42,4 +43,56 @@ Restore the complete scaffold before configuring.
 "@
 }
 
-Write-Host "Project layout is complete."
+$topLevelCMakePath = Join-Path $projectRoot "CMakeLists.txt"
+$topLevelCMake = Get-Content -LiteralPath $topLevelCMakePath -Raw
+
+$requiredTopLevelFragments = @(
+    "option(PLAYER_BUILD_TESTS",
+    "include(CTest)",
+    "add_subdirectory(cmake)"
+)
+
+foreach ($fragment in $requiredTopLevelFragments) {
+    if (-not $topLevelCMake.Contains($fragment)) {
+        throw "Top-level CMake orchestration is missing required fragment: $fragment"
+    }
+}
+
+$forbiddenTopLevelFragments = @(
+    "find_package(",
+    "qt_standard_project_setup(",
+    "qt_add_executable(",
+    "add_executable(",
+    "add_library(",
+    "target_sources(",
+    "target_link_libraries(",
+    "install(",
+    "add_subdirectory(src)",
+    "add_subdirectory(tests)"
+)
+
+foreach ($fragment in $forbiddenTopLevelFragments) {
+    if ($topLevelCMake.Contains($fragment)) {
+        throw "Top-level CMake contains responsibility that must remain below cmake/: $fragment"
+    }
+}
+
+$orchestratorPath = Join-Path $projectRoot "cmake/CMakeLists.txt"
+$orchestrator = Get-Content -LiteralPath $orchestratorPath -Raw
+
+$requiredOrchestratorFragments = @(
+    "include(DependencyVersions)",
+    "include(DependencyPaths)",
+    "include(AppTargets)",
+    'Qt6 ${PLAYER_QT_VERSION} EXACT',
+    'add_subdirectory("${PROJECT_SOURCE_DIR}/src" "${PROJECT_BINARY_DIR}/src")',
+    'add_subdirectory("${PROJECT_SOURCE_DIR}/tests" "${PROJECT_BINARY_DIR}/tests")'
+)
+
+foreach ($fragment in $requiredOrchestratorFragments) {
+    if (-not $orchestrator.Contains($fragment)) {
+        throw "cmake/CMakeLists.txt is missing required orchestration fragment: $fragment"
+    }
+}
+
+Write-Host "Project layout and CMake responsibility boundaries are complete."

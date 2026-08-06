@@ -4,9 +4,10 @@ A Windows-first, cross-platform-ready desktop player project. The product name i
 
 ## Current baseline
 
-This repository is the first Git-ready framework commit. It currently provides:
+This repository is the active R1 modular build scaffold. It currently provides:
 
-- a modular CMake/Ninja build entry;
+- a root CMake entry limited to mandatory project/testing bootstrap and delegation to `cmake/CMakeLists.txt`;
+- responsibility-separated CMake modules for dependency, compiler, analysis, target, source, and test configuration;
 - a Qt 6.8.3 Qt Quick application bootstrap;
 - OpenGL selection before `QGuiApplication` creation;
 - a diagnostic QML loading boundary;
@@ -182,6 +183,29 @@ Verified on 2026-08-07:
 
 R0-05 freezes the rendering architecture and lifecycle contract. Actual libmpv rendering, runtime thread assertions, resize/DPI behavior, and shutdown-race tests remain assigned to Stages R2 and R4.
 
+### R0-06 — Skipped by explicit user direction
+
+On 2026-08-07 the user directed the project to proceed directly to Stage R1 without implementing R0-06.
+
+- no media fixture policy, manifest, sample, or legal-source record was added or changed;
+- R0-06 is not accepted or complete;
+- later playback tests must not claim complete legal fixture coverage until this task is deliberately resumed or replaced by an approved equivalent.
+
+### R1-01 — Implemented; exact Windows validation pending
+
+Implemented on 2026-08-07 in the shared R1 stage branch:
+
+- the root `CMakeLists.txt` now owns only mandatory project declaration, the existing test gate, top-level CTest enablement, and delegation to `cmake/`;
+- new `cmake/CMakeLists.txt` owns dependency/version module loading, build options, exact Qt resolution, Qt project setup, and source/test directory orchestration;
+- `src/CMakeLists.txt`, `src/app/CMakeLists.txt`, `src/presentation/CMakeLists.txt`, and `tests/CMakeLists.txt` remain the authoritative target/source/test boundaries;
+- application output remains under `build/<preset>/src/Player.exe`;
+- `scripts/verify-project-layout.ps1` now requires the build orchestrator and rejects dependency lookup, target creation, target mutation, installation, or direct source/test orchestration in the root file;
+- no application source, public interface, dependency version, runtime behavior, QML behavior, or package content changed.
+
+A controlled structural verification completed configure, compilation, and the root `test` target using CMake 3.31.6 with a local Qt 6.8.3 contract package and stub source implementations. This verifies CMake scope propagation, child binary directories, target configuration, output placement, and root CTest discovery without claiming a real Qt/MSVC build.
+
+R1-01 remains pending its hard acceptance check until the pinned Windows 10/11, Visual Studio 17.14.37, MSVC 19.44, Windows SDK 10.0.26100.0, CMake 3.31.12, Ninja 1.13.2, and Qt 6.8.3 environment successfully runs `scripts/configure.ps1` and `scripts/build.ps1`.
+
 ## Architecture boundary
 
 ```text
@@ -194,9 +218,24 @@ libmpv adapter (future R2)
 libmpv
 ```
 
-Current source responsibilities:
+Current build and source responsibilities:
 
 ```text
+CMakeLists.txt
+  Owns only project declaration, the existing test gate, top-level CTest
+  enablement, and delegation to cmake/.
+
+cmake/CMakeLists.txt
+  Owns global build orchestration: version/path modules, compiler policies,
+  Qt package resolution, and entry into src/ and tests/.
+
+cmake/*.cmake
+  Each owns one reusable build responsibility such as dependency identity,
+  dependency paths, compiler policy, analysis, or application target policy.
+
+src/CMakeLists.txt
+  Owns creation/finalization and installation of the application target.
+
 src/app/main.cpp
   Creates the process and delegates startup.
 
@@ -221,6 +260,9 @@ src/presentation/qml/features/player/chrome/PlayerChrome.qml
 
 src/presentation/qml/theme/Theme.qml
   Owns the small set of visual tokens required by the current shell.
+
+tests/CMakeLists.txt
+  Owns test target registration when independently testable modules exist.
 ```
 
 ## Pinned toolchain matrix
@@ -301,7 +343,7 @@ Install the exact pinned toolchain under the shared workspace and open the x64 N
 ./scripts/build.ps1
 ```
 
-`verify-dependencies.ps1` rejects a mismatched Qt patch, CMake/Ninja version, Visual Studio release, MSVC compiler family, Windows SDK, or target architecture. It reports libmpv as optional until Stage R2; once libmpv headers exist, the version manifest becomes mandatory.
+`verify-project-layout.ps1` validates both required files and the R1 CMake responsibility boundary before dependency checks begin. `verify-dependencies.ps1` rejects a mismatched Qt patch, CMake/Ninja version, Visual Studio release, MSVC compiler family, Windows SDK, or target architecture. It reports libmpv as optional until Stage R2; once libmpv headers exist, the version manifest becomes mandatory.
 
 Run the generated executable from:
 
@@ -343,13 +385,14 @@ A file may receive new code only when the code has the same responsibility and r
 
 - Full execution plan: `docs/plans/Qt6-libmpv播放器-完整模块化开发任务书.md`
 - Third-party license inventory: `LICENSES/README.md`
+- Build orchestrator: `cmake/CMakeLists.txt`
 - Toolchain version manifest: `cmake/DependencyVersions.cmake`
 - Shared dependency paths: `cmake/DependencyPaths.cmake`
 - Render embedding and lifecycle decision: `docs/decisions/ADR-0001-libmpv-render-api.md`
 - OpenGL and Qt Quick FBO decision: `docs/decisions/ADR-0002-opengl-first.md`
 - Playback-state ownership: `docs/decisions/ADR-0003-single-playback-owner.md`
 - QML boundaries: `docs/decisions/ADR-0004-qml-boundaries.md`
-- Media fixture policy: `docs/testing/media-fixture-policy.md`
+- Media fixture policy: `docs/testing/media-fixture-policy.md` (existing baseline only; R0-06 was skipped and not accepted)
 
 ## Validation record
 
@@ -364,27 +407,33 @@ Validated in the generation environment:
 - the workspace bootstrap does not create or modify Qt, CMake, or Ninja directories;
 - the libmpv manifest contract includes the pinned mpv release/tag/commit and FFmpeg release;
 - no third-party SDK, archive, runtime binary, cache, or generated build output was added to the repository;
-- previous R0-01 through R0-04 documentation and architecture records remain present;
+- previous R0-01 through R0-05 documentation and architecture records remain present;
+- R0-06 is explicitly recorded as skipped rather than complete;
+- the root CMake file contains no dependency lookup, Qt setup, target creation/mutation, installation, or direct source/test subdirectory logic;
+- `cmake/CMakeLists.txt` owns all global build modules and adds the existing source and test boundaries with explicit binary directories;
+- a controlled CMake 3.31.6 structural run configured, compiled, linked `src/Player`, generated the root CTest file, and executed the empty `test` target successfully;
 - the R0-05 ADRs explicitly choose Render API over `wid` and define OpenGL, QQuickFramebufferObject, thread ownership, callback constraints, initialization, failure, and destruction order;
-- `src/app/main.cpp` invokes graphics backend configuration before `QGuiApplication`, and `GraphicsBackendBootstrap` selects `QSGRendererInterface::OpenGL`;
-- R0-05 introduces no parallel renderer, native-window fallback, new dependency, or runtime implementation.
+- `src/app/main.cpp` invokes graphics backend configuration before `QGuiApplication`, and `GraphicsBackendBootstrap` selects `QSGRendererInterface::OpenGL`.
 
 Not executed in the generation environment:
 
 - Windows PowerShell script execution, because the connected execution environment is not Windows and does not contain PowerShell;
 - exact Windows/Visual Studio/MSVC/Qt/CMake/Ninja verification, because the pinned Windows toolchain is not installed in the environment;
-- Qt configure, compilation, QML runtime launch, or CTest for the same reason;
+- configure and compilation against the real Qt 6.8.3 MSVC kit, so R1-01 hard acceptance remains pending;
+- QML runtime launch or CTest against the real application for the same reason;
 - libmpv Render API initialization and frame rendering, because those implementations begin in Stages R2 and R4;
 - render-thread assertions, resize/DPI/minimize behavior, repeated render-context creation/destruction, and shutdown-race tests, because the render modules do not exist yet;
 - binary license scanning, because no Qt, libmpv, FFmpeg, or transitive runtime binary is committed;
 - legal-counsel and codec-patent review, which remain required before public distribution.
 
-The first Windows validation action after cloning is to install the exact matrix under the documented sibling paths, open the pinned x64 Visual Studio developer shell, and run `scripts/verify-dependencies.ps1`, `scripts/configure.ps1`, `scripts/build.ps1`, and `scripts/test.ps1`.
+The required Windows acceptance action for R1-01 is to install the exact matrix under the documented sibling paths, open the pinned x64 Visual Studio developer shell, and run `scripts/verify-project-layout.ps1`, `scripts/verify-dependencies.ps1`, `scripts/configure.ps1`, and `scripts/build.ps1`.
 
 ## Change Log
 
 ### 2026-08-07
 
+- Started Stage R1 on `agent/r1-stage` and implemented R1-01 by moving global dependency, Qt, compiler, target, source, and test orchestration under `cmake/`, reducing the root build file to mandatory bootstrap/delegation, and adding a build-boundary verifier.
+- Recorded R0-06 as explicitly skipped by user direction; it remains unaccepted and must not be represented as completed fixture coverage.
 - Completed Atomic Task R0-05 by freezing the libmpv Render API, OpenGL/QQuickFramebufferObject integration, thread ownership, callback behavior, startup failure policy, and render-before-core shutdown order.
 - Completed Atomic Task R0-04 by pinning the Windows/MSVC/Qt/CMake/Ninja/mpv/FFmpeg matrix, replacing automatic tool discovery with exact versioned sibling paths, and adding strict dependency and Git-boundary validation.
 - Completed Atomic Task R0-03 by selecting the LGPL-compatible dynamic-linking route for Qt, libmpv, and FFmpeg and defining source, notice, manifest, transitive-dependency, and release-blocking requirements.
