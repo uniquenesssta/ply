@@ -17,6 +17,94 @@ This repository is the first Git-ready framework commit. It currently provides:
 
 The scaffold intentionally does **not** yet implement libmpv loading, playback commands, playback state, rendering, persistence, settings, playlists, platform integrations, or packaging. Those responsibilities will be introduced only in their Atomic Tasks.
 
+## Scope
+
+### Product target
+
+The product is a Qt 6 desktop media player using libmpv as its playback core. Windows 10/11 x64 is the first release platform. The architecture must keep playback, application state, rendering, persistence, platform integration, and QML presentation separated so future features do not accumulate inside the player screen or playback backend.
+
+### MVP delivery scope and acceptance matrix
+
+The following capabilities are frozen for the first release. This table defines observable acceptance, not current implementation status; implementation remains pending in the later Atomic Tasks.
+
+| MVP capability | Observable acceptance condition |
+|---|---|
+| Open local files | A supported local video or audio file can be selected and loaded. Cancelling selection leaves the current session unchanged. Missing, unreadable, or unsupported files produce a clear error without crashing. |
+| Drag-and-drop playback | Dropping one supported file opens it; dropping multiple supported files produces a deterministic playlist order. Directories, unsupported items, and invalid paths are rejected or reported without corrupting the current session. |
+| Open network URLs | A valid supported media URL can be submitted and loaded. Empty, malformed, unsupported-scheme, unreachable, and failed URLs produce a clear result. Non-seekable live media does not expose a false seek capability. |
+| Play, pause, and stop | Play and pause transition the active media between the corresponding states. Stop ends active playback and resets transient media state according to the playback state model. Repeated commands are safe and do not create duplicate sessions. |
+| Absolute and relative Seek | Absolute Seek reaches a requested valid position and relative Seek moves forward or backward by the requested offset. Requests are bounded by media limits, rejected for non-seekable media, and do not block the UI thread. |
+| Progress display and scrub preview | Current position and duration remain synchronized with playback. During dragging, the preview position remains under user control and is not pulled back by background updates. Committing a drag submits one final Seek; cancelling restores the actual position. |
+| Volume and mute | Volume changes are reflected in playback and UI state within the supported range. Muting silences playback, and unmuting restores the prior non-muted volume instead of forcing an unrelated value. |
+| Playback speed | A supported speed value changes playback rate and is reflected in the UI. Reset returns to 1.0×. Invalid values are rejected without leaving UI and backend state inconsistent. |
+| Fullscreen | The player can enter and exit fullscreen through the supported UI and shortcut paths. Escape exits fullscreen, and returning to windowed mode restores valid window geometry without losing playback. |
+| Playlist | Media items can be added, removed, reordered, selected, and identified as the current item. Empty, selected, hover, invalid-item, and current-playing states remain distinct. Removing or advancing from the current item never leaves a dangling current ID. |
+| Audio-track selection | Available audio tracks are listed with stable identity and useful metadata. Selecting a track changes playback and selected state together; missing or failed selections produce a clear result and do not retain a false selection. |
+| Subtitle-track selection | Available subtitle tracks are listed and can be selected or disabled. The selected/off state remains synchronized with playback, and media changes fully replace the prior track list. |
+| Load external subtitles | A supported external subtitle file can be added to the active media and selected. Invalid encoding, unsupported files, duplicate loading, and backend failure are reported without damaging the existing track state. |
+| Subtitle and audio delay | Positive and negative subtitle/audio delay values can be applied and reset. Playback effect, displayed value, and feedback remain consistent after repeated adjustments and media changes. |
+| Chapter selection | Chapter metadata is listed when present. Selecting a chapter performs a Seek to its position. Media without chapters presents an explicit empty state, and stale chapters are removed after media changes. |
+| Current media information | The active media exposes current title or source identity, duration when known, and available media/track metadata. Information refreshes on media changes and is cleared or replaced after stop, failure, or unload. |
+| Playback error feedback | Damaged media, unsupported codecs or formats, unreadable files, backend failures, and unreachable URLs produce a user-visible, actionable error while diagnostic detail remains available for logging. |
+| Loading, buffering, paused, and ended states | Loading, buffering, paused, playing-ended, and error presentation follows explicit priority and mutual-exclusion rules. Each state appears and clears on the corresponding playback transition without stale overlays from the previous media. |
+| Recent media | Successfully opened media appears in a recent list in deterministic recency order. Missing local paths remain identifiable rather than being silently deleted, and selecting a valid recent item re-enters the normal media-open workflow. |
+| Remember playback position | Eligible media positions are persisted and can be restored when the same media is reopened according to the resume policy and user setting. Completed or near-complete media is not incorrectly resumed as unfinished, and persistence failure does not crash playback. |
+| Keyboard shortcuts | Documented default shortcuts invoke the same registered actions as the UI. Context rules prevent conflicts with text entry and modal interaction. Unsupported or conflicting combinations are rejected or clearly reported. |
+| System media keys | Supported system play/pause and related media keys invoke the registered player actions, including when the window is not foreground where the platform permits it. Handlers are released during shutdown and do not fire after exit. |
+| Prevent system sleep during playback | Sleep inhibition is active only while the playback policy requires it, including active video playback. It is released on pause, stop, media end, failure, or application exit and remains safe under repeated state changes. |
+| Single instance and file associations | Launching a second instance forwards its file or URL arguments to the primary instance and then exits. Registered media files open through the same media-open workflow. Install, upgrade, and uninstall leave association state consistent with packaging policy. |
+| Windows installer | On a clean supported Windows environment, the package installs, starts, opens and plays a supported file, and uninstalls without relying on the developer PATH, Qt installation, or a system mpv installation. Uninstall does not remove user media or other files not owned by the application. |
+
+### Cross-cutting MVP release gates
+
+The MVP is not complete solely because each feature has code. Release acceptance also requires:
+
+- 4K local media can play, pause, Seek, and switch fullscreen without blocking the UI thread;
+- at least 100 consecutive media open/close cycles complete without a crash or retained playback thread;
+- damaged files, unsupported codecs, unreadable files, and unreachable URLs produce explicit errors;
+- scrub interaction is not overridden by background position updates;
+- events from an older media generation cannot mutate the current media state;
+- render resources are released before the mpv handle during shutdown;
+- stop, end, failure, and media replacement correctly clear or replace tracks, chapters, duration, and other media-scoped state;
+- configuration or history persistence failure cannot crash core playback;
+- QML contains no direct `mpv_command`, `mpv_set_property`, or C-pointer access;
+- every core module has an independently executable unit or integration verification path;
+- the installer passes install, launch, playback, and uninstall checks on a clean Windows environment.
+
+### Deferred second-stage enhancements
+
+These capabilities are planned after MVP and must not be pulled into first-release implementation without an explicit scope change:
+
+- screenshots;
+- A-B loop;
+- aspect ratio, crop, and rotation controls;
+- subtitle styling;
+- playback-quality presets;
+- shader management;
+- mini player;
+- picture-in-picture;
+- advanced playback statistics;
+- macOS adaptation;
+- Linux adaptation.
+
+### Explicitly outside the first release
+
+The following capabilities are not part of MVP and must not be implemented speculatively:
+
+- online-site parsing or media extraction;
+- media-server functionality;
+- DLNA, AirPlay, or Chromecast;
+- cloud synchronization;
+- accounts;
+- online subtitle search;
+- a plugin marketplace;
+- a script store;
+- video editing or transcoding;
+- a media asset-management system;
+- AI subtitle or AI image-quality enhancement.
+
+Any change to these frozen boundaries requires an explicit user requirement, an updated README scope and acceptance definition, and a separately reviewable Atomic Task before implementation begins.
+
 ## Atomic Task status
 
 ### R0-01 — Complete
@@ -32,6 +120,19 @@ Verified on 2026-08-07:
 - the tracked Git tree contains no build output, generated runtime data, database files, logs, or IDE state.
 
 No source, dependency, interface, configuration, or runtime behavior changed for R0-01. The existing first commit already contained the required governance and repository baseline, so this Atomic Task records and verifies that baseline without duplicating files or modifying later-stage implementation.
+
+### R0-02 — Complete
+
+Verified on 2026-08-07:
+
+- README contains a dedicated first-release Scope section;
+- all 25 mandatory MVP capability groups from the task book have observable acceptance conditions;
+- cross-cutting completion gates cover performance, lifecycle, stale-event isolation, persistence failure, QML/libmpv separation, independent verification, and clean-machine packaging;
+- deferred second-stage enhancements are separated from MVP;
+- explicitly excluded first-release capabilities are recorded and cannot be introduced without a deliberate scope change;
+- no source, dependency, build, configuration, interface, or runtime behavior changed.
+
+R0-02 freezes product boundaries only. It does not claim that any MVP playback capability is already implemented or verified at runtime.
 
 ## Architecture boundary
 
@@ -170,12 +271,15 @@ Validated in the generation environment:
 - The repository contains no build output, runtime database, logs, or IDE state.
 - CMake module and source references resolve to files inside the repository.
 - QML root, shell, screen, feature, and theme files are present with distinct responsibilities.
+- The R0-02 README scope matches the task book's mandatory, deferred, and excluded capability lists.
+- Every mandatory MVP capability group has an observable acceptance condition.
 
 Not executed in the generation environment:
 
 - Qt configure and compilation, because Qt 6 is not installed in the container.
 - QML runtime launch, for the same reason.
 - libmpv verification, because libmpv integration is not part of this framework commit.
+- Runtime MVP acceptance, because R0-02 defines scope and does not implement playback capabilities.
 
 The first local action after cloning is to place the Qt MSVC kit under `../Qt/<version>/msvc2022_64`, then run `scripts/verify-dependencies.ps1`, `scripts/configure.ps1`, and `scripts/build.ps1` from an MSVC developer shell.
 
@@ -183,6 +287,7 @@ The first local action after cloning is to place the Qt MSVC kit under `../Qt/<v
 
 ### 2026-08-07
 
+- Completed Atomic Task R0-02 by freezing the first-release scope, adding observable acceptance for every mandatory MVP capability group, and separating deferred and excluded capabilities.
 - Completed and verified Atomic Task R0-01 governance and repository baseline; confirmed all required root artifacts and a generated-artifact-free tracked Git tree.
 - Disabled automatic C++ QML type registration for the QML-only scaffold so Qt does not feed an empty or malformed generated metatypes JSON file to `qmltyperegistrar`; this must be removed when the first `Q_OBJECT`/`QML_ELEMENT` type is introduced.
 - Fixed workspace bootstrap path resolution so PowerShell location changes cannot redirect `../` creation into the Visual Studio installation directory.
