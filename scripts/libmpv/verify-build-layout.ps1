@@ -10,6 +10,7 @@ $requiredFiles = @(
     "scripts/libmpv/modules/Msys2Environment.psm1",
     "scripts/libmpv/modules/LibMpvPackage.psm1",
     "scripts/libmpv/clang64/common.sh",
+    "scripts/libmpv/clang64/source/source_checkout.sh",
     "scripts/libmpv/clang64/build-all.sh",
     "scripts/libmpv/clang64/package-runtime.sh",
     "scripts/libmpv/clang64/build/freetype.sh",
@@ -131,28 +132,44 @@ try {
     if (-not $commonBuild.Contains("--default-library=shared")) {
         throw "The shared Meson build helper must keep third-party libraries dynamic."
     }
+    if (-not $commonBuild.Contains('source "$CLANG64_SCRIPT_ROOT/source/source_checkout.sh"')) {
+        throw "common.sh must delegate source acquisition to source/source_checkout.sh."
+    }
+    if ($commonBuild.Contains('player_fetch_source()')) {
+        throw "common.sh must not accumulate source-acquisition implementation."
+    }
+
+    $sourceCheckout = Get-Content -LiteralPath "scripts/libmpv/clang64/source/source_checkout.sh" -Raw
     foreach ($fragment in @(
-        'git clone "$url" "$source_dir" >&2',
+        'player_git_network_retry',
+        'local max_attempts=3',
+        'player_clone_source_repository',
+        'git clone "$url" "$clone_dir" >&2',
+        'rm -rf -- "$clone_dir"',
+        'Source path exists but is not a Git checkout and will not be overwritten',
         'player_source_worktree_is_empty',
         'player_source_status_is_only_initial_deletions',
         'player_recover_incomplete_no_checkout_clone',
-        'git -C "$source_dir" reset --hard HEAD',
-        'printf ''Recovering incomplete no-checkout source clone: %s\n'' "$source_dir" >&2',
-        'git -C "$source_dir" fetch --force --tags origin "$ref" >&2',
-        'git -C "$source_dir" checkout --detach FETCH_HEAD >&2',
-        'git -C "$source_dir" submodule sync --recursive >&2',
-        'git -C "$source_dir" submodule update --init --recursive >&2',
-        'Source checkout contains local changes and will not be overwritten'
+        'git -C "$source_dir" reset --hard HEAD >&2',
+        'Fetching $name source ref $ref',
+        'git -C "$source_dir" fetch --force --tags origin "$ref"',
+        'Updating $name source submodules',
+        'git -C "$source_dir" submodule update --init --recursive',
+        'Source checkout contains local changes and will not be overwritten',
+        'printf ''%s\n'' "$source_dir"'
     )) {
-        if (-not $commonBuild.Contains($fragment)) {
-            throw "common.sh is missing safe source-checkout/stdout-contract fragment: $fragment"
+        if (-not $sourceCheckout.Contains($fragment)) {
+            throw "source_checkout.sh is missing source-safety/network-retry fragment: $fragment"
         }
     }
-    if ($commonBuild.Contains('git clone --no-checkout')) {
-        throw "common.sh must not create new source repositories with an intentionally empty no-checkout worktree."
+    if ($sourceCheckout.Contains('git clone --no-checkout')) {
+        throw "source_checkout.sh must not create intentionally empty no-checkout worktrees."
+    }
+    if ($sourceCheckout.Contains('rm -rf "$source_dir"') -or $sourceCheckout.Contains('rm -rf -- "$source_dir"')) {
+        throw "source_checkout.sh must not recursively delete an existing final source directory."
     }
 
-    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, safe source checkout/stdout contract, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
+    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, isolated source checkout with bounded network retry, safe stdout contract, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
 }
 finally {
     Pop-Location

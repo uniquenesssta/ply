@@ -146,7 +146,7 @@ R0-06 is not accepted or complete. Later playback tests must not claim complete 
 
 - modular CMake boundaries are active;
 - compatible CMake/Ninja, Qt 6.8.3, Visual Studio 2022 17.14 family, MSVC 19.44/14.44, x64, and Windows SDK 10.0.26100.0 verification is green on the user's Windows workspace;
-- relocation-safe configure and the full Ninja build succeed;
+- relocation-safe configure and the full Ninja build succeeds;
 - the application output is `build/<preset>/Player.exe`.
 
 ### R1-02 — Complete
@@ -217,7 +217,7 @@ Implemented on 2026-08-07 in `agent/r2-stage`:
 - `scripts/libmpv/verify-package.ps1` independently rechecks package identity and every recorded artifact hash;
 - the source-build layout/policy has its own structural verifier `scripts/libmpv/verify-build-layout.ps1`;
 - `Msys2Environment.psm1` executes arbitrary CLANG64 shell text through a temporary UTF-8-no-BOM LF `.sh` file written directly under the resolved MSYS2 `tmp` directory and invokes it through the stable `/tmp/...` path, avoiding both multiline `bash -lc` quoting and an extra `cygpath` conversion step;
-- source acquisition uses normal materialized clones for new repositories, refuses to overwrite real local changes, recovers only the empty-worktree/all-tracked-deletions state left by the earlier `git clone --no-checkout` bug, and reserves `player_fetch_source` stdout exclusively for its final source-path return value while sending recovery/Git diagnostics to stderr;
+- source acquisition is isolated in `scripts/libmpv/clang64/source/source_checkout.sh`: new repositories clone through bounded three-attempt network retry into owned staging directories, completed clones are moved into the final source path only after success, existing local changes/non-Git content remain protected, the earlier empty-worktree recovery remains narrow, fetch/submodule network operations retry explicitly, and `player_fetch_source` stdout remains reserved for the final source path;
 - no `mpv_handle`, initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
 
 The approved source-build set is intentionally narrow. MSYS2/CLANG64 is a **build-only** toolchain; it is not a Player production dependency. The source build does not consume MSYS2-packaged FFmpeg/libass/libplacebo/etc. The release-time dependency/license scan in R13 remains mandatory, including any compiler runtime DLL or bundled source component actually present in the final binary graph.
@@ -225,7 +225,7 @@ The approved source-build set is intentionally narrow. MSYS2/CLANG64 is a **buil
 Still required on the user's Windows workspace:
 
 - MSYS2 is installed, all 99 requested CLANG64 build packages are present, and `bootstrap-build-environment.ps1` now completes with `MSYS2 CLANG64 build environment is ready.`;
-- the full project-controlled source build must rerun through the corrected source-path stdout contract, complete, and create the fixed sibling package;
+- the full project-controlled source build must rerun through the corrected bounded-network-retry source checkout, complete, and create the fixed sibling package;
 - `verify-package.ps1` and `verify-dependencies.ps1` must validate the real package identity and artifact hashes;
 - fresh configure/build must link against `LibMpv::LibMpv` and stage its runtime files;
 - CTest must pass all five tests including `mpv_runtime_probe`;
@@ -379,7 +379,7 @@ Future `playback_composition`, `persistence_composition`, and `platform_composit
       └─ dependency-manifest.json
 ```
 
-`../downloads/libmpv` and `../cache/libmpv-build` are project-owned dependency source/build areas. New source repositories are cloned with a materialized worktree. Existing repositories with real local modifications or untracked files are never overwritten. The only automatic recovery case is the empty-worktree state produced by the earlier `git clone --no-checkout` implementation when Git reports only tracked deletions; generated build/prefix/metadata state remains disposable and is rebuilt cleanly.
+`../downloads/libmpv` and `../cache/libmpv-build` are project-owned dependency source/build areas. Source acquisition is owned by `scripts/libmpv/clang64/source/source_checkout.sh`: a new repository is cloned into a generated hidden staging directory and moved into `sources/<name>` only after the clone succeeds; clone/fetch/networked submodule operations use bounded retry; failed staging directories are removed; existing non-empty non-Git paths, local modifications, and untracked files are never overwritten. The only automatic recovery case is the empty-worktree state produced by the earlier `git clone --no-checkout` implementation when Git reports only tracked deletions. Generated build/prefix/metadata state remains disposable and is rebuilt cleanly.
 
 The manifest generated after the real build includes at least:
 
@@ -467,6 +467,7 @@ A file may receive new code only when the code has the same responsibility and r
 - Relative shared dependency paths: `cmake/DependencyPaths.cmake`
 - R2 libmpv imported-target integration: `cmake/FindLibMpv.cmake`
 - R2 source-build entry: `scripts/libmpv/build-package.ps1`
+- R2 source checkout/network boundary: `scripts/libmpv/clang64/source/source_checkout.sh`
 - R2 source-build structural gate: `scripts/libmpv/verify-build-layout.ps1`
 - R2 package hash/identity gate: `scripts/libmpv/verify-package.ps1`
 - Render embedding and lifecycle decision: `docs/decisions/ADR-0001-libmpv-render-api.md`
@@ -491,16 +492,19 @@ The user's first R2-01 local verification on 2026-08-07 confirmed that the new R
 
 The MSYS2 bootstrap path is now locally verified: all 99 requested CLANG64 build packages are installed, a repeat bootstrap reports no package work to do, and the post-install verification completes with `MSYS2 CLANG64 build environment is ready.` This confirms the `/tmp` temporary-script invocation path on the user's Windows/MSYS2 installation.
 
-The first real `build-package.ps1` run then reached FreeType source acquisition and cloned the repository successfully, but the source-safety check immediately rejected that fresh checkout as locally modified. Review confirmed the cause was `git clone --no-checkout` followed by `git status --porcelain`: the intentionally empty worktree appears as tracked deletions. `common.sh` now uses normal materialized clones and can recover the already-created empty FreeType checkout only when the directory contains no worktree content outside `.git` and every status entry is an initial tracked deletion. Any actual modified, partially deleted, or untracked content remains protected and causes an explicit stop.
+The first real `build-package.ps1` run then reached FreeType source acquisition and cloned the repository successfully, but the source-safety check immediately rejected that fresh checkout as locally modified. Review confirmed the cause was `git clone --no-checkout` followed by `git status --porcelain`: the intentionally empty worktree appears as tracked deletions. The source checkout recovery now only repairs that provably empty/all-tracked-deletions state; actual local changes remain protected.
 
-The next local rerun recovered that FreeType checkout, fetched `VER-2-13-3`, detached at the pinned `42608f77...` commit, and reached Meson. Meson then received an invalid source path beginning with `Recovering incomplete no-checkout source clone:` because `player_fetch_source()` is consumed through command substitution and that recovery diagnostic was still written to stdout. `common.sh` now reserves stdout exclusively for the final source-path return value and routes recovery plus Git clone/fetch/checkout/submodule diagnostics to stderr. The corrected FreeType configuration and remaining third-party compilation are pending local verification.
+The next local rerun recovered the FreeType checkout, fetched `VER-2-13-3`, detached at the pinned `42608f77...` commit, and reached Meson. Meson then received an invalid source path beginning with `Recovering incomplete no-checkout source clone:` because `player_fetch_source()` is consumed through command substitution and that recovery diagnostic was still written to stdout. The source checkout module now reserves stdout exclusively for the final source-path return value and routes recovery plus Git operational output to stderr.
 
-Connected-environment verification for this follow-up includes Bash syntax validation and a local Git simulation of the exact no-checkout recovery path. The simulation confirms that command substitution now captures only the source directory while the recovery/fetch/checkout diagnostics remain on stderr; the existing protection for real local changes is unchanged. This environment still does not provide the user's Windows MSYS2/CLANG64 dependency build runtime, so the actual corrected FreeType configuration, remaining third-party compilation, produced DLL dependency graph, import-library generation, artifact hashes, package verification, Player linking, five CTests, and runtime loader probe remain local acceptance requirements.
+The following local run confirmed that correction by completing the FreeType configure, compile, and install stages. The build then moved to FriBidi, where the first `git clone https://github.com/fribidi/fribidi.git` timed out after 300000 ms. Because the old source function relied on shell `errexit` inside command substitution, it continued after the failed clone and emitted several misleading missing-directory errors plus an empty source-identity mismatch. Source acquisition is now isolated in `source/source_checkout.sh`; clone/fetch/networked submodule operations use bounded three-attempt retry, a clone is staged outside the final source directory and installed only after success, every external operation has an explicit failure return, and exhausted network failure stops immediately without manufacturing downstream identity errors.
+
+Connected-environment verification for this follow-up includes Bash syntax validation, a simulated clone that fails with a nonzero exit on all three attempts and confirms the outer command substitution exits nonzero without installing a source directory, and a successful local Git-repository simulation confirming that stdout contains only the source path while clone/fetch/checkout diagnostics remain on stderr. This environment still does not provide the user's Windows MSYS2/CLANG64 dependency build runtime, so the corrected real FriBidi acquisition, remaining third-party compilation, produced DLL dependency graph, import-library generation, artifact hashes, package verification, Player linking, five CTests, and runtime loader probe remain local acceptance requirements.
 
 ## Change Log
 
 ### 2026-08-07
 
+- Hardened the R2-01 source-network boundary after the real FriBidi GitHub clone timed out: source acquisition is now a dedicated module with bounded clone/fetch/submodule retry, explicit error propagation from command substitution, temporary clone staging/cleanup, protection for existing source content, and no cascade into false missing-directory or identity-mismatch errors.
 - Fixed the R2-01 source-path return contract after the recovered FreeType checkout reached Meson but a recovery diagnostic polluted command-substitution stdout; `player_fetch_source` now returns only the source path on stdout and sends all recovery/Git operational output to stderr, including submodule operations used by later dependencies.
 - Fixed R2-01 source acquisition after the first real FreeType build exposed a false dirty-worktree result from `git clone --no-checkout`; new source repositories now use materialized clones, and only the provably empty/all-tracked-deletions state left by the old implementation is auto-recovered while real local changes remain protected.
 - Removed the R2-01 bootstrap's `cygpath.exe` dependency after the real Windows follow-up returned exit code `-1` during temporary-script conversion; CLANG64 command scripts are now written directly to the resolved MSYS2 `tmp` directory and executed through `/tmp/...`, while retaining UTF-8-no-BOM/LF normalization and guaranteed cleanup.
