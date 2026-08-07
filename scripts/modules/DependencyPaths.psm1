@@ -23,12 +23,11 @@ function Get-PlayerWorkspaceLayout {
     )
 
     $layout = [pscustomobject]@{
-        QtRootRelative             = "../Qt/$($Versions.QtVersion)/msvc2022_64"
-        LibMpvRootRelative         = "../libmpv/$($Versions.MpvVersion)/windows-x64"
-        PortableCMakeRelative      = "../cmake/$($Versions.CMakeVersion)/bin/cmake.exe"
-        PortableNinjaRelative      = "../ninja/$($Versions.NinjaVersion)/ninja.exe"
-        DownloadsRootRelative      = "../downloads"
-        FetchContentRootRelative   = "../cache/cmake/fetchcontent"
+        QtRootRelative           = "../Qt/$($Versions.QtVersion)/msvc2022_64"
+        QtToolsRootRelative      = "../Qt/Tools"
+        LibMpvRootRelative       = "../libmpv/$($Versions.MpvVersion)/windows-x64"
+        DownloadsRootRelative    = "../downloads"
+        FetchContentRootRelative = "../cache/cmake/fetchcontent"
     }
 
     foreach ($entry in $layout.PSObject.Properties) {
@@ -76,15 +75,11 @@ function Resolve-PlayerToolCommand {
         [string]$DisplayName,
 
         [Parameter(Mandatory = $true)]
-        [string]$RelativeCandidate,
+        [string[]]$CommandNames,
 
         [Parameter(Mandatory = $true)]
-        [string[]]$CommandNames
+        [string[]]$RelativeCandidates
     )
-
-    if (Test-Path -LiteralPath $RelativeCandidate -PathType Leaf) {
-        return $RelativeCandidate
-    }
 
     foreach ($commandName in $CommandNames) {
         $command = Get-Command $commandName -ErrorAction SilentlyContinue
@@ -93,7 +88,15 @@ function Resolve-PlayerToolCommand {
         }
     }
 
-    throw "$DisplayName was not found. Put the pinned tool on PATH or provide the optional relative copy at '$RelativeCandidate'."
+    foreach ($relativeCandidate in $RelativeCandidates) {
+        Assert-PlayerRepositoryRelativePath -Name "$DisplayName candidate" -Path $relativeCandidate
+        if (Test-Path -LiteralPath $relativeCandidate -PathType Leaf) {
+            return $relativeCandidate
+        }
+    }
+
+    $candidateList = $RelativeCandidates -join "', '"
+    throw "$DisplayName was not found on PATH or in the existing Qt tools tree. Checked relative path(s): '$candidateList'."
 }
 
 function Resolve-PlayerCMake {
@@ -105,8 +108,10 @@ function Resolve-PlayerCMake {
 
     return Resolve-PlayerToolCommand `
         -DisplayName "CMake" `
-        -RelativeCandidate $Layout.PortableCMakeRelative `
-        -CommandNames @("cmake.exe", "cmake")
+        -CommandNames @("cmake.exe", "cmake") `
+        -RelativeCandidates @(
+            (Join-Path $Layout.QtToolsRootRelative "CMake_64/bin/cmake.exe")
+        )
 }
 
 function Resolve-PlayerNinja {
@@ -118,8 +123,10 @@ function Resolve-PlayerNinja {
 
     return Resolve-PlayerToolCommand `
         -DisplayName "Ninja" `
-        -RelativeCandidate $Layout.PortableNinjaRelative `
-        -CommandNames @("ninja.exe", "ninja")
+        -CommandNames @("ninja.exe", "ninja") `
+        -RelativeCandidates @(
+            (Join-Path $Layout.QtToolsRootRelative "Ninja/ninja.exe")
+        )
 }
 
 Export-ModuleMember -Function @(

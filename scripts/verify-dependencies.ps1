@@ -10,13 +10,14 @@ Import-Module $pathModulePath -Force
 function Add-PlayerFailure {
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.List[string]]$Failures,
 
         [Parameter(Mandatory = $true)]
         [string]$Message
     )
 
-    $Failures.Add($Message)
+    [void]$Failures.Add($Message)
 }
 
 function Test-PlayerExactToolVersion {
@@ -31,6 +32,7 @@ function Test-PlayerExactToolVersion {
         [scriptblock]$ReadVersion,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.List[string]]$Failures
     )
 
@@ -56,7 +58,12 @@ try {
     $layout = Get-PlayerWorkspaceLayout -Versions $versions
     $failures = [System.Collections.Generic.List[string]]::new()
 
-    Write-Host "Dependency paths: repository-relative only"
+    Write-Host "Workspace parent: .."
+    Write-Host "  Qt:           $($layout.QtRootRelative)"
+    Write-Host "  Qt tools:     $($layout.QtToolsRootRelative)"
+    Write-Host "  libmpv:       $($layout.LibMpvRootRelative)"
+    Write-Host "  Downloads:    $($layout.DownloadsRootRelative)"
+    Write-Host "  FetchContent: $($layout.FetchContentRootRelative)"
     Write-Host "Version source: cmake/DependencyVersions.cmake"
 
     $cmake = $null

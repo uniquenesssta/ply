@@ -11,9 +11,10 @@ foreach(_required_version_variable IN ITEMS
     endif()
 endforeach()
 
-# All committed dependency locations are repository-relative. CMake and Ninja
-# are command-line tools resolved by scripts from PATH (with optional portable
-# copies also expressed as ../ paths in scripts/modules/DependencyPaths.psm1).
+# The repository parent is the dependency workspace. Only the actual sibling
+# directories are represented here: Qt, libmpv, downloads, and cache.
+# CMake/Ninja are development tools discovered by PowerShell from PATH or the
+# official Qt tools tree below ../Qt/Tools; they are not extra sibling roots.
 set(PLAYER_QT_ROOT "../Qt/${PLAYER_QT_VERSION}/msvc2022_64" CACHE INTERNAL "Pinned Qt kit root")
 set(PLAYER_LIBMPV_ROOT "../libmpv/${PLAYER_MPV_VERSION}/windows-x64" CACHE INTERNAL "Pinned libmpv SDK/runtime root")
 set(PLAYER_DOWNLOADS_ROOT "../downloads" CACHE INTERNAL "Shared dependency download archive root")
@@ -37,8 +38,9 @@ foreach(_dependency_path_variable IN ITEMS
     player_validate_dependency_path(${_dependency_path_variable})
 endforeach()
 
-# Runtime anchoring to the source tree is intentionally transient. The values
-# stored in source control remain relative and portable across drive letters.
+# CMake resolves these relative locations at configure time. Source control
+# stores only the relative forms above, so moving the workspace to another
+# drive or parent directory does not require configuration edits.
 set(_player_qt_root "${CMAKE_SOURCE_DIR}/${PLAYER_QT_ROOT}")
 set(_player_fetchcontent_root "${CMAKE_SOURCE_DIR}/${PLAYER_FETCHCONTENT_ROOT}")
 set(FETCHCONTENT_BASE_DIR "${_player_fetchcontent_root}" CACHE PATH "Shared FetchContent base directory" FORCE)

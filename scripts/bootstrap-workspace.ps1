@@ -13,15 +13,17 @@ try {
     $layout = Get-PlayerWorkspaceLayout -Versions $versions
     Initialize-PlayerDependencyLayout -Layout $layout
 
-    Write-Host "Repository-relative dependency layout is ready:"
+    Write-Host "Repository-parent workspace layout is ready:"
     Write-Host "  Qt:           $($layout.QtRootRelative)"
+    Write-Host "  Qt tools:     $($layout.QtToolsRootRelative)"
     Write-Host "  libmpv:       $($layout.LibMpvRootRelative)"
     Write-Host "  Downloads:    $($layout.DownloadsRootRelative)"
     Write-Host "  FetchContent: $($layout.FetchContentRootRelative)"
     Write-Host ""
-    Write-Host "CMake/Ninja are resolved from PATH; optional portable copies may live at:"
-    Write-Host "  CMake:        $($layout.PortableCMakeRelative)"
-    Write-Host "  Ninja:        $($layout.PortableNinjaRelative)"
+    Write-Host "CMake/Ninja are development tools, not extra parent-level dependency folders."
+    Write-Host "They are resolved from PATH first, then from the existing Qt tools tree:"
+    Write-Host "  CMake:        ../Qt/Tools/CMake_64/bin/cmake.exe"
+    Write-Host "  Ninja:        ../Qt/Tools/Ninja/ninja.exe"
 }
 finally {
     Pop-Location

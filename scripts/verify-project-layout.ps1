@@ -42,7 +42,7 @@ $missingFiles = [System.Collections.Generic.List[string]]::new()
 foreach ($relativePath in $requiredFiles) {
     $fullPath = Join-Path $projectRoot $relativePath
     if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
-        $missingFiles.Add($relativePath)
+        [void]$missingFiles.Add($relativePath)
     }
 }
 
@@ -101,13 +101,34 @@ foreach ($fragment in @(
 }
 
 $dependencyPaths = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/DependencyPaths.cmake") -Raw
-if ($dependencyPaths -match '[A-Za-z]:[/\\]') {
-    throw "cmake/DependencyPaths.cmake contains a machine-absolute Windows path."
-}
-
 $pathModule = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/modules/DependencyPaths.psm1") -Raw
-if ($pathModule -match '[A-Za-z]:[/\\]') {
-    throw "DependencyPaths.psm1 contains a machine-absolute Windows path."
+
+foreach ($contentCheck in @(
+    @{ Name = "cmake/DependencyPaths.cmake"; Content = $dependencyPaths },
+    @{ Name = "scripts/modules/DependencyPaths.psm1"; Content = $pathModule }
+)) {
+    if ($contentCheck.Content -match '[A-Za-z]:[/\\]') {
+        throw "$($contentCheck.Name) contains a machine-absolute Windows path."
+    }
+
+    if ($contentCheck.Content -match '(?i)\.\./cmake/' -or $contentCheck.Content -match '(?i)\.\./ninja/') {
+        throw "$($contentCheck.Name) invents a parent-level cmake/ninja directory. The parent workspace is limited to Qt, libmpv, downloads, and cache."
+    }
 }
 
-Write-Host "Project layout, relative-path policy, and CMake responsibility boundaries are complete."
+foreach ($requiredPathFragment in @(
+    '../Qt/',
+    '../libmpv/',
+    '../downloads',
+    '../cache/'
+)) {
+    if (-not $dependencyPaths.Contains($requiredPathFragment)) {
+        throw "cmake/DependencyPaths.cmake is missing required repository-parent path: $requiredPathFragment"
+    }
+}
+
+if (-not $pathModule.Contains('../Qt/Tools')) {
+    throw "DependencyPaths.psm1 must resolve development tools from the existing ../Qt/Tools tree when PATH does not provide them."
+}
+
+Write-Host "Project layout, parent-workspace relative paths, and CMake responsibility boundaries are complete."

@@ -11,7 +11,7 @@ This repository is the active R1 modular build scaffold. It currently provides:
 - a Qt 6.8.3 Qt Quick application bootstrap;
 - a dedicated `RuntimePaths` bootstrap module for installed and portable path resolution;
 - a dedicated foundation logging module with categories, file sink, rotation, redaction, and shutdown flush;
-- repository/build/dependency/tool configuration that stores only relative paths rather than machine-specific drive paths;
+- repository/build/dependency configuration that stores only repository-relative paths rather than machine-specific drive paths;
 - OpenGL selection before `QGuiApplication` creation;
 - a diagnostic QML loading boundary;
 - a minimal QML shell split into application window, player screen, video surface, player chrome, and theme ownership;
@@ -161,14 +161,14 @@ Verified on 2026-08-07:
 
 - `cmake/DependencyVersions.cmake` is the single exact version source used by CMake and PowerShell tooling;
 - Windows, Windows SDK, Visual Studio, MSVC, Qt, CMake, Ninja, mpv/libmpv, FFmpeg, and C++ versions are pinned;
-- Qt, CMake, Ninja, libmpv, downloads, and FetchContent cache were originally assigned versioned repository-parent locations whose committed paths begin with `../`;
+- Qt, libmpv, downloads, and FetchContent cache use versioned repository-parent-relative locations;
 - automatic highest-version selection and generic unversioned dependency discovery were removed;
 - CMake requires the exact Qt patch and the pinned minimum CMake release;
 - PowerShell verification rejects mismatched toolchain versions and validates an installed libmpv manifest when Stage R2 files are present;
-- the bootstrap script creates only project-owned shared staging/cache directories and does not create or modify Qt, CMake, or Ninja installations;
+- the bootstrap script creates only project-owned shared staging/cache directories and does not create or modify Qt installations;
 - no third-party SDK, archive, runtime binary, or generated build output was added to Git.
 
-R0-04 remains authoritative for **versions**. Its tool-location requirement is superseded by the R1-03 relative-path policy below: CMake and Ninja keep their pinned versions but no longer have to exist at a fixed sibling directory; they may be resolved from `PATH` or from the optional `../cmake/...` / `../ninja/...` portable locations.
+R0-04 remains authoritative for **versions**. The current R1 workspace policy is authoritative for **locations**: the repository parent contains `Qt`, `libmpv`, `downloads`, and `cache`; CMake/Ninja are development tools and are not represented as additional parent-level dependency folders.
 
 ### R0-05 — Complete
 
@@ -231,18 +231,32 @@ Implemented on 2026-08-07 in `agent/r1-stage`:
 - added executable Qt Test coverage for redaction, Qt message-handler writes and shutdown flush, multi-threaded writes, rotation, and an invalid/uncreatable log directory;
 - the approved R2-R14 “快速框架实施版” is committed as individual Markdown stage documents under `docs/plans/stages/`.
 
-#### R1 current relative-path policy
+#### R1 current parent-workspace and relative-path policy
 
-The user explicitly replaced the earlier fixed-machine/tool-location assumption. The current policy is:
+The repository may be renamed or moved, but its parent directory is the dependency workspace. The supported shape is:
 
-- no committed build/dependency/tool configuration may contain a machine-specific absolute Windows drive path such as `F:\...`;
-- Qt, libmpv, downloads, and FetchContent cache continue to use repository-parent-relative `../...` paths;
-- CMake `3.31.12` and Ninja `1.13.2` remain version-pinned, but the scripts now resolve them from the active `PATH`; optional portable copies may still be placed at the relative locations `../cmake/3.31.12/bin/cmake.exe` and `../ninja/1.13.2/ninja.exe`;
+```text
+<parent>/
+├─ cache/
+├─ downloads/
+├─ libmpv/
+├─ Qt/
+├─ <repository>/
+└─ <other repository, optional>/
+```
+
+The current rules are:
+
+- no committed build/dependency configuration may contain a machine-specific absolute Windows drive path such as `F:\...`;
+- Qt, libmpv, downloads, and FetchContent cache are always addressed from the repository root through `../Qt/...`, `../libmpv/...`, `../downloads`, and `../cache/...`;
+- CMake and Ninja are **not** additional parent-level dependency directories;
+- CMake `3.31.12` and Ninja `1.13.2` remain version-pinned; scripts resolve them from the active `PATH` first, then from the official Qt installer tool locations `../Qt/Tools/CMake_64/bin/cmake.exe` and `../Qt/Tools/Ninja/ninja.exe`;
 - CMake source/test directory references, build preset output directories, PowerShell manifest lookup, and test source include paths use relative forms;
-- `scripts/verify-project-layout.ps1` rejects machine-absolute Windows drive literals in the committed dependency-path modules;
-- the Windows PowerShell 5.1 interpolation bug in `verify-dependencies.ps1` is fixed by using `${Name}:` rather than `$Name:` before a colon.
+- `scripts/verify-project-layout.ps1` rejects machine-absolute drive literals and rejects invented `../cmake/...` or `../ninja/...` parent roots in the dependency-path modules;
+- the Windows PowerShell 5.1 `$Name:` interpolation parse failure is fixed by using `${Name}:`;
+- the Windows PowerShell 5.1 empty generic-list binding failure is fixed by explicitly allowing an empty `Failures` collection and suppressing the return value from `List.Add()`.
 
-Versions remain strict. Moving tool discovery to `PATH` does not permit a different CMake/Ninja version: `verify-dependencies.ps1` still rejects a version mismatch.
+Versions remain strict. Tool discovery from `PATH` or `../Qt/Tools` does not permit a different CMake/Ninja version: `verify-dependencies.ps1` still rejects a version mismatch.
 
 ## Architecture boundary
 
@@ -326,25 +340,26 @@ A version change requires a separately reviewable Atomic Task. Local development
 
 ## Relative dependency and tool layout
 
-Required repository-relative dependency locations:
+For a checkout such as `F:\QT6-PLAYER\qt6-player r1`, only the parent relationship matters. The committed configuration is equivalent to:
 
 ```text
 <parent>/
-├─ Qt/6.8.3/msvc2022_64/
-├─ libmpv/0.41.0/windows-x64/
+├─ cache/
+│  └─ cmake/fetchcontent/
 ├─ downloads/
-├─ cache/cmake/fetchcontent/
+├─ libmpv/
+│  └─ 0.41.0/windows-x64/
+├─ Qt/
+│  ├─ 6.8.3/msvc2022_64/
+│  └─ Tools/
+│     ├─ CMake_64/bin/cmake.exe     # used when CMake is not on PATH
+│     └─ Ninja/ninja.exe            # used when Ninja is not on PATH
 └─ <repository>/
 ```
 
-CMake and Ninja are command-line tools. Use the exact pinned versions from `PATH`. If a portable copy is preferred, the scripts also accept these optional relative locations:
+The four parent-level dependency roots are therefore `../Qt`, `../libmpv`, `../downloads`, and `../cache`. There is no required `../cmake` or `../ninja` sibling directory.
 
-```text
-../cmake/3.31.12/bin/cmake.exe
-../ninja/1.13.2/ninja.exe
-```
-
-No drive letter or repository-specific absolute path is stored in source control. CMake and Qt may internally resolve a relative source/dependency path to an absolute filesystem path while configuring or running; that transient resolution is not a committed machine-specific path.
+No drive letter or repository-specific absolute path is stored in source control. CMake and Qt may internally resolve a relative source/dependency path to an absolute filesystem path while configuring or running; that transient runtime resolution is not committed configuration.
 
 `scripts/bootstrap-workspace.ps1` creates only these project-owned relative locations when missing:
 
@@ -354,7 +369,7 @@ No drive letter or repository-specific absolute path is stored in source control
 ../cache/cmake/fetchcontent/
 ```
 
-It does not create Qt, CMake, or Ninja installations.
+It does not create or modify Qt or tool installations.
 
 When the libmpv SDK is installed during R2, its relative root must contain `dependency-manifest.json` with at least:
 
@@ -373,7 +388,7 @@ When the libmpv SDK is installed during R2, its relative root must contain `depe
 
 ## Configure and build
 
-Place Qt at the documented `../Qt/...` location. Put pinned CMake `3.31.12` and Ninja `1.13.2` on `PATH` (or use the optional relative portable copies), open the x64 Native Tools Command Prompt for Visual Studio 2022, then run from the repository root:
+Place Qt at `../Qt/6.8.3/msvc2022_64`. Install the required Qt tools under the same `../Qt` tree when using the Qt installer, or put exact pinned CMake/Ninja versions on `PATH`. Open the x64 Native Tools Command Prompt for Visual Studio 2022, then run from the repository root:
 
 ```powershell
 ./scripts/verify-project-layout.ps1
@@ -384,7 +399,7 @@ Place Qt at the documented `../Qt/...` location. Put pinned CMake `3.31.12` and 
 ./scripts/test.ps1
 ```
 
-`verify-dependencies.ps1` checks exact tool versions even when CMake/Ninja come from `PATH`. It reports libmpv as optional until Stage R2; once the libmpv headers exist, its dependency manifest becomes mandatory.
+`verify-dependencies.ps1` checks exact tool versions regardless of whether CMake/Ninja come from `PATH` or `../Qt/Tools`. It reports libmpv as optional until Stage R2; once libmpv headers exist, its dependency manifest becomes mandatory.
 
 Run the generated executable from the repository-relative output:
 
@@ -412,18 +427,16 @@ A file may receive new code only when the code has the same responsibility and r
 
 ## Validation record
 
-Validated in the generation environment for the R1-03 change set:
+Validated in the generation environment for the R1-03 follow-up fix:
 
-- `CMakePresets.json` parses as valid JSON;
-- staged build/dependency/tool configuration contains no literal Windows drive path matching `X:\...` or `X:/...`;
-- staged PowerShell scripts/modules contain no invalid plain `$Variable:` interpolation; the reproduced `$Name:` PowerShell 5.1 parse failure is removed by `${Name}:`;
-- changed path-bearing CMake/test files contain no `PROJECT_SOURCE_DIR` or `PROJECT_BINARY_DIR` path construction;
-- all committed dependency/tool layout values exposed by `DependencyPaths.psm1` are `../...` relative values;
-- CMake/Ninja resolution is PATH-first with optional versioned relative portable copies, while exact version verification remains enforced;
-- R1-03 introduces one `player_foundation` target and one cohesive `foundation/logging` module rather than adding logging implementation to ApplicationBootstrap;
-- the logging test target compiles the production logging module rather than replacing it with mock-only behavior;
-- logging coverage is present for redaction, handler write/flush, concurrent writes, rotation, and invalid log directory behavior;
-- the approved R2-R14 Markdown stage taskbooks are present under `docs/plans/stages/`.
+- `cmake/DependencyPaths.cmake` contains only the actual repository-parent dependency roots `../Qt`, `../libmpv`, `../downloads`, and `../cache`;
+- `scripts/modules/DependencyPaths.psm1` no longer defines or accepts `../cmake/...` or `../ninja/...` parent roots;
+- CMake/Ninja fallback discovery points into the existing Qt sibling tree at `../Qt/Tools/CMake_64/bin/cmake.exe` and `../Qt/Tools/Ninja/ninja.exe`;
+- dependency-path modules contain no literal Windows drive path matching `X:\...` or `X:/...`;
+- `verify-project-layout.ps1` explicitly rejects reintroduction of parent-level `../cmake` or `../ninja` roots;
+- the reproduced Windows PowerShell 5.1 empty-collection binding failure is addressed with `[AllowEmptyCollection()]` on the shared failure list parameters;
+- the earlier `$Name:` PowerShell 5.1 parser failure remains fixed through `${Name}:`;
+- R1-03 logging files, tests, and the approved R2-R14 Markdown stage taskbooks remain unchanged by this path repair.
 
 Not executed in the generation environment:
 
@@ -435,7 +448,7 @@ Not executed in the generation environment:
 - later libmpv/render/media validation, because those modules begin in R2/R4;
 - binary license scanning and legal/patent review, because no distributable runtime is being produced in R1.
 
-The local Windows follow-up after syncing this commit is:
+The local Windows follow-up after syncing this fix is:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-project-layout.ps1
@@ -451,8 +464,9 @@ If these reveal another environment-specific path assumption or a real Qt/MSVC c
 
 ### 2026-08-07
 
+- Corrected the R1 parent-workspace contract to match the actual layout: only `Qt`, `libmpv`, `downloads`, and `cache` are parent-level dependency roots; removed the invented `../cmake` and `../ninja` sibling assumptions and added Qt-tools fallback discovery.
+- Fixed the Windows PowerShell 5.1 empty generic-list binding failure in `verify-dependencies.ps1` by allowing an initially empty failure collection.
 - Implemented Atomic Task R1-03 with modular logging categories, a thread-safe rotating file sink, secret/path redaction, startup/shutdown logging bootstrap, and executable logging tests.
-- Reworked build/dependency/tool path handling to keep committed configuration repository-relative; CMake/Ninja now resolve from exact-version `PATH` tools with optional `../cmake/...` and `../ninja/...` portable copies instead of requiring a fixed machine/sibling absolute resolution.
 - Fixed the Windows PowerShell 5.1 `InvalidVariableReferenceWithDrive` parser failure by changing `$Name:` interpolations to `${Name}:` in dependency verification.
 - Added the approved R2-R14 “快速框架实施版” as individual Markdown taskbooks under `docs/plans/stages/`.
 - Implemented Atomic Task R1-02 with a side-effect-free RuntimePaths module, deterministic `portable.flag` mode selection, installed/portable path contracts, and the first executable Qt Test target.
