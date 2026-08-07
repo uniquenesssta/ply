@@ -10,7 +10,8 @@ function Assert-PlayerRepositoryRelativePath {
         [string]$Path
     )
 
-    if ([System.IO.Path]::IsPathRooted($Path) -or -not $Path.StartsWith("../", [System.StringComparison]::Ordinal)) {
+    $normalizedPath = $Path -replace '\\', '/'
+    if ([System.IO.Path]::IsPathRooted($Path) -or -not $normalizedPath.StartsWith("../", [System.StringComparison]::Ordinal)) {
         throw "$Name must begin with ../ and must not be absolute; received '$Path'."
     }
 }

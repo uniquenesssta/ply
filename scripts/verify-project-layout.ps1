@@ -16,6 +16,7 @@ $requiredFiles = @(
     "cmake/StaticAnalysis.cmake",
     "scripts/modules/DependencyPaths.psm1",
     "scripts/modules/DependencyVersions.psm1",
+    "scripts/modules/MsvcEnvironment.psm1",
     "src/CMakeLists.txt",
     "src/app/CMakeLists.txt",
     "src/app/main.cpp",
@@ -101,34 +102,42 @@ foreach ($fragment in @(
 }
 
 $dependencyPaths = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/DependencyPaths.cmake") -Raw
+if ($dependencyPaths -match '[A-Za-z]:[/\\]') {
+    throw "cmake/DependencyPaths.cmake contains a machine-absolute Windows path."
+}
+
 $pathModule = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/modules/DependencyPaths.psm1") -Raw
-
-foreach ($contentCheck in @(
-    @{ Name = "cmake/DependencyPaths.cmake"; Content = $dependencyPaths },
-    @{ Name = "scripts/modules/DependencyPaths.psm1"; Content = $pathModule }
+if ($pathModule -match '[A-Za-z]:[/\\]') {
+    throw "DependencyPaths.psm1 contains a machine-absolute Windows path."
+}
+if ($pathModule -match '(?i)\.\.[/\\]cmake[/\\]' -or $pathModule -match '(?i)\.\.[/\\]ninja[/\\]') {
+    throw "DependencyPaths.psm1 reintroduced an unsupported parent-level ../cmake or ../ninja dependency root."
+}
+foreach ($fragment in @(
+    "../Qt/",
+    "../libmpv/",
+    "../downloads",
+    "../cache/",
+    "QtToolsRootRelative",
+    "CMake_64/bin/cmake.exe",
+    "Ninja/ninja.exe",
+    "-replace '\\', '/'"
 )) {
-    if ($contentCheck.Content -match '[A-Za-z]:[/\\]') {
-        throw "$($contentCheck.Name) contains a machine-absolute Windows path."
-    }
-
-    if ($contentCheck.Content -match '(?i)\.\./cmake/' -or $contentCheck.Content -match '(?i)\.\./ninja/') {
-        throw "$($contentCheck.Name) invents a parent-level cmake/ninja directory. The parent workspace is limited to Qt, libmpv, downloads, and cache."
+    if (-not $pathModule.Contains($fragment)) {
+        throw "DependencyPaths.psm1 is missing required parent-workspace fragment: $fragment"
     }
 }
 
-foreach ($requiredPathFragment in @(
-    '../Qt/',
-    '../libmpv/',
-    '../downloads',
-    '../cache/'
+$msvcEnvironment = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/modules/MsvcEnvironment.psm1") -Raw
+foreach ($fragment in @(
+    "vswhere.exe",
+    "vcvars64.bat",
+    "VSCMD_ARG_TGT_ARCH",
+    "SetEnvironmentVariable"
 )) {
-    if (-not $dependencyPaths.Contains($requiredPathFragment)) {
-        throw "cmake/DependencyPaths.cmake is missing required repository-parent path: $requiredPathFragment"
+    if (-not $msvcEnvironment.Contains($fragment)) {
+        throw "MsvcEnvironment.psm1 is missing required Visual Studio environment fragment: $fragment"
     }
 }
 
-if (-not $pathModule.Contains('../Qt/Tools')) {
-    throw "DependencyPaths.psm1 must resolve development tools from the existing ../Qt/Tools tree when PATH does not provide them."
-}
-
-Write-Host "Project layout, parent-workspace relative paths, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, parent-workspace relative paths, Windows path normalization, and CMake responsibility boundaries are complete."

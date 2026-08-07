@@ -14,6 +14,8 @@ Import-Module $pathModulePath -Force
 
 Push-Location $projectRoot
 try {
+    & (Join-Path $PSScriptRoot "verify-dependencies.ps1")
+
     $versions = Get-PlayerDependencyVersions -ProjectRoot "."
     $layout = Get-PlayerWorkspaceLayout -Versions $versions
     $cmake = Resolve-PlayerCMake -Layout $layout

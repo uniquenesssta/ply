@@ -4,8 +4,10 @@ Set-StrictMode -Version Latest
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $versionModulePath = Join-Path $PSScriptRoot "modules/DependencyVersions.psm1"
 $pathModulePath = Join-Path $PSScriptRoot "modules/DependencyPaths.psm1"
+$msvcModulePath = Join-Path $PSScriptRoot "modules/MsvcEnvironment.psm1"
 Import-Module $versionModulePath -Force
 Import-Module $pathModulePath -Force
+Import-Module $msvcModulePath -Force
 
 function Add-PlayerFailure {
     param(
@@ -37,7 +39,8 @@ function Test-PlayerExactToolVersion {
     )
 
     try {
-        $actualVersion = (& $ReadVersion).Trim()
+        $actualVersion = [string]((& $ReadVersion) | Select-Object -First 1)
+        $actualVersion = $actualVersion.Trim()
         if ($actualVersion -ne $ExpectedVersion) {
             Add-PlayerFailure -Failures $Failures -Message "$Name version mismatch. Expected $ExpectedVersion, found $actualVersion."
             Write-Host "[INVALID] ${Name}: $actualVersion (expected $ExpectedVersion)"
@@ -74,7 +77,7 @@ try {
             -ExpectedVersion $versions.CMakeVersion `
             -Failures $failures `
             -ReadVersion {
-                $line = (& $cmake --version | Select-Object -First 1)
+                $line = [string](& $cmake --version | Select-Object -First 1)
                 if ($line -notmatch '^cmake version ([0-9]+(?:\.[0-9]+)+)$') {
                     throw "Unable to parse CMake version output: $line"
                 }
@@ -93,7 +96,7 @@ try {
             -Name "Ninja" `
             -ExpectedVersion $versions.NinjaVersion `
             -Failures $failures `
-            -ReadVersion { (& $ninja --version | Select-Object -First 1) }
+            -ReadVersion { [string](& $ninja --version | Select-Object -First 1) }
     }
     catch {
         Add-PlayerFailure -Failures $failures -Message $_.Exception.Message
@@ -115,16 +118,25 @@ try {
             -Name "Qt" `
             -ExpectedVersion $versions.QtVersion `
             -Failures $failures `
-            -ReadVersion { (& $qmake -query QT_VERSION | Select-Object -First 1) }
+            -ReadVersion { [string](& $qmake -query QT_VERSION | Select-Object -First 1) }
     }
     catch {
         Add-PlayerFailure -Failures $failures -Message $_.Exception.Message
         Write-Host "[MISSING] Qt $($versions.QtVersion) MSVC 2022 x64 kit"
     }
 
+    try {
+        Initialize-PlayerMsvcEnvironment -Versions $versions
+        Write-Host "[OK] Visual Studio x64 environment initialized"
+    }
+    catch {
+        Add-PlayerFailure -Failures $failures -Message $_.Exception.Message
+        Write-Host "[MISSING] Visual Studio x64 build environment"
+    }
+
     $compiler = Get-Command "cl.exe" -ErrorAction SilentlyContinue
     if (-not $compiler) {
-        Add-PlayerFailure -Failures $failures -Message "cl.exe is unavailable. Open the pinned Visual Studio 2022 x64 Native Tools shell."
+        Add-PlayerFailure -Failures $failures -Message "cl.exe is unavailable after Visual Studio environment initialization."
         Write-Host "[MISSING] MSVC compiler"
     }
     else {
@@ -143,18 +155,16 @@ try {
     }
 
     if ([string]::IsNullOrWhiteSpace($env:VSCMD_VER)) {
-        Add-PlayerFailure -Failures $failures -Message "VSCMD_VER is not set. Open the x64 Native Tools shell for Visual Studio $($versions.VisualStudioVersion)."
-        Write-Host "[MISSING] Visual Studio developer shell"
+        Add-PlayerFailure -Failures $failures -Message "VSCMD_VER is not initialized after automatic Visual Studio environment setup."
+        Write-Host "[MISSING] Visual Studio developer environment"
     }
     else {
-        $programFilesX86 = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFilesX86)
-        $vswhere = Join-Path $programFilesX86 "Microsoft Visual Studio/Installer/vswhere.exe"
-        if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) {
-            Add-PlayerFailure -Failures $failures -Message "vswhere.exe is unavailable; cannot verify Visual Studio build $($versions.VisualStudioBuild)."
-            Write-Host "[MISSING] Visual Studio version verifier"
-        }
-        else {
-            $installationVersion = [string](& $vswhere -latest -products * -version "[17.14,17.15)" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion | Select-Object -First 1)
+        try {
+            $vswhere = Get-PlayerVsWherePath
+            $parsedVisualStudioVersion = [version]$versions.VisualStudioVersion
+            $lower = "$($parsedVisualStudioVersion.Major).$($parsedVisualStudioVersion.Minor)"
+            $upper = "$($parsedVisualStudioVersion.Major).$($parsedVisualStudioVersion.Minor + 1)"
+            $installationVersion = [string](& $vswhere -latest -products * -version "[$lower,$upper)" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion | Select-Object -First 1)
             $installationVersion = $installationVersion.Trim()
             if ([string]::IsNullOrWhiteSpace($installationVersion)) {
                 Add-PlayerFailure -Failures $failures -Message "Visual Studio 2022 release $($versions.VisualStudioVersion) with the C++ x64 tools was not found."
@@ -168,6 +178,10 @@ try {
                 Write-Host "[OK] Visual Studio: $($versions.VisualStudioVersion) / $installationVersion"
             }
         }
+        catch {
+            Add-PlayerFailure -Failures $failures -Message $_.Exception.Message
+            Write-Host "[MISSING] Visual Studio version verifier"
+        }
     }
 
     $targetArchitecture = $env:VSCMD_ARG_TGT_ARCH
@@ -180,7 +194,7 @@ try {
         Write-Host "[OK] MSVC target architecture: x64"
     }
 
-    $windowsSdkVersion = if ($env:WindowsSDKVersion) { $env:WindowsSDKVersion.TrimEnd('\') } else { "" }
+    $windowsSdkVersion = if ($env:WindowsSDKVersion) { $env:WindowsSDKVersion.TrimEnd([char]92) } else { "" }
     if ($windowsSdkVersion -ne $versions.WindowsSdkVersion) {
         $reportedSdk = if ($windowsSdkVersion) { $windowsSdkVersion } else { "not initialized" }
         Add-PlayerFailure -Failures $failures -Message "Windows SDK mismatch. Expected $($versions.WindowsSdkVersion) from release $($versions.WindowsSdkRelease), found $reportedSdk."
