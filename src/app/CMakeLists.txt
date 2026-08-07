@@ -6,6 +6,8 @@ target_sources(
         bootstrap/application_bootstrap.h
         bootstrap/graphics_backend_bootstrap.cpp
         bootstrap/graphics_backend_bootstrap.h
+        bootstrap/logging_bootstrap.cpp
+        bootstrap/logging_bootstrap.h
         bootstrap/qml_bootstrap.cpp
         bootstrap/qml_bootstrap.h
         bootstrap/runtime_paths.cpp
@@ -15,5 +17,11 @@ target_sources(
 target_include_directories(
     player_app
     PRIVATE
-        ${PROJECT_SOURCE_DIR}/src
+        ..
+)
+
+target_link_libraries(
+    player_app
+    PRIVATE
+        player_foundation
 )

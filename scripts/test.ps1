@@ -14,8 +14,8 @@ Import-Module $pathModulePath -Force
 
 Push-Location $projectRoot
 try {
-    $versions = Get-PlayerDependencyVersions -ProjectRoot $projectRoot
-    $layout = Get-PlayerWorkspaceLayout -ProjectRoot $projectRoot -Versions $versions
+    $versions = Get-PlayerDependencyVersions -ProjectRoot "."
+    $layout = Get-PlayerWorkspaceLayout -Versions $versions
     $cmake = Resolve-PlayerCMake -Layout $layout
 
     & $cmake --build --preset $Preset
@@ -23,9 +23,9 @@ try {
         throw "Test build failed with exit code $LASTEXITCODE."
     }
 
-    & $cmake --build --preset $Preset --target test
+    & $cmake --test --preset $Preset
     if ($LASTEXITCODE -ne 0) {
-        throw "CTest target failed with exit code $LASTEXITCODE."
+        throw "CTest failed with exit code $LASTEXITCODE."
     }
 }
 finally {

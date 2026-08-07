@@ -17,16 +17,17 @@ try {
     & (Join-Path $PSScriptRoot "verify-project-layout.ps1")
     & (Join-Path $PSScriptRoot "verify-dependencies.ps1")
 
-    $versions = Get-PlayerDependencyVersions -ProjectRoot $projectRoot
-    $layout = Get-PlayerWorkspaceLayout -ProjectRoot $projectRoot -Versions $versions
+    $versions = Get-PlayerDependencyVersions -ProjectRoot "."
+    $layout = Get-PlayerWorkspaceLayout -Versions $versions
     $cmake = Resolve-PlayerCMake -Layout $layout
+
     $ninja = Resolve-PlayerNinja -Layout $layout
     Resolve-PlayerQtRoot -Layout $layout | Out-Null
 
-    $configureArguments = @(
-        "--preset", $Preset,
-        "-DCMAKE_MAKE_PROGRAM:FILEPATH=$ninja"
-    )
+    $configureArguments = @("--preset", $Preset)
+    if ($ninja -match '[/\\]') {
+        $configureArguments += "-DCMAKE_MAKE_PROGRAM:FILEPATH=$ninja"
+    }
 
     & $cmake @configureArguments
     if ($LASTEXITCODE -ne 0) {

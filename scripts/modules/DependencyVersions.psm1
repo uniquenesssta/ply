@@ -3,13 +3,12 @@ Set-StrictMode -Version Latest
 function Get-PlayerDependencyVersions {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$ProjectRoot
+        [string]$ProjectRoot = "."
     )
 
     $versionFile = Join-Path $ProjectRoot "cmake/DependencyVersions.cmake"
     if (-not (Test-Path -LiteralPath $versionFile -PathType Leaf)) {
-        throw "Dependency version manifest was not found: $versionFile"
+        throw "Dependency version manifest was not found at relative path '$versionFile'."
     }
 
     $rawValues = @{}
@@ -43,7 +42,7 @@ function Get-PlayerDependencyVersions {
         $variableName = $required[$propertyName]
         if (-not $rawValues.ContainsKey($variableName) -or
             [string]::IsNullOrWhiteSpace($rawValues[$variableName])) {
-            throw "Required dependency version '$variableName' is missing from $versionFile."
+            throw "Required dependency version '$variableName' is missing from relative manifest '$versionFile'."
         }
         $resolved[$propertyName] = $rawValues[$variableName]
     }

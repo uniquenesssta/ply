@@ -1,0 +1,10 @@
+target_sources(
+    player_foundation
+    PRIVATE
+        log_categories.cpp
+        log_categories.h
+        log_file_sink.cpp
+        log_file_sink.h
+        log_redactor.cpp
+        log_redactor.h
+)

@@ -14,8 +14,8 @@ Import-Module $pathModulePath -Force
 
 Push-Location $projectRoot
 try {
-    $versions = Get-PlayerDependencyVersions -ProjectRoot $projectRoot
-    $layout = Get-PlayerWorkspaceLayout -ProjectRoot $projectRoot -Versions $versions
+    $versions = Get-PlayerDependencyVersions -ProjectRoot "."
+    $layout = Get-PlayerWorkspaceLayout -Versions $versions
     $cmake = Resolve-PlayerCMake -Layout $layout
 
     & $cmake --build --preset $Preset

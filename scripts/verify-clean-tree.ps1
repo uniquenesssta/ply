@@ -28,6 +28,12 @@ try {
         throw "Third-party SDK, download, cache, or build files are staged:`n$($forbiddenStagedFiles -join [Environment]::NewLine)"
     }
 
+    $versions = Get-PlayerDependencyVersions -ProjectRoot "."
+    $layout = Get-PlayerWorkspaceLayout -Versions $versions
+    foreach ($entry in $layout.PSObject.Properties) {
+        Assert-PlayerRepositoryRelativePath -Name $entry.Name -Path ([string]$entry.Value)
+    }
+
     $changes = git status --porcelain
     if ($LASTEXITCODE -ne 0) {
         throw "git status failed."
@@ -36,23 +42,7 @@ try {
         throw "The working tree is not clean:`n$changes"
     }
 
-    $versions = Get-PlayerDependencyVersions -ProjectRoot $projectRoot
-    $layout = Get-PlayerWorkspaceLayout -ProjectRoot $projectRoot -Versions $versions
-    foreach ($sharedPath in @(
-        $layout.QtRoot,
-        $layout.LibMpvRoot,
-        $layout.CMakeRoot,
-        $layout.NinjaRoot,
-        $layout.DownloadsRoot,
-        $layout.FetchContentRoot
-    )) {
-        $relativeToRepository = [System.IO.Path]::GetRelativePath($layout.ProjectRoot, $sharedPath)
-        if (-not $relativeToRepository.StartsWith("..", [System.StringComparison]::Ordinal)) {
-            throw "Shared dependency path unexpectedly resolves inside the repository: $sharedPath"
-        }
-    }
-
-    Write-Host "Working tree is clean and shared dependency locations remain outside the repository."
+    Write-Host "Working tree is clean; all committed dependency/tool locations are repository-relative."
 }
 finally {
     Pop-Location

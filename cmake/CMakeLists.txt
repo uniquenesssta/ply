@@ -1,4 +1,4 @@
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 include(DependencyVersions)
 include(DependencyPaths)
@@ -23,8 +23,8 @@ find_package(
 
 qt_standard_project_setup(REQUIRES ${PLAYER_QT_VERSION})
 
-add_subdirectory("${PROJECT_SOURCE_DIR}/src" "${PROJECT_BINARY_DIR}/src")
+add_subdirectory("../src" "../src")
 
 if(PLAYER_BUILD_TESTS)
-    add_subdirectory("${PROJECT_SOURCE_DIR}/tests" "${PROJECT_BINARY_DIR}/tests")
+    add_subdirectory("../tests" "../tests")
 endif()

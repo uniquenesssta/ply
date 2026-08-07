@@ -1,5 +1,6 @@
 qt_add_executable(player_app MANUAL_FINALIZATION)
 
+add_subdirectory(foundation)
 add_subdirectory(app)
 add_subdirectory(presentation)
 

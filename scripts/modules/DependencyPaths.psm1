@@ -19,44 +19,23 @@ function Get-PlayerWorkspaceLayout {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$ProjectRoot,
-
-        [Parameter(Mandatory = $true)]
         [psobject]$Versions
     )
 
-    $resolvedProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
-    $parentRoot = [System.IO.Path]::GetFullPath((Join-Path $resolvedProjectRoot ".."))
-
-    $relative = [ordered]@{
-        QtRoot           = "../Qt/$($Versions.QtVersion)/msvc2022_64"
-        LibMpvRoot       = "../libmpv/$($Versions.MpvVersion)/windows-x64"
-        CMakeRoot        = "../cmake/$($Versions.CMakeVersion)"
-        NinjaRoot        = "../ninja/$($Versions.NinjaVersion)"
-        DownloadsRoot    = "../downloads"
-        FetchContentRoot = "../cache/cmake/fetchcontent"
+    $layout = [pscustomobject]@{
+        QtRootRelative             = "../Qt/$($Versions.QtVersion)/msvc2022_64"
+        LibMpvRootRelative         = "../libmpv/$($Versions.MpvVersion)/windows-x64"
+        PortableCMakeRelative      = "../cmake/$($Versions.CMakeVersion)/bin/cmake.exe"
+        PortableNinjaRelative      = "../ninja/$($Versions.NinjaVersion)/ninja.exe"
+        DownloadsRootRelative      = "../downloads"
+        FetchContentRootRelative   = "../cache/cmake/fetchcontent"
     }
 
-    foreach ($entry in $relative.GetEnumerator()) {
-        Assert-PlayerRepositoryRelativePath -Name $entry.Key -Path $entry.Value
+    foreach ($entry in $layout.PSObject.Properties) {
+        Assert-PlayerRepositoryRelativePath -Name $entry.Name -Path ([string]$entry.Value)
     }
 
-    [pscustomobject]@{
-        ProjectRoot              = $resolvedProjectRoot
-        ParentRoot               = $parentRoot
-        QtRootRelative           = $relative.QtRoot
-        LibMpvRootRelative       = $relative.LibMpvRoot
-        CMakeRootRelative        = $relative.CMakeRoot
-        NinjaRootRelative        = $relative.NinjaRoot
-        DownloadsRootRelative    = $relative.DownloadsRoot
-        FetchContentRootRelative = $relative.FetchContentRoot
-        QtRoot                   = Join-Path $parentRoot "Qt/$($Versions.QtVersion)/msvc2022_64"
-        LibMpvRoot               = Join-Path $parentRoot "libmpv/$($Versions.MpvVersion)/windows-x64"
-        CMakeRoot                = Join-Path $parentRoot "cmake/$($Versions.CMakeVersion)"
-        NinjaRoot                = Join-Path $parentRoot "ninja/$($Versions.NinjaVersion)"
-        DownloadsRoot            = Join-Path $parentRoot "downloads"
-        FetchContentRoot         = Join-Path $parentRoot "cache/cmake/fetchcontent"
-    }
+    return $layout
 }
 
 function Initialize-PlayerDependencyLayout {
@@ -66,12 +45,10 @@ function Initialize-PlayerDependencyLayout {
         [psobject]$Layout
     )
 
-    # Only project-owned shared staging/cache directories are created. Installed
-    # Qt, CMake, and Ninja directories are never created or modified here.
     foreach ($directory in @(
-        $Layout.LibMpvRoot,
-        $Layout.DownloadsRoot,
-        $Layout.FetchContentRoot
+        $Layout.LibMpvRootRelative,
+        $Layout.DownloadsRootRelative,
+        $Layout.FetchContentRootRelative
     )) {
         [System.IO.Directory]::CreateDirectory($directory) | Out-Null
     }
@@ -84,11 +61,39 @@ function Resolve-PlayerQtRoot {
         [psobject]$Layout
     )
 
-    $configFile = Join-Path $Layout.QtRoot "lib/cmake/Qt6/Qt6Config.cmake"
+    $configFile = Join-Path $Layout.QtRootRelative "lib/cmake/Qt6/Qt6Config.cmake"
     if (-not (Test-Path -LiteralPath $configFile -PathType Leaf)) {
-        throw "Pinned Qt kit was not found. Expected: $configFile"
+        throw "Pinned Qt kit was not found at relative path '$($Layout.QtRootRelative)'."
     }
-    return $Layout.QtRoot
+
+    return $Layout.QtRootRelative
+}
+
+function Resolve-PlayerToolCommand {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DisplayName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$RelativeCandidate,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$CommandNames
+    )
+
+    if (Test-Path -LiteralPath $RelativeCandidate -PathType Leaf) {
+        return $RelativeCandidate
+    }
+
+    foreach ($commandName in $CommandNames) {
+        $command = Get-Command $commandName -ErrorAction SilentlyContinue
+        if ($command) {
+            return $commandName
+        }
+    }
+
+    throw "$DisplayName was not found. Put the pinned tool on PATH or provide the optional relative copy at '$RelativeCandidate'."
 }
 
 function Resolve-PlayerCMake {
@@ -98,11 +103,10 @@ function Resolve-PlayerCMake {
         [psobject]$Layout
     )
 
-    $executable = Join-Path $Layout.CMakeRoot "bin/cmake.exe"
-    if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
-        throw "Pinned CMake executable was not found. Expected: $executable"
-    }
-    return (Resolve-Path -LiteralPath $executable).Path
+    return Resolve-PlayerToolCommand `
+        -DisplayName "CMake" `
+        -RelativeCandidate $Layout.PortableCMakeRelative `
+        -CommandNames @("cmake.exe", "cmake")
 }
 
 function Resolve-PlayerNinja {
@@ -112,14 +116,14 @@ function Resolve-PlayerNinja {
         [psobject]$Layout
     )
 
-    $executable = Join-Path $Layout.NinjaRoot "ninja.exe"
-    if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
-        throw "Pinned Ninja executable was not found. Expected: $executable"
-    }
-    return (Resolve-Path -LiteralPath $executable).Path
+    return Resolve-PlayerToolCommand `
+        -DisplayName "Ninja" `
+        -RelativeCandidate $Layout.PortableNinjaRelative `
+        -CommandNames @("ninja.exe", "ninja")
 }
 
 Export-ModuleMember -Function @(
+    "Assert-PlayerRepositoryRelativePath",
     "Get-PlayerWorkspaceLayout",
     "Initialize-PlayerDependencyLayout",
     "Resolve-PlayerQtRoot",

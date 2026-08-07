@@ -38,10 +38,11 @@ function Test-PlayerExactToolVersion {
         $actualVersion = (& $ReadVersion).Trim()
         if ($actualVersion -ne $ExpectedVersion) {
             Add-PlayerFailure -Failures $Failures -Message "$Name version mismatch. Expected $ExpectedVersion, found $actualVersion."
-            Write-Host "[INVALID] $Name: $actualVersion (expected $ExpectedVersion)"
+            Write-Host "[INVALID] ${Name}: $actualVersion (expected $ExpectedVersion)"
             return
         }
-        Write-Host "[OK] $Name: $actualVersion"
+
+        Write-Host "[OK] ${Name}: $actualVersion"
     }
     catch {
         Add-PlayerFailure -Failures $Failures -Message $_.Exception.Message
@@ -51,11 +52,11 @@ function Test-PlayerExactToolVersion {
 
 Push-Location $projectRoot
 try {
-    $versions = Get-PlayerDependencyVersions -ProjectRoot $projectRoot
-    $layout = Get-PlayerWorkspaceLayout -ProjectRoot $projectRoot -Versions $versions
+    $versions = Get-PlayerDependencyVersions -ProjectRoot "."
+    $layout = Get-PlayerWorkspaceLayout -Versions $versions
     $failures = [System.Collections.Generic.List[string]]::new()
 
-    Write-Host "Dependency parent: .."
+    Write-Host "Dependency paths: repository-relative only"
     Write-Host "Version source: cmake/DependencyVersions.cmake"
 
     $cmake = $null
@@ -100,8 +101,9 @@ try {
         )
         $qmake = $qmakeCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
         if (-not $qmake) {
-            throw "qmake was not found under the pinned Qt kit: $qtRoot"
+            throw "qmake was not found under relative Qt kit '$qtRoot'."
         }
+
         Test-PlayerExactToolVersion `
             -Name "Qt" `
             -ExpectedVersion $versions.QtVersion `
@@ -191,11 +193,11 @@ try {
         Write-Host "[OK] Windows: $osVersion (minimum $($versions.WindowsMinBuild), primary validation $($versions.WindowsPrimaryBuild))"
     }
 
-    $libMpvHeader = Join-Path $layout.LibMpvRoot "include/mpv/client.h"
+    $libMpvHeader = Join-Path $layout.LibMpvRootRelative "include/mpv/client.h"
     if (Test-Path -LiteralPath $libMpvHeader -PathType Leaf) {
-        $manifestPath = Join-Path $layout.LibMpvRoot "dependency-manifest.json"
+        $manifestPath = Join-Path $layout.LibMpvRootRelative "dependency-manifest.json"
         if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
-            Add-PlayerFailure -Failures $failures -Message "libmpv files exist but dependency-manifest.json is missing: $manifestPath"
+            Add-PlayerFailure -Failures $failures -Message "libmpv files exist but dependency-manifest.json is missing at '$manifestPath'."
             Write-Host "[INVALID] libmpv dependency manifest missing"
         }
         else {

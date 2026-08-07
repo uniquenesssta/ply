@@ -19,12 +19,23 @@ $requiredFiles = @(
     "src/CMakeLists.txt",
     "src/app/CMakeLists.txt",
     "src/app/main.cpp",
+    "src/app/bootstrap/logging_bootstrap.cpp",
+    "src/app/bootstrap/logging_bootstrap.h",
     "src/app/bootstrap/runtime_paths.cpp",
     "src/app/bootstrap/runtime_paths.h",
+    "src/foundation/CMakeLists.txt",
+    "src/foundation/logging/CMakeLists.txt",
+    "src/foundation/logging/log_categories.cpp",
+    "src/foundation/logging/log_categories.h",
+    "src/foundation/logging/log_file_sink.cpp",
+    "src/foundation/logging/log_file_sink.h",
+    "src/foundation/logging/log_redactor.cpp",
+    "src/foundation/logging/log_redactor.h",
     "src/presentation/CMakeLists.txt",
     "src/presentation/qml/App.qml",
     "tests/CMakeLists.txt",
-    "tests/unit/app/bootstrap/runtime_paths_test.cpp"
+    "tests/unit/app/bootstrap/runtime_paths_test.cpp",
+    "tests/unit/foundation/logging/logging_test.cpp"
 )
 
 $missingFiles = [System.Collections.Generic.List[string]]::new()
@@ -41,27 +52,23 @@ if ($missingFiles.Count -gt 0) {
 Project layout verification failed. Missing files:
 $missingList
 
-This usually means a small update package was extracted as a standalone project.
 Restore the complete scaffold before configuring.
 "@
 }
 
-$topLevelCMakePath = Join-Path $projectRoot "CMakeLists.txt"
-$topLevelCMake = Get-Content -LiteralPath $topLevelCMakePath -Raw
+$topLevelCMake = Get-Content -LiteralPath (Join-Path $projectRoot "CMakeLists.txt") -Raw
 
-$requiredTopLevelFragments = @(
+foreach ($fragment in @(
     "option(PLAYER_BUILD_TESTS",
     "include(CTest)",
     "add_subdirectory(cmake)"
-)
-
-foreach ($fragment in $requiredTopLevelFragments) {
+)) {
     if (-not $topLevelCMake.Contains($fragment)) {
         throw "Top-level CMake orchestration is missing required fragment: $fragment"
     }
 }
 
-$forbiddenTopLevelFragments = @(
+foreach ($fragment in @(
     "find_package(",
     "qt_standard_project_setup(",
     "qt_add_executable(",
@@ -72,30 +79,35 @@ $forbiddenTopLevelFragments = @(
     "install(",
     "add_subdirectory(src)",
     "add_subdirectory(tests)"
-)
-
-foreach ($fragment in $forbiddenTopLevelFragments) {
+)) {
     if ($topLevelCMake.Contains($fragment)) {
         throw "Top-level CMake contains responsibility that must remain below cmake/: $fragment"
     }
 }
 
-$orchestratorPath = Join-Path $projectRoot "cmake/CMakeLists.txt"
-$orchestrator = Get-Content -LiteralPath $orchestratorPath -Raw
+$orchestrator = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/CMakeLists.txt") -Raw
 
-$requiredOrchestratorFragments = @(
+foreach ($fragment in @(
     "include(DependencyVersions)",
     "include(DependencyPaths)",
     "include(AppTargets)",
     'Qt6 ${PLAYER_QT_VERSION} EXACT',
-    'add_subdirectory("${PROJECT_SOURCE_DIR}/src" "${PROJECT_BINARY_DIR}/src")',
-    'add_subdirectory("${PROJECT_SOURCE_DIR}/tests" "${PROJECT_BINARY_DIR}/tests")'
-)
-
-foreach ($fragment in $requiredOrchestratorFragments) {
+    'add_subdirectory("../src" "../src")',
+    'add_subdirectory("../tests" "../tests")'
+)) {
     if (-not $orchestrator.Contains($fragment)) {
         throw "cmake/CMakeLists.txt is missing required orchestration fragment: $fragment"
     }
 }
 
-Write-Host "Project layout and CMake responsibility boundaries are complete."
+$dependencyPaths = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/DependencyPaths.cmake") -Raw
+if ($dependencyPaths -match '[A-Za-z]:[/\\]') {
+    throw "cmake/DependencyPaths.cmake contains a machine-absolute Windows path."
+}
+
+$pathModule = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/modules/DependencyPaths.psm1") -Raw
+if ($pathModule -match '[A-Za-z]:[/\\]') {
+    throw "DependencyPaths.psm1 contains a machine-absolute Windows path."
+}
+
+Write-Host "Project layout, relative-path policy, and CMake responsibility boundaries are complete."
