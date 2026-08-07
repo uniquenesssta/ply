@@ -68,7 +68,7 @@ player_recover_incomplete_no_checkout_clone() {
         return 1
     fi
 
-    printf 'Recovering incomplete no-checkout source clone: %s\n' "$source_dir"
+    printf 'Recovering incomplete no-checkout source clone: %s\n' "$source_dir" >&2
     git -C "$source_dir" reset --hard HEAD >/dev/null
 
     [[ -z "$(git -C "$source_dir" status --porcelain=v1 --untracked-files=all)" ]]
@@ -83,9 +83,11 @@ player_fetch_source() {
     local source_dir="$PLAYER_SOURCE_ROOT/$name"
     local status_output
 
+    # This function is consumed through command substitution. Keep stdout reserved
+    # for the final source path and send all operational diagnostics to stderr.
     if [[ ! -d "$source_dir/.git" ]]; then
         rm -rf "$source_dir"
-        git clone "$url" "$source_dir"
+        git clone "$url" "$source_dir" >&2
     fi
 
     status_output="$(git -C "$source_dir" status --porcelain=v1 --untracked-files=all)"
@@ -100,12 +102,12 @@ player_fetch_source() {
         exit 1
     fi
 
-    git -C "$source_dir" fetch --force --tags origin "$ref"
-    git -C "$source_dir" checkout --detach FETCH_HEAD
+    git -C "$source_dir" fetch --force --tags origin "$ref" >&2
+    git -C "$source_dir" checkout --detach FETCH_HEAD >&2
 
     if [[ "$recurse_submodules" == "true" ]]; then
-        git -C "$source_dir" submodule sync --recursive
-        git -C "$source_dir" submodule update --init --recursive
+        git -C "$source_dir" submodule sync --recursive >&2
+        git -C "$source_dir" submodule update --init --recursive >&2
     fi
 
     local actual_commit

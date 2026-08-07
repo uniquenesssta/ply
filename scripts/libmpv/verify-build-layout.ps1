@@ -132,22 +132,27 @@ try {
         throw "The shared Meson build helper must keep third-party libraries dynamic."
     }
     foreach ($fragment in @(
-        'git clone "$url" "$source_dir"',
+        'git clone "$url" "$source_dir" >&2',
         'player_source_worktree_is_empty',
         'player_source_status_is_only_initial_deletions',
         'player_recover_incomplete_no_checkout_clone',
         'git -C "$source_dir" reset --hard HEAD',
+        'printf ''Recovering incomplete no-checkout source clone: %s\n'' "$source_dir" >&2',
+        'git -C "$source_dir" fetch --force --tags origin "$ref" >&2',
+        'git -C "$source_dir" checkout --detach FETCH_HEAD >&2',
+        'git -C "$source_dir" submodule sync --recursive >&2',
+        'git -C "$source_dir" submodule update --init --recursive >&2',
         'Source checkout contains local changes and will not be overwritten'
     )) {
         if (-not $commonBuild.Contains($fragment)) {
-            throw "common.sh is missing safe source-checkout handling fragment: $fragment"
+            throw "common.sh is missing safe source-checkout/stdout-contract fragment: $fragment"
         }
     }
     if ($commonBuild.Contains('git clone --no-checkout')) {
         throw "common.sh must not create new source repositories with an intentionally empty no-checkout worktree."
     }
 
-    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, safe source checkout recovery, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
+    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, safe source checkout/stdout contract, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
 }
 finally {
     Pop-Location
