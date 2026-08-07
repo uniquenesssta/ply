@@ -141,35 +141,44 @@ try {
 
     $sourceCheckout = Get-Content -LiteralPath "scripts/libmpv/clang64/source/source_checkout.sh" -Raw
     foreach ($fragment in @(
+        'player_git_http',
+        'git -c http.version=HTTP/1.1 "$@"',
         'player_git_network_retry',
         'local max_attempts=3',
-        'player_clone_source_repository',
-        'git clone "$url" "$clone_dir" >&2',
-        'rm -rf -- "$clone_dir"',
+        'player_install_shallow_source_repository',
+        'git init "$checkout_dir"',
+        'git -C "$checkout_dir" remote add origin "$url"',
+        'fetch --depth=1 --no-tags origin "$ref"',
+        'git -C "$checkout_dir" checkout --detach FETCH_HEAD',
+        'rm -rf -- "$checkout_dir"',
+        'Fetching initial %s source failed',
         'Source path exists but is not a Git checkout and will not be overwritten',
         'player_source_worktree_is_empty',
         'player_source_status_is_only_initial_deletions',
         'player_recover_incomplete_no_checkout_clone',
         'git -C "$source_dir" reset --hard HEAD >&2',
         'Fetching $name source ref $ref',
-        'git -C "$source_dir" fetch --force --tags origin "$ref"',
+        'fetch --force --depth=1 --no-tags origin "$ref"',
         'Updating $name source submodules',
-        'git -C "$source_dir" submodule update --init --recursive',
+        'submodule update --init --recursive --depth 1 --jobs 1',
         'Source checkout contains local changes and will not be overwritten',
         'printf ''%s\n'' "$source_dir"'
     )) {
         if (-not $sourceCheckout.Contains($fragment)) {
-            throw "source_checkout.sh is missing source-safety/network-retry fragment: $fragment"
+            throw "source_checkout.sh is missing shallow-source/network-safety fragment: $fragment"
         }
     }
-    if ($sourceCheckout.Contains('git clone --no-checkout')) {
-        throw "source_checkout.sh must not create intentionally empty no-checkout worktrees."
+    if ($sourceCheckout.Contains('git clone')) {
+        throw "source_checkout.sh must not full-clone dependency history; fixed refs must use shallow fetch."
+    }
+    if ($sourceCheckout.Contains('git config --global') -or $sourceCheckout.Contains('git config http.version')) {
+        throw "source_checkout.sh must not persistently change the user's Git configuration."
     }
     if ($sourceCheckout.Contains('rm -rf "$source_dir"') -or $sourceCheckout.Contains('rm -rf -- "$source_dir"')) {
         throw "source_checkout.sh must not recursively delete an existing final source directory."
     }
 
-    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, isolated source checkout with bounded network retry, safe stdout contract, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
+    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, shallow fixed-ref source checkout with bounded HTTP/1.1 retry, safe stdout contract, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
 }
 finally {
     Pop-Location

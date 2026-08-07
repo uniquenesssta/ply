@@ -28,6 +28,10 @@ player_source_directory_is_empty() {
     [[ -z "$(find "$source_dir" -mindepth 1 -maxdepth 1 -print -quit)" ]]
 }
 
+player_git_http() {
+    git -c http.version=HTTP/1.1 "$@"
+}
+
 player_git_network_retry() {
     local description="$1"
     shift
@@ -54,44 +58,80 @@ player_git_network_retry() {
     return "$exit_code"
 }
 
-player_clone_source_repository() {
+player_prepare_source_destination() {
+    local source_dir="$1"
+
+    if [[ ! -e "$source_dir" ]]; then
+        return 0
+    fi
+    if player_source_directory_is_empty "$source_dir"; then
+        rmdir "$source_dir" || {
+            printf 'Unable to remove empty source directory before checkout: %s\n' "$source_dir" >&2
+            return 1
+        }
+        return 0
+    fi
+
+    printf 'Source path exists but is not a Git checkout and will not be overwritten: %s\n' "$source_dir" >&2
+    return 1
+}
+
+player_install_shallow_source_repository() {
     local name="$1"
     local url="$2"
-    local source_dir="$3"
+    local ref="$3"
+    local expected_commit="$4"
+    local source_dir="$5"
 
-    if [[ -e "$source_dir" ]]; then
-        if player_source_directory_is_empty "$source_dir"; then
-            rmdir "$source_dir" || {
-                printf 'Unable to remove empty source directory before clone: %s\n' "$source_dir" >&2
-                return 1
-            }
-        else
-            printf 'Source path exists but is not a Git checkout and will not be overwritten: %s\n' "$source_dir" >&2
-            return 1
-        fi
+    if ! player_prepare_source_destination "$source_dir"; then
+        return 1
     fi
 
     local max_attempts=3
     local attempt
     local exit_code=1
-    local clone_dir
+    local checkout_dir
+    local actual_commit
 
     for ((attempt = 1; attempt <= max_attempts; attempt++)); do
-        clone_dir="$PLAYER_SOURCE_ROOT/.${name}.clone.${BASHPID}.${RANDOM}.${attempt}"
-        if [[ -e "$clone_dir" ]]; then
-            printf 'Generated clone staging path already exists and will not be overwritten: %s\n' "$clone_dir" >&2
+        checkout_dir="$PLAYER_SOURCE_ROOT/.${name}.checkout.${BASHPID}.${RANDOM}.${attempt}"
+        if [[ -e "$checkout_dir" ]]; then
+            printf 'Generated checkout staging path already exists and will not be overwritten: %s\n' "$checkout_dir" >&2
             return 1
         fi
 
-        if git clone "$url" "$clone_dir" >&2; then
-            if [[ -e "$source_dir" ]]; then
-                printf 'Source path appeared while clone was running and will not be overwritten: %s\n' "$source_dir" >&2
-                rm -rf -- "$clone_dir"
+        if ! git init "$checkout_dir" >&2 || \
+           ! git -C "$checkout_dir" remote add origin "$url" >&2; then
+            rm -rf -- "$checkout_dir"
+            printf 'Unable to initialize source checkout staging repository for %s.\n' "$name" >&2
+            return 1
+        fi
+
+        if player_git_http -C "$checkout_dir" fetch --depth=1 --no-tags origin "$ref" >&2; then
+            if ! git -C "$checkout_dir" checkout --detach FETCH_HEAD >&2; then
+                rm -rf -- "$checkout_dir"
+                printf 'Unable to checkout fetched source ref for %s: %s\n' "$name" "$ref" >&2
                 return 1
             fi
-            if ! mv -- "$clone_dir" "$source_dir"; then
-                printf 'Unable to move completed clone into source directory: %s\n' "$source_dir" >&2
-                rm -rf -- "$clone_dir"
+            if ! actual_commit="$(git -C "$checkout_dir" rev-parse HEAD)"; then
+                rm -rf -- "$checkout_dir"
+                printf 'Unable to resolve initial source commit for %s.\n' "$name" >&2
+                return 1
+            fi
+            if [[ -n "$expected_commit" && "$actual_commit" != "$expected_commit" ]]; then
+                rm -rf -- "$checkout_dir"
+                printf 'Source identity mismatch for %s: expected %s, found %s\n' \
+                    "$name" "$expected_commit" "$actual_commit" >&2
+                return 1
+            fi
+            if [[ -e "$source_dir" ]]; then
+                rm -rf -- "$checkout_dir"
+                printf 'Source path appeared while checkout was running and will not be overwritten: %s\n' "$source_dir" >&2
+                return 1
+            fi
+            if ! mv -- "$checkout_dir" "$source_dir"; then
+                rm -rf -- "$checkout_dir"
+                printf 'Unable to move completed checkout into source directory: %s\n' "$source_dir" >&2
                 return 1
             fi
             return 0
@@ -99,15 +139,15 @@ player_clone_source_repository() {
             exit_code=$?
         fi
 
-        rm -rf -- "$clone_dir"
+        rm -rf -- "$checkout_dir"
         if ((attempt < max_attempts)); then
-            printf 'Cloning %s failed (attempt %d/%d); retrying in %d seconds...\n' \
+            printf 'Fetching initial %s source failed (attempt %d/%d); retrying in %d seconds...\n' \
                 "$name" "$attempt" "$max_attempts" "$((attempt * 2))" >&2
             sleep "$((attempt * 2))"
         fi
     done
 
-    printf 'Cloning %s failed after %d attempts; no source checkout was installed.\n' \
+    printf 'Fetching initial %s source failed after %d attempts; no source checkout was installed.\n' \
         "$name" "$max_attempts" >&2
     return "$exit_code"
 }
@@ -159,13 +199,16 @@ player_fetch_source() {
     local expected_commit="${5:-}"
     local source_dir="$PLAYER_SOURCE_ROOT/$name"
     local status_output
+    local installed_new=false
 
     # This function is consumed through command substitution. Keep stdout reserved
     # for the final source path and send all operational diagnostics to stderr.
     if [[ ! -d "$source_dir/.git" ]]; then
-        if ! player_clone_source_repository "$name" "$url" "$source_dir"; then
+        if ! player_install_shallow_source_repository \
+            "$name" "$url" "$ref" "$expected_commit" "$source_dir"; then
             return 1
         fi
+        installed_new=true
     fi
 
     if ! status_output="$(git -C "$source_dir" status --porcelain=v1 --untracked-files=all)"; then
@@ -186,14 +229,16 @@ player_fetch_source() {
         return 1
     fi
 
-    if ! player_git_network_retry \
-        "Fetching $name source ref $ref" \
-        git -C "$source_dir" fetch --force --tags origin "$ref"; then
-        return 1
-    fi
-    if ! git -C "$source_dir" checkout --detach FETCH_HEAD >&2; then
-        printf 'Unable to checkout fetched source ref for %s: %s\n' "$name" "$ref" >&2
-        return 1
+    if [[ "$installed_new" != "true" ]]; then
+        if ! player_git_network_retry \
+            "Fetching $name source ref $ref" \
+            player_git_http -C "$source_dir" fetch --force --depth=1 --no-tags origin "$ref"; then
+            return 1
+        fi
+        if ! git -C "$source_dir" checkout --detach FETCH_HEAD >&2; then
+            printf 'Unable to checkout fetched source ref for %s: %s\n' "$name" "$ref" >&2
+            return 1
+        fi
     fi
 
     if [[ "$recurse_submodules" == "true" ]]; then
@@ -203,7 +248,7 @@ player_fetch_source() {
         fi
         if ! player_git_network_retry \
             "Updating $name source submodules" \
-            git -C "$source_dir" submodule update --init --recursive; then
+            player_git_http -C "$source_dir" submodule update --init --recursive --depth 1 --jobs 1; then
             return 1
         fi
     fi
