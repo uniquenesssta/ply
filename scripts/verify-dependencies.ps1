@@ -55,6 +55,41 @@ function Test-PlayerExactToolVersion {
     }
 }
 
+function Test-PlayerMinimumToolVersion {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+
+        [Parameter(Mandatory = $true)]
+        [string]$MinimumVersion,
+
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$ReadVersion,
+
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [System.Collections.Generic.List[string]]$Failures
+    )
+
+    try {
+        $actualVersionText = [string]((& $ReadVersion) | Select-Object -First 1)
+        $actualVersionText = $actualVersionText.Trim()
+        $actualVersion = [version]$actualVersionText
+        $minimum = [version]$MinimumVersion
+        if ($actualVersion -lt $minimum) {
+            Add-PlayerFailure -Failures $Failures -Message "$Name is too old. Minimum $MinimumVersion, found $actualVersionText."
+            Write-Host "[INVALID] ${Name}: $actualVersionText (minimum $MinimumVersion)"
+            return
+        }
+
+        Write-Host "[OK] ${Name}: $actualVersionText (minimum $MinimumVersion)"
+    }
+    catch {
+        Add-PlayerFailure -Failures $Failures -Message $_.Exception.Message
+        Write-Host "[MISSING] $Name"
+    }
+}
+
 Push-Location $projectRoot
 try {
     $versions = Get-PlayerDependencyVersions -ProjectRoot "."
@@ -72,9 +107,9 @@ try {
     $cmake = $null
     try {
         $cmake = Resolve-PlayerCMake -Layout $layout
-        Test-PlayerExactToolVersion `
+        Test-PlayerMinimumToolVersion `
             -Name "CMake" `
-            -ExpectedVersion $versions.CMakeVersion `
+            -MinimumVersion $versions.CMakeVersion `
             -Failures $failures `
             -ReadVersion {
                 $line = [string](& $cmake --version | Select-Object -First 1)
@@ -86,21 +121,21 @@ try {
     }
     catch {
         Add-PlayerFailure -Failures $failures -Message $_.Exception.Message
-        Write-Host "[MISSING] CMake $($versions.CMakeVersion)"
+        Write-Host "[MISSING] CMake $($versions.CMakeVersion)+"
     }
 
     $ninja = $null
     try {
         $ninja = Resolve-PlayerNinja -Layout $layout
-        Test-PlayerExactToolVersion `
+        Test-PlayerMinimumToolVersion `
             -Name "Ninja" `
-            -ExpectedVersion $versions.NinjaVersion `
+            -MinimumVersion $versions.NinjaVersion `
             -Failures $failures `
             -ReadVersion { [string](& $ninja --version | Select-Object -First 1) }
     }
     catch {
         Add-PlayerFailure -Failures $failures -Message $_.Exception.Message
-        Write-Host "[MISSING] Ninja $($versions.NinjaVersion)"
+        Write-Host "[MISSING] Ninja $($versions.NinjaVersion)+"
     }
 
     try {
@@ -140,18 +175,38 @@ try {
         Write-Host "[MISSING] MSVC compiler"
     }
     else {
-        $compilerBanner = ((& $compiler.Source 2>&1) | Select-Object -First 1) -as [string]
-        if ($compilerBanner -notmatch 'Version\s+([0-9]+\.[0-9]+)(?:\.[0-9]+)?') {
-            Add-PlayerFailure -Failures $failures -Message "Unable to parse cl.exe version output: $compilerBanner"
-            Write-Host "[INVALID] MSVC compiler version output"
+        try {
+            $compilerFileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($compiler.Source).FileVersion
+            if ($compilerFileVersion -notmatch '^([0-9]+\.[0-9]+)') {
+                throw "Unable to parse cl.exe file version: $compilerFileVersion"
+            }
+
+            $compilerFamily = $Matches[1]
+            if ($compilerFamily -ne $versions.MsvcCompilerVersion) {
+                Add-PlayerFailure -Failures $failures -Message "MSVC compiler family mismatch. Expected $($versions.MsvcCompilerVersion), found $compilerFamily ($compilerFileVersion)."
+                Write-Host "[INVALID] MSVC compiler: $compilerFileVersion (expected family $($versions.MsvcCompilerVersion))"
+            }
+            else {
+                Write-Host "[OK] MSVC compiler: $compilerFileVersion (family $compilerFamily)"
+            }
         }
-        elseif ($Matches[1] -ne $versions.MsvcCompilerVersion) {
-            Add-PlayerFailure -Failures $failures -Message "MSVC compiler family mismatch. Expected $($versions.MsvcCompilerVersion), found $($Matches[1])."
-            Write-Host "[INVALID] MSVC compiler: $($Matches[1]) (expected $($versions.MsvcCompilerVersion))"
+        catch {
+            Add-PlayerFailure -Failures $failures -Message $_.Exception.Message
+            Write-Host "[INVALID] MSVC compiler version"
         }
-        else {
-            Write-Host "[OK] MSVC compiler family: $($Matches[1]) / toolset $($versions.MsvcToolsetVersion)"
-        }
+    }
+
+    $vcToolsVersion = if ($env:VCToolsVersion) { $env:VCToolsVersion.TrimEnd([char]92) } else { "" }
+    if ([string]::IsNullOrWhiteSpace($vcToolsVersion)) {
+        Add-PlayerFailure -Failures $failures -Message "VCToolsVersion is not initialized after automatic Visual Studio environment setup."
+        Write-Host "[MISSING] MSVC toolset version"
+    }
+    elseif (-not ($vcToolsVersion -eq $versions.MsvcToolsetVersion -or $vcToolsVersion.StartsWith("$($versions.MsvcToolsetVersion).", [System.StringComparison]::Ordinal))) {
+        Add-PlayerFailure -Failures $failures -Message "MSVC toolset family mismatch. Expected $($versions.MsvcToolsetVersion), found $vcToolsVersion."
+        Write-Host "[INVALID] MSVC toolset: $vcToolsVersion (expected family $($versions.MsvcToolsetVersion))"
+    }
+    else {
+        Write-Host "[OK] MSVC toolset: $vcToolsVersion (family $($versions.MsvcToolsetVersion))"
     }
 
     if ([string]::IsNullOrWhiteSpace($env:VSCMD_VER)) {
@@ -164,18 +219,21 @@ try {
             $parsedVisualStudioVersion = [version]$versions.VisualStudioVersion
             $lower = "$($parsedVisualStudioVersion.Major).$($parsedVisualStudioVersion.Minor)"
             $upper = "$($parsedVisualStudioVersion.Major).$($parsedVisualStudioVersion.Minor + 1)"
-            $installationVersion = [string](& $vswhere -latest -products * -version "[$lower,$upper)" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion | Select-Object -First 1)
-            $installationVersion = $installationVersion.Trim()
-            if ([string]::IsNullOrWhiteSpace($installationVersion)) {
-                Add-PlayerFailure -Failures $failures -Message "Visual Studio 2022 release $($versions.VisualStudioVersion) with the C++ x64 tools was not found."
-                Write-Host "[MISSING] Visual Studio $($versions.VisualStudioVersion)"
-            }
-            elseif ($installationVersion -ne $versions.VisualStudioBuild) {
-                Add-PlayerFailure -Failures $failures -Message "Visual Studio build mismatch. Expected $($versions.VisualStudioBuild) (release $($versions.VisualStudioVersion)), found $installationVersion."
-                Write-Host "[INVALID] Visual Studio: $installationVersion (expected $($versions.VisualStudioBuild))"
+            $installationVersionText = [string](& $vswhere -latest -products * -version "[$lower,$upper)" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion | Select-Object -First 1)
+            $installationVersionText = $installationVersionText.Trim()
+            if ([string]::IsNullOrWhiteSpace($installationVersionText)) {
+                Add-PlayerFailure -Failures $failures -Message "Visual Studio 2022 $lower family with the C++ x64 tools was not found."
+                Write-Host "[MISSING] Visual Studio $lower family"
             }
             else {
-                Write-Host "[OK] Visual Studio: $($versions.VisualStudioVersion) / $installationVersion"
+                $installationVersion = [version]$installationVersionText
+                if ($installationVersion.Major -ne $parsedVisualStudioVersion.Major -or $installationVersion.Minor -ne $parsedVisualStudioVersion.Minor) {
+                    Add-PlayerFailure -Failures $failures -Message "Visual Studio family mismatch. Expected $lower, found $installationVersionText."
+                    Write-Host "[INVALID] Visual Studio: $installationVersionText (expected $lower family)"
+                }
+                else {
+                    Write-Host "[OK] Visual Studio: $installationVersionText ($lower family; reference $($versions.VisualStudioBuild))"
+                }
             }
         }
         catch {
@@ -195,13 +253,26 @@ try {
     }
 
     $windowsSdkVersion = if ($env:WindowsSDKVersion) { $env:WindowsSDKVersion.TrimEnd([char]92) } else { "" }
-    if ($windowsSdkVersion -ne $versions.WindowsSdkVersion) {
-        $reportedSdk = if ($windowsSdkVersion) { $windowsSdkVersion } else { "not initialized" }
-        Add-PlayerFailure -Failures $failures -Message "Windows SDK mismatch. Expected $($versions.WindowsSdkVersion) from release $($versions.WindowsSdkRelease), found $reportedSdk."
-        Write-Host "[INVALID] Windows SDK: $reportedSdk (expected $($versions.WindowsSdkVersion))"
+    if ([string]::IsNullOrWhiteSpace($windowsSdkVersion)) {
+        Add-PlayerFailure -Failures $failures -Message "WindowsSDKVersion is not initialized after automatic Visual Studio environment setup."
+        Write-Host "[MISSING] Windows SDK"
     }
     else {
-        Write-Host "[OK] Windows SDK: $windowsSdkVersion (release $($versions.WindowsSdkRelease))"
+        try {
+            $actualSdkVersion = [version]$windowsSdkVersion
+            $minimumSdkVersion = [version]$versions.WindowsSdkVersion
+            if ($actualSdkVersion -lt $minimumSdkVersion) {
+                Add-PlayerFailure -Failures $failures -Message "Windows SDK is too old. Minimum $($versions.WindowsSdkVersion), found $windowsSdkVersion."
+                Write-Host "[INVALID] Windows SDK: $windowsSdkVersion (minimum $($versions.WindowsSdkVersion))"
+            }
+            else {
+                Write-Host "[OK] Windows SDK: $windowsSdkVersion (minimum $($versions.WindowsSdkVersion); reference release $($versions.WindowsSdkRelease))"
+            }
+        }
+        catch {
+            Add-PlayerFailure -Failures $failures -Message "Unable to parse Windows SDK version '$windowsSdkVersion'."
+            Write-Host "[INVALID] Windows SDK version output"
+        }
     }
 
     $osVersion = [System.Environment]::OSVersion.Version
@@ -255,7 +326,7 @@ $failureList
 "@
     }
 
-    Write-Host "Pinned dependencies required by the current scaffold are available and version-matched."
+    Write-Host "Compatible development tools and required product dependencies are available for the current scaffold."
 }
 finally {
     Pop-Location

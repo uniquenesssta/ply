@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.31.12)
+cmake_minimum_required(VERSION 3.30.5)
 
 project(
     ModularMpvPlayer

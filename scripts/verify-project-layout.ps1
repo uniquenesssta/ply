@@ -140,4 +140,16 @@ foreach ($fragment in @(
     }
 }
 
-Write-Host "Project layout, parent-workspace relative paths, Windows path normalization, and CMake responsibility boundaries are complete."
+$dependencyVerifier = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/verify-dependencies.ps1") -Raw
+foreach ($fragment in @(
+    "Test-PlayerMinimumToolVersion",
+    "FileVersionInfo",
+    "VCToolsVersion",
+    "Compatible development tools"
+)) {
+    if (-not $dependencyVerifier.Contains($fragment)) {
+        throw "verify-dependencies.ps1 is missing required compatibility-verification fragment: $fragment"
+    }
+}
+
+Write-Host "Project layout, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
