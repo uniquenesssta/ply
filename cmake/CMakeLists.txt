@@ -21,6 +21,8 @@ find_package(
         QuickControls2
 )
 
+find_package(LibMpv ${PLAYER_MPV_VERSION} EXACT REQUIRED)
+
 qt_standard_project_setup(REQUIRES ${PLAYER_QT_VERSION})
 
 add_subdirectory("../src" "../src")

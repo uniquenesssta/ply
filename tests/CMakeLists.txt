@@ -128,3 +128,36 @@ add_test(
     NAME application_container
     COMMAND application_container_tests
 )
+
+add_executable(
+    mpv_runtime_probe_tests
+    unit/playback/infrastructure/mpv/runtime/mpv_runtime_probe_test.cpp
+)
+
+player_apply_compiler_options(mpv_runtime_probe_tests)
+player_enable_compiler_warnings(mpv_runtime_probe_tests)
+player_enable_sanitizers(mpv_runtime_probe_tests)
+player_enable_static_analysis(mpv_runtime_probe_tests)
+
+target_link_libraries(
+    mpv_runtime_probe_tests
+    PRIVATE
+        player_mpv_infrastructure
+        Qt6::Test
+)
+
+target_compile_definitions(
+    mpv_runtime_probe_tests
+    PRIVATE
+        PLAYER_EXPECTED_MPV_VERSION="${PLAYER_MPV_VERSION}"
+        PLAYER_EXPECTED_MPV_TAG="${PLAYER_MPV_TAG}"
+        PLAYER_EXPECTED_MPV_COMMIT="${PLAYER_MPV_COMMIT}"
+        PLAYER_EXPECTED_FFMPEG_VERSION="${PLAYER_FFMPEG_VERSION}"
+)
+
+player_stage_libmpv_runtime(mpv_runtime_probe_tests)
+
+add_test(
+    NAME mpv_runtime_probe
+    COMMAND mpv_runtime_probe_tests
+)

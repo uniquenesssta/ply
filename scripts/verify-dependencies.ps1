@@ -285,37 +285,43 @@ try {
         Write-Host "[OK] Windows: $osVersion (minimum $($versions.WindowsMinBuild), primary validation $($versions.WindowsPrimaryBuild))"
     }
 
-    $libMpvHeader = Join-Path $layout.LibMpvRootRelative "include/mpv/client.h"
-    if (Test-Path -LiteralPath $libMpvHeader -PathType Leaf) {
-        $manifestPath = Join-Path $layout.LibMpvRootRelative "dependency-manifest.json"
-        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
-            Add-PlayerFailure -Failures $failures -Message "libmpv files exist but dependency-manifest.json is missing at '$manifestPath'."
-            Write-Host "[INVALID] libmpv dependency manifest missing"
+    try {
+        $libMpvPackage = Resolve-PlayerLibMpvPackage -Layout $layout
+        $manifest = Get-Content -LiteralPath $libMpvPackage.ManifestRelative -Raw | ConvertFrom-Json
+        $manifestChecks = @(
+            @("mpv.version", [string]$manifest.mpv.version, $versions.MpvVersion),
+            @("mpv.tag", [string]$manifest.mpv.tag, $versions.MpvTag),
+            @("mpv.commit", [string]$manifest.mpv.commit, $versions.MpvCommit),
+            @("ffmpeg.version", [string]$manifest.ffmpeg.version, $versions.FfmpegVersion)
+        )
+
+        $manifestValid = $true
+        foreach ($check in $manifestChecks) {
+            if ($check[1] -ne $check[2]) {
+                $manifestValid = $false
+                Add-PlayerFailure -Failures $failures -Message "libmpv manifest $($check[0]) mismatch. Expected $($check[2]), found $($check[1])."
+            }
+        }
+
+        if ($manifestValid) {
+            Write-Host "[OK] libmpv manifest: mpv $($manifest.mpv.version), tag $($manifest.mpv.tag), FFmpeg $($manifest.ffmpeg.version)"
         }
         else {
-            try {
-                $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-                $manifestChecks = @(
-                    @("mpv.version", [string]$manifest.mpv.version, $versions.MpvVersion),
-                    @("mpv.tag", [string]$manifest.mpv.tag, $versions.MpvTag),
-                    @("mpv.commit", [string]$manifest.mpv.commit, $versions.MpvCommit),
-                    @("ffmpeg.version", [string]$manifest.ffmpeg.version, $versions.FfmpegVersion)
-                )
-                foreach ($check in $manifestChecks) {
-                    if ($check[1] -ne $check[2]) {
-                        Add-PlayerFailure -Failures $failures -Message "libmpv manifest $($check[0]) mismatch. Expected $($check[2]), found $($check[1])."
-                    }
-                }
-                Write-Host "[OK] libmpv manifest: mpv $($manifest.mpv.version), FFmpeg $($manifest.ffmpeg.version)"
-            }
-            catch {
-                Add-PlayerFailure -Failures $failures -Message "Unable to read libmpv dependency manifest: $($_.Exception.Message)"
-                Write-Host "[INVALID] libmpv dependency manifest"
-            }
+            Write-Host "[INVALID] libmpv dependency manifest identity"
         }
+
+        Write-Host "[OK] libmpv header: $($libMpvPackage.HeaderRelative)"
+        Write-Host "[OK] libmpv import library: $($libMpvPackage.ImportLibraryRelative)"
+        Write-Host "[OK] libmpv runtime DLL: $($libMpvPackage.RuntimeLibraryRelative)"
+
+        $runtimeHash = (Get-FileHash -LiteralPath $libMpvPackage.RuntimeLibraryRelative -Algorithm SHA256).Hash.ToLowerInvariant()
+        $importHash = (Get-FileHash -LiteralPath $libMpvPackage.ImportLibraryRelative -Algorithm SHA256).Hash.ToLowerInvariant()
+        Write-Host "[INFO] libmpv runtime SHA-256: $runtimeHash"
+        Write-Host "[INFO] libmpv import SHA-256:  $importHash"
     }
-    else {
-        Write-Host "[INFO] libmpv $($versions.MpvVersion) SDK is not installed yet; it becomes required in Stage R2."
+    catch {
+        Add-PlayerFailure -Failures $failures -Message "libmpv package verification failed: $($_.Exception.Message)"
+        Write-Host "[MISSING] required libmpv $($versions.MpvVersion) SDK/runtime package"
     }
 
     if ($failures.Count -gt 0) {
@@ -326,7 +332,7 @@ $failureList
 "@
     }
 
-    Write-Host "Compatible development tools and required product dependencies are available for the current scaffold."
+    Write-Host "Compatible development tools and required R2 product dependencies are available."
 }
 finally {
     Pop-Location

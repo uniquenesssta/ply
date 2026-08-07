@@ -6,6 +6,7 @@
 #include "app/bootstrap/runtime_paths.h"
 #include "app/composition/application_container.h"
 #include "foundation/logging/log_categories.h"
+#include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -30,6 +31,26 @@ int ApplicationBootstrap::run(QGuiApplication& application)
     }
 
     qCInfo(player::logging::appLifecycle) << "Application starting";
+
+    player::playback::mpv::MpvRuntimeInfo mpvRuntimeInfo;
+    QString mpvRuntimeError;
+    if (!player::playback::mpv::MpvRuntimeProbe::probe(mpvRuntimeInfo, &mpvRuntimeError)) {
+        qCCritical(player::logging::playbackMpv).noquote()
+            << "libmpv runtime validation failed:" << mpvRuntimeError;
+        return EXIT_FAILURE;
+    }
+
+    qCInfo(player::logging::playbackMpv).noquote()
+        << "libmpv runtime validated:"
+        << "mpv=" << mpvRuntimeInfo.manifest.mpvVersion
+        << "tag=" << mpvRuntimeInfo.manifest.mpvTag
+        << "commit=" << mpvRuntimeInfo.manifest.mpvCommit
+        << "ffmpeg=" << mpvRuntimeInfo.manifest.ffmpegVersion
+        << "clientApi=" << QStringLiteral("%1.%2")
+                               .arg(mpvRuntimeInfo.clientApiMajor)
+                               .arg(mpvRuntimeInfo.clientApiMinor)
+        << "dll=" << mpvRuntimeInfo.runtimeLibraryPath
+        << "manifest=" << mpvRuntimeInfo.manifestPath;
 
     GraphicsBackendInfo graphicsInfo;
     QString graphicsError;

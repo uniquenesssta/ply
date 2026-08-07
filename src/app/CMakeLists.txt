@@ -25,4 +25,5 @@ target_link_libraries(
     player_app
     PRIVATE
         player_foundation
+        player_mpv_infrastructure
 )

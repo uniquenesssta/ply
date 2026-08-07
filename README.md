@@ -4,7 +4,7 @@ A Windows-first, cross-platform-ready desktop player project. The product name i
 
 ## Current baseline
 
-This repository is the active R1 modular build scaffold. It currently provides:
+This repository is now the active R2 modular playback-core scaffold. It currently provides:
 
 - a root CMake entry limited to mandatory project/testing bootstrap and delegation to `cmake/CMakeLists.txt`;
 - responsibility-separated CMake modules for dependency, compiler, analysis, target, source, and test configuration;
@@ -14,15 +14,18 @@ This repository is the active R1 modular build scaffold. It currently provides:
 - an `ApplicationContainer` composition root that owns the current top-level runtime objects and defines their shutdown order;
 - repository/build/dependency configuration that stores only repository-relative paths rather than machine-specific drive paths;
 - OpenGL selection before `QGuiApplication` creation plus a real OpenGL context/renderer probe before QML loading;
-- an R1-06 QML bootstrap boundary that records concrete `QQmlEngine` warnings and returns diagnostic failure text to startup logging;
+- a QML bootstrap boundary that records concrete `QQmlEngine` warnings and returns diagnostic failure text to startup logging;
 - a minimal QML shell split into `App.qml`, `MainWindow.qml`, `PlayerScreen.qml`, video placeholder, chrome placeholder, and theme ownership;
+- a fixed-root `FindLibMpv.cmake` integration that creates the single `LibMpv::LibMpv` imported target only from `../libmpv/0.41.0/windows-x64`;
+- an R2-01 mpv runtime module that validates client-API compatibility, the actual loaded DLL path, and the staged dependency-manifest identity before QML startup;
+- automatic staging of the fixed libmpv package runtime DLLs plus its dependency manifest beside executable/test targets without committing third-party binaries into Git;
 - architecture decisions, the original full development task book, and the approved R2-R14 fast-framework stage taskbooks under `docs/plans/stages/`;
 - an explicit Windows/MSVC/Qt/libmpv/FFmpeg identity baseline plus minimum-compatible CMake/Ninja development-tool gates;
 - stable configure, build, and test entry scripts that can initialize the Visual Studio x64 build environment from an ordinary Windows CMD/PowerShell session;
-- four Qt Test targets covering RuntimePaths, logging, graphics backend probing, and the application composition root;
-- no bundled third-party runtime binaries.
+- five Qt Test targets after R2-01: RuntimePaths, logging, graphics backend, application container, and libmpv runtime probe;
+- no third-party SDK, DLL, import library, or generated runtime file tracked inside the repository.
 
-The scaffold intentionally does **not** yet implement libmpv loading, playback commands, playback state, persistence, playlists, platform integrations, or packaging. Those responsibilities are introduced only in their Atomic Tasks.
+The scaffold intentionally does **not** yet implement `mpv_handle` ownership, mpv initialization profiles, playback commands, mpv event loops, property observation, PlaybackSession state, persistence, playlists, platform integrations, or packaging. Those responsibilities are introduced only in their Atomic Tasks.
 
 ## Scope
 
@@ -180,33 +183,50 @@ Runtime paths returned by Windows/Qt may naturally be absolute operating-system 
 - the fourth `application_container` Qt Test was added;
 - the user explicitly accepted R1-05 after local verification on 2026-08-07.
 
-### R1-06 — Implemented; Windows runtime acceptance pending
+### R1-06 — Complete
 
-Implemented on 2026-08-07 in `agent/r1-stage`:
+- the existing modular `App.qml -> MainWindow.qml -> PlayerScreen.qml` shell is the accepted R1 minimum UI shell;
+- `VideoSurface`, `PlayerChrome`, and `Theme` remain presentation placeholders only and contain no playback backend logic;
+- `QmlBootstrap` captures concrete `QQmlEngine::warnings` and returns fatal root-load diagnostics through `lastError()`;
+- `ApplicationBootstrap` records the detailed QML failure instead of only a generic startup failure;
+- the layout verifier enforces the QML module/shell boundaries and rejects direct libmpv calls from `PlayerScreen.qml`;
+- the user explicitly accepted R1-06 after local configure/build/test/window verification on 2026-08-07.
 
-- retained the existing minimal `App.qml -> MainWindow.qml -> PlayerScreen.qml` shell instead of creating duplicate replacement pages;
-- retained `VideoSurface`, `PlayerChrome`, and `Theme` as placeholder presentation modules only; no playback logic or direct libmpv access was added;
-- `QmlBootstrap` now subscribes to `QQmlEngine::warnings`, records each concrete `QQmlError::toString()` diagnostic, and exposes the fatal load summary through `lastError()`;
-- `ApplicationBootstrap` logs the detailed QML failure text when the root QML object cannot be created;
-- successful QML warnings remain diagnostic warnings and do not automatically turn a valid root object into a startup failure;
-- the layout verifier now requires all R1-06 shell files, QML module registration, diagnostic wiring, visible `MainWindow`, composition-only `PlayerScreen`, and the no-direct-libmpv QML boundary;
-- no production dependency, persisted data, playback API, window-platform integration, or formal R5/R6 UI design was introduced.
+### R2-01 — Implemented; Windows libmpv package acceptance pending
+
+Implemented on 2026-08-07 in the new `agent/r2-stage` branch:
+
+- added `cmake/FindLibMpv.cmake` as the only CMake discovery boundary for the R0-04 fixed libmpv sibling package;
+- discovery is constrained to `../libmpv/0.41.0/windows-x64` and does not search a system mpv installation or arbitrary PATH location;
+- `FindLibMpv.cmake` requires `include/mpv/client.h`, one MSVC-compatible import `.lib`, one primary `libmpv-2.dll` or `mpv-2.dll`, and `dependency-manifest.json`;
+- the manifest identity is checked against mpv `0.41.0`, tag `v0.41.0`, commit `41f6a645068483470267271e1d09966ca3b9f413`, and FFmpeg `8.0.3` during configure;
+- a single global imported target `LibMpv::LibMpv` owns include, import-library, runtime-DLL, runtime-package, and manifest metadata;
+- `player_stage_libmpv_runtime()` copies only DLLs from the fixed package root/bin plus the same manifest into a target's output tree; no third-party binary is added to Git;
+- added `src/playback/infrastructure/mpv/runtime/` with separate manifest parsing and runtime-probe responsibilities;
+- `MpvRuntimeProbe` calls `mpv_client_api_version()`, enforces compatible client API major/minor semantics, resolves the actually loaded Windows module path, requires the DLL to come from the staged executable directory, and revalidates the staged manifest identity;
+- `ApplicationBootstrap` now performs the libmpv runtime gate after logging starts and before graphics/QML startup, recording mpv/tag/commit/FFmpeg/client-API/DLL/manifest diagnostics;
+- `verify-dependencies.ps1` now treats libmpv as required for R2, validates the fixed package through the shared PowerShell path module, and prints SHA-256 values for the selected runtime DLL and MSVC import library;
+- added the fifth `mpv_runtime_probe` Qt Test and stages the same audited runtime package beside that test executable;
+- no `mpv_handle`, initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
 
 Connected-environment verification completed:
 
-- source/module/dependency-boundary review;
-- QML shell registration and C++ diagnostic-chain review;
-- final diff review is required before the branch update;
-- Windows/Qt compilation and actual window display cannot be executed in the connected environment.
+- R2-01 taskbook/rule/dependency-boundary review;
+- CMake/source/module ownership review;
+- Windows path-policy review confirming no machine drive path was introduced;
+- final branch diff review remains required before the formal R2-01 commit is closed.
 
 Still required on the user's Windows workspace:
 
-- project layout verification;
-- configure/build regression;
-- existing four CTest targets;
-- one normal `build/windows-msvc-debug/Player.exe` launch confirming the shell window displays and closes normally.
+- the fixed sibling libmpv package must physically contain the required header/import-library/runtime DLL/manifest artifacts;
+- `verify-dependencies.ps1` must validate the real package identity and print the real artifact SHA-256 values;
+- fresh configure/build must link against `LibMpv::LibMpv` and stage its runtime files;
+- CTest must pass all five tests including `mpv_runtime_probe`;
+- `build/windows-msvc-debug/Player.exe` must start using the staged DLL and log `libmpv runtime validated` with the actual DLL path and manifest identity.
 
-## R1 parent-workspace and relative-path policy
+The exact artifact hashes and complete release-time dependency graph are not claimed until the user's real project-controlled libmpv build is present and inspected. R13 still performs the final binary dependency/license scan for the distributable package.
+
+## Parent-workspace and relative-path policy
 
 The repository may be renamed or moved, but its parent directory is the dependency workspace:
 
@@ -231,7 +251,8 @@ Rules:
 - Windows path validation treats `..\Qt\...` and `../Qt/...` as the same repository-relative form;
 - Visual Studio x64 environment initialization is automatic through `vswhere.exe` and `vcvars64.bat`;
 - Qt DLL/plugin paths for tests are resolved from the relative Qt root and exist only in the child process environment;
-- `configure.ps1` uses CMake `--fresh` because generated CMake cache data is intentionally disposable and location-specific.
+- `configure.ps1` uses CMake `--fresh` because generated CMake cache data is intentionally disposable and location-specific;
+- starting with R2, libmpv is a required sibling dependency rather than an optional future dependency.
 
 Qt `6.8.3`, MSVC compiler family `19.44`/toolset `14.44`, mpv/libmpv `0.41.0`, and FFmpeg `8.0.3` remain identity-sensitive.
 
@@ -240,9 +261,9 @@ Qt `6.8.3`, MSVC compiler family `19.44`/toolset `14.44`, mpv/libmpv `0.41.0`, a
 ```text
 QML presentation
       ↓ user intent / projected state
-Application layer (future PlaybackSession)
+Application layer (PlaybackSession arrives in R3)
       ↓ commands / events
-libmpv adapter (future R2)
+libmpv infrastructure
       ↓ public C API
 libmpv
 ```
@@ -257,8 +278,12 @@ CMakeLists.txt
 cmake/CMakeLists.txt
   Global build orchestration and relative entry into ../src and ../tests.
 
+cmake/FindLibMpv.cmake
+  R2-01 fixed sibling-package discovery, imported target identity,
+  and target-local runtime staging. It never searches random system mpv.
+
 src/app/bootstrap/
-  Startup ordering, application metadata, graphics probe,
+  Startup ordering, application metadata, libmpv/graphics probes,
   RuntimePaths creation, logging/QML startup calls, and startup failures.
 
 src/app/bootstrap/qml_bootstrap.*
@@ -272,6 +297,10 @@ src/app/composition/application_container.*
 src/foundation/logging/
   Logging categories, file sink, rotation, redaction, and flush internals.
 
+src/playback/infrastructure/mpv/runtime/
+  Owns dependency-manifest parsing and validation of the actually loaded
+  libmpv runtime/client-API identity. It does not own mpv_handle or playback state.
+
 src/presentation/qml/App.qml
   Root QML entry only.
 
@@ -282,11 +311,11 @@ src/presentation/qml/screens/player/PlayerScreen.qml
   Minimal player presentation composition; no backend business logic.
 
 tests/CMakeLists.txt
-  Registers RuntimePaths, logging, graphics-backend, and
-  ApplicationContainer regression targets.
+  Registers RuntimePaths, logging, graphics-backend, ApplicationContainer,
+  and R2-01 libmpv-runtime regression targets.
 ```
 
-Future `playback_composition`, `persistence_composition`, and `platform_composition` belong under `src/app/composition/` only when the corresponding real subsystems exist. Formal UI token/control/surface expansion remains assigned to R5/R6 rather than R1-06.
+Future `playback_composition`, `persistence_composition`, and `platform_composition` belong under `src/app/composition/` only when the corresponding real subsystems exist. Formal UI token/control/surface expansion remains assigned to R5/R6.
 
 ## Toolchain and dependency compatibility matrix
 
@@ -315,6 +344,14 @@ Future `playback_composition`, `persistence_composition`, and `platform_composit
 ├─ downloads/
 ├─ libmpv/
 │  └─ 0.41.0/windows-x64/
+│     ├─ include/
+│     │  └─ mpv/client.h
+│     ├─ lib/
+│     │  └─ <one MSVC-compatible mpv/libmpv import .lib>
+│     ├─ bin/
+│     │  ├─ <one primary libmpv-2.dll or mpv-2.dll>
+│     │  └─ <runtime DLL dependencies from the same audited package>
+│     └─ dependency-manifest.json
 ├─ Qt/
 │  ├─ 6.8.3/msvc2022_64/
 │  └─ Tools/
@@ -324,6 +361,8 @@ Future `playback_composition`, `persistence_composition`, and `platform_composit
 └─ <repository>/
 ```
 
+The import library and primary runtime DLL may also be placed directly in the fixed `windows-x64` root; the R2-01 resolver accepts only the explicitly enumerated names inside that same root. It does not scan other versions, sibling folders, PATH, or system mpv installations.
+
 `scripts/bootstrap-workspace.ps1` may create only:
 
 ```text
@@ -332,9 +371,9 @@ Future `playback_composition`, `persistence_composition`, and `platform_composit
 ../cache/cmake/fetchcontent/
 ```
 
-It does not create or modify Qt or installed development tools.
+It does not create or modify Qt or installed development tools, and it does not fabricate a libmpv SDK.
 
-When the libmpv SDK is installed during R2, its relative root must contain `dependency-manifest.json` with at least:
+The required libmpv dependency manifest is:
 
 ```json
 {
@@ -348,6 +387,8 @@ When the libmpv SDK is installed during R2, its relative root must contain `depe
   }
 }
 ```
+
+R2-01 prints SHA-256 values for the selected runtime DLL and import library during local dependency verification. The project does not invent hash values in source control before the actual project-controlled binary artifacts are available.
 
 ## Configure, build, and test
 
@@ -374,6 +415,14 @@ The generic preset output contract is:
 build/<preset>/Player.exe
 ```
 
+After R2-01, a successful application startup must log a line beginning with:
+
+```text
+libmpv runtime validated:
+```
+
+and include the actual loaded DLL path, manifest path, mpv/tag/commit/FFmpeg identity, and client API version.
+
 ## Module growth rule
 
 A file may receive new code only when the code has the same responsibility and reason to change. When a real second responsibility appears, upgrade the module into a responsibility directory instead of accumulating unrelated logic. Do not create source-history copies with suffixes such as `Old`, `New`, `V2`, `Final`, or `Copy`; Git owns history.
@@ -386,6 +435,7 @@ A file may receive new code only when the code has the same responsibility and r
 - Build orchestrator: `cmake/CMakeLists.txt`
 - Toolchain/dependency compatibility manifest: `cmake/DependencyVersions.cmake`
 - Relative shared dependency paths: `cmake/DependencyPaths.cmake`
+- R2 libmpv imported-target integration: `cmake/FindLibMpv.cmake`
 - Render embedding and lifecycle decision: `docs/decisions/ADR-0001-libmpv-render-api.md`
 - OpenGL and Qt Quick FBO decision: `docs/decisions/ADR-0002-opengl-first.md`
 - Playback-state ownership: `docs/decisions/ADR-0003-single-playback-owner.md`
@@ -394,48 +444,48 @@ A file may receive new code only when the code has the same responsibility and r
 
 ## Validation record
 
-Confirmed by the user on the Windows 10 development workspace through R1-05:
+Confirmed by the user on the Windows 10 development workspace through R1-06:
 
 - project layout/dependency/configure/build/test workflow is operational from a normal CMD/PowerShell session;
 - CMake `3.30.5`, Ninja `1.12.1`, Qt `6.8.3`, Visual Studio 2022 17.14 family, MSVC `19.44`/toolset `14.44`, x64, and Windows SDK `10.0.26100.0` are accepted by the current compatibility gates;
 - relocation-safe configure succeeds;
-- the existing four CTest targets are part of the R1-05 acceptance path;
+- all four R1 CTest targets pass;
 - the application output path is `build/windows-msvc-debug/Player.exe`;
-- the user explicitly marked R1-05 accepted on 2026-08-07.
+- the minimal QML shell displays and closes normally;
+- the user explicitly marked R1-06 accepted on 2026-08-07.
 
-R1-06 connected-environment validation is limited to source/module/QML-registration/diagnostic-chain/final-diff review because this environment cannot execute the user's Windows Qt runtime. The local commands below remain required before R1-06 is marked complete.
+R2-01 connected-environment validation is limited to source/CMake/module/path/final-diff review because the connected environment does not expose the user's sibling `../libmpv` binary package or Windows loader. Real libmpv dependency verification, linking, runtime staging, fifth CTest execution, and application runtime-probe output remain local acceptance requirements.
 
 ## Change Log
 
 ### 2026-08-07
 
-- Implemented R1-06 QML shell acceptance work by preserving the existing modular `App -> MainWindow -> PlayerScreen` shell and adding concrete `QQmlEngine` warning capture plus detailed startup failure reporting.
-- Marked R1-05 Composition Root accepted after explicit user acceptance; no additional lifecycle code was required for that acceptance update.
-- Implemented R1-05 Composition Root with `ApplicationContainer`, explicit top-level ownership, QML-before-logging shutdown ordering, idempotent shutdown, and an executable composition-root Qt Test.
+- Started Stage R2 on the new `agent/r2-stage` branch from the accepted R1-06 head.
+- Implemented R2-01 fixed-root libmpv integration with `LibMpv::LibMpv`, exact manifest identity checks, target-local runtime staging, a modular manifest parser/runtime probe, required R2 dependency verification, and the fifth `mpv_runtime_probe` Qt Test.
+- Marked R1-06 accepted after explicit user confirmation of the local verification result.
+- Implemented R1-06 QML shell diagnostics by preserving the modular `App -> MainWindow -> PlayerScreen` shell and adding concrete `QQmlEngine` warning capture plus detailed startup failure reporting.
+- Implemented and accepted R1-05 Composition Root with `ApplicationContainer`, explicit top-level ownership, QML-before-logging shutdown ordering, idempotent shutdown, and an executable composition-root Qt Test.
 - Corrected the documented application output path to `build/<preset>/Player.exe`; the Windows debug build is `build/windows-msvc-debug/Player.exe`.
-- Recorded successful R1-01 through R1-04 Windows validation and closed the outdated pending-validation notes for the first three Qt Test targets.
-- Fixed Qt Test process startup on Windows by deriving Qt runtime directories from the repository-parent-relative Qt root and injecting only process-local `PATH`, `QT_PLUGIN_PATH`, and `QT_QPA_PLATFORM_PLUGIN_PATH` values for CTest.
-- Fixed the Windows test entry to invoke `ctest --preset` and made preset configuration relocation-safe with CMake `--fresh`.
-- Replaced exact CMake/Ninja patch pins with compatible development-tool floors while retaining identity-sensitive runtime dependency control.
-- Fixed Windows PowerShell 5.1 MSVC/version/path parsing issues and added automatic Visual Studio x64 environment initialization.
-- Corrected the R1 parent-workspace contract to use only `Qt`, `libmpv`, `downloads`, and `cache` as parent-level dependency roots.
+- Recorded successful R1-01 through R1-04 Windows validation and closed their outdated pending-validation notes.
+- Fixed Qt Test runtime injection, direct `ctest --preset` execution, relocation-safe CMake `--fresh`, compatible development-tool gates, Windows PowerShell 5.1 compatibility, automatic Visual Studio x64 initialization, and the parent-workspace relative-path contract during R1.
 - Implemented R1-03 modular logging and committed the approved R2-R14 fast-framework Markdown taskbooks.
 - Implemented R1-02 RuntimePaths and R1-01 modular CMake scaffold on the shared `agent/r1-stage` branch.
 - Recorded R0-06 as explicitly skipped and unaccepted; R0-01 through R0-05 remain completed according to their recorded scope.
 
-### R1-06 local verification after sync
+### R2-01 local verification after sync
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-project-layout.ps1
+powershell -ExecutionPolicy Bypass -File scripts\verify-dependencies.ps1
 powershell -ExecutionPolicy Bypass -File scripts\configure.ps1
 powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-The regression set should remain four tests: `runtime_paths`, `logging`, `graphics_backend`, and `application_container`. Then launch:
+Expected CTest registration after R2-01: five tests (`runtime_paths`, `logging`, `graphics_backend`, `application_container`, `mpv_runtime_probe`). Then launch:
 
 ```text
 build\windows-msvc-debug\Player.exe
 ```
 
-Acceptance requires the minimal player shell window to display and close normally. A QML root-creation failure must now include the concrete Qt/QML diagnostics in application logging instead of only a generic failure line.
+R2-01 acceptance requires the real fixed sibling libmpv package to pass identity/artifact checks, the build to link and stage its runtime package, all five tests to pass, and the application to log `libmpv runtime validated` while loading the DLL from the staged executable directory. If the local sibling package is incomplete, the dependency/configure error is expected to name the missing header, MSVC import library, runtime DLL, or manifest instead of falling back to a system mpv.

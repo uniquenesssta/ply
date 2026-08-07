@@ -69,6 +69,90 @@ function Resolve-PlayerQtRoot {
     return $Layout.QtRootRelative
 }
 
+function Resolve-PlayerSingleExistingFile {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DisplayName,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$RelativeCandidates
+    )
+
+    foreach ($candidate in $RelativeCandidates) {
+        Assert-PlayerRepositoryRelativePath -Name "$DisplayName candidate" -Path $candidate
+    }
+
+    $matches = @($RelativeCandidates | Where-Object {
+        Test-Path -LiteralPath $_ -PathType Leaf
+    })
+
+    if ($matches.Count -eq 0) {
+        $candidateList = $RelativeCandidates -join "', '"
+        throw "$DisplayName was not found in the fixed parent-workspace package. Checked relative path(s): '$candidateList'."
+    }
+
+    if ($matches.Count -gt 1) {
+        $matchList = $matches -join "', '"
+        throw "$DisplayName is ambiguous inside the fixed libmpv package. Keep one audited artifact only; found '$matchList'."
+    }
+
+    return [string]$matches[0]
+}
+
+function Resolve-PlayerLibMpvPackage {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [psobject]$Layout
+    )
+
+    $root = [string]$Layout.LibMpvRootRelative
+    Assert-PlayerRepositoryRelativePath -Name "libmpv root" -Path $root
+
+    $header = Join-Path $root "include/mpv/client.h"
+    $manifest = Join-Path $root "dependency-manifest.json"
+    foreach ($requiredFile in @(
+        @("libmpv client header", $header),
+        @("libmpv dependency manifest", $manifest)
+    )) {
+        Assert-PlayerRepositoryRelativePath -Name $requiredFile[0] -Path $requiredFile[1]
+        if (-not (Test-Path -LiteralPath $requiredFile[1] -PathType Leaf)) {
+            throw "$($requiredFile[0]) was not found at relative path '$($requiredFile[1])'."
+        }
+    }
+
+    $importLibrary = Resolve-PlayerSingleExistingFile `
+        -DisplayName "libmpv MSVC import library" `
+        -RelativeCandidates @(
+            (Join-Path $root "lib/mpv.lib"),
+            (Join-Path $root "lib/libmpv.lib"),
+            (Join-Path $root "lib/mpv-2.lib"),
+            (Join-Path $root "lib/libmpv-2.lib"),
+            (Join-Path $root "mpv.lib"),
+            (Join-Path $root "libmpv.lib"),
+            (Join-Path $root "mpv-2.lib"),
+            (Join-Path $root "libmpv-2.lib")
+        )
+
+    $runtimeLibrary = Resolve-PlayerSingleExistingFile `
+        -DisplayName "libmpv runtime DLL" `
+        -RelativeCandidates @(
+            (Join-Path $root "bin/libmpv-2.dll"),
+            (Join-Path $root "bin/mpv-2.dll"),
+            (Join-Path $root "libmpv-2.dll"),
+            (Join-Path $root "mpv-2.dll")
+        )
+
+    [pscustomobject]@{
+        RootRelative          = $root
+        HeaderRelative        = $header
+        ManifestRelative      = $manifest
+        ImportLibraryRelative = $importLibrary
+        RuntimeLibraryRelative = $runtimeLibrary
+    }
+}
+
 function Resolve-PlayerToolCommand {
     [CmdletBinding()]
     param(
@@ -150,6 +234,8 @@ Export-ModuleMember -Function @(
     "Get-PlayerWorkspaceLayout",
     "Initialize-PlayerDependencyLayout",
     "Resolve-PlayerQtRoot",
+    "Resolve-PlayerSingleExistingFile",
+    "Resolve-PlayerLibMpvPackage",
     "Resolve-PlayerCMake",
     "Resolve-PlayerCTest",
     "Resolve-PlayerNinja"

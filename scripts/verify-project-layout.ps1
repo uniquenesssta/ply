@@ -12,6 +12,7 @@ $requiredFiles = @(
     "cmake/CompilerWarnings.cmake",
     "cmake/DependencyPaths.cmake",
     "cmake/DependencyVersions.cmake",
+    "cmake/FindLibMpv.cmake",
     "cmake/Sanitizers.cmake",
     "cmake/StaticAnalysis.cmake",
     "scripts/configure.ps1",
@@ -46,6 +47,13 @@ $requiredFiles = @(
     "src/foundation/logging/log_file_sink.h",
     "src/foundation/logging/log_redactor.cpp",
     "src/foundation/logging/log_redactor.h",
+    "src/playback/CMakeLists.txt",
+    "src/playback/infrastructure/mpv/CMakeLists.txt",
+    "src/playback/infrastructure/mpv/runtime/CMakeLists.txt",
+    "src/playback/infrastructure/mpv/runtime/mpv_runtime_manifest.cpp",
+    "src/playback/infrastructure/mpv/runtime/mpv_runtime_manifest.h",
+    "src/playback/infrastructure/mpv/runtime/mpv_runtime_probe.cpp",
+    "src/playback/infrastructure/mpv/runtime/mpv_runtime_probe.h",
     "src/presentation/CMakeLists.txt",
     "src/presentation/qml/App.qml",
     "src/presentation/qml/shell/MainWindow.qml",
@@ -57,7 +65,8 @@ $requiredFiles = @(
     "tests/unit/app/bootstrap/graphics_backend/graphics_backend_probe_test.cpp",
     "tests/unit/app/bootstrap/runtime_paths_test.cpp",
     "tests/unit/app/composition/application_container_test.cpp",
-    "tests/unit/foundation/logging/logging_test.cpp"
+    "tests/unit/foundation/logging/logging_test.cpp",
+    "tests/unit/playback/infrastructure/mpv/runtime/mpv_runtime_probe_test.cpp"
 )
 
 $missingFiles = [System.Collections.Generic.List[string]]::new()
@@ -117,12 +126,12 @@ foreach ($fragment in @(
 }
 
 $orchestrator = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/CMakeLists.txt") -Raw
-
 foreach ($fragment in @(
     "include(DependencyVersions)",
     "include(DependencyPaths)",
     "include(AppTargets)",
     'Qt6 ${PLAYER_QT_VERSION} EXACT',
+    'find_package(LibMpv ${PLAYER_MPV_VERSION} EXACT REQUIRED)',
     'add_subdirectory("../src" "../src")',
     'add_subdirectory("../tests" "../tests")'
 )) {
@@ -131,26 +140,89 @@ foreach ($fragment in @(
     }
 }
 
+$findLibMpv = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/FindLibMpv.cmake") -Raw
+foreach ($fragment in @(
+    'PLAYER_LIBMPV_ROOT',
+    'NO_DEFAULT_PATH',
+    'dependency-manifest.json',
+    'LibMpv::LibMpv',
+    'IMPORTED_IMPLIB',
+    'IMPORTED_LOCATION',
+    'PLAYER_RUNTIME_FILES',
+    'player_stage_libmpv_runtime',
+    'mpv.commit',
+    'ffmpeg.version'
+)) {
+    if (-not $findLibMpv.Contains($fragment)) {
+        throw "FindLibMpv.cmake is missing required R2-01 fixed-package behavior: $fragment"
+    }
+}
+if ($findLibMpv -match '[A-Za-z]:[/\\]') {
+    throw "FindLibMpv.cmake contains a machine-absolute Windows path."
+}
+
+$srcCMake = Get-Content -LiteralPath (Join-Path $projectRoot "src/CMakeLists.txt") -Raw
+foreach ($fragment in @(
+    "add_subdirectory(playback)",
+    "player_stage_libmpv_runtime(player_app)"
+)) {
+    if (-not $srcCMake.Contains($fragment)) {
+        throw "src/CMakeLists.txt is missing required R2-01 playback/runtime staging fragment: $fragment"
+    }
+}
+
 $appCMake = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/CMakeLists.txt") -Raw
 foreach ($fragment in @(
     "add_subdirectory(bootstrap/graphics_backend)",
-    "add_subdirectory(composition)"
+    "add_subdirectory(composition)",
+    "player_mpv_infrastructure"
 )) {
     if (-not $appCMake.Contains($fragment)) {
-        throw "src/app/CMakeLists.txt is missing required app module delegation: $fragment"
+        throw "src/app/CMakeLists.txt is missing required app module/link fragment: $fragment"
     }
+}
+
+$mpvInfrastructureCMake = Get-Content -LiteralPath (Join-Path $projectRoot "src/playback/infrastructure/mpv/CMakeLists.txt") -Raw
+foreach ($fragment in @(
+    "add_library(player_mpv_infrastructure STATIC)",
+    "add_subdirectory(runtime)",
+    "LibMpv::LibMpv",
+    "PLAYER_LIBMPV_RUNTIME_FILENAME",
+    "PLAYER_EXPECTED_MPV_VERSION"
+)) {
+    if (-not $mpvInfrastructureCMake.Contains($fragment)) {
+        throw "mpv infrastructure CMake is missing required R2-01 ownership/configuration fragment: $fragment"
+    }
+}
+
+$runtimeProbeSource = Get-Content -LiteralPath (Join-Path $projectRoot "src/playback/infrastructure/mpv/runtime/mpv_runtime_probe.cpp") -Raw
+foreach ($fragment in @(
+    "mpv_client_api_version()",
+    "MPV_CLIENT_API_VERSION",
+    "GetModuleFileNameW",
+    "PLAYER_LIBMPV_STAGED_MANIFEST_RELATIVE_PATH",
+    "PLAYER_EXPECTED_MPV_COMMIT"
+)) {
+    if (-not $runtimeProbeSource.Contains($fragment)) {
+        throw "MpvRuntimeProbe is missing required R2-01 runtime identity behavior: $fragment"
+    }
+}
+if ($runtimeProbeSource -match '[A-Za-z]:[/\\]') {
+    throw "MpvRuntimeProbe contains a machine-absolute Windows path."
 }
 
 $applicationBootstrap = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/bootstrap/application_bootstrap.cpp") -Raw
 foreach ($fragment in @(
     "ApplicationContainer container",
     "container.loggingBootstrap()",
+    "MpvRuntimeProbe::probe",
+    "libmpv runtime validated:",
     "container.qmlBootstrap()",
     "qmlBootstrap.lastError()",
     "container.shutdown()"
 )) {
     if (-not $applicationBootstrap.Contains($fragment)) {
-        throw "ApplicationBootstrap is missing required composition/QML bootstrap usage: $fragment"
+        throw "ApplicationBootstrap is missing required composition/R2 runtime/QML bootstrap usage: $fragment"
     }
 }
 foreach ($forbiddenFragment in @(
@@ -251,10 +323,13 @@ if ($playerScreenQml -match '(?i)mpv_command|mpv_set_property|mpv_get_property')
 $testsCMake = Get-Content -LiteralPath (Join-Path $projectRoot "tests/CMakeLists.txt") -Raw
 foreach ($fragment in @(
     "application_container_tests",
-    "NAME application_container"
+    "NAME application_container",
+    "mpv_runtime_probe_tests",
+    "NAME mpv_runtime_probe",
+    "player_stage_libmpv_runtime(mpv_runtime_probe_tests)"
 )) {
     if (-not $testsCMake.Contains($fragment)) {
-        throw "tests/CMakeLists.txt is missing the R1-05 ApplicationContainer test target: $fragment"
+        throw "tests/CMakeLists.txt is missing required R1/R2 test target behavior: $fragment"
     }
 }
 
@@ -301,6 +376,11 @@ foreach ($fragment in @(
     "../downloads",
     "../cache/",
     "QtToolsRootRelative",
+    "Resolve-PlayerLibMpvPackage",
+    "include/mpv/client.h",
+    "dependency-manifest.json",
+    "libmpv-2.dll",
+    "mpv-2.dll",
     "CMake_64/bin/cmake.exe",
     "CMake_64/bin/ctest.exe",
     "Ninja/ninja.exe",
@@ -329,11 +409,16 @@ foreach ($fragment in @(
     "Test-PlayerMinimumToolVersion",
     "FileVersionInfo",
     "VCToolsVersion",
-    "Compatible development tools"
+    "Resolve-PlayerLibMpvPackage",
+    "libmpv runtime SHA-256",
+    "required R2 product dependencies"
 )) {
     if (-not $dependencyVerifier.Contains($fragment)) {
-        throw "verify-dependencies.ps1 is missing required compatibility-verification fragment: $fragment"
+        throw "verify-dependencies.ps1 is missing required R2 compatibility-verification fragment: $fragment"
     }
 }
+if ($dependencyVerifier.Contains("it becomes required in Stage R2")) {
+    throw "verify-dependencies.ps1 still treats libmpv as optional after R2 started."
+}
 
-Write-Host "Project layout, R1-06 QML shell diagnostics, R1-05 composition root ownership, R1-04 graphics backend module, Qt test runtime environment, CTest preset entry, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R2-01 fixed libmpv target/runtime probe, R1-06 QML shell diagnostics, R1-05 composition root ownership, parent-workspace relative paths, Windows normalization, compatible tool gates, and CMake responsibility boundaries are complete."
