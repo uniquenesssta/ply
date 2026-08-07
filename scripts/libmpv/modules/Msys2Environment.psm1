@@ -49,6 +49,34 @@ Do not place MSYS2 inside the repository or the repository-parent dependency wor
 "@
 }
 
+function ConvertTo-PlayerMsys2Path {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BashPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WindowsPath
+    )
+
+    $cygpath = Join-Path (Split-Path -Parent $BashPath) "cygpath.exe"
+    if (-not (Test-Path -LiteralPath $cygpath -PathType Leaf)) {
+        throw "MSYS2 cygpath.exe was not found beside the resolved bash executable '$BashPath'."
+    }
+
+    $convertedPath = [string](& $cygpath -u $WindowsPath | Select-Object -First 1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "MSYS2 path conversion failed with exit code $LASTEXITCODE for '$WindowsPath'."
+    }
+
+    $convertedPath = $convertedPath.Trim()
+    if ([string]::IsNullOrWhiteSpace($convertedPath)) {
+        throw "MSYS2 path conversion returned an empty path for '$WindowsPath'."
+    }
+
+    return $convertedPath
+}
+
 function Invoke-PlayerClang64 {
     [CmdletBinding()]
     param(
@@ -66,18 +94,39 @@ function Invoke-PlayerClang64 {
     $previousMsystem = $env:MSYSTEM
     $previousChereInvoking = $env:CHERE_INVOKING
     $previousPathType = $env:MSYS2_PATH_TYPE
+    $temporaryScript = $null
 
     try {
         $env:MSYSTEM = "CLANG64"
         $env:CHERE_INVOKING = "1"
         $env:MSYS2_PATH_TYPE = "inherit"
 
-        & $BashPath --login -lc $Command
+        $temporaryScript = Join-Path `
+            ([System.IO.Path]::GetTempPath()) `
+            ("player-clang64-{0}.sh" -f [Guid]::NewGuid().ToString("N"))
+
+        $scriptText = "set -e`n$Command"
+        if (-not $scriptText.EndsWith("`n", [System.StringComparison]::Ordinal)) {
+            $scriptText += "`n"
+        }
+
+        [System.IO.File]::WriteAllText(
+            $temporaryScript,
+            $scriptText,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+
+        $msysScript = ConvertTo-PlayerMsys2Path -BashPath $BashPath -WindowsPath $temporaryScript
+        & $BashPath --login $msysScript
         if ($LASTEXITCODE -ne 0) {
             throw "MSYS2 CLANG64 command failed with exit code $LASTEXITCODE."
         }
     }
     finally {
+        if ($temporaryScript -and (Test-Path -LiteralPath $temporaryScript -PathType Leaf)) {
+            Remove-Item -LiteralPath $temporaryScript -Force
+        }
+
         $env:MSYSTEM = $previousMsystem
         $env:CHERE_INVOKING = $previousChereInvoking
         $env:MSYS2_PATH_TYPE = $previousPathType

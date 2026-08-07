@@ -216,13 +216,14 @@ Implemented on 2026-08-07 in `agent/r2-stage`:
 - the finalizer recursively stages required CLANG64 runtime DLLs actually referenced by produced DLLs, generates an export `.def`, uses the pinned Visual Studio x64 `lib.exe` to create the MSVC-compatible `mpv.lib`, and writes a UTF-8-no-BOM dependency manifest containing source commits and SHA-256 hashes;
 - `scripts/libmpv/verify-package.ps1` independently rechecks package identity and every recorded artifact hash;
 - the source-build layout/policy has its own structural verifier `scripts/libmpv/verify-build-layout.ps1`;
+- `Msys2Environment.psm1` executes arbitrary CLANG64 shell text through a temporary UTF-8-no-BOM LF `.sh` file converted by MSYS2 `cygpath.exe`, rather than passing multiline shell syntax directly through Windows `bash -lc` argument quoting;
 - no `mpv_handle`, initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
 
 The approved source-build set is intentionally narrow. MSYS2/CLANG64 is a **build-only** toolchain; it is not a Player production dependency. The source build does not consume MSYS2-packaged FFmpeg/libass/libplacebo/etc. The release-time dependency/license scan in R13 remains mandatory, including any compiler runtime DLL or bundled source component actually present in the final binary graph.
 
 Still required on the user's Windows workspace:
 
-- MSYS2 must be installed and the CLANG64 build tools must pass the bootstrap step;
+- MSYS2 is installed and all 99 requested CLANG64 build packages were installed; the corrected post-install tool-presence check must now pass;
 - the full project-controlled source build must complete and create the fixed sibling package;
 - `verify-package.ps1` and `verify-dependencies.ps1` must validate the real package identity and artifact hashes;
 - fresh configure/build must link against `LibMpv::LibMpv` and stage its runtime files;
@@ -487,12 +488,15 @@ Confirmed by the user on the Windows 10 development workspace through R1-06:
 
 The user's first R2-01 local verification on 2026-08-07 confirmed that the new R2 hard gate correctly stops all configure/build/test entry points when `../libmpv/0.41.0/windows-x64/include/mpv/client.h` is absent. This is expected behavior and is not treated as a source failure. The source-build chain was then added to create that package from the approved source identities instead of weakening the gate.
 
-Connected-environment verification for this follow-up is limited to source/module/build-policy/path/final-diff review because this environment does not provide the user's Windows MSYS2/CLANG64 build runtime. The actual third-party compilation, produced DLL dependency graph, import-library generation, artifact hashes, package verification, Player linking, five CTests, and runtime loader probe remain local acceptance requirements.
+The next local R2-01 bootstrap run confirmed that `verify-build-layout.ps1` passes and that MSYS2 successfully installed all 99 requested CLANG64 build packages. The run then failed only in the post-install command-presence check because the original PowerShell-to-`bash -lc` argument transport truncated a multiline shell block containing `for`/`{}` syntax. `Msys2Environment.psm1` now executes arbitrary shell text through a temporary UTF-8-no-BOM LF script and removes that file in `finally`. The corrected bootstrap check and the real third-party source build remain pending local verification.
+
+Connected-environment verification for this follow-up is limited to source/module/build-policy/path/final-diff review because this environment does not provide the user's Windows MSYS2/CLANG64 build runtime. The actual corrected bootstrap execution, third-party compilation, produced DLL dependency graph, import-library generation, artifact hashes, package verification, Player linking, five CTests, and runtime loader probe remain local acceptance requirements.
 
 ## Change Log
 
 ### 2026-08-07
 
+- Fixed the R2-01 MSYS2 invocation boundary after the real Windows bootstrap installed all 99 CLANG64 packages but exposed multiline `bash -lc` argument truncation; CLANG64 commands are now executed from temporary UTF-8-no-BOM LF scripts via `cygpath.exe`, with guaranteed cleanup.
 - Added the R2-01 project-controlled MSYS2 CLANG64 libmpv source-build pipeline after the real Windows verification correctly exposed the missing sibling SDK/runtime package.
 - Pinned and wired the approved source-build dependency set: FFmpeg `8.0.3`, libplacebo `7.351.0`, libass `0.17.4`, FreeType `2.13.3`, FriBidi `1.0.16`, and HarfBuzz `10.2.0`, while retaining mpv `0.41.0` at the already pinned commit.
 - Added responsibility-separated PowerShell modules for MSYS2 discovery/invocation, parent-relative build paths, MSVC import-library generation, manifest creation, and artifact-hash verification.

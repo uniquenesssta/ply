@@ -61,14 +61,30 @@ try {
         throw "LibMpvBuildPaths.psm1 contains a machine-absolute Windows path."
     }
 
+    $msysInvocationModule = Get-Content -LiteralPath "scripts/libmpv/modules/Msys2Environment.psm1" -Raw
+    foreach ($fragment in @(
+        'cygpath.exe',
+        '[System.IO.File]::WriteAllText(',
+        '[System.Text.UTF8Encoding]::new($false)',
+        '& $BashPath --login $msysScript',
+        'Remove-Item -LiteralPath $temporaryScript -Force'
+    )) {
+        if (-not $msysInvocationModule.Contains($fragment)) {
+            throw "Msys2Environment.psm1 is missing relocation-safe multiline invocation fragment: $fragment"
+        }
+    }
+    if ($msysInvocationModule.Contains('& $BashPath --login -lc $Command')) {
+        throw "Msys2Environment.psm1 must not pass arbitrary command text directly through bash -lc."
+    }
+
     $sourceBuildCommitVariables = [ordered]@{
-        "scripts/libmpv/clang64/build/freetype.sh"  = "PLAYER_FREETYPE_COMMIT"
-        "scripts/libmpv/clang64/build/fribidi.sh"   = "PLAYER_FRIBIDI_COMMIT"
-        "scripts/libmpv/clang64/build/harfbuzz.sh"  = "PLAYER_HARFBUZZ_COMMIT"
-        "scripts/libmpv/clang64/build/libass.sh"    = "PLAYER_LIBASS_COMMIT"
+        "scripts/libmpv/clang64/build/freetype.sh"   = "PLAYER_FREETYPE_COMMIT"
+        "scripts/libmpv/clang64/build/fribidi.sh"    = "PLAYER_FRIBIDI_COMMIT"
+        "scripts/libmpv/clang64/build/harfbuzz.sh"   = "PLAYER_HARFBUZZ_COMMIT"
+        "scripts/libmpv/clang64/build/libass.sh"     = "PLAYER_LIBASS_COMMIT"
         "scripts/libmpv/clang64/build/libplacebo.sh" = "PLAYER_LIBPLACEBO_COMMIT"
-        "scripts/libmpv/clang64/build/ffmpeg.sh"    = "PLAYER_FFMPEG_COMMIT"
-        "scripts/libmpv/clang64/build/mpv.sh"       = "PLAYER_MPV_COMMIT"
+        "scripts/libmpv/clang64/build/ffmpeg.sh"     = "PLAYER_FFMPEG_COMMIT"
+        "scripts/libmpv/clang64/build/mpv.sh"        = "PLAYER_MPV_COMMIT"
     }
     foreach ($entry in $sourceBuildCommitVariables.GetEnumerator()) {
         $sourceBuild = Get-Content -LiteralPath $entry.Key -Raw
@@ -111,7 +127,7 @@ try {
         throw "The shared Meson build helper must keep third-party libraries dynamic."
     }
 
-    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, and LGPL-oriented build policy are complete."
+    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, safe multiline invocation, and LGPL-oriented build policy are complete."
 }
 finally {
     Pop-Location
