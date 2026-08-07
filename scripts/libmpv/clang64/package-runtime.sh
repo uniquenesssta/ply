@@ -124,8 +124,8 @@ copy_license mpv \
     "$PLAYER_SOURCE_ROOT/mpv/LICENSE.LGPL" \
     "$PLAYER_SOURCE_ROOT/mpv/Copyright"
 copy_license ffmpeg \
-    "$PLAYER_SOURCE_ROOT/ffmpeg/COPYING.LGPLv2.1" \
-    "$PLAYER_SOURCE_ROOT/ffmpeg/COPYING.LGPLv3"
+    "$PLAYER_ARCHIVE_SOURCE_ROOT/ffmpeg/COPYING.LGPLv2.1" \
+    "$PLAYER_ARCHIVE_SOURCE_ROOT/ffmpeg/COPYING.LGPLv3"
 copy_license libplacebo "$PLAYER_SOURCE_ROOT/libplacebo/LICENSE"
 copy_license libass "$PLAYER_SOURCE_ROOT/libass/COPYING"
 copy_license freetype \

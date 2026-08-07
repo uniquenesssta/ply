@@ -24,6 +24,7 @@ export PKG_CONFIG_LIBDIR="$PKG_CONFIG_PATH"
 export CMAKE_PREFIX_PATH="$PLAYER_PREFIX_ROOT"
 
 source "$CLANG64_SCRIPT_ROOT/source/source_checkout.sh"
+source "$CLANG64_SCRIPT_ROOT/source/source_archive.sh"
 
 player_require_command() {
     local command_name="$1"

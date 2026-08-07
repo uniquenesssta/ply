@@ -2,12 +2,7 @@ set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)/common.sh"
 
 player_require_build_tools
-source_dir="$(player_fetch_source \
-    ffmpeg \
-    "https://git.ffmpeg.org/ffmpeg.git" \
-    "${PLAYER_FFMPEG_REF:?PLAYER_FFMPEG_REF is required}" \
-    false \
-    "${PLAYER_FFMPEG_COMMIT:?PLAYER_FFMPEG_COMMIT is required}")"
+source_dir="$(player_fetch_ffmpeg_release_archive)"
 build_dir="$(player_fresh_build_dir ffmpeg)"
 
 options=(

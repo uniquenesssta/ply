@@ -22,27 +22,31 @@ try {
     Initialize-PlayerLibMpvBuildLayout -Layout $layout
 
     $environmentValues = [ordered]@{
-        PLAYER_MPV_VERSION        = $versions.MpvVersion
-        PLAYER_MPV_TAG            = $versions.MpvTag
-        PLAYER_MPV_COMMIT         = $versions.MpvCommit
-        PLAYER_FFMPEG_VERSION     = $versions.FfmpegVersion
-        PLAYER_FFMPEG_REF         = $versions.FfmpegRef
-        PLAYER_FFMPEG_COMMIT      = $versions.FfmpegCommit
-        PLAYER_LIBPLACEBO_VERSION = $versions.LibplaceboVersion
-        PLAYER_LIBPLACEBO_REF     = $versions.LibplaceboRef
-        PLAYER_LIBPLACEBO_COMMIT  = $versions.LibplaceboCommit
-        PLAYER_LIBASS_VERSION     = $versions.LibassVersion
-        PLAYER_LIBASS_REF         = $versions.LibassRef
-        PLAYER_LIBASS_COMMIT      = $versions.LibassCommit
-        PLAYER_FREETYPE_VERSION   = $versions.FreetypeVersion
-        PLAYER_FREETYPE_REF       = $versions.FreetypeRef
-        PLAYER_FREETYPE_COMMIT    = $versions.FreetypeCommit
-        PLAYER_FRIBIDI_VERSION    = $versions.FribidiVersion
-        PLAYER_FRIBIDI_REF        = $versions.FribidiRef
-        PLAYER_FRIBIDI_COMMIT     = $versions.FribidiCommit
-        PLAYER_HARFBUZZ_VERSION   = $versions.HarfbuzzVersion
-        PLAYER_HARFBUZZ_REF       = $versions.HarfbuzzRef
-        PLAYER_HARFBUZZ_COMMIT    = $versions.HarfbuzzCommit
+        PLAYER_MPV_VERSION                   = $versions.MpvVersion
+        PLAYER_MPV_TAG                       = $versions.MpvTag
+        PLAYER_MPV_COMMIT                    = $versions.MpvCommit
+        PLAYER_FFMPEG_VERSION                = $versions.FfmpegVersion
+        PLAYER_FFMPEG_REF                    = $versions.FfmpegRef
+        PLAYER_FFMPEG_COMMIT                 = $versions.FfmpegCommit
+        PLAYER_FFMPEG_ARCHIVE_URL            = $versions.FfmpegArchiveUrl
+        PLAYER_FFMPEG_ARCHIVE_SIGNATURE_URL  = $versions.FfmpegArchiveSignatureUrl
+        PLAYER_FFMPEG_SIGNING_KEY_URL        = $versions.FfmpegSigningKeyUrl
+        PLAYER_FFMPEG_SIGNING_FINGERPRINT    = $versions.FfmpegSigningFingerprint
+        PLAYER_LIBPLACEBO_VERSION            = $versions.LibplaceboVersion
+        PLAYER_LIBPLACEBO_REF                = $versions.LibplaceboRef
+        PLAYER_LIBPLACEBO_COMMIT             = $versions.LibplaceboCommit
+        PLAYER_LIBASS_VERSION                = $versions.LibassVersion
+        PLAYER_LIBASS_REF                    = $versions.LibassRef
+        PLAYER_LIBASS_COMMIT                 = $versions.LibassCommit
+        PLAYER_FREETYPE_VERSION              = $versions.FreetypeVersion
+        PLAYER_FREETYPE_REF                  = $versions.FreetypeRef
+        PLAYER_FREETYPE_COMMIT               = $versions.FreetypeCommit
+        PLAYER_FRIBIDI_VERSION               = $versions.FribidiVersion
+        PLAYER_FRIBIDI_REF                   = $versions.FribidiRef
+        PLAYER_FRIBIDI_COMMIT                = $versions.FribidiCommit
+        PLAYER_HARFBUZZ_VERSION              = $versions.HarfbuzzVersion
+        PLAYER_HARFBUZZ_REF                  = $versions.HarfbuzzRef
+        PLAYER_HARFBUZZ_COMMIT               = $versions.HarfbuzzCommit
     }
 
     foreach ($entry in $environmentValues.GetEnumerator()) {

@@ -12,6 +12,10 @@ try {
     $packages = @(
         "base-devel",
         "git",
+        "curl",
+        "gnupg",
+        "tar",
+        "xz",
         "mingw-w64-clang-x86_64-toolchain",
         "mingw-w64-clang-x86_64-meson",
         "mingw-w64-clang-x86_64-ninja",
@@ -27,6 +31,10 @@ try {
 
     $requiredCommands = @(
         "git",
+        "curl",
+        "gpg",
+        "tar",
+        "xz",
         "clang",
         "clang++",
         "meson",

@@ -18,7 +18,7 @@ This repository is now the active R2 modular playback-core scaffold. It currentl
 - a minimal QML shell split into `App.qml`, `MainWindow.qml`, `PlayerScreen.qml`, video placeholder, chrome placeholder, and theme ownership;
 - a fixed-root `FindLibMpv.cmake` integration that creates the single `LibMpv::LibMpv` imported target only from `../libmpv/0.41.0/windows-x64`;
 - an R2-01 mpv runtime module that validates client-API compatibility, the actual loaded DLL path, and the staged dependency-manifest identity before QML startup;
-- a modular MSYS2 CLANG64 source-build chain that produces the project-controlled libmpv SDK/runtime package from pinned upstream source refs without placing build trees or third-party binaries in Git;
+- a modular MSYS2 CLANG64 source-build chain that produces the project-controlled libmpv SDK/runtime package from pinned upstream source identities without placing build trees or third-party binaries in Git;
 - automatic staging of the fixed libmpv package runtime DLLs plus its dependency manifest beside executable/test targets;
 - architecture decisions, the original full development task book, and the approved R2-R14 fast-framework stage taskbooks under `docs/plans/stages/`;
 - an explicit Windows/MSVC/Qt/libmpv/FFmpeg/transitive-source identity baseline plus minimum-compatible CMake/Ninja development-tool gates;
@@ -210,22 +210,24 @@ Implemented on 2026-08-07 in `agent/r2-stage`:
 - after the user's first R2-01 run correctly stopped on the missing `../libmpv/.../include/mpv/client.h`, a project-controlled source-build chain was added rather than weakening the dependency gate or accepting an arbitrary prebuilt DLL;
 - `scripts/libmpv/bootstrap-build-environment.ps1` installs/verifies build-only MSYS2 CLANG64 tools but does not install runtime libraries from MSYS2 packages;
 - `scripts/libmpv/build-package.ps1` is the Windows-side build entry and keeps source/build/package paths separated;
-- source checkouts live under `../downloads/libmpv/sources`; generated build/install state lives under `../cache/libmpv-build`; only the final SDK/runtime package lives under `../libmpv/0.41.0/windows-x64`;
+- Git source checkouts live under `../downloads/libmpv/sources`, immutable release archives live under `../downloads/libmpv/archives`, generated build/extracted-source/trust state lives under `../cache/libmpv-build`, and only the final SDK/runtime package lives under `../libmpv/0.41.0/windows-x64`;
 - separate CLANG64 build modules build FreeType, FriBidi, HarfBuzz, libass, libplacebo, FFmpeg, and mpv in dependency order;
-- FFmpeg is built with `--disable-autodetect --disable-gpl --disable-nonfree --enable-shared --disable-static`; mpv is built with `-Dgpl=false -Dcplayer=false -Dlibmpv=true -Dbuild-date=false` and the shared-library path;
+- FFmpeg is built from the official `ffmpeg-8.0.3.tar.xz` release archive after isolated PGP verification against fingerprint `FCF986EA15E6E293A5644F10B4322F04D67658D8` plus a small remote-tag-to-commit check; its compile policy remains `--disable-autodetect --disable-gpl --disable-nonfree --enable-shared --disable-static`;
+- mpv is built with `-Dgpl=false -Dcplayer=false -Dlibmpv=true -Dbuild-date=false` and the shared-library path;
 - the finalizer recursively stages required CLANG64 runtime DLLs actually referenced by produced DLLs, generates an export `.def`, uses the pinned Visual Studio x64 `lib.exe` to create the MSVC-compatible `mpv.lib`, and writes a UTF-8-no-BOM dependency manifest containing source commits and SHA-256 hashes;
 - `scripts/libmpv/verify-package.ps1` independently rechecks package identity and every recorded artifact hash;
 - the source-build layout/policy has its own structural verifier `scripts/libmpv/verify-build-layout.ps1`;
 - `Msys2Environment.psm1` executes arbitrary CLANG64 shell text through a temporary UTF-8-no-BOM LF `.sh` file written directly under the resolved MSYS2 `tmp` directory and invokes it through the stable `/tmp/...` path, avoiding both multiline `bash -lc` quoting and an extra `cygpath` conversion step;
-- source acquisition is isolated in `scripts/libmpv/clang64/source/source_checkout.sh`: fixed refs are installed through bounded three-attempt shallow fetches (`--depth=1 --no-tags`) into owned staging directories, Git network operations use command-local HTTP/1.1 without changing user configuration, existing local changes/non-Git content remain protected, the earlier empty-worktree recovery remains narrow, networked submodule operations retry explicitly with shallow single-job fetches, and `player_fetch_source` stdout remains reserved for the final source path;
+- ordinary Git source acquisition is isolated in `scripts/libmpv/clang64/source/source_checkout.sh`: fixed refs are installed through bounded three-attempt shallow fetches (`--depth=1 --no-tags`) into owned staging directories, Git network operations use command-local HTTP/1.1 without changing user configuration, existing local changes/non-Git content remain protected, the earlier empty-worktree recovery remains narrow, networked submodule operations retry explicitly with shallow single-job fetches, and `player_fetch_source` stdout remains reserved for the final source path;
+- large signed release acquisition is isolated in `scripts/libmpv/clang64/source/source_archive.sh`: FFmpeg downloads use resumable curl transfer, the official release archive/signature/key are kept outside Git, the public key is imported only into an isolated build-cache keyring and must match the pinned fingerprint, extraction occurs only after signature/tag identity validation, and partial downloads remain resumable rather than restarting a Git pack;
 - no `mpv_handle`, initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
 
 The approved source-build set is intentionally narrow. MSYS2/CLANG64 is a **build-only** toolchain; it is not a Player production dependency. The source build does not consume MSYS2-packaged FFmpeg/libass/libplacebo/etc. The release-time dependency/license scan in R13 remains mandatory, including any compiler runtime DLL or bundled source component actually present in the final binary graph.
 
 Still required on the user's Windows workspace:
 
-- MSYS2 is installed, all 99 requested CLANG64 build packages are present, and `bootstrap-build-environment.ps1` now completes with `MSYS2 CLANG64 build environment is ready.`;
-- the full project-controlled source build must rerun through the shallow fixed-ref HTTP/1.1 source checkout, complete, and create the fixed sibling package;
+- the original MSYS2 CLANG64 bootstrap is locally verified; rerun `bootstrap-build-environment.ps1` once after this change so curl/GnuPG/tar/xz archive-verification tools are explicitly present;
+- the full project-controlled source build must rerun through the signed FFmpeg release-archive path, complete, and create the fixed sibling package;
 - `verify-package.ps1` and `verify-dependencies.ps1` must validate the real package identity and artifact hashes;
 - fresh configure/build must link against `LibMpv::LibMpv` and stage its runtime files;
 - CTest must pass all five tests including `mpv_runtime_probe`;
@@ -243,7 +245,9 @@ The repository may be renamed or moved, but its parent directory is the dependen
 │  ├─ cmake/fetchcontent/
 │  └─ libmpv-build/
 ├─ downloads/
-│  └─ libmpv/sources/
+│  └─ libmpv/
+│     ├─ sources/
+│     └─ archives/
 ├─ libmpv/
 ├─ Qt/
 ├─ <repository>/
@@ -338,7 +342,7 @@ Future `playback_composition`, `persistence_composition`, and `platform_composit
 | CMake | minimum `3.30.5` |
 | Ninja | minimum `1.12.1` |
 | mpv/libmpv | exact `0.41.0`, tag `v0.41.0`, commit `41f6a645068483470267271e1d09966ca3b9f413` |
-| FFmpeg | exact `8.0.3`, ref `n8.0.3`, LGPL-oriented build with GPL/nonfree/autodetect disabled |
+| FFmpeg | exact `8.0.3`, ref `n8.0.3`, commit `8ae0b34901ba60a802f183ee75a250a9fc3e09a5`, official signed xz release archive, signing fingerprint `FCF986EA15E6E293A5644F10B4322F04D67658D8`, LGPL-oriented build with GPL/nonfree/autodetect disabled |
 | libplacebo | exact `7.351.0`, ref `v7.351.0`, LGPL-2.1-or-later route |
 | libass | exact `0.17.4`, ref `0.17.4`, ISC |
 | FreeType | exact `2.13.3`, ref `VER-2-13-3`, FreeType License route |
@@ -353,18 +357,23 @@ Future `playback_composition`, `persistence_composition`, and `platform_composit
 <parent>/
 ├─ downloads/
 │  └─ libmpv/
-│     └─ sources/
-│        ├─ freetype/
-│        ├─ fribidi/
-│        ├─ harfbuzz/
-│        ├─ libass/
-│        ├─ libplacebo/
-│        ├─ ffmpeg/
-│        └─ mpv/
+│     ├─ sources/
+│     │  ├─ freetype/
+│     │  ├─ fribidi/
+│     │  ├─ harfbuzz/
+│     │  ├─ libass/
+│     │  ├─ libplacebo/
+│     │  └─ mpv/
+│     └─ archives/
+│        ├─ ffmpeg-8.0.3.tar.xz
+│        ├─ ffmpeg-8.0.3.tar.xz.asc
+│        └─ ffmpeg-release-signing-key.asc
 ├─ cache/
 │  └─ libmpv-build/
 │     ├─ build/
 │     ├─ prefix/
+│     ├─ archive-sources/
+│     ├─ source-trust/
 │     └─ metadata/
 └─ libmpv/
    └─ 0.41.0/windows-x64/
@@ -379,7 +388,7 @@ Future `playback_composition`, `persistence_composition`, and `platform_composit
       └─ dependency-manifest.json
 ```
 
-`../downloads/libmpv` and `../cache/libmpv-build` are project-owned dependency source/build areas. Source acquisition is owned by `scripts/libmpv/clang64/source/source_checkout.sh`: a new source checkout is created in a generated hidden staging repository, only the pinned ref is fetched with `--depth=1 --no-tags`, the resulting commit is checked against the pinned SHA before the checkout is moved into `sources/<name>`, and existing repositories refresh the requested ref with the same shallow fetch. Git network calls use command-local HTTP/1.1 plus bounded retry; networked submodules are shallow and single-job to reduce transfer pressure. Failed staging directories are removed, existing non-empty non-Git paths/local modifications/untracked files are never overwritten, and no global Git setting is changed. The only automatic recovery case is the empty-worktree state produced by the earlier `git clone --no-checkout` implementation when Git reports only tracked deletions. Generated build/prefix/metadata state remains disposable and is rebuilt cleanly.
+`source_checkout.sh` owns Git-backed fixed-ref source acquisition: staging repositories use shallow HTTP/1.1 fetches, exact commits are verified, failed staging is removed, and existing local changes are protected. `source_archive.sh` owns immutable signed release archives: the FFmpeg tarball/signature/key download is resumable under `../downloads/libmpv/archives`, the release key is checked in an isolated cache keyring against the pinned fingerprint, the signed archive is verified before extraction, and only a tiny peeled-tag lookup is used to confirm `n8.0.3` still maps to the pinned release commit. Verified archive extraction is disposable under `../cache/libmpv-build/archive-sources`; it does not overwrite user-maintained Git source checkouts or change global Git/GPG configuration.
 
 The manifest generated after the real build includes at least:
 
@@ -417,7 +426,7 @@ powershell -ExecutionPolicy Bypass -File scripts\libmpv\build-package.ps1
 powershell -ExecutionPolicy Bypass -File scripts\libmpv\verify-package.ps1
 ```
 
-`bootstrap-build-environment.ps1` installs only build tools into MSYS2 CLANG64 (`toolchain`, Meson, Ninja, pkg-config, NASM, Python and base build utilities). It does **not** install FFmpeg/libplacebo/libass/FreeType/FriBidi/HarfBuzz/mpv binary packages from MSYS2.
+`bootstrap-build-environment.ps1` installs only build tools into MSYS2/CLANG64: compiler/toolchain, Meson, Ninja, pkg-config, NASM, Python, Git, curl, GnuPG, tar/xz and base build utilities. It does **not** install FFmpeg/libplacebo/libass/FreeType/FriBidi/HarfBuzz/mpv binary packages from MSYS2.
 
 If MSYS2 is not at the normal system-drive `msys64` location, set `MSYS2_ROOT` to the installation directory before running the scripts. If MSYS2 itself reports that a full system update/restart is required, complete the normal MSYS2 update first; the project bootstrap intentionally does not perform an unsafe partial package-database upgrade.
 
@@ -467,7 +476,8 @@ A file may receive new code only when the code has the same responsibility and r
 - Relative shared dependency paths: `cmake/DependencyPaths.cmake`
 - R2 libmpv imported-target integration: `cmake/FindLibMpv.cmake`
 - R2 source-build entry: `scripts/libmpv/build-package.ps1`
-- R2 source checkout/network boundary: `scripts/libmpv/clang64/source/source_checkout.sh`
+- R2 Git source checkout/network boundary: `scripts/libmpv/clang64/source/source_checkout.sh`
+- R2 signed release archive boundary: `scripts/libmpv/clang64/source/source_archive.sh`
 - R2 source-build structural gate: `scripts/libmpv/verify-build-layout.ps1`
 - R2 package hash/identity gate: `scripts/libmpv/verify-package.ps1`
 - Render embedding and lifecycle decision: `docs/decisions/ADR-0001-libmpv-render-api.md`
@@ -490,7 +500,7 @@ Confirmed by the user on the Windows 10 development workspace through R1-06:
 
 The user's first R2-01 local verification on 2026-08-07 confirmed that the new R2 hard gate correctly stops all configure/build/test entry points when `../libmpv/0.41.0/windows-x64/include/mpv/client.h` is absent. This is expected behavior and is not treated as a source failure. The source-build chain was then added to create that package from the approved source identities instead of weakening the gate.
 
-The MSYS2 bootstrap path is now locally verified: all 99 requested CLANG64 build packages are installed, a repeat bootstrap reports no package work to do, and the post-install verification completes with `MSYS2 CLANG64 build environment is ready.` This confirms the `/tmp` temporary-script invocation path on the user's Windows/MSYS2 installation.
+The MSYS2 bootstrap path is locally verified through the original CLANG64 tool set: package installation completed and the post-install check returned `MSYS2 CLANG64 build environment is ready.` The current signed-archive follow-up adds curl/GnuPG/tar/xz as explicit build-only requirements and still needs one local bootstrap rerun to confirm their presence through the same entry point.
 
 The first real `build-package.ps1` run then reached FreeType source acquisition and cloned the repository successfully, but the source-safety check immediately rejected that fresh checkout as locally modified. Review confirmed the cause was `git clone --no-checkout` followed by `git status --porcelain`: the intentionally empty worktree appears as tracked deletions. The source checkout recovery now only repairs that provably empty/all-tracked-deletions state; actual local changes remain protected.
 
@@ -498,14 +508,18 @@ The next local rerun recovered the FreeType checkout, fetched `VER-2-13-3`, deta
 
 The following local run confirmed that correction by completing the FreeType configure, compile, and install stages. The build then moved to FriBidi, where the first full GitHub clone timed out after 300000 ms. Because the old source function relied on shell `errexit` inside command substitution, it continued after the failed clone and emitted several misleading missing-directory errors plus an empty source-identity mismatch. Source acquisition was isolated in `source/source_checkout.sh`; network operations gained bounded three-attempt retry, staging/cleanup, and explicit failure propagation.
 
-The next local run progressed beyond FriBidi and reached HarfBuzz. HarfBuzz full-history clone failed on all three attempts with OpenSSL unexpected EOF, HTTP/2 stream reset, and connection-abort errors while transferring a repository with more than 130,000 objects. The retry/cleanup boundary worked correctly and installed no failed HarfBuzz checkout. The source-network implementation now removes the unnecessary full-history transfer: new dependencies are initialized in staging and fetch only the pinned ref with `--depth=1 --no-tags`, existing checkouts refresh the requested ref the same way, every network command uses command-local HTTP/1.1, and the resulting HEAD is still checked against the pinned commit SHA before use. No global Git configuration is changed.
+The next local run progressed beyond FriBidi and reached HarfBuzz. HarfBuzz full-history clone failed on all three attempts with OpenSSL unexpected EOF, HTTP/2 stream reset, and connection-abort errors while transferring a repository with more than 130,000 objects. The retry/cleanup boundary worked correctly and installed no failed HarfBuzz checkout. The source-network implementation then switched Git-backed dependencies to shallow fixed-ref HTTP/1.1 fetches.
 
-Connected-environment verification for this follow-up includes Bash syntax validation, a local two-ref Git simulation proving shallow fixed-ref install/update and exact-commit validation, dirty-worktree protection, and a forced three-attempt network-failure simulation proving staging cleanup with no final source checkout. This environment still does not provide the user's Windows MSYS2/CLANG64 dependency build runtime, so the corrected real HarfBuzz acquisition, remaining third-party compilation, produced DLL dependency graph, import-library generation, artifact hashes, package verification, Player linking, five CTests, and runtime loader probe remain local acceptance requirements.
+The latest local run confirmed that the shallow-fetch change progressed through HarfBuzz and subsequent dependencies to FFmpeg. FFmpeg still required 9,850 objects even at depth 1, and all three Git pack attempts failed mid-transfer with `curl 18`, `curl 56`, EOF, and invalid `index-pack` output. This confirms the remaining failure is transport instability on a relatively large Git pack rather than an FFmpeg version/configuration/compiler failure. FFmpeg acquisition now uses its official approximately 11 MB `ffmpeg-8.0.3.tar.xz` release archive, resumable curl transfer, official `.asc` signature, an isolated GPG keyring pinned to release fingerprint `FCF986EA15E6E293A5644F10B4322F04D67658D8`, and only a small peeled-tag lookup to retain the pinned `n8.0.3 -> 8ae0b349...` commit identity check.
+
+Connected-environment verification for this follow-up covers structural review of the new archive trust boundary and the existing source/package contracts. This environment cannot execute the user's Windows MSYS2 network/download path, so the real signed archive download/resume, GPG verification, FFmpeg compile, remaining mpv build, produced DLL graph, import-library generation, package hashes, Player linking, five CTests, and runtime loader probe remain local acceptance requirements.
 
 ## Change Log
 
 ### 2026-08-08
 
+- Replaced FFmpeg's remaining Git-pack source transfer with the official signed `ffmpeg-8.0.3.tar.xz` release path after three depth-1 fetches still failed while transferring 9,850 objects; downloads are resumable, release signature verification uses an isolated GPG keyring pinned to the official release fingerprint, the remote release tag is still checked against the pinned commit, and no global Git/GPG configuration is modified.
+- Added curl/GnuPG/tar/xz as build-only MSYS2 requirements for signed release archive verification; they are not Player runtime dependencies.
 - Replaced R2-01 dependency full-history clones with pinned-ref shallow fetches after HarfBuzz repeatedly failed during a 130k-object transfer; Git network operations now use command-local HTTP/1.1, bounded retry, shallow single-job submodule updates, exact commit verification, and staging cleanup without changing the user's global Git configuration.
 
 ### 2026-08-07

@@ -11,6 +11,7 @@ $requiredFiles = @(
     "scripts/libmpv/modules/LibMpvPackage.psm1",
     "scripts/libmpv/clang64/common.sh",
     "scripts/libmpv/clang64/source/source_checkout.sh",
+    "scripts/libmpv/clang64/source/source_archive.sh",
     "scripts/libmpv/clang64/build-all.sh",
     "scripts/libmpv/clang64/package-runtime.sh",
     "scripts/libmpv/clang64/build/freetype.sh",
@@ -36,6 +37,10 @@ try {
         'PLAYER_MPV_COMMIT "41f6a645068483470267271e1d09966ca3b9f413"',
         'PLAYER_FFMPEG_VERSION "8.0.3"',
         'PLAYER_FFMPEG_COMMIT "8ae0b34901ba60a802f183ee75a250a9fc3e09a5"',
+        'PLAYER_FFMPEG_ARCHIVE_URL "https://ffmpeg.org/releases/ffmpeg-8.0.3.tar.xz"',
+        'PLAYER_FFMPEG_ARCHIVE_SIGNATURE_URL "https://ffmpeg.org/releases/ffmpeg-8.0.3.tar.xz.asc"',
+        'PLAYER_FFMPEG_SIGNING_KEY_URL "https://ffmpeg.org/ffmpeg-devel.asc"',
+        'PLAYER_FFMPEG_SIGNING_FINGERPRINT "FCF986EA15E6E293A5644F10B4322F04D67658D8"',
         'PLAYER_LIBPLACEBO_VERSION "7.351.0"',
         'PLAYER_LIBPLACEBO_COMMIT "3188549fba13bbdf3a5a98de2a38c2e71f04e21e"',
         'PLAYER_LIBASS_VERSION "0.17.4"',
@@ -60,6 +65,13 @@ try {
     }
     if ($buildPathModule -match '[A-Za-z]:[/\\]') {
         throw "LibMpvBuildPaths.psm1 contains a machine-absolute Windows path."
+    }
+
+    $bootstrap = Get-Content -LiteralPath "scripts/libmpv/bootstrap-build-environment.ps1" -Raw
+    foreach ($fragment in @('"curl"', '"gnupg"', '"tar"', '"xz"', '"gpg"')) {
+        if (-not $bootstrap.Contains($fragment)) {
+            throw "bootstrap-build-environment.ps1 is missing signed-archive build tool: $fragment"
+        }
     }
 
     $msysInvocationModule = Get-Content -LiteralPath "scripts/libmpv/modules/Msys2Environment.psm1" -Raw
@@ -89,7 +101,6 @@ try {
         "scripts/libmpv/clang64/build/harfbuzz.sh"   = "PLAYER_HARFBUZZ_COMMIT"
         "scripts/libmpv/clang64/build/libass.sh"     = "PLAYER_LIBASS_COMMIT"
         "scripts/libmpv/clang64/build/libplacebo.sh" = "PLAYER_LIBPLACEBO_COMMIT"
-        "scripts/libmpv/clang64/build/ffmpeg.sh"     = "PLAYER_FFMPEG_COMMIT"
         "scripts/libmpv/clang64/build/mpv.sh"        = "PLAYER_MPV_COMMIT"
     }
     foreach ($entry in $sourceBuildCommitVariables.GetEnumerator()) {
@@ -101,6 +112,7 @@ try {
 
     $ffmpegBuild = Get-Content -LiteralPath "scripts/libmpv/clang64/build/ffmpeg.sh" -Raw
     foreach ($fragment in @(
+        "player_fetch_ffmpeg_release_archive",
         "--disable-autodetect",
         "--disable-gpl",
         "--disable-nonfree",
@@ -110,6 +122,10 @@ try {
         if (-not $ffmpegBuild.Contains($fragment)) {
             throw "FFmpeg build policy is missing required fragment: $fragment"
         }
+    }
+    if ($ffmpegBuild.Contains("player_fetch_source") -or
+        $ffmpegBuild.Contains("https://git.ffmpeg.org/ffmpeg.git")) {
+        throw "FFmpeg build must use the signed release archive instead of a Git pack checkout."
     }
     if ($ffmpegBuild.Contains("--enable-gpl") -or $ffmpegBuild.Contains("--enable-nonfree")) {
         throw "FFmpeg build policy re-enabled GPL or nonfree mode."
@@ -132,10 +148,15 @@ try {
     if (-not $commonBuild.Contains("--default-library=shared")) {
         throw "The shared Meson build helper must keep third-party libraries dynamic."
     }
-    if (-not $commonBuild.Contains('source "$CLANG64_SCRIPT_ROOT/source/source_checkout.sh"')) {
-        throw "common.sh must delegate source acquisition to source/source_checkout.sh."
+    foreach ($fragment in @(
+        'source "$CLANG64_SCRIPT_ROOT/source/source_checkout.sh"',
+        'source "$CLANG64_SCRIPT_ROOT/source/source_archive.sh"'
+    )) {
+        if (-not $commonBuild.Contains($fragment)) {
+            throw "common.sh is missing delegated source-acquisition boundary: $fragment"
+        }
     }
-    if ($commonBuild.Contains('player_fetch_source()')) {
+    if ($commonBuild.Contains('player_fetch_source()') -or $commonBuild.Contains('player_fetch_ffmpeg_release_archive()')) {
         throw "common.sh must not accumulate source-acquisition implementation."
     }
 
@@ -178,7 +199,46 @@ try {
         throw "source_checkout.sh must not recursively delete an existing final source directory."
     }
 
-    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, shallow fixed-ref source checkout with bounded HTTP/1.1 retry, safe stdout contract, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
+    $sourceArchive = Get-Content -LiteralPath "scripts/libmpv/clang64/source/source_archive.sh" -Raw
+    foreach ($fragment in @(
+        'PLAYER_ARCHIVE_ROOT="$PLAYER_DOWNLOAD_ROOT/archives"',
+        'PLAYER_ARCHIVE_SOURCE_ROOT="$PLAYER_CACHE_ROOT/archive-sources"',
+        'curl',
+        '--continue-at -',
+        '--retry 5',
+        'gpg --batch --homedir "$gnupg_home" --import',
+        'fpr:::::::::${expected_fingerprint}:',
+        'gpg --batch --homedir "$gnupg_home" --verify',
+        'player_verify_remote_tag_commit',
+        'refs/tags/${ref}^{}',
+        'PLAYER_FFMPEG_COMMIT',
+        'official-signed-release-archive',
+        'tar -xJf',
+        'ffmpeg-${version}'
+    )) {
+        if (-not $sourceArchive.Contains($fragment)) {
+            throw "source_archive.sh is missing signed FFmpeg archive verification fragment: $fragment"
+        }
+    }
+    if ($sourceArchive.Contains('gpg --recv-keys') -or $sourceArchive.Contains('git config --global')) {
+        throw "source_archive.sh must use the pinned official key URL/fingerprint and must not mutate global trust or Git configuration."
+    }
+
+    $packageRuntime = Get-Content -LiteralPath "scripts/libmpv/clang64/package-runtime.sh" -Raw
+    foreach ($fragment in @(
+        'copy_license ffmpeg',
+        '"$PLAYER_ARCHIVE_SOURCE_ROOT/ffmpeg/COPYING.LGPLv2.1"',
+        '"$PLAYER_ARCHIVE_SOURCE_ROOT/ffmpeg/COPYING.LGPLv3"'
+    )) {
+        if (-not $packageRuntime.Contains($fragment)) {
+            throw "package-runtime.sh is missing FFmpeg verified-archive license staging fragment: $fragment"
+        }
+    }
+    if ($packageRuntime.Contains('$PLAYER_SOURCE_ROOT/ffmpeg/')) {
+        throw "package-runtime.sh must not read FFmpeg license files from the retired Git source path."
+    }
+
+    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, shallow Git checkout, signed FFmpeg release archives with isolated PGP trust, resumable downloads, archive-backed license staging, MSYS-root invocation, and LGPL-oriented build policy are complete."
 }
 finally {
     Pop-Location
