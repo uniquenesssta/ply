@@ -24,7 +24,10 @@ try {
     $ninja = Resolve-PlayerNinja -Layout $layout
     Resolve-PlayerQtRoot -Layout $layout | Out-Null
 
-    $configureArguments = @("--preset", $Preset)
+    # CMakeCache.txt stores resolved absolute source/build paths by design. Always
+    # regenerate it so a moved, renamed, or copied checkout is not tied to the
+    # previous repository location.
+    $configureArguments = @("--fresh", "--preset", $Preset)
     if ($ninja -match '[/\\]') {
         $configureArguments += "-DCMAKE_MAKE_PROGRAM:FILEPATH=$ninja"
     }

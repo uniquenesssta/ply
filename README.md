@@ -368,6 +368,8 @@ The four parent-level dependency roots are therefore `../Qt`, `../libmpv`, `../d
 
 No drive letter or repository-specific absolute path is stored in source control. CMake and Qt may internally resolve a relative source/dependency path to an absolute filesystem path while configuring or running; that transient runtime resolution is not committed configuration. Visual Studio itself is an installed development tool and is discovered at runtime through `vswhere.exe`; its installation path is never committed as project configuration.
 
+Generated CMake build state is intentionally disposable and is not portable between checkout locations because `CMakeCache.txt` records resolved absolute source/build paths. `scripts/configure.ps1` therefore invokes CMake with `--fresh` so moving, renaming, or copying the repository does not require manual cache cleanup.
+
 `scripts/bootstrap-workspace.ps1` creates only these project-owned relative locations when missing:
 
 ```text
@@ -408,7 +410,7 @@ Run from the repository root:
 ./scripts/test.ps1
 ```
 
-`configure.ps1`, `build.ps1`, and `test.ps1` invoke dependency verification before doing work, so each standalone command receives the same process-local MSVC environment. `verify-dependencies.ps1` checks minimum/family compatibility for development tools and exact identity for Qt and later libmpv manifest data. libmpv remains optional until Stage R2; once libmpv headers exist, its dependency manifest becomes mandatory.
+`configure.ps1` performs a fresh preset configure so stale absolute paths inside generated CMake cache state cannot bind a relocated checkout to its previous directory. `build.ps1` and `test.ps1` operate on that configured build tree. All three entry scripts invoke dependency verification before doing work, so each standalone command receives the same process-local MSVC environment. `verify-dependencies.ps1` checks minimum/family compatibility for development tools and exact identity for Qt and later libmpv manifest data. libmpv remains optional until Stage R2; once libmpv headers exist, its dependency manifest becomes mandatory.
 
 Run the generated executable from the repository-relative output:
 
@@ -436,35 +438,24 @@ A file may receive new code only when the code has the same responsibility and r
 
 ## Validation record
 
-Observed on the user's Windows 10 `10.0.19045.5917` workspace after syncing commit `533a668`:
+Observed on the user's Windows 10 `10.0.19045.5917` workspace after syncing R1-04 commit `1d4d7caaabf91868a891062fa826f60530a69b66`:
 
-- `scripts/verify-project-layout.ps1` passed with parent-relative path and Windows-separator validation;
-- Qt `6.8.3` was found through `../Qt/6.8.3/msvc2022_64`;
-- CMake `3.30.5` and Ninja `1.12.1` were found from the existing Qt Tools environment;
-- Visual Studio x64 environment initialization through `vswhere.exe` + `vcvars64.bat` succeeded;
-- `cl.exe` resolved to compiler family `19.44` (`19.44.35228` banner observed);
-- the remaining failure was caused by invoking `cl.exe` without a compilation input solely to parse its banner: Windows PowerShell 5.1 promoted the native stderr output to `NativeCommandError` before later checks could run;
-- libmpv remained correctly optional until R2.
+- `scripts/verify-project-layout.ps1` passed with the R1-04 graphics module, parent-relative paths, Windows normalization, compatible-tool gates, and CMake responsibility checks;
+- CMake `3.30.5`, Ninja `1.12.1`, Qt `6.8.3`, Visual Studio x64 environment initialization, MSVC compiler `19.44.35228.0`, toolset `14.44.35207`, Visual Studio `17.14.37411.7`, x64 target architecture, Windows SDK `10.0.26100.0`, and Windows `10.0.19045` all passed verification;
+- libmpv `0.41.0` remained correctly optional until Stage R2;
+- dependency verification completed successfully and the only configure blocker was a generated `build/windows-msvc-debug/CMakeCache.txt` copied from the sibling `qt6-player` checkout, whose `CMAKE_HOME_DIRECTORY` still referenced the previous absolute source directory.
 
 Implemented in the current follow-up:
 
-- CMake `3.30.5` and Ninja `1.12.1` are now minimum-compatible development-tool baselines instead of exact patch pins;
-- top-level `cmake_minimum_required` and `CMakePresets.json` were aligned to CMake `3.30.5`;
-- CMake/Ninja verification accepts newer compatible versions rather than demanding equality;
-- MSVC compiler identity is read from `cl.exe` file-version metadata instead of executing `cl.exe` without input;
-- the v143 `14.44` toolset family is independently checked through `VCToolsVersion`;
-- Visual Studio validation accepts the `17.14` family instead of one servicing build only;
-- Windows SDK validation uses `10.0.26100.0` as a minimum compatible SDK rather than requiring one exact servicing identity;
-- project-layout verification now guards the compatible-tool verifier structure;
-- no R1-03 logging behavior, Qt version, libmpv/FFmpeg identity, relative dependency layout, or R2-R14 taskbook was changed.
+- `scripts/configure.ps1` now uses CMake `--fresh` for preset configuration, rebuilding generated cache state for the current checkout location instead of requiring manual deletion of an inherited `CMakeCache.txt`;
+- `scripts/verify-project-layout.ps1` requires this fresh-configure policy so checkout relocation cannot regress into a stale-cache failure;
+- no source/third-party dependency path, runtime path, product dependency identity, R1-04 graphics behavior, QML behavior, or persisted user data changed.
 
 Not executed in the connected generation environment:
 
-- Windows PowerShell runtime execution of this follow-up, because the connected environment does not provide Windows PowerShell;
-- the user's next dependency verification after the `cl.exe` probe fix;
-- configure/build against the real Qt 6.8.3 MSVC kit;
-- `runtime_paths` and `logging` Qt Test execution;
-- application runtime log-directory verification;
+- Windows PowerShell execution of the fresh configure follow-up;
+- configure/build/CTest against the user's real Qt 6.8.3/MSVC/OpenGL environment after the cache fix;
+- the `graphics_backend` runtime OpenGL probe and final `Player.exe` renderer log verification;
 - later libmpv/render/media validation;
 - binary license scanning and legal/patent review.
 
@@ -472,18 +463,16 @@ The next local Windows verification after syncing this follow-up is:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-project-layout.ps1
-powershell -ExecutionPolicy Bypass -File scripts\verify-dependencies.ps1
 powershell -ExecutionPolicy Bypass -File scripts\configure.ps1
 powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-If a subsequent check fails, the output should now represent a real missing/incompatible component or a compile/test defect rather than the already-fixed absolute-path, separator, empty-list, developer-shell, or `cl.exe` banner-probe issues.
-
 ## Change Log
 
 ### 2026-08-07
 
+- Made preset configuration relocation-safe by invoking CMake with `--fresh`; copied or renamed checkouts no longer require manual removal of stale absolute paths from generated `CMakeCache.txt`.
 - Replaced exact CMake/Ninja patch pins with minimum-compatible development-tool gates matching the existing Qt Tools environment: CMake `3.30.5+` and Ninja `1.12.1+`; product/runtime dependency identity remains controlled.
 - Fixed Windows PowerShell 5.1 `NativeCommandError` during MSVC verification by reading the `cl.exe` file version instead of executing `cl.exe` without input; added an independent v143 `14.44` toolset-family check.
 - Fixed Windows parent-relative path validation so PowerShell `Join-Path` output such as `..\Qt\Tools\...` is accepted as the same repository-relative location as `../Qt/Tools/...`.
@@ -520,8 +509,8 @@ Validation performed in the connected environment:
 - Qt 6.8 API usage was checked against the official Qt documentation for `QQuickWindow::setGraphicsApi()`, `QQuickWindow::graphicsApi()`, `QOpenGLContext`, and `QOpenGLFunctions`;
 - the earlier implementation draft was corrected before commit because Qt 6.8 declares `QOpenGLFunctions::initializeOpenGLFunctions()` as `void`, so the final probe uses the ready `QOpenGLContext::functions()` resolver while the context is current.
 
-Validation still required on the user's Windows workspace:
+Windows validation progress:
 
-- `verify-project-layout.ps1`, dependency verification, configure, build, and CTest;
-- the `graphics_backend` test must create a real OpenGL context and report a non-empty renderer/version;
-- running `Player.exe` must produce a `Graphics backend validated` log line containing the actual vendor/renderer/version information.
+- dependency/toolchain verification is now fully green on the user's Windows 10/MSVC/Qt workspace;
+- the first R1-04 configure attempt reached CMake and then failed only because the copied build directory contained a cache generated for `F:/QT6-PLAYER/qt6-player` rather than the current `F:/QT6-PLAYER/qt6-player r1` checkout;
+- the fresh-configure follow-up removes that generated-cache relocation blocker; configure/build/CTest and the real OpenGL renderer probe still require one rerun on the user's machine.

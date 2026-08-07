@@ -14,6 +14,7 @@ $requiredFiles = @(
     "cmake/DependencyVersions.cmake",
     "cmake/Sanitizers.cmake",
     "cmake/StaticAnalysis.cmake",
+    "scripts/configure.ps1",
     "scripts/modules/DependencyPaths.psm1",
     "scripts/modules/DependencyVersions.psm1",
     "scripts/modules/MsvcEnvironment.psm1",
@@ -123,6 +124,11 @@ if (-not $appCMake.Contains("add_subdirectory(bootstrap/graphics_backend)")) {
     throw "src/app/CMakeLists.txt must delegate the R1-04 graphics backend module to bootstrap/graphics_backend/."
 }
 
+$configureScript = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/configure.ps1") -Raw
+if (-not $configureScript.Contains('"--fresh", "--preset"')) {
+    throw "configure.ps1 must use CMake --fresh so generated cache paths cannot bind a moved or renamed checkout to its previous location."
+}
+
 $dependencyPaths = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/DependencyPaths.cmake") -Raw
 if ($dependencyPaths -match '[A-Za-z]:[/\\]') {
     throw "cmake/DependencyPaths.cmake contains a machine-absolute Windows path."
@@ -174,4 +180,4 @@ foreach ($fragment in @(
     }
 }
 
-Write-Host "Project layout, R1-04 graphics backend module, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R1-04 graphics backend module, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
