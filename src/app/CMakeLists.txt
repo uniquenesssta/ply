@@ -8,6 +8,8 @@ target_sources(
         bootstrap/graphics_backend_bootstrap.h
         bootstrap/qml_bootstrap.cpp
         bootstrap/qml_bootstrap.h
+        bootstrap/runtime_paths.cpp
+        bootstrap/runtime_paths.h
 )
 
 target_include_directories(

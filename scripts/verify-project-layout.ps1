@@ -19,9 +19,12 @@ $requiredFiles = @(
     "src/CMakeLists.txt",
     "src/app/CMakeLists.txt",
     "src/app/main.cpp",
+    "src/app/bootstrap/runtime_paths.cpp",
+    "src/app/bootstrap/runtime_paths.h",
     "src/presentation/CMakeLists.txt",
     "src/presentation/qml/App.qml",
-    "tests/CMakeLists.txt"
+    "tests/CMakeLists.txt",
+    "tests/unit/app/bootstrap/runtime_paths_test.cpp"
 )
 
 $missingFiles = [System.Collections.Generic.List[string]]::new()

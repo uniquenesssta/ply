@@ -9,12 +9,14 @@ This repository is the active R1 modular build scaffold. It currently provides:
 - a root CMake entry limited to mandatory project/testing bootstrap and delegation to `cmake/CMakeLists.txt`;
 - responsibility-separated CMake modules for dependency, compiler, analysis, target, source, and test configuration;
 - a Qt 6.8.3 Qt Quick application bootstrap;
+- a dedicated `RuntimePaths` bootstrap module for installed and portable path resolution;
 - OpenGL selection before `QGuiApplication` creation;
 - a diagnostic QML loading boundary;
 - a minimal QML shell split into application window, player screen, video surface, player chrome, and theme ownership;
 - architecture decisions and the full development task book;
 - a pinned Windows/MSVC/Qt/CMake/Ninja/mpv/FFmpeg version matrix;
 - stable configure, build, and test entry scripts;
+- a Qt Test target covering installed and portable RuntimePaths behavior;
 - no bundled third-party runtime binaries.
 
 The scaffold intentionally does **not** yet implement libmpv loading, playback commands, playback state, rendering, persistence, settings, playlists, platform integrations, or packaging. Those responsibilities will be introduced only in their Atomic Tasks.
@@ -206,6 +208,21 @@ A controlled structural verification completed configure, compilation, and the r
 
 R1-01 remains pending its hard acceptance check until the pinned Windows 10/11, Visual Studio 17.14.37, MSVC 19.44, Windows SDK 10.0.26100.0, CMake 3.31.12, Ninja 1.13.2, and Qt 6.8.3 environment successfully runs `scripts/configure.ps1` and `scripts/build.ps1`.
 
+### R1-02 — Implemented; exact Qt/Windows test execution pending
+
+Implemented on 2026-08-07 in `agent/r1-stage`:
+
+- `src/app/bootstrap/runtime_paths.*` is the single owner of runtime path resolution;
+- installed mode resolves configuration with `QStandardPaths::AppConfigLocation`, application data with `QStandardPaths::AppLocalDataLocation`, logs below the application data directory, and screenshots below the user Pictures location with a data-directory fallback;
+- portable mode is explicitly selected by a `portable.flag` file beside the executable and keeps `config`, `data`, `logs`, and `screenshots` beside the executable;
+- path resolution is side-effect free and does not create directories;
+- the module exposes the executable directory and selected mode so later logging, persistence, and screenshot workflows consume one authoritative path decision;
+- `tests/unit/app/bootstrap/runtime_paths_test.cpp` covers installed mode, portable mode, marker detection, path placement, and absence of directory-creation side effects;
+- the test target compiles the production RuntimePaths source and links only Qt Core and Qt Test;
+- `scripts/verify-project-layout.ps1` now treats the RuntimePaths module and its test as required R1 baseline files.
+
+No dependency version, public QML interface, playback behavior, persistence format, package content, or libmpv integration changed. The real Qt 6.8.3 MSVC build and `runtime_paths` CTest remain pending because the connected execution environment does not contain the pinned Windows/Qt toolchain.
+
 ## Architecture boundary
 
 ```text
@@ -241,7 +258,11 @@ src/app/main.cpp
 
 src/app/bootstrap/
   Owns startup ordering, graphics backend selection, application metadata,
-  QML engine lifetime, and startup failure reporting.
+  QML engine lifetime, runtime path resolution, and startup failure reporting.
+
+src/app/bootstrap/runtime_paths.*
+  Resolves installed/portable executable, configuration, data, log, and
+  screenshot paths without creating directories or owning their consumers.
 
 src/presentation/qml/App.qml
   Owns only the root QML component.
@@ -262,7 +283,7 @@ src/presentation/qml/theme/Theme.qml
   Owns the small set of visual tokens required by the current shell.
 
 tests/CMakeLists.txt
-  Owns test target registration when independently testable modules exist.
+  Owns test target registration; R1-02 adds the first executable Qt Test target.
 ```
 
 ## Pinned toolchain matrix
@@ -357,7 +378,7 @@ Run tests:
 ./scripts/test.ps1
 ```
 
-There are no executable test cases in this framework commit. Test targets will be added with the first independently testable module rather than introducing placeholder tests.
+R1-02 adds the first executable Qt Test target, `runtime_paths`. It verifies installed and portable path behavior without creating runtime directories.
 
 ## First Git submission
 
@@ -411,7 +432,9 @@ Validated in the generation environment:
 - R0-06 is explicitly recorded as skipped rather than complete;
 - the root CMake file contains no dependency lookup, Qt setup, target creation/mutation, installation, or direct source/test subdirectory logic;
 - `cmake/CMakeLists.txt` owns all global build modules and adds the existing source and test boundaries with explicit binary directories;
-- a controlled CMake 3.31.6 structural run configured, compiled, linked `src/Player`, generated the root CTest file, and executed the empty `test` target successfully;
+- a controlled CMake 3.31.6 structural run configured, compiled, linked `src/Player`, generated the root CTest file, and executed the empty `test` target successfully for R1-01;
+- the R1-02 source tree contains one RuntimePaths owner, one dedicated unit-test source, and the production source is compiled directly by the test target rather than replaced with a mock implementation;
+- portable mode resolution is deterministic from `portable.flag` and does not create directories as a side effect;
 - the R0-05 ADRs explicitly choose Render API over `wid` and define OpenGL, QQuickFramebufferObject, thread ownership, callback constraints, initialization, failure, and destruction order;
 - `src/app/main.cpp` invokes graphics backend configuration before `QGuiApplication`, and `GraphicsBackendBootstrap` selects `QSGRendererInterface::OpenGL`.
 
@@ -420,18 +443,20 @@ Not executed in the generation environment:
 - Windows PowerShell script execution, because the connected execution environment is not Windows and does not contain PowerShell;
 - exact Windows/Visual Studio/MSVC/Qt/CMake/Ninja verification, because the pinned Windows toolchain is not installed in the environment;
 - configure and compilation against the real Qt 6.8.3 MSVC kit, so R1-01 hard acceptance remains pending;
-- QML runtime launch or CTest against the real application for the same reason;
+- `runtime_paths` Qt Test execution against the real Qt 6.8.3 Windows build, so R1-02 runtime acceptance remains pending;
+- QML runtime launch or application-level CTest against the real application for the same reason;
 - libmpv Render API initialization and frame rendering, because those implementations begin in Stages R2 and R4;
 - render-thread assertions, resize/DPI/minimize behavior, repeated render-context creation/destruction, and shutdown-race tests, because the render modules do not exist yet;
 - binary license scanning, because no Qt, libmpv, FFmpeg, or transitive runtime binary is committed;
 - legal-counsel and codec-patent review, which remain required before public distribution.
 
-The required Windows acceptance action for R1-01 is to install the exact matrix under the documented sibling paths, open the pinned x64 Visual Studio developer shell, and run `scripts/verify-project-layout.ps1`, `scripts/verify-dependencies.ps1`, `scripts/configure.ps1`, and `scripts/build.ps1`.
+The required Windows acceptance action for R1-01/R1-02 is to install the exact matrix under the documented sibling paths, open the pinned x64 Visual Studio developer shell, and run `scripts/verify-project-layout.ps1`, `scripts/verify-dependencies.ps1`, `scripts/configure.ps1`, `scripts/build.ps1`, and `scripts/test.ps1`.
 
 ## Change Log
 
 ### 2026-08-07
 
+- Implemented Atomic Task R1-02 with a side-effect-free RuntimePaths module, deterministic `portable.flag` mode selection, installed/portable path contracts, and the first executable Qt Test target.
 - Started Stage R1 on `agent/r1-stage` and implemented R1-01 by moving global dependency, Qt, compiler, target, source, and test orchestration under `cmake/`, reducing the root build file to mandatory bootstrap/delegation, and adding a build-boundary verifier.
 - Recorded R0-06 as explicitly skipped by user direction; it remains unaccepted and must not be represented as completed fixture coverage.
 - Completed Atomic Task R0-05 by freezing the libmpv Render API, OpenGL/QQuickFramebufferObject integration, thread ownership, callback behavior, startup failure policy, and render-before-core shutdown order.
