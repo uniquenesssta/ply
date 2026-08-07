@@ -63,15 +63,20 @@ try {
 
     $msysInvocationModule = Get-Content -LiteralPath "scripts/libmpv/modules/Msys2Environment.psm1" -Raw
     foreach ($fragment in @(
-        'cygpath.exe',
+        'Get-PlayerMsys2Root',
+        'Join-Path $msysRoot "tmp"',
+        '$msysScriptPath = "/tmp/$scriptName"',
         '[System.IO.File]::WriteAllText(',
         '[System.Text.UTF8Encoding]::new($false)',
-        '& $BashPath --login $msysScript',
+        '& $BashPath --login $msysScriptPath',
         'Remove-Item -LiteralPath $temporaryScript -Force'
     )) {
         if (-not $msysInvocationModule.Contains($fragment)) {
-            throw "Msys2Environment.psm1 is missing relocation-safe multiline invocation fragment: $fragment"
+            throw "Msys2Environment.psm1 is missing MSYS-root temporary-script invocation fragment: $fragment"
         }
+    }
+    if ($msysInvocationModule.Contains('cygpath.exe')) {
+        throw "Msys2Environment.psm1 must not depend on cygpath for its own temporary script path."
     }
     if ($msysInvocationModule.Contains('& $BashPath --login -lc $Command')) {
         throw "Msys2Environment.psm1 must not pass arbitrary command text directly through bash -lc."
@@ -127,7 +132,7 @@ try {
         throw "The shared Meson build helper must keep third-party libraries dynamic."
     }
 
-    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, safe multiline invocation, and LGPL-oriented build policy are complete."
+    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
 }
 finally {
     Pop-Location

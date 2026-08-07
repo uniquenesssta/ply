@@ -49,32 +49,28 @@ Do not place MSYS2 inside the repository or the repository-parent dependency wor
 "@
 }
 
-function ConvertTo-PlayerMsys2Path {
+function Get-PlayerMsys2Root {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$BashPath,
-
-        [Parameter(Mandatory = $true)]
-        [string]$WindowsPath
+        [string]$BashPath
     )
 
-    $cygpath = Join-Path (Split-Path -Parent $BashPath) "cygpath.exe"
-    if (-not (Test-Path -LiteralPath $cygpath -PathType Leaf)) {
-        throw "MSYS2 cygpath.exe was not found beside the resolved bash executable '$BashPath'."
+    if (-not (Test-PlayerMsys2BashPath -Path $BashPath)) {
+        throw "The resolved bash executable is not an MSYS2 bash path: '$BashPath'."
     }
 
-    $convertedPath = [string](& $cygpath -u $WindowsPath | Select-Object -First 1)
-    if ($LASTEXITCODE -ne 0) {
-        throw "MSYS2 path conversion failed with exit code $LASTEXITCODE for '$WindowsPath'."
+    $bashFullPath = [System.IO.Path]::GetFullPath($BashPath)
+    $binDirectory = Split-Path -Parent $bashFullPath
+    $usrDirectory = Split-Path -Parent $binDirectory
+    $msysRoot = Split-Path -Parent $usrDirectory
+    $expectedBash = Join-Path $msysRoot "usr/bin/bash.exe"
+
+    if (-not (Test-Path -LiteralPath $expectedBash -PathType Leaf)) {
+        throw "Unable to resolve the MSYS2 installation root from '$BashPath'."
     }
 
-    $convertedPath = $convertedPath.Trim()
-    if ([string]::IsNullOrWhiteSpace($convertedPath)) {
-        throw "MSYS2 path conversion returned an empty path for '$WindowsPath'."
-    }
-
-    return $convertedPath
+    return [System.IO.Path]::GetFullPath($msysRoot)
 }
 
 function Invoke-PlayerClang64 {
@@ -101,11 +97,18 @@ function Invoke-PlayerClang64 {
         $env:CHERE_INVOKING = "1"
         $env:MSYS2_PATH_TYPE = "inherit"
 
-        $temporaryScript = Join-Path `
-            ([System.IO.Path]::GetTempPath()) `
-            ("player-clang64-{0}.sh" -f [Guid]::NewGuid().ToString("N"))
+        $msysRoot = Get-PlayerMsys2Root -BashPath $BashPath
+        $msysTempDirectory = Join-Path $msysRoot "tmp"
+        if (-not (Test-Path -LiteralPath $msysTempDirectory -PathType Container)) {
+            [void](New-Item -ItemType Directory -Path $msysTempDirectory -Force)
+        }
 
-        $scriptText = "set -e`n$Command"
+        $scriptName = "player-clang64-{0}.sh" -f [Guid]::NewGuid().ToString("N")
+        $temporaryScript = Join-Path $msysTempDirectory $scriptName
+        $msysScriptPath = "/tmp/$scriptName"
+
+        $normalizedCommand = $Command.Replace("`r`n", "`n").Replace("`r", "`n")
+        $scriptText = "set -e`n$normalizedCommand"
         if (-not $scriptText.EndsWith("`n", [System.StringComparison]::Ordinal)) {
             $scriptText += "`n"
         }
@@ -116,8 +119,7 @@ function Invoke-PlayerClang64 {
             [System.Text.UTF8Encoding]::new($false)
         )
 
-        $msysScript = ConvertTo-PlayerMsys2Path -BashPath $BashPath -WindowsPath $temporaryScript
-        & $BashPath --login $msysScript
+        & $BashPath --login $msysScriptPath
         if ($LASTEXITCODE -ne 0) {
             throw "MSYS2 CLANG64 command failed with exit code $LASTEXITCODE."
         }
