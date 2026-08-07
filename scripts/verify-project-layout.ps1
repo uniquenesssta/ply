@@ -15,6 +15,7 @@ $requiredFiles = @(
     "cmake/Sanitizers.cmake",
     "cmake/StaticAnalysis.cmake",
     "scripts/configure.ps1",
+    "scripts/test.ps1",
     "scripts/modules/DependencyPaths.psm1",
     "scripts/modules/DependencyVersions.psm1",
     "scripts/modules/MsvcEnvironment.psm1",
@@ -129,6 +130,14 @@ if (-not $configureScript.Contains('"--fresh", "--preset"')) {
     throw "configure.ps1 must use CMake --fresh so generated cache paths cannot bind a moved or renamed checkout to its previous location."
 }
 
+$testScript = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/test.ps1") -Raw
+if (-not $testScript.Contains("Resolve-PlayerCTest") -or -not $testScript.Contains('& $ctest --preset $Preset')) {
+    throw "test.ps1 must resolve and invoke the CTest executable with --preset."
+}
+if ($testScript.Contains('& $cmake --test')) {
+    throw "test.ps1 must not call the unsupported 'cmake --test' form."
+}
+
 $dependencyPaths = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/DependencyPaths.cmake") -Raw
 if ($dependencyPaths -match '[A-Za-z]:[/\\]') {
     throw "cmake/DependencyPaths.cmake contains a machine-absolute Windows path."
@@ -148,7 +157,9 @@ foreach ($fragment in @(
     "../cache/",
     "QtToolsRootRelative",
     "CMake_64/bin/cmake.exe",
+    "CMake_64/bin/ctest.exe",
     "Ninja/ninja.exe",
+    "Resolve-PlayerCTest",
     "-replace '\\', '/'"
 )) {
     if (-not $pathModule.Contains($fragment)) {
@@ -180,4 +191,4 @@ foreach ($fragment in @(
     }
 }
 
-Write-Host "Project layout, R1-04 graphics backend module, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R1-04 graphics backend module, CTest preset entry, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."

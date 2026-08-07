@@ -19,13 +19,14 @@ try {
     $versions = Get-PlayerDependencyVersions -ProjectRoot "."
     $layout = Get-PlayerWorkspaceLayout -Versions $versions
     $cmake = Resolve-PlayerCMake -Layout $layout
+    $ctest = Resolve-PlayerCTest -Layout $layout
 
     & $cmake --build --preset $Preset
     if ($LASTEXITCODE -ne 0) {
         throw "Test build failed with exit code $LASTEXITCODE."
     }
 
-    & $cmake --test --preset $Preset
+    & $ctest --preset $Preset
     if ($LASTEXITCODE -ne 0) {
         throw "CTest failed with exit code $LASTEXITCODE."
     }

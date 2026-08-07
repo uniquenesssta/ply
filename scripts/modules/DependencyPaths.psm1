@@ -115,6 +115,21 @@ function Resolve-PlayerCMake {
         )
 }
 
+function Resolve-PlayerCTest {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [psobject]$Layout
+    )
+
+    return Resolve-PlayerToolCommand `
+        -DisplayName "CTest" `
+        -CommandNames @("ctest.exe", "ctest") `
+        -RelativeCandidates @(
+            (Join-Path $Layout.QtToolsRootRelative "CMake_64/bin/ctest.exe")
+        )
+}
+
 function Resolve-PlayerNinja {
     [CmdletBinding()]
     param(
@@ -136,5 +151,6 @@ Export-ModuleMember -Function @(
     "Initialize-PlayerDependencyLayout",
     "Resolve-PlayerQtRoot",
     "Resolve-PlayerCMake",
+    "Resolve-PlayerCTest",
     "Resolve-PlayerNinja"
 )
