@@ -20,6 +20,13 @@ $requiredFiles = @(
     "src/CMakeLists.txt",
     "src/app/CMakeLists.txt",
     "src/app/main.cpp",
+    "src/app/bootstrap/application_bootstrap.cpp",
+    "src/app/bootstrap/application_bootstrap.h",
+    "src/app/bootstrap/graphics_backend/CMakeLists.txt",
+    "src/app/bootstrap/graphics_backend/graphics_backend_bootstrap.cpp",
+    "src/app/bootstrap/graphics_backend/graphics_backend_bootstrap.h",
+    "src/app/bootstrap/graphics_backend/graphics_backend_probe.cpp",
+    "src/app/bootstrap/graphics_backend/graphics_backend_probe.h",
     "src/app/bootstrap/logging_bootstrap.cpp",
     "src/app/bootstrap/logging_bootstrap.h",
     "src/app/bootstrap/runtime_paths.cpp",
@@ -35,6 +42,7 @@ $requiredFiles = @(
     "src/presentation/CMakeLists.txt",
     "src/presentation/qml/App.qml",
     "tests/CMakeLists.txt",
+    "tests/unit/app/bootstrap/graphics_backend/graphics_backend_probe_test.cpp",
     "tests/unit/app/bootstrap/runtime_paths_test.cpp",
     "tests/unit/foundation/logging/logging_test.cpp"
 )
@@ -55,6 +63,15 @@ $missingList
 
 Restore the complete scaffold before configuring.
 "@
+}
+
+foreach ($obsoletePath in @(
+    "src/app/bootstrap/graphics_backend_bootstrap.cpp",
+    "src/app/bootstrap/graphics_backend_bootstrap.h"
+)) {
+    if (Test-Path -LiteralPath (Join-Path $projectRoot $obsoletePath)) {
+        throw "Obsolete pre-R1-04 graphics backend file remains in the source tree: $obsoletePath"
+    }
 }
 
 $topLevelCMake = Get-Content -LiteralPath (Join-Path $projectRoot "CMakeLists.txt") -Raw
@@ -99,6 +116,11 @@ foreach ($fragment in @(
     if (-not $orchestrator.Contains($fragment)) {
         throw "cmake/CMakeLists.txt is missing required orchestration fragment: $fragment"
     }
+}
+
+$appCMake = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/CMakeLists.txt") -Raw
+if (-not $appCMake.Contains("add_subdirectory(bootstrap/graphics_backend)")) {
+    throw "src/app/CMakeLists.txt must delegate the R1-04 graphics backend module to bootstrap/graphics_backend/."
 }
 
 $dependencyPaths = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/DependencyPaths.cmake") -Raw
@@ -152,4 +174,4 @@ foreach ($fragment in @(
     }
 }
 
-Write-Host "Project layout, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R1-04 graphics backend module, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."

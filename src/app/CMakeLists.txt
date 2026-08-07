@@ -4,8 +4,6 @@ target_sources(
         main.cpp
         bootstrap/application_bootstrap.cpp
         bootstrap/application_bootstrap.h
-        bootstrap/graphics_backend_bootstrap.cpp
-        bootstrap/graphics_backend_bootstrap.h
         bootstrap/logging_bootstrap.cpp
         bootstrap/logging_bootstrap.h
         bootstrap/qml_bootstrap.cpp
@@ -13,6 +11,8 @@ target_sources(
         bootstrap/runtime_paths.cpp
         bootstrap/runtime_paths.h
 )
+
+add_subdirectory(bootstrap/graphics_backend)
 
 target_include_directories(
     player_app

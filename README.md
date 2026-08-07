@@ -106,7 +106,7 @@ The following capabilities are not part of MVP and must not be implemented specu
 - a plugin marketplace;
 - a script store;
 - video editing or transcoding;
-- a media asset-management system;
+- media asset-management system;
 - AI subtitle or AI image-quality enhancement.
 
 Any change to these frozen boundaries requires an explicit user requirement, an updated README scope and acceptance definition, and a separately reviewable Atomic Task before implementation begins.
@@ -501,3 +501,27 @@ If a subsequent check fails, the output should now represent a real missing/inco
 - Completed Atomic Task R0-03 by selecting the LGPL-compatible dynamic-linking route for Qt, libmpv, and FFmpeg and defining source, notice, manifest, transitive-dependency, and release-blocking requirements.
 - Completed Atomic Task R0-02 by freezing the first-release scope, adding observable acceptance for every mandatory MVP capability group, and separating deferred and excluded capabilities.
 - Completed and verified Atomic Task R0-01 governance and repository baseline; confirmed all required root artifacts and a generated-artifact-free tracked Git tree.
+
+#### R1-04 — GraphicsBackendBootstrap
+
+Implemented on 2026-08-07 in `agent/r1-stage`:
+
+- upgraded the former single `graphics_backend_bootstrap.*` files into `src/app/bootstrap/graphics_backend/`, keeping pre-application backend selection separate from runtime graphics probing;
+- `GraphicsBackendBootstrap::configure()` still forces Qt Quick to OpenGL before `QGuiApplication` construction;
+- added `GraphicsBackendProbe`, executed after logging starts and before QML loads, to verify that Qt Quick is configured for OpenGL, create a real `QOpenGLContext` with a matching `QOffscreenSurface`, make the context current, and query `GL_VENDOR`, `GL_RENDERER`, `GL_VERSION`, GLSL version, OpenGL/ES profile, and negotiated context version;
+- successful startup records the actual OpenGL renderer information through `app.bootstrap` logging; OpenGL context/probe failure is a startup failure and does not silently fall back to Direct3D, Vulkan, software rendering, or `wid` embedding;
+- added an executable `graphics_backend` Qt Test covering the forced OpenGL API and real offscreen context/renderer probe;
+- `scripts/verify-project-layout.ps1` now enforces the graphics-backend directory module and rejects the obsolete pre-R1-04 root bootstrap files;
+- no libmpv Render API object, playback state, QML player behavior, third-party dependency, persisted data, or platform-specific renderer fallback was introduced in R1-04.
+
+Validation performed in the connected environment:
+
+- source/CMake/module-boundary review completed;
+- Qt 6.8 API usage was checked against the official Qt documentation for `QQuickWindow::setGraphicsApi()`, `QQuickWindow::graphicsApi()`, `QOpenGLContext`, and `QOpenGLFunctions`;
+- the earlier implementation draft was corrected before commit because Qt 6.8 declares `QOpenGLFunctions::initializeOpenGLFunctions()` as `void`, so the final probe uses the ready `QOpenGLContext::functions()` resolver while the context is current.
+
+Validation still required on the user's Windows workspace:
+
+- `verify-project-layout.ps1`, dependency verification, configure, build, and CTest;
+- the `graphics_backend` test must create a real OpenGL context and report a non-empty renderer/version;
+- running `Player.exe` must produce a `Graphics backend validated` log line containing the actual vendor/renderer/version information.

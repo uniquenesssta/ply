@@ -1,5 +1,6 @@
 #include "app/bootstrap/application_bootstrap.h"
 
+#include "app/bootstrap/graphics_backend/graphics_backend_probe.h"
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/bootstrap/qml_bootstrap.h"
 #include "app/bootstrap/runtime_paths.h"
@@ -27,6 +28,25 @@ int ApplicationBootstrap::run(QGuiApplication& application)
     }
 
     qCInfo(player::logging::appLifecycle) << "Application starting";
+
+    GraphicsBackendInfo graphicsInfo;
+    QString graphicsError;
+    if (!GraphicsBackendProbe::probe(graphicsInfo, &graphicsError)) {
+        qCCritical(player::logging::appBootstrap).noquote()
+            << "OpenGL backend validation failed:" << graphicsError;
+        loggingBootstrap.stop();
+        return EXIT_FAILURE;
+    }
+
+    qCInfo(player::logging::appBootstrap).noquote()
+        << "Graphics backend validated:"
+        << "api=OpenGL"
+        << "profile=" << (graphicsInfo.isOpenGles ? "OpenGL ES" : "Desktop OpenGL")
+        << "context=" << QStringLiteral("%1.%2").arg(graphicsInfo.majorVersion).arg(graphicsInfo.minorVersion)
+        << "vendor=" << graphicsInfo.vendor
+        << "renderer=" << graphicsInfo.renderer
+        << "version=" << graphicsInfo.version
+        << "glsl=" << graphicsInfo.shadingLanguageVersion;
 
     QmlBootstrap qmlBootstrap;
     if (!qmlBootstrap.load()) {

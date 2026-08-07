@@ -1,5 +1,5 @@
 #include "app/bootstrap/application_bootstrap.h"
-#include "app/bootstrap/graphics_backend_bootstrap.h"
+#include "app/bootstrap/graphics_backend/graphics_backend_bootstrap.h"
 
 #include <QGuiApplication>
 
