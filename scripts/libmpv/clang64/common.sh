@@ -38,6 +38,42 @@ player_require_build_tools() {
     done
 }
 
+player_source_worktree_is_empty() {
+    local source_dir="$1"
+    [[ -z "$(find "$source_dir" -mindepth 1 -maxdepth 1 ! -name .git -print -quit)" ]]
+}
+
+player_source_status_is_only_initial_deletions() {
+    local status_output="$1"
+    local line
+
+    [[ -n "$status_output" ]] || return 1
+
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        [[ "${line:0:2}" == "D " ]] || return 1
+    done <<< "$status_output"
+
+    return 0
+}
+
+player_recover_incomplete_no_checkout_clone() {
+    local source_dir="$1"
+    local status_output="$2"
+
+    if ! player_source_worktree_is_empty "$source_dir"; then
+        return 1
+    fi
+    if ! player_source_status_is_only_initial_deletions "$status_output"; then
+        return 1
+    fi
+
+    printf 'Recovering incomplete no-checkout source clone: %s\n' "$source_dir"
+    git -C "$source_dir" reset --hard HEAD >/dev/null
+
+    [[ -z "$(git -C "$source_dir" status --porcelain=v1 --untracked-files=all)" ]]
+}
+
 player_fetch_source() {
     local name="$1"
     local url="$2"
@@ -45,13 +81,21 @@ player_fetch_source() {
     local recurse_submodules="${4:-false}"
     local expected_commit="${5:-}"
     local source_dir="$PLAYER_SOURCE_ROOT/$name"
+    local status_output
 
     if [[ ! -d "$source_dir/.git" ]]; then
         rm -rf "$source_dir"
-        git clone --no-checkout "$url" "$source_dir"
+        git clone "$url" "$source_dir"
     fi
 
-    if [[ -n "$(git -C "$source_dir" status --porcelain --untracked-files=all)" ]]; then
+    status_output="$(git -C "$source_dir" status --porcelain=v1 --untracked-files=all)"
+    if [[ -n "$status_output" ]]; then
+        if player_recover_incomplete_no_checkout_clone "$source_dir" "$status_output"; then
+            status_output="$(git -C "$source_dir" status --porcelain=v1 --untracked-files=all)"
+        fi
+    fi
+
+    if [[ -n "$status_output" ]]; then
         printf 'Source checkout contains local changes and will not be overwritten: %s\n' "$source_dir" >&2
         exit 1
     fi

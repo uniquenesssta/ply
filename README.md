@@ -217,14 +217,15 @@ Implemented on 2026-08-07 in `agent/r2-stage`:
 - `scripts/libmpv/verify-package.ps1` independently rechecks package identity and every recorded artifact hash;
 - the source-build layout/policy has its own structural verifier `scripts/libmpv/verify-build-layout.ps1`;
 - `Msys2Environment.psm1` executes arbitrary CLANG64 shell text through a temporary UTF-8-no-BOM LF `.sh` file written directly under the resolved MSYS2 `tmp` directory and invokes it through the stable `/tmp/...` path, avoiding both multiline `bash -lc` quoting and an extra `cygpath` conversion step;
+- source acquisition uses normal materialized clones for new repositories, refuses to overwrite real local changes, and can recover only the empty-worktree/all-tracked-deletions state left by the earlier `git clone --no-checkout` bug;
 - no `mpv_handle`, initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
 
 The approved source-build set is intentionally narrow. MSYS2/CLANG64 is a **build-only** toolchain; it is not a Player production dependency. The source build does not consume MSYS2-packaged FFmpeg/libass/libplacebo/etc. The release-time dependency/license scan in R13 remains mandatory, including any compiler runtime DLL or bundled source component actually present in the final binary graph.
 
 Still required on the user's Windows workspace:
 
-- MSYS2 is installed and all 99 requested CLANG64 build packages were installed; the revised post-install tool-presence check must now pass;
-- the full project-controlled source build must complete and create the fixed sibling package;
+- MSYS2 is installed, all 99 requested CLANG64 build packages are present, and `bootstrap-build-environment.ps1` now completes with `MSYS2 CLANG64 build environment is ready.`;
+- the full project-controlled source build must rerun through the corrected source-checkout path, complete, and create the fixed sibling package;
 - `verify-package.ps1` and `verify-dependencies.ps1` must validate the real package identity and artifact hashes;
 - fresh configure/build must link against `LibMpv::LibMpv` and stage its runtime files;
 - CTest must pass all five tests including `mpv_runtime_probe`;
@@ -378,7 +379,7 @@ Future `playback_composition`, `persistence_composition`, and `platform_composit
       └─ dependency-manifest.json
 ```
 
-`../downloads/libmpv` and `../cache/libmpv-build` are project-owned dependency source/build areas. The scripts refuse to overwrite a source checkout containing local modifications. Generated build/prefix/metadata state is disposable and rebuilt cleanly.
+`../downloads/libmpv` and `../cache/libmpv-build` are project-owned dependency source/build areas. New source repositories are cloned with a materialized worktree. Existing repositories with real local modifications or untracked files are never overwritten. The only automatic recovery case is the empty-worktree state produced by the earlier `git clone --no-checkout` implementation when Git reports only tracked deletions; generated build/prefix/metadata state remains disposable and is rebuilt cleanly.
 
 The manifest generated after the real build includes at least:
 
@@ -488,14 +489,17 @@ Confirmed by the user on the Windows 10 development workspace through R1-06:
 
 The user's first R2-01 local verification on 2026-08-07 confirmed that the new R2 hard gate correctly stops all configure/build/test entry points when `../libmpv/0.41.0/windows-x64/include/mpv/client.h` is absent. This is expected behavior and is not treated as a source failure. The source-build chain was then added to create that package from the approved source identities instead of weakening the gate.
 
-The next local R2-01 bootstrap run confirmed that `verify-build-layout.ps1` passes and that MSYS2 successfully installed all 99 requested CLANG64 build packages. The first post-install check exposed multiline `bash -lc` quoting truncation; after moving shell text into a temporary script, the following run reached that transport layer but failed before Bash execution because the added `cygpath.exe` path-conversion helper returned exit code `-1`. `Msys2Environment.psm1` now writes the UTF-8-no-BOM LF temporary script directly under the resolved MSYS2 `tmp` directory and invokes it as `/tmp/<name>.sh`, removing the conversion dependency entirely. This revised bootstrap path remains pending local verification.
+The MSYS2 bootstrap path is now locally verified: all 99 requested CLANG64 build packages are installed, a repeat bootstrap reports no package work to do, and the post-install verification completes with `MSYS2 CLANG64 build environment is ready.` This confirms the `/tmp` temporary-script invocation path on the user's Windows/MSYS2 installation.
 
-Connected-environment verification for this follow-up is limited to source/module/build-policy/path/final-diff review because this environment does not provide the user's Windows MSYS2/CLANG64 build runtime. The actual revised bootstrap execution, third-party compilation, produced DLL dependency graph, import-library generation, artifact hashes, package verification, Player linking, five CTests, and runtime loader probe remain local acceptance requirements.
+The first real `build-package.ps1` run then reached FreeType source acquisition and cloned the repository successfully, but the source-safety check immediately rejected that fresh checkout as locally modified. Review confirmed the cause was `git clone --no-checkout` followed by `git status --porcelain`: the intentionally empty worktree appears as tracked deletions. `common.sh` now uses normal materialized clones and can recover the already-created empty FreeType checkout only when the directory contains no worktree content outside `.git` and every status entry is an initial tracked deletion. Any actual modified, partially deleted, or untracked content remains protected and causes an explicit stop. The corrected source acquisition and the remaining third-party compilation are pending local verification.
+
+Connected-environment verification for this follow-up includes Bash syntax validation and a local Git simulation proving that the exact no-checkout state is recovered to a clean worktree while an untracked user file prevents recovery. This environment still does not provide the user's Windows MSYS2/CLANG64 dependency build runtime, so the actual corrected FreeType acquisition, remaining third-party compilation, produced DLL dependency graph, import-library generation, artifact hashes, package verification, Player linking, five CTests, and runtime loader probe remain local acceptance requirements.
 
 ## Change Log
 
 ### 2026-08-07
 
+- Fixed R2-01 source acquisition after the first real FreeType build exposed a false dirty-worktree result from `git clone --no-checkout`; new source repositories now use materialized clones, and only the provably empty/all-tracked-deletions state left by the old implementation is auto-recovered while real local changes remain protected.
 - Removed the R2-01 bootstrap's `cygpath.exe` dependency after the real Windows follow-up returned exit code `-1` during temporary-script conversion; CLANG64 command scripts are now written directly to the resolved MSYS2 `tmp` directory and executed through `/tmp/...`, while retaining UTF-8-no-BOM/LF normalization and guaranteed cleanup.
 - Added the R2-01 project-controlled MSYS2 CLANG64 libmpv source-build pipeline after the real Windows verification correctly exposed the missing sibling SDK/runtime package.
 - Pinned and wired the approved source-build dependency set: FFmpeg `8.0.3`, libplacebo `7.351.0`, libass `0.17.4`, FreeType `2.13.3`, FriBidi `1.0.16`, and HarfBuzz `10.2.0`, while retaining mpv `0.41.0` at the already pinned commit.

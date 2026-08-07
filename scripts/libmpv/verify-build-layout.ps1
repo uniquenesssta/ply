@@ -131,8 +131,23 @@ try {
     if (-not $commonBuild.Contains("--default-library=shared")) {
         throw "The shared Meson build helper must keep third-party libraries dynamic."
     }
+    foreach ($fragment in @(
+        'git clone "$url" "$source_dir"',
+        'player_source_worktree_is_empty',
+        'player_source_status_is_only_initial_deletions',
+        'player_recover_incomplete_no_checkout_clone',
+        'git -C "$source_dir" reset --hard HEAD',
+        'Source checkout contains local changes and will not be overwritten'
+    )) {
+        if (-not $commonBuild.Contains($fragment)) {
+            throw "common.sh is missing safe source-checkout handling fragment: $fragment"
+        }
+    }
+    if ($commonBuild.Contains('git clone --no-checkout')) {
+        throw "common.sh must not create new source repositories with an intentionally empty no-checkout worktree."
+    }
 
-    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
+    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, safe source checkout recovery, MSYS-root multiline invocation, and LGPL-oriented build policy are complete."
 }
 finally {
     Pop-Location
