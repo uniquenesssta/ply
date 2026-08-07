@@ -11,15 +11,15 @@ This repository is the active R1 modular build scaffold. It currently provides:
 - a Qt 6.8.3 Qt Quick application bootstrap;
 - a dedicated `RuntimePaths` bootstrap module for installed and portable path resolution;
 - a dedicated foundation logging module with categories, file sink, rotation, redaction, and shutdown flush;
-- an R1-05 `ApplicationContainer` composition root that owns the current top-level runtime objects and defines their shutdown order;
+- an `ApplicationContainer` composition root that owns the current top-level runtime objects and defines their shutdown order;
 - repository/build/dependency configuration that stores only repository-relative paths rather than machine-specific drive paths;
 - OpenGL selection before `QGuiApplication` creation plus a real OpenGL context/renderer probe before QML loading;
-- a diagnostic QML loading boundary;
-- a minimal QML shell split into application window, player screen, video surface, player chrome, and theme ownership;
+- an R1-06 QML bootstrap boundary that records concrete `QQmlEngine` warnings and returns diagnostic failure text to startup logging;
+- a minimal QML shell split into `App.qml`, `MainWindow.qml`, `PlayerScreen.qml`, video placeholder, chrome placeholder, and theme ownership;
 - architecture decisions, the original full development task book, and the approved R2-R14 fast-framework stage taskbooks under `docs/plans/stages/`;
 - an explicit Windows/MSVC/Qt/libmpv/FFmpeg identity baseline plus minimum-compatible CMake/Ninja development-tool gates;
 - stable configure, build, and test entry scripts that can initialize the Visual Studio x64 build environment from an ordinary Windows CMD/PowerShell session;
-- Qt Test targets covering RuntimePaths, logging, graphics backend probing, and the application composition root;
+- four Qt Test targets covering RuntimePaths, logging, graphics backend probing, and the application composition root;
 - no bundled third-party runtime binaries.
 
 The scaffold intentionally does **not** yet implement libmpv loading, playback commands, playback state, persistence, playlists, platform integrations, or packaging. Those responsibilities are introduced only in their Atomic Tasks.
@@ -108,14 +108,7 @@ Any change to these frozen boundaries requires an explicit user requirement, an 
 
 ### R0-01 — Complete
 
-Verified on 2026-08-07:
-
-- the Git repository is initialized on `main`;
-- `ALL_AI_CODE.md` and `AI_PROJECT_RULES.md` are readable at the repository root;
-- `README.md` contains the project baseline and canonical `Change Log`;
-- the complete development task book is tracked under `docs/plans/`;
-- the top-level `CMakeLists.txt` is present;
-- `.gitignore` excludes generated build/runtime/IDE data from source control.
+- repository governance files, root README, plan documents, top-level CMake, and generated-output exclusions are present.
 
 ### R0-02 — Complete
 
@@ -147,17 +140,14 @@ R0-06 is not accepted or complete. Later playback tests must not claim complete 
 
 ### R1-01 — Complete
 
-Implemented and verified on the user's Windows workspace:
-
-- root CMake delegates build responsibility to the modular CMake tree;
-- `src/`, `app/`, `foundation/`, `presentation/`, and `tests/` retain explicit target/module boundaries;
-- compatible CMake/Ninja, Qt 6.8.3, Visual Studio 2022 17.14 family, MSVC 19.44/14.44, x64, and Windows SDK 10.0.26100.0 verification is green;
+- modular CMake boundaries are active;
+- compatible CMake/Ninja, Qt 6.8.3, Visual Studio 2022 17.14 family, MSVC 19.44/14.44, x64, and Windows SDK 10.0.26100.0 verification is green on the user's Windows workspace;
 - relocation-safe configure and the full Ninja build succeed;
 - the application output is `build/<preset>/Player.exe`.
 
 ### R1-02 — Complete
 
-- `RuntimePaths` is the single owner of installed/portable runtime directory resolution;
+- `RuntimePaths` owns installed/portable runtime directory resolution;
 - portable mode is selected by `portable.flag` beside the executable;
 - path resolution is side-effect free;
 - the `runtime_paths` Qt Test passes on the user's Windows/Qt environment.
@@ -176,36 +166,45 @@ Runtime paths returned by Windows/Qt may naturally be absolute operating-system 
 - `src/app/bootstrap/graphics_backend/` separates pre-application OpenGL selection from runtime graphics probing;
 - the application validates a real OpenGL context before QML loads and records vendor/renderer/version diagnostics;
 - failure is explicit and does not silently fall back to another graphics architecture;
-- the `graphics_backend` Qt Test passes after the test runner exposes the Qt runtime only through process-local paths;
-- the user confirmed the post-fix R1-04 verification is OK and corrected the actual executable path to `build/windows-msvc-debug/Player.exe`.
+- the `graphics_backend` Qt Test passes on the user's Windows/Qt environment;
+- the actual executable path is `build/windows-msvc-debug/Player.exe`.
 
-Specific GPU vendor/renderer strings are not recorded here because they were not supplied in the conversation output.
+### R1-05 — Complete
 
-### R1-05 — Implemented; Windows verification pending
+- `src/app/composition/application_container.*` is the current composition root;
+- the container owns `RuntimePaths`, `LoggingBootstrap`, and `QmlBootstrap`;
+- shutdown destroys the QML engine/object tree before stopping logging;
+- `shutdown()` is idempotent and destructor re-entry is safe;
+- startup failures use the same RAII cleanup path;
+- no empty playback/persistence/platform composition shells were created prematurely;
+- the fourth `application_container` Qt Test was added;
+- the user explicitly accepted R1-05 after local verification on 2026-08-07.
+
+### R1-06 — Implemented; Windows runtime acceptance pending
 
 Implemented on 2026-08-07 in `agent/r1-stage`:
 
-- added the real `src/app/composition/` module with `application_container.*` as the sole current composition root;
-- the container owns the current top-level `RuntimePaths`, `LoggingBootstrap`, and `QmlBootstrap` instances;
-- `ApplicationBootstrap` retains startup orchestration but no longer owns local logging/QML lifetime objects;
-- explicit shutdown destroys the QML engine/object tree before stopping logging, preserving shutdown diagnostics;
-- `shutdown()` is idempotent and the destructor calls it again safely, preventing double-destruction on explicit-stop plus RAII paths;
-- startup-failure paths rely on the same container destructor rather than manually duplicating stop logic;
-- future playback, persistence, and platform compositions are intentionally not created as empty shells in R1-05;
-- added `application_container` Qt Test coverage for RuntimePaths ownership and repeated shutdown;
-- the layout verifier enforces composition ownership, module delegation, test registration, and QML-before-logging shutdown order.
+- retained the existing minimal `App.qml -> MainWindow.qml -> PlayerScreen.qml` shell instead of creating duplicate replacement pages;
+- retained `VideoSurface`, `PlayerChrome`, and `Theme` as placeholder presentation modules only; no playback logic or direct libmpv access was added;
+- `QmlBootstrap` now subscribes to `QQmlEngine::warnings`, records each concrete `QQmlError::toString()` diagnostic, and exposes the fatal load summary through `lastError()`;
+- `ApplicationBootstrap` logs the detailed QML failure text when the root QML object cannot be created;
+- successful QML warnings remain diagnostic warnings and do not automatically turn a valid root object into a startup failure;
+- the layout verifier now requires all R1-06 shell files, QML module registration, diagnostic wiring, visible `MainWindow`, composition-only `PlayerScreen`, and the no-direct-libmpv QML boundary;
+- no production dependency, persisted data, playback API, window-platform integration, or formal R5/R6 UI design was introduced.
 
 Connected-environment verification completed:
 
-- source/module/CMake responsibility review;
-- final diff review against the R1-04 baseline;
-- no new production dependency, persisted format, public product behavior, relative dependency layout, or graphics architecture change.
+- source/module/dependency-boundary review;
+- QML shell registration and C++ diagnostic-chain review;
+- final diff review is required before the branch update;
+- Windows/Qt compilation and actual window display cannot be executed in the connected environment.
 
 Still required on the user's Windows workspace:
 
-- configure/build after adding the composition module;
-- CTest with the new fourth `application_container` test;
-- one normal `Player.exe` launch/exit to confirm the composition-root shutdown path behaves normally.
+- project layout verification;
+- configure/build regression;
+- existing four CTest targets;
+- one normal `build/windows-msvc-debug/Player.exe` launch confirming the shell window displays and closes normally.
 
 ## R1 parent-workspace and relative-path policy
 
@@ -262,6 +261,10 @@ src/app/bootstrap/
   Startup ordering, application metadata, graphics probe,
   RuntimePaths creation, logging/QML startup calls, and startup failures.
 
+src/app/bootstrap/qml_bootstrap.*
+  Owns the QQmlApplicationEngine load boundary and QML-load diagnostics.
+  It does not own presentation business state.
+
 src/app/composition/application_container.*
   Sole current composition root. Owns top-level runtime objects and
   their destruction order; contains no playback/business algorithm.
@@ -269,15 +272,21 @@ src/app/composition/application_container.*
 src/foundation/logging/
   Logging categories, file sink, rotation, redaction, and flush internals.
 
-src/presentation/qml/
-  Presentation tree. QML does not own playback/backend business state.
+src/presentation/qml/App.qml
+  Root QML entry only.
+
+src/presentation/qml/shell/MainWindow.qml
+  Visible application window and PlayerScreen composition only.
+
+src/presentation/qml/screens/player/PlayerScreen.qml
+  Minimal player presentation composition; no backend business logic.
 
 tests/CMakeLists.txt
   Registers RuntimePaths, logging, graphics-backend, and
-  ApplicationContainer verification targets.
+  ApplicationContainer regression targets.
 ```
 
-Future `playback_composition`, `persistence_composition`, and `platform_composition` belong under `src/app/composition/` only when the corresponding real subsystems exist.
+Future `playback_composition`, `persistence_composition`, and `platform_composition` belong under `src/app/composition/` only when the corresponding real subsystems exist. Formal UI token/control/surface expansion remains assigned to R5/R6 rather than R1-06.
 
 ## Toolchain and dependency compatibility matrix
 
@@ -385,37 +394,36 @@ A file may receive new code only when the code has the same responsibility and r
 
 ## Validation record
 
-Confirmed by the user on Windows 10 `10.0.19045.5917` before starting R1-05:
+Confirmed by the user on the Windows 10 development workspace through R1-05:
 
-- project layout verification passes;
-- CMake `3.30.5`, Ninja `1.12.1`, Qt `6.8.3`, Visual Studio x64 initialization, MSVC compiler `19.44.35228.0`, toolset `14.44.35207`, Visual Studio `17.14.37411.7`, x64 target architecture, and Windows SDK `10.0.26100.0` pass dependency verification;
+- project layout/dependency/configure/build/test workflow is operational from a normal CMD/PowerShell session;
+- CMake `3.30.5`, Ninja `1.12.1`, Qt `6.8.3`, Visual Studio 2022 17.14 family, MSVC `19.44`/toolset `14.44`, x64, and Windows SDK `10.0.26100.0` are accepted by the current compatibility gates;
 - relocation-safe configure succeeds;
-- the complete R1-04 build succeeds;
-- `runtime_paths`, `logging`, and `graphics_backend` CTest targets pass after process-local Qt runtime injection;
-- the actual application path is `build/windows-msvc-debug/Player.exe`.
+- the existing four CTest targets are part of the R1-05 acceptance path;
+- the application output path is `build/windows-msvc-debug/Player.exe`;
+- the user explicitly marked R1-05 accepted on 2026-08-07.
 
-R1-05 connected-environment verification is limited to source, CMake, ownership-chain, and final-diff review because this environment does not provide the user's Windows/Qt/MSVC runtime. R1-05 therefore remains pending the local commands listed below.
+R1-06 connected-environment validation is limited to source/module/QML-registration/diagnostic-chain/final-diff review because this environment cannot execute the user's Windows Qt runtime. The local commands below remain required before R1-06 is marked complete.
 
 ## Change Log
 
 ### 2026-08-07
 
+- Implemented R1-06 QML shell acceptance work by preserving the existing modular `App -> MainWindow -> PlayerScreen` shell and adding concrete `QQmlEngine` warning capture plus detailed startup failure reporting.
+- Marked R1-05 Composition Root accepted after explicit user acceptance; no additional lifecycle code was required for that acceptance update.
 - Implemented R1-05 Composition Root with `ApplicationContainer`, explicit top-level ownership, QML-before-logging shutdown ordering, idempotent shutdown, and an executable composition-root Qt Test.
-- Corrected the documented application output path to `build/<preset>/Player.exe`; the user's Windows debug build is `build/windows-msvc-debug/Player.exe`.
-- Recorded the user's successful post-fix R1-01 through R1-04 Windows validation and closed the outdated pending-validation notes for the first three Qt Test targets.
+- Corrected the documented application output path to `build/<preset>/Player.exe`; the Windows debug build is `build/windows-msvc-debug/Player.exe`.
+- Recorded successful R1-01 through R1-04 Windows validation and closed the outdated pending-validation notes for the first three Qt Test targets.
 - Fixed Qt Test process startup on Windows by deriving Qt runtime directories from the repository-parent-relative Qt root and injecting only process-local `PATH`, `QT_PLUGIN_PATH`, and `QT_QPA_PLATFORM_PLUGIN_PATH` values for CTest.
-- Fixed the Windows test entry to resolve the dedicated CTest executable and run `ctest --preset`; the previous `cmake --test` invocation was invalid.
-- Made preset configuration relocation-safe with CMake `--fresh` so copied or renamed checkouts are not bound to stale generated cache paths.
-- Replaced exact CMake/Ninja patch pins with compatible development-tool floors matching the existing Qt Tools environment while retaining identity-sensitive runtime dependency control.
+- Fixed the Windows test entry to invoke `ctest --preset` and made preset configuration relocation-safe with CMake `--fresh`.
+- Replaced exact CMake/Ninja patch pins with compatible development-tool floors while retaining identity-sensitive runtime dependency control.
 - Fixed Windows PowerShell 5.1 MSVC/version/path parsing issues and added automatic Visual Studio x64 environment initialization.
 - Corrected the R1 parent-workspace contract to use only `Qt`, `libmpv`, `downloads`, and `cache` as parent-level dependency roots.
 - Implemented R1-03 modular logging and committed the approved R2-R14 fast-framework Markdown taskbooks.
-- Implemented R1-02 RuntimePaths with deterministic installed/portable behavior and Qt Test coverage.
-- Implemented R1-01 modular CMake scaffold on the shared `agent/r1-stage` branch.
-- Recorded R0-06 as explicitly skipped and unaccepted.
-- Completed R0-05 rendering architecture, R0-04 dependency identity baseline, R0-03 license route, R0-02 MVP boundary, and R0-01 governance/repository baseline.
+- Implemented R1-02 RuntimePaths and R1-01 modular CMake scaffold on the shared `agent/r1-stage` branch.
+- Recorded R0-06 as explicitly skipped and unaccepted; R0-01 through R0-05 remain completed according to their recorded scope.
 
-### R1-05 local verification after sync
+### R1-06 local verification after sync
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-project-layout.ps1
@@ -424,10 +432,10 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-Expected CTest registration after R1-05: four tests (`runtime_paths`, `logging`, `graphics_backend`, `application_container`). After they pass, launch and close:
+The regression set should remain four tests: `runtime_paths`, `logging`, `graphics_backend`, and `application_container`. Then launch:
 
 ```text
 build\windows-msvc-debug\Player.exe
 ```
 
-A normal start/exit with no crash or duplicate-shutdown error completes the R1-05 local acceptance for the current scaffold. Leak/stress instrumentation remains a later hardening responsibility and is not falsely claimed in R1-05.
+Acceptance requires the minimal player shell window to display and close normally. A QML root-creation failure must now include the concrete Qt/QML diagnostics in application logging instead of only a generic failure line.

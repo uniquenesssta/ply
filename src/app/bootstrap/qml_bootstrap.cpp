@@ -1,23 +1,50 @@
 #include "app/bootstrap/qml_bootstrap.h"
 
-#include <QLoggingCategory>
+#include "foundation/logging/log_categories.h"
 
-namespace {
-Q_LOGGING_CATEGORY(qmlBootstrapLog, "player.app.qml")
-}
+#include <QList>
+#include <QLoggingCategory>
+#include <QQmlEngine>
+#include <QQmlError>
 
 namespace player::app {
 
+QmlBootstrap::QmlBootstrap()
+{
+    QObject::connect(
+        &engine_,
+        &QQmlEngine::warnings,
+        &engine_,
+        [this](const QList<QQmlError>& warnings) {
+            for (const QQmlError& warning : warnings) {
+                const QString diagnostic = warning.toString();
+                warningMessages_.append(diagnostic);
+                qCWarning(player::logging::appBootstrap).noquote()
+                    << "QML warning:" << diagnostic;
+            }
+        });
+}
+
 bool QmlBootstrap::load()
 {
+    warningMessages_.clear();
+    lastError_.clear();
+
     engine_.loadFromModule("Player.Presentation", "App");
 
     if (engine_.rootObjects().isEmpty()) {
-        qCCritical(qmlBootstrapLog) << "Failed to create the root QML object";
+        lastError_ = warningMessages_.isEmpty()
+            ? QStringLiteral("Failed to create the Player.Presentation/App root QML object without a QQmlEngine diagnostic.")
+            : warningMessages_.join(QLatin1Char('\n'));
         return false;
     }
 
     return true;
+}
+
+const QString& QmlBootstrap::lastError() const noexcept
+{
+    return lastError_;
 }
 
 } // namespace player::app

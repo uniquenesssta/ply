@@ -48,6 +48,11 @@ $requiredFiles = @(
     "src/foundation/logging/log_redactor.h",
     "src/presentation/CMakeLists.txt",
     "src/presentation/qml/App.qml",
+    "src/presentation/qml/shell/MainWindow.qml",
+    "src/presentation/qml/screens/player/PlayerScreen.qml",
+    "src/presentation/qml/features/player/video/VideoSurface.qml",
+    "src/presentation/qml/features/player/chrome/PlayerChrome.qml",
+    "src/presentation/qml/theme/Theme.qml",
     "tests/CMakeLists.txt",
     "tests/unit/app/bootstrap/graphics_backend/graphics_backend_probe_test.cpp",
     "tests/unit/app/bootstrap/runtime_paths_test.cpp",
@@ -141,10 +146,11 @@ foreach ($fragment in @(
     "ApplicationContainer container",
     "container.loggingBootstrap()",
     "container.qmlBootstrap()",
+    "qmlBootstrap.lastError()",
     "container.shutdown()"
 )) {
     if (-not $applicationBootstrap.Contains($fragment)) {
-        throw "ApplicationBootstrap is missing required R1-05 composition-root usage: $fragment"
+        throw "ApplicationBootstrap is missing required composition/QML bootstrap usage: $fragment"
     }
 }
 foreach ($forbiddenFragment in @(
@@ -173,6 +179,73 @@ $qmlShutdownIndex = $applicationContainerSource.IndexOf("qmlBootstrap_.reset();"
 $loggingShutdownIndex = $applicationContainerSource.IndexOf("loggingBootstrap_->stop();", [System.StringComparison]::Ordinal)
 if ($qmlShutdownIndex -lt 0 -or $loggingShutdownIndex -lt 0 -or $qmlShutdownIndex -gt $loggingShutdownIndex) {
     throw "ApplicationContainer shutdown must destroy QML ownership before stopping logging."
+}
+
+$qmlBootstrapHeader = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/bootstrap/qml_bootstrap.h") -Raw
+foreach ($fragment in @(
+    "QmlBootstrap();",
+    "const QString& lastError() const noexcept",
+    "QStringList warningMessages_",
+    "QString lastError_"
+)) {
+    if (-not $qmlBootstrapHeader.Contains($fragment)) {
+        throw "QmlBootstrap is missing required R1-06 diagnostic state: $fragment"
+    }
+}
+
+$qmlBootstrapSource = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/bootstrap/qml_bootstrap.cpp") -Raw
+foreach ($fragment in @(
+    "QQmlEngine::warnings",
+    "warning.toString()",
+    'loadFromModule("Player.Presentation", "App")',
+    "engine_.rootObjects().isEmpty()",
+    "QML warning:"
+)) {
+    if (-not $qmlBootstrapSource.Contains($fragment)) {
+        throw "QmlBootstrap is missing required R1-06 load diagnostic behavior: $fragment"
+    }
+}
+
+$presentationCMake = Get-Content -LiteralPath (Join-Path $projectRoot "src/presentation/CMakeLists.txt") -Raw
+foreach ($fragment in @(
+    "qml/App.qml",
+    "qml/shell/MainWindow.qml",
+    "qml/screens/player/PlayerScreen.qml",
+    "qt_add_qml_module(",
+    "URI Player.Presentation"
+)) {
+    if (-not $presentationCMake.Contains($fragment)) {
+        throw "Presentation CMake is missing required R1-06 QML shell/module fragment: $fragment"
+    }
+}
+
+$appQml = Get-Content -LiteralPath (Join-Path $projectRoot "src/presentation/qml/App.qml") -Raw
+if (-not $appQml.Contains("MainWindow {}")) {
+    throw "App.qml must remain a root-shell composition entry and instantiate MainWindow."
+}
+
+$mainWindowQml = Get-Content -LiteralPath (Join-Path $projectRoot "src/presentation/qml/shell/MainWindow.qml") -Raw
+foreach ($fragment in @(
+    "ApplicationWindow",
+    "visible: true",
+    "PlayerScreen"
+)) {
+    if (-not $mainWindowQml.Contains($fragment)) {
+        throw "MainWindow.qml is missing required R1-06 shell behavior: $fragment"
+    }
+}
+
+$playerScreenQml = Get-Content -LiteralPath (Join-Path $projectRoot "src/presentation/qml/screens/player/PlayerScreen.qml") -Raw
+foreach ($fragment in @(
+    "VideoSurface",
+    "PlayerChrome"
+)) {
+    if (-not $playerScreenQml.Contains($fragment)) {
+        throw "PlayerScreen.qml must remain a composition-only player shell: $fragment"
+    }
+}
+if ($playerScreenQml -match '(?i)mpv_command|mpv_set_property|mpv_get_property') {
+    throw "PlayerScreen.qml must not access libmpv directly."
 }
 
 $testsCMake = Get-Content -LiteralPath (Join-Path $projectRoot "tests/CMakeLists.txt") -Raw
@@ -263,4 +336,4 @@ foreach ($fragment in @(
     }
 }
 
-Write-Host "Project layout, R1-05 composition root ownership, R1-04 graphics backend module, Qt test runtime environment, CTest preset entry, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R1-06 QML shell diagnostics, R1-05 composition root ownership, R1-04 graphics backend module, Qt test runtime environment, CTest preset entry, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."

@@ -49,8 +49,10 @@ int ApplicationBootstrap::run(QGuiApplication& application)
         << "version=" << graphicsInfo.version
         << "glsl=" << graphicsInfo.shadingLanguageVersion;
 
-    if (!container.qmlBootstrap().load()) {
-        qCCritical(player::logging::appBootstrap) << "QML bootstrap failed";
+    QmlBootstrap& qmlBootstrap = container.qmlBootstrap();
+    if (!qmlBootstrap.load()) {
+        qCCritical(player::logging::appBootstrap).noquote()
+            << "QML bootstrap failed:" << qmlBootstrap.lastError();
         return EXIT_FAILURE;
     }
 
