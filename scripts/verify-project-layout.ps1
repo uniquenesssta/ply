@@ -31,8 +31,13 @@ $requiredFiles = @(
     "src/app/bootstrap/graphics_backend/graphics_backend_probe.h",
     "src/app/bootstrap/logging_bootstrap.cpp",
     "src/app/bootstrap/logging_bootstrap.h",
+    "src/app/bootstrap/qml_bootstrap.cpp",
+    "src/app/bootstrap/qml_bootstrap.h",
     "src/app/bootstrap/runtime_paths.cpp",
     "src/app/bootstrap/runtime_paths.h",
+    "src/app/composition/CMakeLists.txt",
+    "src/app/composition/application_container.cpp",
+    "src/app/composition/application_container.h",
     "src/foundation/CMakeLists.txt",
     "src/foundation/logging/CMakeLists.txt",
     "src/foundation/logging/log_categories.cpp",
@@ -46,6 +51,7 @@ $requiredFiles = @(
     "tests/CMakeLists.txt",
     "tests/unit/app/bootstrap/graphics_backend/graphics_backend_probe_test.cpp",
     "tests/unit/app/bootstrap/runtime_paths_test.cpp",
+    "tests/unit/app/composition/application_container_test.cpp",
     "tests/unit/foundation/logging/logging_test.cpp"
 )
 
@@ -121,8 +127,62 @@ foreach ($fragment in @(
 }
 
 $appCMake = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/CMakeLists.txt") -Raw
-if (-not $appCMake.Contains("add_subdirectory(bootstrap/graphics_backend)")) {
-    throw "src/app/CMakeLists.txt must delegate the R1-04 graphics backend module to bootstrap/graphics_backend/."
+foreach ($fragment in @(
+    "add_subdirectory(bootstrap/graphics_backend)",
+    "add_subdirectory(composition)"
+)) {
+    if (-not $appCMake.Contains($fragment)) {
+        throw "src/app/CMakeLists.txt is missing required app module delegation: $fragment"
+    }
+}
+
+$applicationBootstrap = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/bootstrap/application_bootstrap.cpp") -Raw
+foreach ($fragment in @(
+    "ApplicationContainer container",
+    "container.loggingBootstrap()",
+    "container.qmlBootstrap()",
+    "container.shutdown()"
+)) {
+    if (-not $applicationBootstrap.Contains($fragment)) {
+        throw "ApplicationBootstrap is missing required R1-05 composition-root usage: $fragment"
+    }
+}
+foreach ($forbiddenFragment in @(
+    "LoggingBootstrap loggingBootstrap;",
+    "QmlBootstrap qmlBootstrap;"
+)) {
+    if ($applicationBootstrap.Contains($forbiddenFragment)) {
+        throw "ApplicationBootstrap reintroduced top-level object ownership outside ApplicationContainer: $forbiddenFragment"
+    }
+}
+
+$applicationContainerHeader = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/composition/application_container.h") -Raw
+foreach ($fragment in @(
+    "std::unique_ptr<LoggingBootstrap>",
+    "std::unique_ptr<QmlBootstrap>",
+    "void shutdown() noexcept",
+    "ApplicationContainer(const ApplicationContainer&) = delete"
+)) {
+    if (-not $applicationContainerHeader.Contains($fragment)) {
+        throw "ApplicationContainer is missing required ownership/lifecycle fragment: $fragment"
+    }
+}
+
+$applicationContainerSource = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/composition/application_container.cpp") -Raw
+$qmlShutdownIndex = $applicationContainerSource.IndexOf("qmlBootstrap_.reset();", [System.StringComparison]::Ordinal)
+$loggingShutdownIndex = $applicationContainerSource.IndexOf("loggingBootstrap_->stop();", [System.StringComparison]::Ordinal)
+if ($qmlShutdownIndex -lt 0 -or $loggingShutdownIndex -lt 0 -or $qmlShutdownIndex -gt $loggingShutdownIndex) {
+    throw "ApplicationContainer shutdown must destroy QML ownership before stopping logging."
+}
+
+$testsCMake = Get-Content -LiteralPath (Join-Path $projectRoot "tests/CMakeLists.txt") -Raw
+foreach ($fragment in @(
+    "application_container_tests",
+    "NAME application_container"
+)) {
+    if (-not $testsCMake.Contains($fragment)) {
+        throw "tests/CMakeLists.txt is missing the R1-05 ApplicationContainer test target: $fragment"
+    }
 }
 
 $configureScript = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/configure.ps1") -Raw
@@ -203,4 +263,4 @@ foreach ($fragment in @(
     }
 }
 
-Write-Host "Project layout, R1-04 graphics backend module, Qt test runtime environment, CTest preset entry, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R1-05 composition root ownership, R1-04 graphics backend module, Qt test runtime environment, CTest preset entry, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."

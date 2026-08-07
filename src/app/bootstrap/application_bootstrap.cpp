@@ -4,6 +4,7 @@
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/bootstrap/qml_bootstrap.h"
 #include "app/bootstrap/runtime_paths.h"
+#include "app/composition/application_container.h"
 #include "foundation/logging/log_categories.h"
 
 #include <QCoreApplication>
@@ -12,6 +13,7 @@
 #include <QString>
 
 #include <cstdlib>
+#include <utility>
 
 namespace player::app {
 
@@ -19,11 +21,11 @@ int ApplicationBootstrap::run(QGuiApplication& application)
 {
     configureApplicationMetadata(application);
 
-    const RuntimePaths runtimePaths = RuntimePaths::current();
+    RuntimePaths runtimePaths = RuntimePaths::current();
+    ApplicationContainer container(std::move(runtimePaths));
 
-    LoggingBootstrap loggingBootstrap;
     QString loggingError;
-    if (!loggingBootstrap.start(runtimePaths, &loggingError)) {
+    if (!container.loggingBootstrap().start(container.runtimePaths(), &loggingError)) {
         qWarning().noquote() << "File logging is unavailable:" << loggingError;
     }
 
@@ -34,7 +36,6 @@ int ApplicationBootstrap::run(QGuiApplication& application)
     if (!GraphicsBackendProbe::probe(graphicsInfo, &graphicsError)) {
         qCCritical(player::logging::appBootstrap).noquote()
             << "OpenGL backend validation failed:" << graphicsError;
-        loggingBootstrap.stop();
         return EXIT_FAILURE;
     }
 
@@ -48,17 +49,15 @@ int ApplicationBootstrap::run(QGuiApplication& application)
         << "version=" << graphicsInfo.version
         << "glsl=" << graphicsInfo.shadingLanguageVersion;
 
-    QmlBootstrap qmlBootstrap;
-    if (!qmlBootstrap.load()) {
+    if (!container.qmlBootstrap().load()) {
         qCCritical(player::logging::appBootstrap) << "QML bootstrap failed";
-        loggingBootstrap.stop();
         return EXIT_FAILURE;
     }
 
     const int exitCode = application.exec();
 
     qCInfo(player::logging::appLifecycle) << "Application stopping with exit code" << exitCode;
-    loggingBootstrap.stop();
+    container.shutdown();
     return exitCode;
 }
 

@@ -13,6 +13,7 @@ target_sources(
 )
 
 add_subdirectory(bootstrap/graphics_backend)
+add_subdirectory(composition)
 
 target_include_directories(
     player_app

@@ -90,3 +90,41 @@ add_test(
     NAME graphics_backend
     COMMAND graphics_backend_tests
 )
+
+add_executable(
+    application_container_tests
+    unit/app/composition/application_container_test.cpp
+    ../src/app/composition/application_container.cpp
+    ../src/app/composition/application_container.h
+    ../src/app/bootstrap/logging_bootstrap.cpp
+    ../src/app/bootstrap/logging_bootstrap.h
+    ../src/app/bootstrap/qml_bootstrap.cpp
+    ../src/app/bootstrap/qml_bootstrap.h
+    ../src/app/bootstrap/runtime_paths.cpp
+    ../src/app/bootstrap/runtime_paths.h
+)
+
+player_apply_compiler_options(application_container_tests)
+player_enable_compiler_warnings(application_container_tests)
+player_enable_sanitizers(application_container_tests)
+player_enable_static_analysis(application_container_tests)
+
+target_include_directories(
+    application_container_tests
+    PRIVATE
+        ../src
+)
+
+target_link_libraries(
+    application_container_tests
+    PRIVATE
+        player_foundation
+        Qt6::Core
+        Qt6::Qml
+        Qt6::Test
+)
+
+add_test(
+    NAME application_container
+    COMMAND application_container_tests
+)
