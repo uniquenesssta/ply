@@ -252,6 +252,7 @@ The current rules are:
 - CMake and Ninja are **not** additional parent-level dependency directories;
 - CMake `3.30.5` and Ninja `1.12.1` are the minimum compatible development-tool versions for the current scaffold; scripts resolve them from the active `PATH` first, then from the official Qt installer tool locations `../Qt/Tools/CMake_64/bin/cmake.exe` and `../Qt/Tools/Ninja/ninja.exe`;
 - CTest is resolved from the active `PATH` first, then from `../Qt/Tools/CMake_64/bin/ctest.exe`, and is invoked directly by `test.ps1`;
+- `test.ps1` derives Qt test runtime directories only from the repository-parent-relative Qt root and expands them to concrete process paths only while CTest is running; the temporary `PATH`, `QT_PLUGIN_PATH`, and `QT_QPA_PLATFORM_PLUGIN_PATH` values are never stored in source control;
 - Windows path validation normalizes `..\Qt\...` and `../Qt/...` to the same repository-relative form, so PowerShell `Join-Path` cannot turn a valid parent-relative path into a false rejection;
 - CMake source/test directory references, build preset output directories, PowerShell manifest lookup, and test source include paths use relative forms;
 - `scripts/verify-project-layout.ps1` rejects machine-absolute drive literals and rejects invented `../cmake/...` or `../ninja/...` parent roots in the dependency-path modules;
@@ -412,7 +413,7 @@ Run from the repository root:
 ./scripts/test.ps1
 ```
 
-`configure.ps1` performs a fresh preset configure so stale absolute paths inside generated CMake cache state cannot bind a relocated checkout to its previous directory. `build.ps1` and `test.ps1` operate on that configured build tree. `test.ps1` builds the test targets and then runs the dedicated `ctest` executable with the configured CTest preset. All three entry scripts invoke dependency verification before doing work, so each standalone command receives the same process-local MSVC environment. `verify-dependencies.ps1` checks minimum/family compatibility for development tools and exact identity for Qt and later libmpv manifest data. libmpv remains optional until Stage R2; once libmpv headers exist, its dependency manifest becomes mandatory.
+`configure.ps1` performs a fresh preset configure so stale absolute paths inside generated CMake cache state cannot bind a relocated checkout to its previous directory. `build.ps1` and `test.ps1` operate on that configured build tree. `test.ps1` builds the test targets, resolves the Qt `bin`, `plugins`, and `plugins/platforms` directories from the relative Qt root, exposes those paths only to its child test process, and then runs the dedicated `ctest` executable with the configured CTest preset. All three entry scripts invoke dependency verification before doing work, so each standalone command receives the same process-local MSVC environment. `verify-dependencies.ps1` checks minimum/family compatibility for development tools and exact identity for Qt and later libmpv manifest data. libmpv remains optional until Stage R2; once libmpv headers exist, its dependency manifest becomes mandatory.
 
 Run the generated executable from the repository-relative output:
 
@@ -440,26 +441,26 @@ A file may receive new code only when the code has the same responsibility and r
 
 ## Validation record
 
-Observed on the user's Windows 10 `10.0.19045.5917` workspace after syncing commit `1b55fb07ed7173e1fb051f4b62df4712e108a7ce`:
+Observed on the user's Windows 10 `10.0.19045.5917` workspace after syncing commit `73a2cbe49545f73ad061b6e70b86d78250f59d8a`:
 
-- `scripts/verify-project-layout.ps1` passed with the R1-04 graphics module, fresh relocation-safe configure policy, parent-relative paths, Windows normalization, compatible-tool gates, and CMake responsibility checks;
+- `scripts/verify-project-layout.ps1` passed with the R1-04 graphics module, CTest preset entry, fresh relocation-safe configure policy, parent-relative paths, Windows normalization, compatible-tool gates, and CMake responsibility checks;
 - CMake `3.30.5`, Ninja `1.12.1`, Qt `6.8.3`, Visual Studio x64 initialization, MSVC compiler `19.44.35228.0`, toolset `14.44.35207`, Visual Studio `17.14.37411.7`, x64 target architecture, Windows SDK `10.0.26100.0`, and Windows `10.0.19045` all passed verification;
-- `configure.ps1` completed successfully with `--fresh`, generated a new build tree for the current checkout, and removed the stale-cache relocation blocker;
-- `build.ps1` completed the full `65/65` Ninja build and linked the application and test executables successfully;
-- `test.ps1` rebuilt successfully (`ninja: no work to do`) but did not execute CTest because it incorrectly invoked the unsupported `cmake --test --preset` form; CMake reported `Unknown argument --test`;
+- relocation-safe `configure.ps1` had already completed successfully and `build.ps1` had already completed the full `65/65` Ninja build;
+- the corrected CTest entry now launches all three registered tests, but `runtime_paths`, `logging`, and `graphics_backend` all exit immediately with Windows status `0xC0000135` before their Qt Test bodies run;
+- the common pre-test exit across all three executables identifies a runtime DLL-loading environment failure rather than three independent test assertion failures;
 - libmpv `0.41.0` remains correctly optional until Stage R2.
 
 Implemented in the current follow-up:
 
-- added `Resolve-PlayerCTest` to the existing dependency-tool resolver, with PATH lookup and the repository-parent-relative Qt Tools fallback `../Qt/Tools/CMake_64/bin/ctest.exe`;
-- corrected `scripts/test.ps1` to invoke `ctest --preset <preset>` instead of the unsupported `cmake --test --preset` form;
-- extended `scripts/verify-project-layout.ps1` to require the CTest resolver and reject reintroduction of the invalid CMake test command;
-- no R1-04 graphics behavior, source runtime behavior, product dependency identity, QML behavior, persisted data, or parent-workspace dependency layout changed.
+- `scripts/test.ps1` now derives the Qt runtime `bin`, `plugins`, and `plugins/platforms` locations from the existing relative Qt root and validates those directories before starting CTest;
+- the script expands those relative locations only at runtime and temporarily prepends Qt `bin` to the current process `PATH` while setting `QT_PLUGIN_PATH` and `QT_QPA_PLATFORM_PLUGIN_PATH`, then restores the prior process environment after CTest exits;
+- `scripts/verify-project-layout.ps1` now requires this Qt test-runtime setup and rejects machine-absolute Windows paths in `test.ps1`;
+- no C++ implementation, Qt version, product dependency identity, QML behavior, persisted data, or parent-workspace dependency layout changed.
 
 Not executed in the connected generation environment:
 
-- Windows PowerShell execution of the corrected CTest entry;
-- the user's real CTest run after this correction;
+- Windows PowerShell execution of the Qt runtime-path follow-up;
+- the user's real CTest rerun after this correction;
 - the final `Player.exe` runtime OpenGL renderer log verification;
 - later libmpv/render/media validation;
 - binary license scanning and legal/patent review.
@@ -477,12 +478,13 @@ If CTest passes, run:
 build\windows-msvc-debug\src\Player.exe
 ```
 
-and verify the runtime log contains `Graphics backend validated` with non-empty vendor, renderer, and OpenGL version values.
+with the Qt runtime `bin` directory available to the process, and verify the runtime log contains `Graphics backend validated` with non-empty vendor, renderer, and OpenGL version values.
 
 ## Change Log
 
 ### 2026-08-07
 
+- Fixed Qt Test process startup on Windows by deriving Qt runtime directories from the repository-parent-relative Qt root and injecting only process-local `PATH`, `QT_PLUGIN_PATH`, and `QT_QPA_PLATFORM_PLUGIN_PATH` values for CTest; no machine path is committed.
 - Fixed the Windows test entry to resolve the dedicated CTest executable and run `ctest --preset`; the previous `cmake --test` invocation was not a valid CMake command.
 - Made preset configuration relocation-safe by invoking CMake with `--fresh`; copied or renamed checkouts no longer require manual removal of stale absolute paths from generated `CMakeCache.txt`.
 - Replaced exact CMake/Ninja patch pins with minimum-compatible development-tool gates matching the existing Qt Tools environment: CMake `3.30.5+` and Ninja `1.12.1+`; product/runtime dependency identity remains controlled.
@@ -524,7 +526,8 @@ Validation performed in the connected environment:
 Windows validation progress:
 
 - dependency/toolchain verification is fully green on the user's Windows 10/MSVC/Qt workspace;
-- relocation-safe configure has now completed successfully in `F:/QT6-PLAYER/qt6-player r1`;
+- relocation-safe configure completed successfully in `F:/QT6-PLAYER/qt6-player r1`;
 - the complete Ninja build reached `65/65` and linked all current application/test targets successfully;
-- CTest itself has not yet run because the previous test script used invalid `cmake --test` syntax; this follow-up corrects the entry to `ctest --preset`, so one local rerun remains required;
+- the corrected CTest command launched all three tests, proving the test entry itself now works, but every test process exited with `0xC0000135` before executing its test body because the Qt runtime DLL/plugin directories were not exposed to the child process;
+- this follow-up injects the Qt runtime environment from the relative Qt root; one local CTest rerun is still required before any R1-02/R1-03/R1-04 test is marked passed;
 - after CTest, `Player.exe` must still be launched once to confirm the real OpenGL renderer log before R1-04 is marked fully accepted.

@@ -131,11 +131,23 @@ if (-not $configureScript.Contains('"--fresh", "--preset"')) {
 }
 
 $testScript = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/test.ps1") -Raw
-if (-not $testScript.Contains("Resolve-PlayerCTest") -or -not $testScript.Contains('& $ctest --preset $Preset')) {
-    throw "test.ps1 must resolve and invoke the CTest executable with --preset."
+foreach ($fragment in @(
+    "Resolve-PlayerCTest",
+    '& $ctest --preset $Preset',
+    'Join-Path $qtRoot "bin"',
+    'Join-Path $qtRoot "plugins"',
+    'QT_PLUGIN_PATH',
+    'QT_QPA_PLATFORM_PLUGIN_PATH'
+)) {
+    if (-not $testScript.Contains($fragment)) {
+        throw "test.ps1 is missing required test-runtime fragment: $fragment"
+    }
 }
 if ($testScript.Contains('& $cmake --test')) {
     throw "test.ps1 must not call the unsupported 'cmake --test' form."
+}
+if ($testScript -match '[A-Za-z]:[/\\]') {
+    throw "test.ps1 contains a machine-absolute Windows path; Qt test runtime paths must be derived from the parent-relative Qt root."
 }
 
 $dependencyPaths = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/DependencyPaths.cmake") -Raw
@@ -191,4 +203,4 @@ foreach ($fragment in @(
     }
 }
 
-Write-Host "Project layout, R1-04 graphics backend module, CTest preset entry, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R1-04 graphics backend module, Qt test runtime environment, CTest preset entry, fresh relocatable configure policy, parent-workspace relative paths, Windows path normalization, compatible tool gates, and CMake responsibility boundaries are complete."
