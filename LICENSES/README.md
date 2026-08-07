@@ -4,7 +4,7 @@
 
 This document records the dependency-license decisions for the Windows-first desktop player. It is an engineering compliance baseline, not legal advice.
 
-The repository currently bundles no Qt, libmpv, FFmpeg, codec, platform-runtime, or other third-party binaries. R0-04 pins the versions and immutable upstream identity used for acquisition. Artifact SHA-256 values are recorded only after the exact source archives and binaries exist; the actual binary manifest is verified again when libmpv is introduced and when the distributable package is assembled.
+The repository currently bundles no Qt, libmpv, FFmpeg, codec, platform-runtime, or other third-party binaries. R0-04 pins the versions and immutable upstream identity used for acquisition, and R2-01 extends that identity baseline to the approved source-built libmpv dependency graph. Artifact SHA-256 values are recorded only after the exact source-built package exists; the actual binary manifest is verified again when the distributable package is assembled.
 
 Distribution is prohibited if the shipped binaries, source archives, build options, notices, or license obligations cannot be matched exactly.
 
@@ -15,8 +15,13 @@ The authoritative build-time values live in `cmake/DependencyVersions.cmake`:
 | Component | Pinned identity |
 |---|---|
 | Qt | `6.8.3`, official MSVC 2022 64-bit open-source kit/source archive |
-| mpv/libmpv | `0.41.0`, signed tag `v0.41.0`, commit `41f6a645068483470267271e1d09966ca3b9f413` |
-| FFmpeg | `8.0.3`, official release source used by the project-controlled libmpv build |
+| mpv/libmpv | `0.41.0`, tag `v0.41.0`, commit `41f6a645068483470267271e1d09966ca3b9f413` |
+| FFmpeg | `8.0.3`, ref `n8.0.3`, commit `8ae0b34901ba60a802f183ee75a250a9fc3e09a5` |
+| libplacebo | `7.351.0`, ref `v7.351.0`, commit `3188549fba13bbdf3a5a98de2a38c2e71f04e21e` |
+| libass | `0.17.4`, ref `0.17.4`, commit `bbb3c7f1570a4a021e52683f3fbdf74fe492ae84` |
+| FreeType | `2.13.3`, ref `VER-2-13-3`, commit `42608f77f20749dd6ddc9e0536788eaad70ea4b5` |
+| FriBidi | `1.0.16`, ref `v1.0.16`, commit `68162babff4f39c4e2dc164a5e825af93bda9983` |
+| HarfBuzz | `10.2.0`, ref `10.2.0`, commit `7b27c8edd46c674e01dd226fa9e1aa7549f5c436` |
 
 These values identify the approved source baseline; they do not approve an unverified prebuilt DLL or replace the release-time dependency scan.
 
@@ -64,11 +69,10 @@ A link only to a third-party-hosted Qt source page is not treated as the project
 
 ### Approved source and build mode
 
-- Source authority: the official signed mpv release tag `v0.41.0`.
-- Release commit: `41f6a645068483470267271e1d09966ca3b9f413`.
+- Source authority: the official mpv release tag `v0.41.0` at commit `41f6a645068483470267271e1d09966ca3b9f413`.
 - Build ownership: project-controlled, reproducible build; arbitrary prebuilt libmpv DLLs are not accepted.
 - License mode: LGPLv2.1-or-later build using Meson's `-Dgpl=false` option.
-- Linkage: the application links dynamically to the libmpv DLL and import library.
+- Linkage: the application links dynamically to the libmpv DLL and generated MSVC import library.
 
 mpv is GPLv2-or-later by default. A build without verifiable `-Dgpl=false` configuration is therefore not an approved dependency for this distribution route.
 
@@ -90,9 +94,9 @@ If the selected mpv feature set requires GPL-only code, the feature must be remo
 
 ### Approved source and configuration
 
-- Source authority: the official FFmpeg `8.0.3` release source selected for the project-controlled mpv `0.41.0` build.
+- Source authority: FFmpeg `8.0.3`, ref `n8.0.3`, commit `8ae0b34901ba60a802f183ee75a250a9fc3e09a5`.
 - License route: LGPLv2.1-or-later configuration.
-- Prohibited configure options: `--enable-gpl` and `--enable-nonfree`.
+- Build policy for the R2 package explicitly uses `--disable-autodetect`, `--disable-gpl`, `--disable-nonfree`, `--enable-shared`, and `--disable-static`.
 - Preferred linkage: separate FFmpeg DLLs dynamically linked by libmpv, so replacement and license boundaries remain explicit.
 
 The expected runtime family may include `libavcodec`, `libavformat`, `libavutil`, `libswresample`, `libswscale`, and `libavfilter`, but this list is not a shipping manifest. Only libraries proven by the final binary dependency scan may be packaged or documented as shipped.
@@ -114,11 +118,27 @@ The release record for FFmpeg must include:
 
 Every external library compiled into or loaded by FFmpeg requires its own license review. Passing the top-level FFmpeg check does not approve its optional dependencies automatically.
 
+## Approved R2 source-build dependencies
+
+The user explicitly approved the following production transitive dependency set for the R2 project-controlled libmpv build. These components are built from the pinned source identities above rather than installed as prebuilt MSYS2 runtime packages:
+
+| Component | Purpose | Current license route | R2 linkage policy |
+|---|---|---|---|
+| libplacebo | mpv GPU/rendering infrastructure dependency | LGPL-2.1-or-later | dynamic |
+| libass | ASS/SSA subtitle renderer required by mpv | ISC | dynamic |
+| FreeType | font rasterization required by libass | FreeType License route | dynamic |
+| FriBidi | bidirectional text processing required by libass | LGPL-2.1-or-later | dynamic |
+| HarfBuzz | text shaping required by libass | permissive HarfBuzz license route | dynamic |
+
+R2 also uses MSYS2 CLANG64, LLVM/Clang, Meson, Ninja, pkg-config, NASM, Python, Git, and base build utilities as **build tools**. They are not automatically product runtime dependencies. If the produced DLL graph imports compiler runtime DLLs from CLANG64, those exact runtime files become package dependencies and must be captured by the generated manifest and reviewed again at the R13 binary/license gate.
+
+The R2 source-build scripts deliberately disable optional external libraries that are not part of this approved set where practical. Submodules used by libplacebo for source generation or built-in implementation remain subject to the same final source and license inventory if their code is incorporated into a shipped DLL.
+
 ## Transitive and platform dependencies
 
-No transitive dependency is approved merely because mpv, FFmpeg, or Qt can discover it during configuration.
+No additional transitive dependency is approved merely because mpv, FFmpeg, libplacebo, libass, or Qt can discover it during configuration.
 
-Before a dependency can enter a release build, its record must state:
+Before any additional dependency can enter a release build, its record must state:
 
 - component name and purpose;
 - authoritative source and exact version/commit;
@@ -129,15 +149,15 @@ Before a dependency can enter a release build, its record must state:
 - corresponding-source and modification-delivery obligations;
 - redistribution restrictions and required attributions.
 
-This applies to rendering, color-management, subtitle, audio, network, compression, font, image, and codec libraries, as well as Qt plugins and their embedded third-party code.
+This applies to rendering, color-management, subtitle, audio, network, compression, font, image, codec and compiler-runtime libraries, as well as Qt plugins and their embedded third-party code.
 
 The Microsoft Visual C++ runtime may be distributed only through Microsoft's permitted redistributable mechanism. Its exact packaging method and terms are verified during the Windows packaging stage.
 
 ## Required package records
 
-Do not create empty placeholder license files. When the first actual runtime package is assembled, generate the `LICENSES/` payload from the selected source distributions and dependency manifest.
+Do not create empty placeholder license files. The R2 libmpv dependency package stages license files sourced from the exact source checkouts, while the final distributable `LICENSES/` payload is assembled and verified during packaging.
 
-The package must contain or provide access to:
+The distributable package must contain or provide access to:
 
 ```text
 LICENSES/
@@ -159,8 +179,9 @@ A distributable build fails the license gate unless all of the following are tru
 - Qt remains dynamically replaceable and the corresponding source is retained under project control;
 - libmpv was built from mpv `v0.41.0` commit `41f6a645068483470267271e1d09966ca3b9f413` with `-Dgpl=false`;
 - FFmpeg `8.0.3` was built without `--enable-gpl` and without `--enable-nonfree`;
+- the source commits of FFmpeg, libplacebo, libass, FreeType, FriBidi, and HarfBuzz match `cmake/DependencyVersions.cmake`;
 - binary dependency scanning matches the declared manifest;
-- every transitive component has an approved license record;
+- every shipped transitive/compiler-runtime component has an approved license record;
 - exact license and notice files are included;
 - corresponding source, modifications, and build instructions are available as required;
 - installer/EULA terms preserve the rights required by the applicable LGPL licenses;
@@ -170,6 +191,6 @@ Copyright-license compliance does not itself grant patent rights. Codec patent e
 
 ## Atomic Task boundary
 
-R0-03 selected the license route, authoritative source locations, linkage policy, prohibited configurations, required notices, and release gates. R0-04 pins the exact Qt, mpv/libmpv, and FFmpeg source identities in the shared version manifest. R2-01 and packaging tasks must acquire/build the artifacts, record their hashes and complete dependency graph, and verify the real binaries against this policy.
+R0-03 selected the license route, authoritative source locations, linkage policy, prohibited configurations, required notices, and release gates. R0-04 pinned the original Qt/mpv/FFmpeg identity baseline. R2-01 extends the approved source identity to the actual libmpv dependency graph and builds the dependency package under `../libmpv`; R13 remains responsible for the final clean-machine binary dependency/license scan and distributable compliance payload.
 
-No third-party runtime binary is approved or considered shipped by this document alone.
+No third-party runtime binary is considered release-approved by this document alone. The real R2 package must first pass its generated identity/hash manifest, and the final shipping set must pass the R13 release gate.

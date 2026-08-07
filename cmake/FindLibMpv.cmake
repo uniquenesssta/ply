@@ -14,37 +14,20 @@ endif()
 
 set(_player_libmpv_root "${CMAKE_SOURCE_DIR}/${PLAYER_LIBMPV_ROOT}")
 
-find_path(
-    LibMpv_INCLUDE_DIR
-    NAMES mpv/client.h
-    PATHS "${_player_libmpv_root}/include"
-    NO_DEFAULT_PATH
-)
-
+find_path(LibMpv_INCLUDE_DIR NAMES mpv/client.h PATHS "${_player_libmpv_root}/include" NO_DEFAULT_PATH)
 find_library(
     LibMpv_IMPORT_LIBRARY
     NAMES mpv libmpv mpv-2 libmpv-2
-    PATHS
-        "${_player_libmpv_root}/lib"
-        "${_player_libmpv_root}"
+    PATHS "${_player_libmpv_root}/lib" "${_player_libmpv_root}"
     NO_DEFAULT_PATH
 )
-
 find_file(
     LibMpv_RUNTIME_LIBRARY
     NAMES libmpv-2.dll mpv-2.dll
-    PATHS
-        "${_player_libmpv_root}/bin"
-        "${_player_libmpv_root}"
+    PATHS "${_player_libmpv_root}/bin" "${_player_libmpv_root}"
     NO_DEFAULT_PATH
 )
-
-find_file(
-    LibMpv_MANIFEST_FILE
-    NAMES dependency-manifest.json
-    PATHS "${_player_libmpv_root}"
-    NO_DEFAULT_PATH
-)
+find_file(LibMpv_MANIFEST_FILE NAMES dependency-manifest.json PATHS "${_player_libmpv_root}" NO_DEFAULT_PATH)
 
 if(LibMpv_MANIFEST_FILE)
     file(READ "${LibMpv_MANIFEST_FILE}" _player_libmpv_manifest_json)
@@ -64,12 +47,34 @@ if(LibMpv_MANIFEST_FILE)
     _player_libmpv_manifest_value(_player_libmpv_tag mpv tag)
     _player_libmpv_manifest_value(_player_libmpv_commit mpv commit)
     _player_libmpv_manifest_value(_player_ffmpeg_version ffmpeg version)
+    _player_libmpv_manifest_value(_player_ffmpeg_commit ffmpeg commit)
+    _player_libmpv_manifest_value(_player_libplacebo_version libplacebo version)
+    _player_libmpv_manifest_value(_player_libplacebo_commit libplacebo commit)
+    _player_libmpv_manifest_value(_player_libass_version libass version)
+    _player_libmpv_manifest_value(_player_libass_commit libass commit)
+    _player_libmpv_manifest_value(_player_freetype_version freetype version)
+    _player_libmpv_manifest_value(_player_freetype_commit freetype commit)
+    _player_libmpv_manifest_value(_player_fribidi_version fribidi version)
+    _player_libmpv_manifest_value(_player_fribidi_commit fribidi commit)
+    _player_libmpv_manifest_value(_player_harfbuzz_version harfbuzz version)
+    _player_libmpv_manifest_value(_player_harfbuzz_commit harfbuzz commit)
 
     foreach(_identity_check IN ITEMS
         "LibMpv_VERSION;${PLAYER_MPV_VERSION};mpv.version"
         "_player_libmpv_tag;${PLAYER_MPV_TAG};mpv.tag"
         "_player_libmpv_commit;${PLAYER_MPV_COMMIT};mpv.commit"
         "_player_ffmpeg_version;${PLAYER_FFMPEG_VERSION};ffmpeg.version"
+        "_player_ffmpeg_commit;${PLAYER_FFMPEG_COMMIT};ffmpeg.commit"
+        "_player_libplacebo_version;${PLAYER_LIBPLACEBO_VERSION};libplacebo.version"
+        "_player_libplacebo_commit;${PLAYER_LIBPLACEBO_COMMIT};libplacebo.commit"
+        "_player_libass_version;${PLAYER_LIBASS_VERSION};libass.version"
+        "_player_libass_commit;${PLAYER_LIBASS_COMMIT};libass.commit"
+        "_player_freetype_version;${PLAYER_FREETYPE_VERSION};freetype.version"
+        "_player_freetype_commit;${PLAYER_FREETYPE_COMMIT};freetype.commit"
+        "_player_fribidi_version;${PLAYER_FRIBIDI_VERSION};fribidi.version"
+        "_player_fribidi_commit;${PLAYER_FRIBIDI_COMMIT};fribidi.commit"
+        "_player_harfbuzz_version;${PLAYER_HARFBUZZ_VERSION};harfbuzz.version"
+        "_player_harfbuzz_commit;${PLAYER_HARFBUZZ_COMMIT};harfbuzz.commit"
     )
         list(GET _identity_check 0 _actual_variable)
         list(GET _identity_check 1 _expected_value)
@@ -84,11 +89,7 @@ endif()
 
 find_package_handle_standard_args(
     LibMpv
-    REQUIRED_VARS
-        LibMpv_INCLUDE_DIR
-        LibMpv_IMPORT_LIBRARY
-        LibMpv_RUNTIME_LIBRARY
-        LibMpv_MANIFEST_FILE
+    REQUIRED_VARS LibMpv_INCLUDE_DIR LibMpv_IMPORT_LIBRARY LibMpv_RUNTIME_LIBRARY LibMpv_MANIFEST_FILE
     VERSION_VAR LibMpv_VERSION
 )
 
@@ -128,7 +129,6 @@ function(player_stage_libmpv_runtime target_name)
 
     get_target_property(_runtime_files LibMpv::LibMpv PLAYER_RUNTIME_FILES)
     get_target_property(_manifest_file LibMpv::LibMpv PLAYER_MANIFEST_FILE)
-
     if(NOT _runtime_files OR NOT _manifest_file)
         message(FATAL_ERROR "LibMpv::LibMpv is missing runtime or manifest staging metadata.")
     endif()
@@ -136,11 +136,8 @@ function(player_stage_libmpv_runtime target_name)
     add_custom_command(
         TARGET ${target_name}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${_runtime_files}
-            "$<TARGET_FILE_DIR:${target_name}>"
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            "$<TARGET_FILE_DIR:${target_name}>/dependencies/libmpv"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_runtime_files} "$<TARGET_FILE_DIR:${target_name}>"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${target_name}>/dependencies/libmpv"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${_manifest_file}"
             "$<TARGET_FILE_DIR:${target_name}>/dependencies/libmpv/dependency-manifest.json"
@@ -148,9 +145,4 @@ function(player_stage_libmpv_runtime target_name)
     )
 endfunction()
 
-mark_as_advanced(
-    LibMpv_INCLUDE_DIR
-    LibMpv_IMPORT_LIBRARY
-    LibMpv_RUNTIME_LIBRARY
-    LibMpv_MANIFEST_FILE
-)
+mark_as_advanced(LibMpv_INCLUDE_DIR LibMpv_IMPORT_LIBRARY LibMpv_RUNTIME_LIBRARY LibMpv_MANIFEST_FILE)

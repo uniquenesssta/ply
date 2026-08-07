@@ -292,7 +292,12 @@ try {
             @("mpv.version", [string]$manifest.mpv.version, $versions.MpvVersion),
             @("mpv.tag", [string]$manifest.mpv.tag, $versions.MpvTag),
             @("mpv.commit", [string]$manifest.mpv.commit, $versions.MpvCommit),
-            @("ffmpeg.version", [string]$manifest.ffmpeg.version, $versions.FfmpegVersion)
+            @("ffmpeg.version", [string]$manifest.ffmpeg.version, $versions.FfmpegVersion),
+            @("libplacebo.version", [string]$manifest.libplacebo.version, $versions.LibplaceboVersion),
+            @("libass.version", [string]$manifest.libass.version, $versions.LibassVersion),
+            @("freetype.version", [string]$manifest.freetype.version, $versions.FreetypeVersion),
+            @("fribidi.version", [string]$manifest.fribidi.version, $versions.FribidiVersion),
+            @("harfbuzz.version", [string]$manifest.harfbuzz.version, $versions.HarfbuzzVersion)
         )
 
         $manifestValid = $true
@@ -304,7 +309,7 @@ try {
         }
 
         if ($manifestValid) {
-            Write-Host "[OK] libmpv manifest: mpv $($manifest.mpv.version), tag $($manifest.mpv.tag), FFmpeg $($manifest.ffmpeg.version)"
+            Write-Host "[OK] libmpv manifest: mpv $($manifest.mpv.version), FFmpeg $($manifest.ffmpeg.version), libplacebo $($manifest.libplacebo.version), libass $($manifest.libass.version)"
         }
         else {
             Write-Host "[INVALID] libmpv dependency manifest identity"
