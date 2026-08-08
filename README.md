@@ -20,16 +20,17 @@ This repository is now the active R2 modular playback-core scaffold. It currentl
 - a minimal QML shell split into `App.qml`, `MainWindow.qml`, `PlayerScreen.qml`, video placeholder, chrome placeholder, and theme ownership;
 - a fixed-root `FindLibMpv.cmake` integration that creates the single `LibMpv::LibMpv` imported target only from `../libmpv/0.41.0/windows-x64`;
 - an R2-01 mpv runtime module that validates client-API compatibility, the actual loaded DLL path, and the staged dependency-manifest identity before QML startup;
+- an R2-02 `client/MpvHandle` RAII boundary that uniquely owns `mpv_handle`, separates initialized/uninitialized destruction, and exposes no ownership to application or QML layers;
 - a modular MSYS2 CLANG64 source-build chain that produces the project-controlled libmpv SDK/runtime package from pinned upstream source identities without placing build trees or third-party binaries in Git;
 - automatic staging of the fixed libmpv package runtime DLLs plus its dependency manifest beside executable/test targets;
 - explicit Windows build-tree deployment of matching Qt Debug/Release DLLs, platform plugins, and QML imports after the CMake build through `scripts/modules/QtRuntimeDeployment.psm1`, with a targeted `scripts/deploy-runtime.ps1` entry for short verification;
 - architecture decisions, the original full development task book, and the approved R2-R14 fast-framework stage taskbooks under `docs/plans/stages/`;
 - an explicit Windows/MSVC/Qt/libmpv/FFmpeg/transitive-source identity baseline plus minimum-compatible CMake/Ninja development-tool gates;
 - stable configure, build, deploy, and test entry scripts that can initialize the Visual Studio x64 build environment from an ordinary Windows CMD/PowerShell session;
-- five Qt Test targets after R2-01: RuntimePaths, logging, graphics backend, application container, and libmpv runtime probe;
+- six Qt Test targets after R2-02: RuntimePaths, logging, graphics backend, application container, MpvHandle lifecycle, and libmpv runtime probe;
 - no third-party SDK, DLL, import library, generated runtime file, MSYS2 installation, or dependency build tree tracked inside the repository.
 
-The scaffold intentionally does **not** yet implement `mpv_handle` ownership, mpv initialization profiles, playback commands, mpv event loops, property observation, PlaybackSession state, persistence, playlists, platform integrations, or packaging. Those responsibilities are introduced only in their Atomic Tasks.
+The scaffold intentionally does **not** yet implement the product mpv initialization profile, playback commands, mpv event loop, property observation, PlaybackSession state, persistence, playlists, platform integrations, or packaging. Those responsibilities are introduced only in their Atomic Tasks.
 
 ## Scope
 
@@ -197,7 +198,7 @@ Runtime paths returned by Windows/Qt may naturally be absolute operating-system 
 - the layout verifier enforces the QML module/shell boundaries and rejects direct libmpv calls from `PlayerScreen.qml`;
 - the user explicitly accepted R1-06 after local configure/build/test/window verification on 2026-08-07.
 
-### R2-01 — Implemented; final Player runtime acceptance pending
+### R2-01 — Implemented; file-log acceptance deferred by explicit user direction
 
 Implemented on 2026-08-07/08 in `agent/r2-stage`:
 
@@ -229,7 +230,7 @@ Implemented on 2026-08-07/08 in `agent/r2-stage`:
 - `scripts/test.ps1` requires the marker before running its build/CTest path, preventing a failed build from being followed by a misleading green test result against stale output;
 - development startup resolves the real current-process executable with `GetModuleFileNameW(nullptr, ...)`, resolves the existing relative marker from that actual module directory, and starts the real `LoggingBootstrap` before constructing `QGuiApplication`; `ApplicationBootstrap` then transfers that same logger into `ApplicationContainer`, and the idempotent `start()` call does not create a duplicate sink;
 - `scripts/modules/QtRuntimeDeployment.psm1` owns Windows build-tree Qt deployment and post-deploy verification;
-- no `mpv_handle`, initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
+- no initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
 
 The approved source-build set is intentionally narrow. MSYS2/CLANG64 is a **build-only** toolchain; it is not a Player production dependency. The source build does not consume MSYS2-packaged FFmpeg/libass/libplacebo/etc. The release-time dependency/license scan in R13 remains mandatory, including any compiler runtime DLL or bundled source component actually present in the final binary graph.
 
@@ -245,14 +246,22 @@ Confirmed on the user's Windows workspace:
 - on the real `d766902` run, the current build chain printed both `[OK] Development runtime root marker -> build/windows-msvc-debug/.player-development-root` and `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug`;
 - the same `d766902` run passed all five CTest targets, and `test.ps1` independently revalidated the development marker before running CTest;
 - on the real `07ccc53` run, Player stayed alive and responsive with a visible `Player` window, and the loaded Qt/MSVC debug modules came from `build/windows-msvc-debug`; no repository-root `player.log` existed, so Windows Loader failure, Qt deployment failure, GUI startup failure, and stale-build marker failure are no longer credible explanations for the missing file;
-- that result leaves pre-GUI executable-location resolution as the remaining path-specific gap in the current logging chain; the follow-up removes `argv[0]` from that responsibility and uses the actual loaded process module path instead.
+- on the real `547091c` follow-up, build and all five pre-R2-02 CTests still passed, but the process-module path repair still did not create repository-root `player.log`.
 
-Still required for R2-01 acceptance:
+The missing `player.log` remains an explicitly recorded R2-01 validation gap. By user direction on 2026-08-08 it is no longer allowed to block ordinary R2 framework progress; it must still be closed before the relevant release/diagnostic gates claim complete file-log acceptance.
 
-- pull the current process-module path repair and rebuild;
-- confirm all five CTests remain green, including the new current-process executable regression;
-- launch `build/windows-msvc-debug/Player.exe` and confirm `<repository>/player.log` now exists;
-- confirm the log contains `libmpv runtime validated` with the actual DLL path and manifest identity.
+### R2-02 — Implemented; Windows build/test acceptance pending
+
+- `src/playback/infrastructure/mpv/client/` now owns the first real `mpv_handle` lifecycle boundary.
+- `MpvHandle::create()` is the only creation path introduced by this task and returns unique ownership; the wrapper itself is non-copyable and non-movable.
+- uninitialized handles are released with `mpv_destroy`; initialized handles are terminated and released with `mpv_terminate_destroy`.
+- `close()` is idempotent; destructor cleanup reuses the same path; failed `mpv_initialize` immediately closes the partially initialized lifecycle so no invalid handle remains active.
+- repeated `initialize()` after successful initialization is idempotent; initialize-after-close returns an explicit error instead of touching a null handle.
+- the raw `mpv_handle*` accessor remains inside the mpv infrastructure surface for later R2 modules and tests; no application, domain, presentation, or QML module receives ownership.
+- a sixth `mpv_handle` Qt Test covers create ownership, real initialization with user config disabled only for the test, repeated initialize/close, initialize-after-close failure, and 100 create/destroy cycles.
+- R2-02 does not introduce the product option profile, event loop, playback commands, state ownership, or QML behavior; those remain assigned to later Atomic Tasks.
+
+Connected-environment review confirmed the source/CMake/test diff and dependency boundaries. The connected environment cannot run the user's Windows Qt/MSVC/libmpv binary, so the new sixth CTest and full build remain pending the user's local run.
 
 R13 still performs the final clean-machine binary dependency/license scan for the distributable package; the current build-tree deployment is a development/runtime acceptance path, not the final installer implementation.
 
@@ -349,16 +358,21 @@ src/app/composition/application_container.*
 src/foundation/logging/
   Logging categories, file sink, rotation, redaction, and flush internals.
 
+src/playback/infrastructure/mpv/client/
+  Owns `mpv_handle` creation, initialization state, idempotent close, and the
+  initialized/uninitialized destruction distinction. Raw handle access stays
+  inside mpv infrastructure consumers.
+
 src/playback/infrastructure/mpv/runtime/
   Owns dependency-manifest parsing and validation of the actually loaded
-  libmpv runtime/client-API identity. It does not own mpv_handle or playback state.
+  libmpv runtime/client-API identity. It does not own playback state.
 
 src/presentation/qml/
   Presentation shell only; no direct libmpv API access.
 
 tests/CMakeLists.txt
   Registers RuntimePaths, logging, graphics-backend, ApplicationContainer,
-  and R2-01 libmpv-runtime regression targets.
+  MpvHandle lifecycle, and libmpv-runtime regression targets.
 ```
 
 Future `playback_composition`, `persistence_composition`, and `platform_composition` belong under `src/app/composition/` only when the corresponding real subsystems exist. Formal UI token/control/surface expansion remains assigned to R5/R6.
@@ -532,14 +546,17 @@ Confirmed by the user on the Windows 10 development workspace through R1-06:
 
 The R2 dependency build is locally verified on the user's Windows workspace. MSYS2 bootstrap completes, the controlled source build completes through the full pinned dependency chain, the signed FFmpeg 8.0.3 archive verifies with the pinned release key, and the final libmpv package verifies all 17 recorded artifact hashes. `verify-project-layout.ps1` and `verify-dependencies.ps1` also pass against that package.
 
-The latest confirmed Windows result before the current source follow-up is commit `07ccc53`: Player remained alive and responsive after launch, exposed a visible `Player` window, and loaded its Qt/MSVC debug runtime from `build/windows-msvc-debug`, while the repository-root `player.log` remained absent. The same branch state had already proven the build marker, automatic Qt deployment, and five CTests green. This removes Loader, Qt deployment, stale output, and GUI startup from the remaining explanation set.
+The latest confirmed pre-R2-02 Windows result is commit `547091c`: build completed, the development marker remained valid, all five existing CTests passed, Player remained launchable, and repository-root `player.log` was still absent. By explicit user direction this log issue is recorded but no longer blocks R2 framework progress.
 
-The current source follow-up keeps the early `LoggingBootstrap` ownership change but removes the last unreliable input to RuntimePaths: `main()` no longer infers the executable directory from `argv[0]`. On Windows, `RuntimePaths::fromCurrentProcessExecutable()` now obtains the actual loaded executable path with `GetModuleFileNameW(nullptr, ...)`, then applies the existing relative development marker. Added unit coverage compares that process-module-derived directory with Qt's application directory when a test application is available. Connected-environment review covers the final source diff; this environment does not contain the user's Windows Qt/MSVC runtime, so the new build/test/direct-launch result remains pending local verification.
+R2-02 adds the first real `mpv_handle` owner and a sixth lifecycle CTest. The connected environment reviewed the implementation/CMake/test diff but cannot execute the user's Windows Qt/MSVC/libmpv runtime, so R2-02 remains pending local build/test confirmation before it is marked complete.
 
 ## Change Log
 
 ### 2026-08-08
 
+- Implemented R2-02 `MpvHandle` RAII under `src/playback/infrastructure/mpv/client/`: unique creation, non-copyable/non-movable ownership, explicit initialization state, idempotent close, initialized/uninitialized destruction paths, and safe cleanup on initialization failure.
+- Added the `mpv_handle` lifecycle CTest with real libmpv creation/initialization, test-local user-config suppression, repeated close/initialize guards, and 100 create/destroy cycles; the CTest set is now six targets once locally rebuilt.
+- Recorded the unresolved R2-01 repository-root `player.log` as a non-blocking validation gap after the real `547091c` follow-up still reproduced it; per explicit user direction, ordinary R2 Atomic Tasks continue while the log issue remains open for later diagnostic/release closure.
 - Replaced pre-GUI `argv[0]` executable-location inference after the real `07ccc53` process inspection proved Player was alive, responsive, and visibly running with the expected staged Qt runtime while no root log existed. Windows startup now resolves the actual loaded `Player.exe` module with `GetModuleFileNameW(nullptr, ...)`, and RuntimePaths applies the existing `../..` marker from that true module directory.
 - Added RuntimePaths regression coverage that compares the current-process executable directory with Qt's application directory once a test application exists; the existing explicit-file-path marker tests remain in place.
 - Moved development file logging ahead of `QGuiApplication` construction after the real `d766902` run proved the marker, Qt deployment, and 5/5 tests were current while `player.log` was still absent; the same logger is transferred into `ApplicationContainer` instead of creating a competing sink.
@@ -574,26 +591,13 @@ The current source follow-up keeps the early `LoggingBootstrap` ownership change
 - Implemented and accepted R1-05 Composition Root and retained all completed R1 architecture/tooling fixes documented above.
 - Recorded R0-06 as explicitly skipped and unaccepted; R0-01 through R0-05 remain completed according to their recorded scope.
 
-### R2-01 local verification after sync
+### Current R2 local verification
 
-The source-built libmpv package, current post-build marker, automatic Qt deployment, responsive Player window, and five CTests are already independently proven. For the current process-module path follow-up, only rebuild and rerun the existing test/runtime acceptance path:
+For the current R2-02 follow-up, do not retest the deferred file-log issue. Rebuild and run the normal test suite:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-Then launch directly:
-
-```text
-build\windows-msvc-debug\Player.exe
-```
-
-and verify:
-
-```text
-type player.log
-findstr /C:"libmpv runtime validated" player.log
-```
-
-R2-01 acceptance requires the application to create the repository-root file log and to log `libmpv runtime validated` while loading the staged libmpv DLL. Any runtime failure must remain explicit; do not replace it with a system Qt/mpv PATH workaround.
+R2-02 acceptance requires the project to build and the CTest set to report six passing targets, including `mpv_handle`. The unresolved R2-01 `player.log` behavior remains separately recorded and does not change R2-02 lifecycle acceptance.
