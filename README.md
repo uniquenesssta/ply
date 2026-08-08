@@ -1,6 +1,6 @@
 # Modular Qt 6 + libmpv Player
 
-Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。Stage R2：无 UI libmpv 播放核心已经完成；R2-11 在修复 `playback_probe` target 模块 include root 后完成 Windows 重新构建与 14/14 CTest 行为矩阵验收。
+Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。Stage R2：无 UI libmpv 播放核心已经完成；当前进入 Stage R3：领域状态与 PlaybackSession。R3-01 已建立产品语义的 PlaybackCommand / PlaybackEvent 契约与 mpv→domain 适配边界，等待 Windows build/CTest 验收。
 
 ## Current baseline
 
@@ -23,13 +23,14 @@ Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。Stage R
 - R2-09 `events/`：保留完整 end-file typed/raw reason、error 与 playlist 边界元数据，并新增独立事件语义回归矩阵；
 - R2-10 `properties/`：Property Baseline 从 11 项扩展到 22 项，统一覆盖 seek/buffering/cache、媒体 identity、当前轨道选择和最小 video/audio 参数入口；
 - R2-11 `tools/playback_probe/`：脚本化 8 场景 headless 行为矩阵、运行时生成媒体、typed trace 与自动 CTest 门禁；
+- R3-01 `domain/commands + domain/events`：新增强类型 `RequestId`、封闭 PlaybackCommand variant、命令范围校验、PlaybackEvent variant，以及 `MpvPlaybackEventMapper` 后端适配边界；
 - Windows 构建后显式 `windeployqt` 与 `.player-development-root` 开发标记；
 - R2-08 已由用户 Windows 环境完成最终验收：11/11 CTest 全绿（1.47 秒），真实媒体主链 PASS，非法媒体错误路径返回明确加载失败诊断；
 - R2-09 已由用户 Windows 环境完成最终验收：12/12 CTest 全绿（2.31 秒），新增 `mpv_event_semantics` 通过；
 - R2-10 已由用户 Windows 环境完成最终验收：13/13 CTest 全绿（2.40 秒），`mpv_properties` 与新增 `mpv_property_baseline` 均通过；
 - R2-11 已由用户 Windows 环境完成最终验收：14/14 CTest 全绿（2.22 秒），新增 `playback_probe_matrix` 通过（0.62 秒）。
 
-R2-02~R2-11 均已完成并通过对应阶段验收；R2-01 的仓库根 `player.log` 落盘问题继续作为用户明确允许延期的非阻塞诊断缺口保留。依据 Stage R2 关闭条件与跨阶段补强矩阵，当前 **Stage R2：Complete**。PlaybackSession 仍从 R3 开始；Render API、数据库、播放列表、完整播放器 UI 与安装包继续在后续阶段实现，不提前堆入 R2。
+R2-02~R2-11 均已完成并通过对应阶段验收；R2-01 的仓库根 `player.log` 落盘问题继续作为用户明确允许延期的非阻塞诊断缺口保留。当前 **Stage R3：In Progress**；R3-01 已实现但尚未在用户 Windows 环境完成 16/16 CTest 验收。PlaybackSnapshot、Reducer、PlaybackSession、MediaGeneration 和 RequestTracker 均仍按后续 R3 Atomic Task 引入，不在 R3-01 提前实现。
 
 ## Product scope
 
@@ -44,8 +45,10 @@ MVP 包括：本地文件、网络 URL、播放/暂停/停止、绝对/相对 Se
 ```text
 QML presentation
       ↓ intent / projected state
-Application layer (PlaybackSession arrives in R3)
-      ↓ commands / typed events
+Application layer (PlaybackSession arrives later in R3)
+      ↓ PlaybackCommand / PlaybackEvent
+Playback domain
+      ↓ adapter boundary
 libmpv infrastructure
       ↓ public C API
 libmpv
@@ -58,8 +61,21 @@ src/app/
   main/bootstrap/composition
   启动顺序、RuntimePaths、日志、图形探针、QML 与顶层生命周期。
 
+src/foundation/ids/
+  RequestId 是异步请求的强类型稳定身份；0 保留为 invalid，不承载 generation 或业务状态。
+
 src/foundation/logging/
   日志分类、文件 sink、轮转、脱敏、flush。
+
+src/playback/domain/commands/
+  按 load / transport / seek / volume / speed / lifecycle 拆分产品语义命令；
+  playback_command.h 只拥有封闭 variant 与 RequestId 公共元数据；
+  validation 与 R2 backend 的已接受边界保持一致，不包含 mpv 命令字符串、属性名、QObject 或后端类型。
+
+src/playback/domain/events/
+  按 lifecycle / media / position / buffering / property / failure / command-reply 拆分产品语义事件；
+  unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
+  当前只覆盖 R3-01 所需核心事件，track/chapter/video/audio domain model 留给后续对应任务。
 
 src/playback/infrastructure/mpv/runtime/
   libmpv manifest 与真实已加载 DLL/client API 身份探测。
@@ -82,6 +98,7 @@ src/playback/infrastructure/mpv/events/
   MpvWakeupBridge 只把 libmpv 内部线程 wakeup 转为 Qt queued signal；
   MpvEventLoop 只在其 QObject 所属线程执行 mpv_wait_event(handle, 0) drain；
   MpvEventDecoder 在下一次 mpv_wait_event 前把 raw event/payload 深拷贝成内部 MpvEvent；
+  MpvPlaybackEventMapper 是 R3-01 新增的 infrastructure→domain 适配器，只把明确支持的 typed MpvEvent 转成 PlaybackEvent；
   raw mpv_event、mpv_event_*、mpv_node 指针不离开 infrastructure/mpv。
 
 src/playback/infrastructure/mpv/properties/
@@ -106,7 +123,7 @@ src/presentation/qml/
 
 R2-04 的关闭顺序仍是硬约束：先令 wakeup bridge inactive，再注销 libmpv wakeup callback，等待已经进入 callback 的短路径退出，最后才允许事件循环目标对象销毁；停止后的 queued drain 直接 no-op。
 
-R2-05 保留 `reply_userdata` 作为后续 R3 command tracker 的关联键，但 executor 不建立 pending map、不保存播放状态真值。
+R2-05 保留 `reply_userdata` 作为 R3 RequestId 的后端关联值，但 executor 不建立 pending map、不保存播放状态真值。R3-01 只把 reply userdata 映射为强类型 RequestId；真正的 pending tracking、generation 绑定、duplicate/unknown reply 处理仍归 R3-06/R3-09/R3-12。
 
 R2-06/R2-07/R2-10 的 property 数据链现在是：registry 定义观察身份与格式，observer 管理观察生命周期和标量复制，event decoder 在消费 raw property event 时调用 property decode；FLAG/DOUBLE/STRING/None 直接转成 Qt-owned/内部值，Node 通过独立 `MpvNodeDecoder` 深拷贝。因此事件循环发出 `eventDecoded(const MpvEvent&)` 后，上层无需解释或持有 libmpv C payload，也不需要散写 mpv property 字符串。
 
@@ -117,6 +134,8 @@ R2-09 仍只增强 infrastructure 事件契约，不建立媒体真值或业务�
 R2-10 仍只建立 Property Baseline，不建立 R3 Snapshot。当前选中的 `aid/sid/vid` 使用 `MPV_FORMAT_NODE`，以保留数字 track id 与 `no` 等原生值形态；`cache-buffering-state` 同样使用 Node，避免依赖显示字符串或不必要的格式假设。`media-title` 与 `path` 使用 `MPV_FORMAT_STRING` 并立即复制到 QString。`demuxer-cache-state`、`video-params`、`audio-params` 使用官方支持的 Node 结构并在 infrastructure 内深拷贝完成生命周期。
 
 R2-11 不新增产品状态。`playback_probe --matrix` 运行时生成三段无第三方版权依赖的短 silent PCM WAV，并通过 `PlaybackProbeScenarioCatalog` 定义 8 个真实 libmpv 场景。`PlaybackProbeScenarioRunner` 只解释 submit/reply/event/property/barrier/shutdown 步骤；所有事件继续来自现有 typed infrastructure。每个场景结束或失败都通过 queued finalization 关闭 runtime，确保不会在 `MpvEventLoop::drainPendingEvents()` 调用栈内销毁事件循环。Trace 最多保留 512 条记录，避免异常事件风暴导致无界增长。R2-11 probe 子目录的头文件统一以 `tools/playback_probe/` 为模块 include root，由 target 私有 include path 提供；不向其他产品 target 暴露该工具内部路径。
+
+R3-01 建立的 Domain 契约不直接复用 `MpvCommandRequest` 或 `MpvEvent` 作为产品模型。`PlaybackCommand` 采用封闭 variant，当前覆盖 load、play/pause/stop、absolute/relative seek、volume/mute、speed、initialize/shutdown；`validatePlaybackCommand()` 只做产品入口的基本值域保护。`PlaybackEvent` 采用按职责拆分的 typed payload；`MpvPlaybackEventMapper` 将 start/file-loaded/end/reply/shutdown、position/duration/pause/seekable/seeking、volume/mute/speed、buffering 和媒体 title/path 映射到 Domain。R3-01 尚不把 track-list/chapter-list/cache/video/audio Node 强行塞入 generic event，而是留给后续明确的 domain model。
 
 ## Module growth rule
 
@@ -391,6 +410,20 @@ R2-11 在不改变 R2-08 原单媒体探针行为的前提下新增 `playback_pr
 
 `playback_probe_matrix` 已直接注册为第 14 个 CTest，并设置 90 秒 CTest 总超时；内部每一步单独 10 秒超时。首次用户 Windows 构建在 CTest 之前失败：MSVC C1083 分别报告 `scenarios/playback_probe_scenario_catalog.cpp` 无法找到 `fixtures/playback_probe_media_set.h`，以及 AutoMOC 编译 `playback_probe_scenario_runner.h` 时无法找到 `runtime/playback_probe_runtime.h`。两者属于同一 CMake target include-root 缺口；随后在 `tools/playback_probe/CMakeLists.txt` 为 `playback_probe` 增加私有 `${CMAKE_CURRENT_SOURCE_DIR}` include root。用户在修复后重新执行标准 build/test，开发 runtime marker 恢复正常，`playback_probe_matrix` 通过，最终 **14/14 CTest 全部通过，0 failed，总测试时间 2.22 秒**，其中行为矩阵耗时 **0.62 秒**。R2-11 因此正式验收完成。
 
+### R3-01 — Implemented; Windows verification pending
+
+R3-01 建立产品语义的 command/event 边界，不提前建立 PlaybackSnapshot、Reducer、PlaybackSession、MediaGeneration 或 RequestTracker：
+
+- `foundation/ids/RequestId` 提供强类型异步请求身份，0 为 invalid；
+- `domain/commands/` 按 load、transport、seek、volume/mute、speed、lifecycle 分模块，`PlaybackCommand` 仅拥有封闭 variant 与 RequestId；
+- `validatePlaybackCommand()` 覆盖 invalid RequestId、空/NUL source、非有限 seek、负/NaN volume、非正/NaN speed，并与当前 R2 encoder 的后端边界保持一致；
+- `domain/events/` 按 lifecycle、media、position、buffering、property、failure、command-reply 分模块，unavailable property 使用 optional 表达；
+- `MpvPlaybackEventMapper` 位于 infrastructure/mpv/events，负责把 R2 typed MpvEvent 映射为 backend-neutral PlaybackEvent；Domain 不包含 mpv 类型、property id、property name 或 C API；
+- end-file 的 EOF/Stop/Quit/Redirect 转成领域结束原因，Error 转成 MediaFailedEvent；command reply 保留强类型 RequestId 与失败诊断；malformed typed property 转为 protocol failure；log/unknown 与尚未建立 domain model 的 track/chapter/cache/video/audio Node 不伪造 generic domain event；
+- 新增两个独立 CTest：`playback_commands` 与 `playback_events`。前者验证命令构造和值域，后者用 synthetic MpvEvent 验证 lifecycle/end/error/reply/core-property/unavailable/malformed/ignored 映射边界。
+
+当前连接环境不能运行用户 Windows Qt/MSVC/libmpv 构建；因此 R3-01 **不声明 Complete**。标准 Windows 门禁从 R2 的 14 项增加到预期 **16/16 CTest**。
+
 ## Validation record
 
 已由用户 Windows 工作区真实确认：
@@ -408,15 +441,21 @@ R2-11 在不改变 R2-08 原单媒体探针行为的前提下新增 `playback_pr
 - R2-09：12/12 CTest 通过，`mpv_event_semantics` 通过，总测试时间 2.31 秒；
 - R2-10：13/13 CTest 通过，`mpv_property_baseline` 通过，总测试时间 2.40 秒；
 - R2-11：首次 Windows build 的 C1083 include-root 问题修复后，标准 build/test 成功进入 CTest，`playback_probe_matrix` 0.62 秒通过，最终 **14/14 CTest 全部通过，0 failed，总测试时间 2.22 秒**；
+- R3-01：代码与 `playback_commands` / `playback_events` 两个 CTest 已提交；**Windows build 与预期 16/16 CTest 尚未执行，不声明通过**；
 - `Player.exe` 可正常启动并保持响应；
 - `player.log` 根目录落盘问题仍为单独已知非阻塞缺口，保留到后续相关诊断、发布门禁关闭。
 
-R2-09~R2-11 跨阶段补强任务均已完成；R2 主链可真实运行、错误可诊断、标准 Windows build/CTest 全绿，没有当前已知的 R2 硬阻断。依据 Stage R2 关闭条件，**Stage R2 正式 Complete**。下一阶段为 R3：领域状态与 PlaybackSession。
+R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage R3 当前为 In Progress，R3-01 为 Implemented、等待 Windows 验收。
 
 ## Change Log
 
 ### 2026-08-08
 
+- Started Stage R3 on a dedicated `agent/r3-stage` branch from the accepted R2 head.
+- Implemented R3-01 product-semantic playback command contracts with a strong `RequestId`, responsibility-separated load/transport/seek/volume/speed/lifecycle payloads and centralized validation matching the accepted R2 backend bounds.
+- Implemented R3-01 typed PlaybackEvent contracts for lifecycle, media, position, buffering, core property, failure and command-reply semantics without leaking mpv property strings or C types into Domain.
+- Added `MpvPlaybackEventMapper` as the infrastructure-to-domain adapter for typed R2 events; unsupported future track/chapter/cache/video/audio domain models remain intentionally unmapped instead of entering a generic string/property container.
+- Added independent `playback_commands` and `playback_events` CTests; expected Windows suite size is now 16 tests. Windows build/CTest has not yet been run for R3-01, so the task remains pending acceptance.
 - Accepted R2-11 after the user reran the standard Windows build/test flow: the development runtime marker recovered, `playback_probe_matrix` passed in 0.62 seconds, and all 14 CTests passed with 0 failures in 2.22 seconds total.
 - Closed Stage R2 after R2-09~R2-11 mature-player behavior supplements were all implemented and verified; the previously recorded repository-root `player.log` issue remains an explicit non-blocking diagnostic gap for a later gate.
 - Accepted R2-10 after the user confirmed the real Windows environment passed all 13 CTests, including `mpv_property_baseline`, in 2.40 seconds total.
@@ -496,4 +535,35 @@ Total Test time (real) = 2.22 sec
 
 R2-01 记录的仓库根 `player.log` 落盘问题仍是明确的非阻塞缺口；它没有被本次验收伪装为已解决，后续仍需在相关诊断、发布门禁前单独关闭。
 
-**Stage R2：Complete。R2-10：Complete。R2-11：Complete。下一阶段：R3。**
+## R3-01 local verification
+
+R3-01 新增两个纯/合成 CTest，不要求额外媒体样本。请从 R2 已验收工作区切到新的 R3 stage 分支并执行：
+
+```powershell
+git fetch origin
+git switch --track origin/agent/r3-stage
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r3.log 2>&1
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1
+```
+
+如果本地已经存在 `agent/r3-stage`，则使用：
+
+```powershell
+git switch agent/r3-stage
+git pull --ff-only origin agent/r3-stage
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r3.log 2>&1
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1
+```
+
+预期新增：
+
+```text
+playback_commands
+playback_events
+```
+
+标准门禁应从 14 项增加到 **16/16 passed, 0 failed**。当前连接环境未执行该 Windows 门禁，因此 README 仅记录为预期结果，不写成已通过。
+
+R2-01 的 `player.log` 落盘缺口继续作为非阻塞诊断事项保留。
+
+**Stage R2：Complete。Stage R3：In Progress。R3-01：Implemented; Windows verification pending。**
