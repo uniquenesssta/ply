@@ -45,6 +45,7 @@ struct MpvEndFileData final
     qint64 playlistEntryId = 0;
     qint64 playlistInsertId = 0;
     int playlistInsertNumEntries = 0;
+    int rawReason = 0;
 };
 
 struct MpvLogMessageData final
