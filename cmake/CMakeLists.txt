@@ -7,7 +7,6 @@ include(CompilerWarnings)
 include(Sanitizers)
 include(StaticAnalysis)
 include(AppTargets)
-include(QtRuntimeDeployment)
 
 option(PLAYER_ENABLE_SANITIZERS "Enable supported sanitizers in development builds" OFF)
 option(PLAYER_ENABLE_CLANG_TIDY "Enable clang-tidy for project targets" OFF)
