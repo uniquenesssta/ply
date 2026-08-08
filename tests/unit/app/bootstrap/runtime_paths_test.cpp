@@ -31,6 +31,7 @@ private slots:
     void initTestCase();
     void cleanupTestCase();
     void installedModeUsesStandardLocations();
+    void developmentBuildWritesLogToProjectRoot();
     void portableModeStaysBesideExecutable();
     void portableMarkerControlsAutomaticModeDetection();
 };
@@ -72,6 +73,26 @@ void RuntimePathsTest::installedModeUsesStandardLocations()
     QCOMPARE(paths.dataDirectory(), expectedData);
     QCOMPARE(paths.logDirectory(), childPath(expectedData, QStringLiteral("logs")));
     QCOMPARE(paths.screenshotDirectory(), expectedScreenshots);
+}
+
+void RuntimePathsTest::developmentBuildWritesLogToProjectRoot()
+{
+    QTemporaryDir projectDirectory;
+    QVERIFY(projectDirectory.isValid());
+
+    const QString buildDirectory = childPath(projectDirectory.path(), QStringLiteral("build"));
+    const QString executableDirectory = childPath(
+        buildDirectory,
+        QStringLiteral("windows-msvc-debug"));
+    QVERIFY(QDir().mkpath(executableDirectory));
+
+    const RuntimePaths paths = RuntimePaths::resolve(
+        RuntimePaths::Mode::Installed,
+        executableDirectory);
+
+    QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
+    QCOMPARE(paths.executableDirectory(), executableDirectory);
+    QCOMPARE(paths.logDirectory(), cleanPath(projectDirectory.path()));
 }
 
 void RuntimePathsTest::portableModeStaysBesideExecutable()
