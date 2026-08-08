@@ -143,14 +143,14 @@ void MpvPropertyObserverTest::registryOwnsCorePropertyDefinitions()
     const MpvPropertyDefinition* position = MpvPropertyRegistry::findById(MpvPropertyId::Position);
     QVERIFY(position != nullptr);
     QCOMPARE(position->name, QByteArrayLiteral("time-pos"));
-    QCOMPARE(position->format, MpvPropertyFormat::Double);
+    QVERIFY(position->format == MpvPropertyFormat::Double);
 
     const MpvPropertyDefinition* trackList = MpvPropertyRegistry::findById(MpvPropertyId::TrackList);
     const MpvPropertyDefinition* chapterList = MpvPropertyRegistry::findById(MpvPropertyId::ChapterList);
     QVERIFY(trackList != nullptr);
     QVERIFY(chapterList != nullptr);
-    QCOMPARE(trackList->format, MpvPropertyFormat::Node);
-    QCOMPARE(chapterList->format, MpvPropertyFormat::Node);
+    QVERIFY(trackList->format == MpvPropertyFormat::Node);
+    QVERIFY(chapterList->format == MpvPropertyFormat::Node);
 }
 
 void MpvPropertyObserverTest::observerRequiresInitializedHandle()
