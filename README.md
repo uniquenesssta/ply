@@ -1,6 +1,6 @@
 # Modular Qt 6 + libmpv Player
 
-Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。当前处于 R2：无 UI libmpv 播放核心阶段。
+Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。R2：无 UI libmpv 播放核心已完成验收；下一阶段为 R3：领域状态与 PlaybackSession。
 
 ## Current baseline
 
@@ -21,9 +21,9 @@ Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。当前�
 - R2-07 `events/ + errors/`：typed `MpvEvent`、libmpv error mapper、完整核心事件 decode，以及 track/chapter Node 深拷贝为 Qt-owned 数据；
 - R2-08 `tools/playback_probe/`：无 QML 的真实 libmpv 控制台探针，复用现有 typed command/event/property 主链；
 - Windows 构建后显式 `windeployqt` 与 `.player-development-root` 开发标记；
-- R2-07 已由用户 Windows 环境完成 11/11 CTest 验收，总测试时间 2.18 秒。
+- R2-08 已由用户 Windows 环境完成最终验收：11/11 CTest 全绿（1.47 秒），真实媒体主链 PASS，非法媒体错误路径返回明确加载失败诊断。
 
-R2 的源码职责已经全部落地；当前只剩 R2-08 在用户 Windows 环境用本地合法媒体完成真实 `load -> pause -> play -> seek -> stop/end-file -> close` 验收。PlaybackSession、Render API、数据库、播放列表、完整播放器 UI 与安装包继续在 R3 及后续阶段实现，不提前堆入当前模块。
+R2 已完成：固定 libmpv、RAII、初始化 profile、wakeup/event loop、typed async commands、property observation、typed event/error/node decode 与 headless playback probe 均已实现并通过阶段门禁。PlaybackSession 从 R3 开始；Render API、数据库、播放列表、完整播放器 UI 与安装包继续在后续阶段实现，不提前堆入 R2。
 
 ## Product scope
 
@@ -179,7 +179,7 @@ Debug 可执行文件：
 
 ```text
 build/windows-msvc-debug/Player.exe
-build/windows-msvc-debug/tools/playback_probe/playback_probe.exe
+build/windows-msvc-debug/cmake/playback_probe.exe
 ```
 
 `build.ps1` 在成功生成 Player 后写入并验证：
@@ -301,7 +301,7 @@ R1-01 ~ R1-06：Complete。用户 Windows 环境已经验证 configure/build/tes
 
 用户在 Windows `9c9f58c` 基线完成 R2-07 本机验收：`scripts/test.ps1` 报告 **11/11 CTest 全部通过**，新增 `mpv_event_decoder` 通过，总测试时间 **2.18 秒**。用户同时在此之前执行了 `scripts/build.ps1`；构建输出被重定向到 `build-r2.log`，本对话未单独读取该日志内容。
 
-### R2-08 — Implemented; local-media runtime acceptance pending
+### R2-08 — Complete
 
 新增 `tools/playback_probe/`，按职责拆分为：
 
@@ -313,7 +313,7 @@ probe 不访问 raw `mpv_event`/`mpv_node`，不调用散落的 `mpv_command_*`�
 
 CMake 新增顶层 `tools/` 构建入口；`playback_probe` 链接 `player_mpv_infrastructure + LibMpv::LibMpv + Qt6::Core`，复用固定 libmpv runtime staging，并额外复制匹配配置的 Qt6 Core DLL，保证用户可直接从 build 输出目录运行探针。
 
-当前连接环境不能执行用户 Windows Qt/MSVC/libmpv 二进制，因此 R2-08 源码/CMake/边界已实现，但不能在这里声明本机合法媒体主链已经通过。R2-08 的完成门禁是：正常 build、既有 11/11 CTest 不回归、一个本地合法短媒体完整输出 PASS，以及一个不存在/不可加载媒体返回非零并打印明确错误。
+用户在 Windows `0d2fc38` 基线完成 R2-08 本机验收：`scripts/test.ps1` 报告 **11/11 CTest 全部通过**、0 failed，总测试时间 **1.47 秒**；实际 probe 产物位于 `build/windows-msvc-debug/cmake/playback_probe.exe`。本地合法媒体完整通过 `load -> pause -> file-loaded -> play -> seek -> stop -> end-file(reason=stop) -> close` 并输出 PASS。不存在媒体进入 `end-file(reason=error)`，输出 `FAIL: media ended with an error: loading failed`；runner 的失败路径使用默认退出码 2，`main.cpp` 将该退出码传给 `QCoreApplication::exit()`，因此错误路径为非零退出。未观察到 crash、deadlock 或步骤超时。
 
 ## Validation record
 
@@ -328,10 +328,11 @@ CMake 新增顶层 `tools/` 构建入口；`playback_probe` 链接 `player_mpv_i
 - R2-05：9/9 CTest 通过；
 - R2-06：10/10 CTest 通过，`mpv_properties` 通过，总测试时间 1.88 秒；
 - R2-07：11/11 CTest 通过，`mpv_event_decoder` 通过，总测试时间 2.18 秒；
+- R2-08：11/11 CTest 回归通过，总测试时间 1.47 秒；合法媒体 probe PASS；不存在媒体得到 `end-file(reason=error)` + `loading failed`，失败链返回非零退出码；
 - `Player.exe` 可正常启动并保持响应；
 - `player.log` 根目录落盘问题仍为单独已知缺口，不阻塞当前普通 R2 Atomic Task。
 
-R2-08 尚未在用户 Windows 环境执行合法媒体 probe；该真实运行门禁通过前不标记 R2-08 Complete，也不进入 R3。
+R2-08 已完成，R2 阶段关闭。已知的仓库根 `player.log` 落盘缺口继续按既有记录作为非阻塞事项保留，后续在相关诊断/发布门禁前关闭；下一 Atomic Task 为 R3-01。
 
 ## Change Log
 
@@ -342,7 +343,9 @@ R2-08 尚未在用户 Windows 环境执行合法媒体 probe；该真实运行�
 - Added the real headless control sequence `load -> pause -> play -> relative seek -> stop -> end-file -> close`, per-step diagnostics and 15-second timeouts without adding PlaybackSession or product playback state.
 - Deferred probe runtime teardown through Qt queued finalization so an `eventDecoded` callback never destroys `MpvEventLoop` while its drain stack is still active.
 - Added a probe-only `config=no + vo=null + ao=null` profile and direct Qt6 Core/libmpv runtime staging so the console probe does not depend on a QML window, user mpv.conf or physical audio output.
-- Kept R2-08 completion pending until the user runs one local legal media success path plus one invalid-media error path on Windows; existing 11 CTests remain the regression gate.
+- Accepted R2-08 after the user confirmed all 11 CTests still passed in 1.47 seconds, a real local media probe completed the full headless control chain with PASS, and a missing-media probe produced `end-file(reason=error)` with `loading failed` and a non-zero failure exit path.
+- Corrected the documented playback probe output path to `build/windows-msvc-debug/cmake/playback_probe.exe`; no source, public-interface, dependency or runtime behavior change was required for this correction.
+- Closed Stage R2; the next Atomic Task is R3-01.
 - Accepted R2-06 after the user confirmed the real Windows build and all ten CTests passed, including `mpv_properties`, in 1.88 seconds total.
 - Implemented R2-07 typed event boundary: raw `mpv_event` is decoded inside `infrastructure/mpv` into Qt-owned `MpvEvent` before the next `mpv_wait_event` call.
 - Added `errors/MpvErrorMapper` with known/unknown libmpv error mapping and preserved raw diagnostics.
@@ -367,32 +370,19 @@ R2-08 尚未在用户 Windows 环境执行合法媒体 probe；该真实运行�
 - Added the project-controlled MSYS2 CLANG64 libmpv source-build pipeline and fixed source/archive acquisition boundaries.
 - Kept all third-party binaries/build trees outside Git and preserved repository-parent-relative dependency paths。
 
-## Current R2 local verification
+## R2 final acceptance
 
-R2-08 不需要重新关闭已延后的 `player.log`。从仓库根目录执行：
-
-```powershell
-git pull --ff-only origin agent/r2-stage
-powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r2.log 2>&1
-powershell -ExecutionPolicy Bypass -File scripts\test.ps1
-```
-
-上面必须保持 **11/11 CTest** 全绿。然后用一个你本机合法、时长至少数秒的媒体文件运行：
-
-```powershell
-.\build\windows-msvc-debug\tools\playback_probe\playback_probe.exe "F:\path\to\sample.mp4"
-```
-
-成功路径必须最终打印：
+R2-08 的最终 Windows 本机验收基于 `0d2fc38`：
 
 ```text
-[playback_probe] PASS: load -> pause -> play -> seek -> stop -> end-file -> close
+CTest: 11/11 passed, 0 failed, total 1.47 s
+playback_probe executable: build/windows-msvc-debug/cmake/playback_probe.exe
+valid local media: PASS: load -> pause -> play -> seek -> stop -> end-file -> close
+missing media: end-file reason=error; FAIL: media ended with an error: loading failed
 ```
 
-再验证一个错误路径：
+错误路径的 `PlaybackProbeRunner::fail()` 默认退出码为 2，并由 `main.cpp` 传递给 `QCoreApplication::exit()`；因此该路径满足非零退出门禁。成功和错误路径均完成正常收尾，未观察到 crash、deadlock 或 15 秒步骤超时。
 
-```powershell
-.\build\windows-msvc-debug\tools\playback_probe\playback_probe.exe "F:\definitely-not-exist\missing.mp4"
-```
+R2-01 记录的仓库根 `player.log` 落盘问题仍是明确的非阻塞缺口，不因 R2-08 完成而伪装为已解决；应在后续相关诊断/发布门禁前单独关闭。
 
-错误路径必须返回非零退出码并打印明确 `FAIL`/libmpv 诊断，不能 crash、deadlock 或超过步骤超时。两条 probe 路径都满足后，R2-08 才可标记 Complete，并进入 R3。
+**Stage R2：Complete。下一 Atomic Task：R3-01。**
