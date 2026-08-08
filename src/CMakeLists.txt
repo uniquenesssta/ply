@@ -15,3 +15,8 @@ install(
 )
 
 qt_finalize_executable(player_app)
+
+player_enable_qt_runtime_deployment(
+    player_app
+    "${CMAKE_CURRENT_SOURCE_DIR}/presentation/qml"
+)

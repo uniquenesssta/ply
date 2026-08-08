@@ -13,6 +13,7 @@ $requiredFiles = @(
     "cmake/DependencyPaths.cmake",
     "cmake/DependencyVersions.cmake",
     "cmake/FindLibMpv.cmake",
+    "cmake/QtRuntimeDeployment.cmake",
     "cmake/Sanitizers.cmake",
     "cmake/StaticAnalysis.cmake",
     "scripts/configure.ps1",
@@ -130,6 +131,7 @@ foreach ($fragment in @(
     "include(DependencyVersions)",
     "include(DependencyPaths)",
     "include(AppTargets)",
+    "include(QtRuntimeDeployment)",
     'Qt6 ${PLAYER_QT_VERSION} EXACT',
     'find_package(LibMpv ${PLAYER_MPV_VERSION} EXACT REQUIRED)',
     'add_subdirectory("../src" "../src")',
@@ -161,13 +163,39 @@ if ($findLibMpv -match '[A-Za-z]:[/\\]') {
     throw "FindLibMpv.cmake contains a machine-absolute Windows path."
 }
 
+$qtRuntimeDeployment = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/QtRuntimeDeployment.cmake") -Raw
+foreach ($fragment in @(
+    'function(player_enable_qt_runtime_deployment target qml_source_dir)',
+    'PLAYER_QT_ROOT',
+    'windeployqt.exe',
+    'add_custom_target(',
+    'ALL',
+    '"--$<IF:$<CONFIG:Debug>,debug,release>"',
+    '--qmldir "${qml_source_dir}"',
+    '--dir "$<TARGET_FILE_DIR:${target}>"',
+    '"$<TARGET_FILE:${target}>"',
+    'DEPENDS ${target}'
+)) {
+    if (-not $qtRuntimeDeployment.Contains($fragment)) {
+        throw "QtRuntimeDeployment.cmake is missing required build-tree deployment behavior: $fragment"
+    }
+}
+if ($qtRuntimeDeployment -match '[A-Za-z]:[/\\]') {
+    throw "QtRuntimeDeployment.cmake contains a machine-absolute Windows path."
+}
+if ($qtRuntimeDeployment -match '(?i)set\s*\(\s*ENV\{|setenv|PATH=') {
+    throw "QtRuntimeDeployment.cmake must deploy beside the executable rather than mutating process/global PATH."
+}
+
 $srcCMake = Get-Content -LiteralPath (Join-Path $projectRoot "src/CMakeLists.txt") -Raw
 foreach ($fragment in @(
     "add_subdirectory(playback)",
-    "player_stage_libmpv_runtime(player_app)"
+    "player_stage_libmpv_runtime(player_app)",
+    "player_enable_qt_runtime_deployment(",
+    '"${CMAKE_CURRENT_SOURCE_DIR}/presentation/qml"'
 )) {
     if (-not $srcCMake.Contains($fragment)) {
-        throw "src/CMakeLists.txt is missing required R2-01 playback/runtime staging fragment: $fragment"
+        throw "src/CMakeLists.txt is missing required playback/runtime deployment fragment: $fragment"
     }
 }
 
@@ -421,4 +449,4 @@ if ($dependencyVerifier.Contains("it becomes required in Stage R2")) {
     throw "verify-dependencies.ps1 still treats libmpv as optional after R2 started."
 }
 
-Write-Host "Project layout, R2-01 fixed libmpv target/runtime probe, R1-06 QML shell diagnostics, R1-05 composition root ownership, parent-workspace relative paths, Windows normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R2-01 fixed libmpv target/runtime probe, build-tree Qt runtime deployment, R1-06 QML shell diagnostics, R1-05 composition root ownership, parent-workspace relative paths, Windows normalization, compatible tool gates, and CMake responsibility boundaries are complete."
