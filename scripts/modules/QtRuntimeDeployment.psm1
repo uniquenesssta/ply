@@ -73,14 +73,14 @@ function Invoke-PlayerQtRuntimeDeployment {
     $qmlSourceDirectory = Join-Path $projectRootPath "src/presentation/qml"
     $windeployQt = Join-Path $qtRootPath "bin/windeployqt.exe"
 
-    foreach ($requiredPath in @(
-        @("Player executable", $executablePath, "Leaf"),
-        @("QML source directory", $qmlSourceDirectory, "Container"),
-        @("windeployqt", $windeployQt, "Leaf")
-    )) {
-        if (-not (Test-Path -LiteralPath $requiredPath[1] -PathType $requiredPath[2])) {
-            throw "$($requiredPath[0]) was not found at '$($requiredPath[1])'."
-        }
+    if (-not (Test-Path -LiteralPath $executablePath -PathType Leaf)) {
+        throw "Player executable was not found at '$executablePath'."
+    }
+    if (-not (Test-Path -LiteralPath $qmlSourceDirectory -PathType Container)) {
+        throw "QML source directory was not found at '$qmlSourceDirectory'."
+    }
+    if (-not (Test-Path -LiteralPath $windeployQt -PathType Leaf)) {
+        throw "windeployqt was not found at '$windeployQt'."
     }
 
     $configurationFlag = if ($Preset -eq "windows-msvc-debug") { "--debug" } else { "--release" }
