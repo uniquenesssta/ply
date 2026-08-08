@@ -118,6 +118,13 @@ RuntimePaths::Mode RuntimePaths::detectMode(const QString& executableDirectory)
         return Mode::Installed;
     }
 
+    // Development builds always use the repository-root runtime policy. A stale
+    // portable.flag beside a build artifact must not redirect development logs
+    // into the generated build tree.
+    if (!developmentProjectDirectory(normalizedExecutableDirectory).isEmpty()) {
+        return Mode::Installed;
+    }
+
     const QString markerPath = QDir(normalizedExecutableDirectory).filePath(
         QString::fromLatin1(kPortableMarkerFileName));
     return QFileInfo(markerPath).isFile() ? Mode::Portable : Mode::Installed;
