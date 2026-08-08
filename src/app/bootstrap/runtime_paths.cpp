@@ -8,6 +8,13 @@
 
 #include <utility>
 
+#ifdef Q_OS_WIN
+#include <Windows.h>
+
+#include <cstddef>
+#include <vector>
+#endif
+
 namespace player::app {
 namespace {
 
@@ -31,6 +38,29 @@ QString childPath(const QString& parent, const QString& child)
     }
 
     return normalizedPath(QDir(parent).filePath(child));
+}
+
+QString currentProcessExecutableFilePath()
+{
+#ifdef Q_OS_WIN
+    std::vector<wchar_t> pathBuffer(32768, L'\0');
+    const DWORD length = GetModuleFileNameW(
+        nullptr,
+        pathBuffer.data(),
+        static_cast<DWORD>(pathBuffer.size()));
+    if (length == 0 || static_cast<std::size_t>(length) >= pathBuffer.size()) {
+        return {};
+    }
+
+    return normalizedPath(
+        QString::fromWCharArray(pathBuffer.data(), static_cast<int>(length)));
+#else
+    if (QCoreApplication::instance() == nullptr) {
+        return {};
+    }
+
+    return normalizedPath(QCoreApplication::applicationFilePath());
+#endif
 }
 
 QString developmentProjectDirectory(const QString& executableDirectory)
@@ -92,6 +122,11 @@ RuntimePaths RuntimePaths::current()
 {
     const QString executableDirectory = normalizedPath(QCoreApplication::applicationDirPath());
     return resolve(detectMode(executableDirectory), executableDirectory);
+}
+
+RuntimePaths RuntimePaths::fromCurrentProcessExecutable()
+{
+    return fromExecutableFilePath(currentProcessExecutableFilePath());
 }
 
 RuntimePaths RuntimePaths::fromExecutableFilePath(const QString& executableFilePath)
