@@ -1,7 +1,9 @@
 add_library(player_playback_domain STATIC)
 
+add_subdirectory(errors)
 add_subdirectory(commands)
 add_subdirectory(events)
+add_subdirectory(state)
 
 player_apply_compiler_options(player_playback_domain)
 player_enable_compiler_warnings(player_playback_domain)
