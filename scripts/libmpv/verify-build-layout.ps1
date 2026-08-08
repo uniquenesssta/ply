@@ -178,15 +178,22 @@ try {
         'player_source_status_is_only_initial_deletions',
         'player_recover_incomplete_no_checkout_clone',
         'git -C "$source_dir" reset --hard HEAD >&2',
+        'player_submodules_are_ready_offline',
+        'git -C "$source_dir" submodule status --recursive',
+        'if [[ -n "$expected_commit" && "$actual_commit" == "$expected_commit" ]]; then',
+        'if [[ "$source_matches_expected" == "true" ]]; then',
+        'Reusing verified local source checkout for %s at %s.',
+        'elif [[ "$installed_new" != "true" ]]; then',
         'Fetching $name source ref $ref',
         'fetch --force --depth=1 --no-tags origin "$ref"',
+        'Reusing initialized local submodules for %s.',
         'Updating $name source submodules',
         'submodule update --init --recursive --depth 1 --jobs 1',
         'Source checkout contains local changes and will not be overwritten',
         'printf ''%s\n'' "$source_dir"'
     )) {
         if (-not $sourceCheckout.Contains($fragment)) {
-            throw "source_checkout.sh is missing shallow-source/network-safety fragment: $fragment"
+            throw "source_checkout.sh is missing local-reuse/shallow-source/network-safety fragment: $fragment"
         }
     }
     if ($sourceCheckout.Contains('git clone')) {
@@ -238,7 +245,7 @@ try {
         throw "package-runtime.sh must not read FFmpeg license files from the retired Git source path."
     }
 
-    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, shallow Git checkout, signed FFmpeg release archives with isolated PGP trust, resumable downloads, archive-backed license staging, MSYS-root invocation, and LGPL-oriented build policy are complete."
+    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, offline reuse of verified Git checkouts/submodules, shallow network fallback, signed FFmpeg release archives with isolated PGP trust, resumable downloads, archive-backed license staging, MSYS-root invocation, and LGPL-oriented build policy are complete."
 }
 finally {
     Pop-Location

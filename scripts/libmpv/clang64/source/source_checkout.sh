@@ -177,6 +177,23 @@ player_recover_incomplete_no_checkout_clone() {
     [[ -z "$recovered_status" ]]
 }
 
+player_submodules_are_ready_offline() {
+    local source_dir="$1"
+    local submodule_status
+    local line
+
+    if ! submodule_status="$(git -C "$source_dir" submodule status --recursive)"; then
+        return 1
+    fi
+
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        [[ "${line:0:1}" == " " ]] || return 1
+    done <<< "$submodule_status"
+
+    return 0
+}
+
 player_write_source_metadata() {
     local name="$1"
     local url="$2"
@@ -200,6 +217,8 @@ player_fetch_source() {
     local source_dir="$PLAYER_SOURCE_ROOT/$name"
     local status_output
     local installed_new=false
+    local actual_commit
+    local source_matches_expected=false
 
     # This function is consumed through command substitution. Keep stdout reserved
     # for the final source path and send all operational diagnostics to stderr.
@@ -229,7 +248,17 @@ player_fetch_source() {
         return 1
     fi
 
-    if [[ "$installed_new" != "true" ]]; then
+    if ! actual_commit="$(git -C "$source_dir" rev-parse HEAD)"; then
+        printf 'Unable to resolve checked-out source commit for %s.\n' "$name" >&2
+        return 1
+    fi
+    if [[ -n "$expected_commit" && "$actual_commit" == "$expected_commit" ]]; then
+        source_matches_expected=true
+    fi
+
+    if [[ "$source_matches_expected" == "true" ]]; then
+        printf 'Reusing verified local source checkout for %s at %s.\n' "$name" "$actual_commit" >&2
+    elif [[ "$installed_new" != "true" ]]; then
         if ! player_git_network_retry \
             "Fetching $name source ref $ref" \
             player_git_http -C "$source_dir" fetch --force --depth=1 --no-tags origin "$ref"; then
@@ -239,28 +268,36 @@ player_fetch_source() {
             printf 'Unable to checkout fetched source ref for %s: %s\n' "$name" "$ref" >&2
             return 1
         fi
+        if ! actual_commit="$(git -C "$source_dir" rev-parse HEAD)"; then
+            printf 'Unable to resolve fetched source commit for %s.\n' "$name" >&2
+            return 1
+        fi
+    fi
+
+    if [[ -n "$expected_commit" && "$actual_commit" != "$expected_commit" ]]; then
+        printf 'Source identity mismatch for %s: expected %s, found %s\n' \
+            "$name" "$expected_commit" "$actual_commit" >&2
+        return 1
     fi
 
     if [[ "$recurse_submodules" == "true" ]]; then
-        if ! git -C "$source_dir" submodule sync --recursive >&2; then
-            printf 'Unable to synchronize submodule configuration for %s.\n' "$name" >&2
-            return 1
+        if player_submodules_are_ready_offline "$source_dir"; then
+            printf 'Reusing initialized local submodules for %s.\n' "$name" >&2
+        else
+            if ! git -C "$source_dir" submodule sync --recursive >&2; then
+                printf 'Unable to synchronize submodule configuration for %s.\n' "$name" >&2
+                return 1
+            fi
+            if ! player_git_network_retry \
+                "Updating $name source submodules" \
+                player_git_http -C "$source_dir" submodule update --init --recursive --depth 1 --jobs 1; then
+                return 1
+            fi
+            if ! player_submodules_are_ready_offline "$source_dir"; then
+                printf 'Submodules for %s are still incomplete after update.\n' "$name" >&2
+                return 1
+            fi
         fi
-        if ! player_git_network_retry \
-            "Updating $name source submodules" \
-            player_git_http -C "$source_dir" submodule update --init --recursive --depth 1 --jobs 1; then
-            return 1
-        fi
-    fi
-
-    local actual_commit
-    if ! actual_commit="$(git -C "$source_dir" rev-parse HEAD)"; then
-        printf 'Unable to resolve checked-out source commit for %s.\n' "$name" >&2
-        return 1
-    fi
-    if [[ -n "$expected_commit" && "$actual_commit" != "$expected_commit" ]]; then
-        printf 'Source identity mismatch for %s: expected %s, found %s\n' "$name" "$expected_commit" "$actual_commit" >&2
-        return 1
     fi
 
     if ! player_write_source_metadata "$name" "$url" "$ref" "$actual_commit"; then
