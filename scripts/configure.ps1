@@ -9,8 +9,10 @@ Set-StrictMode -Version Latest
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $versionModulePath = Join-Path $PSScriptRoot "modules/DependencyVersions.psm1"
 $pathModulePath = Join-Path $PSScriptRoot "modules/DependencyPaths.psm1"
+$developmentRuntimeModulePath = Join-Path $PSScriptRoot "modules/DevelopmentRuntime.psm1"
 Import-Module $versionModulePath -Force
 Import-Module $pathModulePath -Force
+Import-Module $developmentRuntimeModulePath -Force
 
 Push-Location $projectRoot
 try {
@@ -23,6 +25,12 @@ try {
 
     $ninja = Resolve-PlayerNinja -Layout $layout
     Resolve-PlayerQtRoot -Layout $layout | Out-Null
+
+    # Any fresh configure invalidates the previous development-build acceptance
+    # marker. Only a later successful build may create it again.
+    Clear-PlayerDevelopmentRuntimeMarker `
+        -Preset $Preset `
+        -ProjectRoot $projectRoot
 
     # CMakeCache.txt stores resolved absolute source/build paths by design. Always
     # regenerate it so a moved, renamed, or copied checkout is not tied to the
