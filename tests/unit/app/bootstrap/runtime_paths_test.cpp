@@ -32,6 +32,7 @@ private slots:
     void cleanupTestCase();
     void installedModeUsesStandardLocations();
     void developmentBuildWritesLogToProjectRoot();
+    void developmentBuildIgnoresPortableMarkerForAutomaticModeDetection();
     void portableModeStaysBesideExecutable();
     void portableMarkerControlsAutomaticModeDetection();
 };
@@ -92,6 +93,29 @@ void RuntimePathsTest::developmentBuildWritesLogToProjectRoot()
 
     QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
     QCOMPARE(paths.executableDirectory(), executableDirectory);
+    QCOMPARE(paths.logDirectory(), cleanPath(projectDirectory.path()));
+}
+
+void RuntimePathsTest::developmentBuildIgnoresPortableMarkerForAutomaticModeDetection()
+{
+    QTemporaryDir projectDirectory;
+    QVERIFY(projectDirectory.isValid());
+
+    const QString buildDirectory = childPath(projectDirectory.path(), QStringLiteral("build"));
+    const QString executableDirectory = childPath(
+        buildDirectory,
+        QStringLiteral("windows-msvc-debug"));
+    QVERIFY(QDir().mkpath(executableDirectory));
+
+    QFile marker(QDir(executableDirectory).filePath(QStringLiteral("portable.flag")));
+    QVERIFY(marker.open(QIODevice::WriteOnly));
+    marker.close();
+
+    const RuntimePaths::Mode detectedMode = RuntimePaths::detectMode(executableDirectory);
+    QCOMPARE(detectedMode, RuntimePaths::Mode::Installed);
+
+    const RuntimePaths paths = RuntimePaths::resolve(detectedMode, executableDirectory);
+    QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
     QCOMPARE(paths.logDirectory(), cleanPath(projectDirectory.path()));
 }
 
