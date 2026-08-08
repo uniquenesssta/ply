@@ -153,8 +153,8 @@ R0-06 is not accepted or complete. Later playback tests must not claim complete 
 ### R1-02 — Complete
 
 - `RuntimePaths` owns installed/portable runtime directory resolution;
-- portable mode is selected by `portable.flag` beside the executable outside recognized development build layouts; `build/windows-msvc-*` artifacts always use development installed-mode semantics;
-- path resolution is side-effect free;
+- portable mode is selected by `portable.flag` outside recognized development build contexts; development project identity is resolved from the active repository, build ancestry, or the legacy `build/windows-msvc-*` layout;
+- path resolution performs no filesystem mutation;
 - the `runtime_paths` Qt Test passes on the user's Windows/Qt environment.
 
 Runtime paths returned by Windows/Qt may naturally be absolute operating-system values. Those are runtime values, not committed machine-specific dependency configuration.
@@ -235,14 +235,15 @@ Confirmed on the user's Windows workspace:
 - `verify-project-layout.ps1` and `verify-dependencies.ps1` pass against the produced package;
 - dependency verification records libmpv runtime SHA-256 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc` and MSVC import-library SHA-256 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`;
 - direct manual invocation of the pinned Qt `windeployqt.exe --debug --force --verbose 0 --no-translations --qmldir ...` deployed the expected Debug Qt DLLs plus `platforms/qwindowsd.dll`, after which `Player.exe` launched successfully from a normal CMD;
-- the explicit PowerShell post-build deployment path is now locally verified: `scripts/build.ps1` ends with `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug` without a manual deployment command;
+- the explicit PowerShell post-build deployment path is locally verified: `scripts/build.ps1` ends with `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug` without a manual deployment command;
 - all five CTest targets pass locally, including `mpv_runtime_probe`;
-- the first repository-root logging acceptance run after commit `34664d7` still produced no `player.log`, so final application-log acceptance remains pending.
+- the post-fix run at commit `953ccd3` also launched `Player.exe` successfully but still produced no repository-root `player.log`, so the application-log acceptance remains pending.
 
 Still required for R2-01 acceptance:
 
-- rebuild after the development-mode detection fix and launch `build/windows-msvc-debug/Player.exe` directly;
-- confirm the development log is created as `<repository>/player.log` and contains `libmpv runtime validated` with the actual DLL path and manifest identity.
+- pull the current development-root resolution follow-up and rebuild;
+- confirm all five CTests remain green with the added RuntimePaths/ApplicationContainer regression cases;
+- launch `build/windows-msvc-debug/Player.exe` from the repository root and confirm `<repository>/player.log` exists and contains `libmpv runtime validated` with the actual DLL path and manifest identity.
 
 R13 still performs the final clean-machine binary dependency/license scan for the distributable package; the current build-tree deployment is a development/runtime acceptance path, not the final installer implementation.
 
@@ -277,7 +278,8 @@ Rules:
 - Visual Studio x64 environment initialization is automatic through `vswhere.exe` and `vcvars64.bat`;
 - Qt DLL/plugin paths for tests are resolved from the relative Qt root and exist only in the child process environment;
 - the standard Windows `build.ps1` explicitly stages the matching Qt runtime/plugins/QML imports beside `Player.exe` after CMake succeeds, and verifies the core runtime files before reporting success;
-- recognized development executables under `build/windows-msvc-*` derive their log directory from the repository layout and write `player.log` at the repository root; a stale `portable.flag` in the generated build tree does not override that development policy;
+- development logging resolves the repository root without a committed absolute path: an active project-root working directory is preferred when the executable is under its `build/` tree, project markers are also discovered through executable ancestry, and the original `build/windows-msvc-*` rule remains a compatibility fallback;
+- a stale `portable.flag` in a recognized development build context does not redirect `player.log` into generated output;
 - `configure.ps1` uses CMake `--fresh` because generated CMake cache data is disposable and location-specific;
 - starting with R2, libmpv is a required sibling dependency rather than an optional future dependency;
 - MSYS2 is an external build tool installation discovered at runtime through `MSYS2_ROOT`, PATH, or the normal system-drive installation; it is not stored in the repository-parent dependency workspace.
@@ -460,7 +462,7 @@ A recognized development build writes its log directly at:
 <repository>/player.log
 ```
 
-The repository path is derived at runtime from the executable layout; no machine-specific drive path is committed.
+The repository path is derived at runtime from project identity/build layout; no machine-specific drive path is committed.
 
 After R2-01, a successful application startup must log a line beginning with:
 
@@ -510,18 +512,20 @@ Confirmed by the user on the Windows 10 development workspace through R1-06:
 
 The R2 dependency build is locally verified on the user's Windows workspace. MSYS2 bootstrap completes, the controlled source build completes through the full pinned dependency chain, the signed FFmpeg 8.0.3 archive verifies with the pinned release key, and the final libmpv package verifies all 17 recorded artifact hashes. `verify-project-layout.ps1` and `verify-dependencies.ps1` also pass against that package.
 
-The Qt build-tree runtime path is also locally verified: a direct manual `windeployqt` run first proved the built executable and Qt kit, then the explicit `build.ps1` deployment path was verified to finish with `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug`. The complete R2-01 CTest set now passes 5/5, including `mpv_runtime_probe`.
+The Qt build-tree runtime path is locally verified: direct manual `windeployqt` first proved the built executable and Qt kit, then the explicit `build.ps1` deployment path was verified to finish with `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug`. The complete R2-01 CTest set passes 5/5, including `mpv_runtime_probe`.
 
-The remaining acceptance gap is the application file log. On the first repository-root routing run at commit `34664d7`, `Player.exe` launched but no root `player.log` was observed. Development mode detection now takes precedence over `portable.flag` for recognized `build/windows-msvc-*` layouts, preventing a stale build-tree marker from redirecting the development log. This follow-up still requires one real Windows launch to confirm the root log and `libmpv runtime validated` line.
+The application file-log acceptance is still open. The user rebuilt commit `953ccd3`, confirmed automatic Qt deployment, re-ran all five passing CTests, launched `Player.exe`, and still observed no repository-root `player.log`. The current follow-up therefore broadens development-root resolution beyond only the preset leaf: it recognizes an active repository-root working directory whose `build/` tree contains the executable, recognizes the same project markers through executable ancestry, retains the prior preset-layout fallback, and adds an ApplicationContainer regression that verifies `LoggingBootstrap` creates `player.log` at a resolved development root containing spaces.
 
-Connected-environment verification for this follow-up covers the RuntimePaths source/test diff, preservation of normal non-development portable-marker behavior, repository-relative path policy, and README state. This environment does not have the user's Windows Qt 6.8.3 runtime, so the new root-log behavior remains pending the user's local Player launch.
+Connected-environment verification covers the final diff and responsibility boundaries. The connected environment does not contain the user's Windows Qt 6.8.3/MSVC runtime, so the new RuntimePaths/ApplicationContainer test additions and actual `Player.exe` root-log behavior remain pending the user's local build/test/run.
 
 ## Change Log
 
 ### 2026-08-08
 
+- Hardened development log-root resolution again after the real `953ccd3` run still produced no `player.log`: RuntimePaths now recognizes the active repository root when its `build/` tree owns the executable, recognizes repository markers through executable ancestry, and retains the existing `build/windows-msvc-*` rule only as a compatibility fallback; no absolute machine path is committed.
+- Added RuntimePaths coverage for a project root containing spaces and a nonstandard build leaf with `portable.flag`, plus ApplicationContainer/LoggingBootstrap coverage proving the resolved development root can actually create `player.log`.
 - Hardened development RuntimePaths detection so recognized `build/windows-msvc-*` executables always use development installed-mode semantics even if a stale `portable.flag` exists beside the generated executable; development logs remain `<repository>/player.log`, while normal non-development portable-marker behavior is preserved and covered by tests.
-- Recorded the real local acceptance state: automatic `build.ps1` Qt deployment is green and all five CTest targets pass; the root `player.log` was still absent on the pre-fix run, so only the post-fix runtime log line remains pending.
+- Recorded the real local acceptance state: automatic `build.ps1` Qt deployment is green and all five CTest targets pass; the root `player.log` remains the only R2-01 runtime acceptance gap.
 - Replaced the unreliable CMake `ALL` Qt deployment target with an explicit PowerShell deployment boundary: `build.ps1` now runs `windeployqt` after a successful build and fails if the expected Debug/Release Qt core DLLs or Windows platform plugin are missing; `deploy-runtime.ps1` provides the same operation with short output for targeted verification.
 - Confirmed manually on Windows that the pinned `windeployqt` command deploys the required Debug Qt runtime and that `Player.exe` launches successfully afterward.
 - Recorded successful R2 source-package creation and verification: the complete pinned libmpv dependency chain built, the signed FFmpeg 8.0.3 release verified, and all 17 package artifact hashes passed.
