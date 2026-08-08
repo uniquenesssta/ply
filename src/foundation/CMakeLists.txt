@@ -17,4 +17,5 @@ player_enable_compiler_warnings(player_foundation)
 player_enable_sanitizers(player_foundation)
 player_enable_static_analysis(player_foundation)
 
+add_subdirectory(ids)
 add_subdirectory(logging)

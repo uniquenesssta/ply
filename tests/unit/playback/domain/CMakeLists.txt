@@ -1,0 +1,46 @@
+add_executable(
+    playback_command_domain_tests
+    commands/playback_command_test.cpp
+)
+
+player_apply_compiler_options(playback_command_domain_tests)
+player_enable_compiler_warnings(playback_command_domain_tests)
+player_enable_sanitizers(playback_command_domain_tests)
+player_enable_static_analysis(playback_command_domain_tests)
+
+target_link_libraries(
+    playback_command_domain_tests
+    PRIVATE
+        player_playback_domain
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME playback_commands
+    COMMAND playback_command_domain_tests
+)
+
+add_executable(
+    playback_event_mapping_tests
+    events/playback_event_mapping_test.cpp
+)
+
+player_apply_compiler_options(playback_event_mapping_tests)
+player_enable_compiler_warnings(playback_event_mapping_tests)
+player_enable_sanitizers(playback_event_mapping_tests)
+player_enable_static_analysis(playback_event_mapping_tests)
+
+target_link_libraries(
+    playback_event_mapping_tests
+    PRIVATE
+        player_playback_domain
+        player_mpv_infrastructure
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME playback_events
+    COMMAND playback_event_mapping_tests
+)

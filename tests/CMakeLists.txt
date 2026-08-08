@@ -368,3 +368,5 @@ add_test(
     NAME mpv_runtime_probe
     COMMAND mpv_runtime_probe_tests
 )
+
+add_subdirectory(unit/playback/domain)

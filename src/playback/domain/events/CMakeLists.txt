@@ -1,0 +1,12 @@
+target_sources(
+    player_playback_domain
+    PUBLIC
+        buffering_event.h
+        command_event.h
+        failure_event.h
+        lifecycle_event.h
+        media_event.h
+        playback_event.h
+        position_event.h
+        property_event.h
+)

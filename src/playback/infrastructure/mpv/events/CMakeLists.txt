@@ -6,6 +6,14 @@ target_sources(
         mpv_event_decoder.h
         mpv_event_loop.cpp
         mpv_event_loop.h
+        mpv_playback_event_mapper.cpp
+        mpv_playback_event_mapper.h
         mpv_wakeup_bridge.cpp
         mpv_wakeup_bridge.h
+)
+
+target_link_libraries(
+    player_mpv_infrastructure
+    PRIVATE
+        player_playback_domain
 )
