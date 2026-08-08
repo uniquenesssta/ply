@@ -4,6 +4,7 @@ add_subdirectory(client)
 add_subdirectory(initialization)
 add_subdirectory(commands)
 add_subdirectory(events)
+add_subdirectory(properties)
 add_subdirectory(runtime)
 
 player_apply_compiler_options(player_mpv_infrastructure)
