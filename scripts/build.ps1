@@ -25,6 +25,10 @@ try {
     $cmake = Resolve-PlayerCMake -Layout $layout
     $qtRoot = Resolve-PlayerQtRoot -Layout $layout
 
+    Clear-PlayerDevelopmentRuntimeMarker `
+        -Preset $Preset `
+        -ProjectRoot $projectRoot
+
     & $cmake --build --preset $Preset
     if ($LASTEXITCODE -ne 0) {
         throw "CMake build failed with exit code $LASTEXITCODE."
