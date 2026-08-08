@@ -87,7 +87,8 @@ MpvEvent MpvEventDecoder::decode(const mpv_event& event)
             mapEndFileReason(endFile->reason),
             static_cast<qint64>(endFile->playlist_entry_id),
             static_cast<qint64>(endFile->playlist_insert_id),
-            endFile->playlist_insert_num_entries};
+            endFile->playlist_insert_num_entries,
+            static_cast<int>(endFile->reason)};
         return decoded;
     }
     case MPV_EVENT_COMMAND_REPLY:
