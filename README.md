@@ -17,11 +17,12 @@ Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。当前�
 - R2-03 `initialization/`：产品 option profile、`config=no`、option 校验、初始化失败清理；
 - R2-04 `events/`：wakeup callback 与 Qt 事件循环桥接、所属 Qt 线程 drain、关闭时 callback 失效/注销与在途 callback 收敛；
 - R2-05 `commands/`：typed request、命令编码与 `mpv_command_async` 提交边界，request id 原样进入 `reply_userdata`；
-- R2-06 `properties/`：核心 property registry、observe/unobserve 生命周期、FLAG/DOUBLE/None 安全 typed decode，以及 track/chapter Node 注册入口；
+- R2-06 `properties/`：核心 property registry、observe/unobserve 生命周期、FLAG/DOUBLE/None 安全 typed decode；
+- R2-07 `events/ + errors/`：typed `MpvEvent`、libmpv error mapper、完整核心事件 decode，以及 track/chapter Node 深拷贝为 Qt-owned 数据；
 - Windows 构建后显式 `windeployqt` 与 `.player-development-root` 开发标记；
-- R2-06 代码加入后测试集目标数为 10 个；前 9 个已在用户 Windows 环境通过，新增 `mpv_properties` 等待本机验收。
+- R2-07 加入后测试集目标数为 11 个；前 10 个已经由用户 Windows 环境验证，新增 `mpv_event_decoder` 等待本机验收。
 
-当前仍未进入的职责：完整 event decoder、PlaybackSession、Render API、数据库、播放列表、完整播放器 UI 与安装包。这些继续按阶段任务书推进，不提前堆入现有模块。
+当前仍未进入的 R2 职责只剩控制台 `playback_probe`；PlaybackSession、Render API、数据库、播放列表、完整播放器 UI 与安装包继续在 R3 及后续阶段实现，不提前堆入当前模块。
 
 ## Product scope
 
@@ -37,7 +38,7 @@ MVP 包括：本地文件、网络 URL、播放/暂停/停止、绝对/相对 Se
 QML presentation
       ↓ intent / projected state
 Application layer (PlaybackSession arrives in R3)
-      ↓ commands / events
+      ↓ commands / typed events
 libmpv infrastructure
       ↓ public C API
 libmpv
@@ -67,25 +68,29 @@ src/playback/infrastructure/mpv/commands/
   MpvCommandEncoder 只把 typed request 转成拥有自身字符串生命周期的 mpv argv；
   MpvCommandExecutor 只在其 Qt owner thread 调用 mpv_command_async，不保存播放真值、不追踪 reply 生命周期。
 
+src/playback/infrastructure/mpv/errors/
+  MpvErrorMapper 把 libmpv 原始错误码收敛为内部 MpvError，同时保留 raw code 与诊断文本。
+
 src/playback/infrastructure/mpv/events/
   MpvWakeupBridge 只把 libmpv 内部线程 wakeup 转为 Qt queued signal；
-  MpvEventLoop 只在其 QObject 所属线程执行 mpv_wait_event(handle, 0) drain。
-  callback 不调用普通 libmpv API，不承载业务逻辑，也不建立 PlaybackSnapshot。
+  MpvEventLoop 只在其 QObject 所属线程执行 mpv_wait_event(handle, 0) drain；
+  MpvEventDecoder 在下一次 mpv_wait_event 前把 raw event/payload 深拷贝成内部 MpvEvent；
+  raw mpv_event、mpv_event_*、mpv_node 指针不离开 infrastructure/mpv。
 
 src/playback/infrastructure/mpv/properties/
   MpvPropertyRegistry 集中拥有核心 property 名、稳定 observation id 与期望格式；
-  MpvPropertyObserver 只负责 observe/unobserve、Qt owner-thread 约束和 property payload 的 typed decode；
-  R2-06 不解释完整 mpv event，也不建立播放状态真值。
+  MpvPropertyObserver 负责 observe/unobserve、Qt owner-thread 约束和 property payload decode；
+  MpvNodeDecoder 把 track/chapter 等 MPV_FORMAT_NODE 深拷贝成 QVariant/QVariantList/QVariantMap/QByteArray。
 
 src/presentation/qml/
   只负责 presentation；禁止直接 mpv_command/mpv_set_property/C 指针访问。
 ```
 
-R2-04 的关闭顺序要求是硬约束：先将 wakeup bridge 标记为 inactive，再通过 `mpv_set_wakeup_callback(handle, nullptr, nullptr)` 注销 callback，等待已进入 callback 的短路径退出，最后才允许目标事件循环对象销毁。已排队到 Qt 的 drain 在 `running_ == false` 时直接 no-op。
+R2-04 的关闭顺序仍是硬约束：先令 wakeup bridge inactive，再注销 libmpv wakeup callback，等待已经进入 callback 的短路径退出，最后才允许事件循环目标对象销毁；停止后的 queued drain 直接 no-op。
 
-R2-05 保留 `reply_userdata` 作为后续 R3 command tracker 的关联键，但当前 executor 不建立 tracker、不保存 pending command map，也不把命令结果提升为播放状态真值。
+R2-05 保留 `reply_userdata` 作为后续 R3 command tracker 的关联键，但 executor 不建立 pending map、不保存播放状态真值。
 
-R2-06 的核心 registry 当前集中定义 `time-pos`、`duration`、`pause`、`volume`、`mute`、`speed`、`seekable`、`core-idle`、`eof-reached`、`track-list`、`chapter-list`。FLAG、DOUBLE 与 unavailable/None 在 observer 内安全解码；track/chapter 的 `MPV_FORMAT_NODE` 只保留明确注册入口，完整 Node/event 解码留给 R2-07。R2-06 测试直接消费测试 handle 的 raw property event 来验证 registry/observer，本阶段尚未把 raw property payload 接入现有 `MpvEventLoop` 的公开 metadata signal；该收敛由下一步 R2-07 event decoder 完成。
+R2-06/R2-07 的 property 数据链现在是：registry 定义观察身份与格式，observer 管理观察生命周期，event decoder 在消费 raw property event 时调用 property decode；FLAG/DOUBLE/None 直接转成内部值，Node 通过独立 `MpvNodeDecoder` 深拷贝为 Qt-owned 数据。因此事件循环发出 `eventDecoded(const MpvEvent&)` 后，上层无需再解释或持有 libmpv C payload。
 
 ## Module growth rule
 
@@ -182,7 +187,7 @@ build/<preset>/.player-development-root
 ### R0
 
 - R0-01 ~ R0-05：Complete。
-- R0-06：按用户明确要求 Skipped；媒体 fixture 合法性完整闭环未声明完成。
+- R0-06：按用户明确要求 Skipped；完整媒体 fixture 合法性闭环未声明完成。
 
 ### R1
 
@@ -190,7 +195,7 @@ R1-01 ~ R1-06：Complete。用户 Windows 环境已经验证 configure/build/tes
 
 ### R2-01 — Implemented; file-log acceptance deferred
 
-固定 libmpv target、受控源码构建、manifest/hash、runtime probe、Qt runtime staging 与 5 个当时 CTest 均已在用户 Windows 环境验证。`Player.exe` 可以启动并保持响应，Qt/MSVC Debug DLL 从 `build/windows-msvc-debug` 加载。
+固定 libmpv target、受控源码构建、manifest/hash、runtime probe、Qt runtime staging 与当时 5 个 CTest 均已在用户 Windows 环境验证。`Player.exe` 可以启动并保持响应，Qt/MSVC Debug DLL 从 `build/windows-msvc-debug` 加载。
 
 仍存在一个明确记录的非阻塞缺口：开发模式预期的仓库根目录 `player.log` 没有生成。用户已明确要求不让该问题继续阻塞 R2 普通框架任务。它必须在后续相关诊断/发布门禁前重新关闭，但不计入 R2-02 之后普通 Atomic Task 的局部验收。
 
@@ -221,15 +226,13 @@ R1-01 ~ R1-06：Complete。用户 Windows 环境已经验证 configure/build/tes
 
 ### R2-04 — Complete
 
-`src/playback/infrastructure/mpv/events/` 已实现：
+`src/playback/infrastructure/mpv/events/` 已实现 wakeup/event-loop 生命周期：
 
 - `MpvWakeupBridge` 注册 `mpv_set_wakeup_callback`；callback 本身只发出 Qt wakeup signal，不调用普通 libmpv API、不解析事件、不做业务决策；
 - wakeup signal 强制 `Qt::QueuedConnection` 投递到 `MpvEventLoop` 所属 Qt 线程；
-- `MpvEventLoop::start()` 要求 handle 已初始化并要求从自身 Qt 所属线程启动；
+- `MpvEventLoop::start()` 要求 handle 已初始化并从自身 Qt 所属线程启动；
 - 所有 `mpv_wait_event(handle, 0.0)` drain 都发生在该所属线程；
-- event loop 当前只暴露复制后的 event id、reply userdata、error 三项轻量 metadata，不把 raw `mpv_event*` 或 raw node 传出模块；
-- `stop()` 先令 `running_` 失效，再注销 wakeup callback，并等待已经进入 callback 的短路径退出；重复 stop 安全；
-- destructor 复用同一停止路径，已排队 drain 在停止后 no-op。
+- stop/destructor 保持 callback 注销和在途 callback 收敛顺序。
 
 第 8 个 CTest `mpv_event_loop` 覆盖未初始化拒绝、真实 wakeup、owner-thread drain、重复 start/stop、stop 后抑制、析构关闭顺序。用户在 Windows `56fc1b4` 运行正常 build/test，8/8 CTest 全部通过；总测试时间 1.63 秒。
 
@@ -238,33 +241,56 @@ R1-01 ~ R1-06：Complete。用户 Windows 环境已经验证 configure/build/tes
 `src/playback/infrastructure/mpv/commands/` 已实现：
 
 - `mpv_command_request.h` 定义 load/play/pause/stop/seek/volume/mute/speed 八类 typed request；
-- `MpvCommandEncoder` 统一生成 `loadfile ... replace`、pause set、stop、absolute/relative exact seek、volume/mute/speed argv，不把 mpv 字符串散到上层；
-- load source 必须非空且不得含嵌入 NUL；seek 必须 finite；volume 必须 finite 且非负；speed 必须 finite 且大于 0；
-- `MpvCommandExecutor` 要求 initialized handle，并要求从 executor 所属 Qt thread 提交；
-- executor 为每次调用构建局部 argv 生命周期并调用 `mpv_command_async`，立即返回提交错误诊断；
-- `requestId` 原样写入 libmpv `reply_userdata`，仅为 R3 tracker 保留关联能力；当前不维护 pending map、不保存播放状态、不解释 command reply。
+- `MpvCommandEncoder` 统一生成 mpv argv，不把命令字符串散到上层；
+- load source、seek、volume、speed 均有边界校验；
+- `MpvCommandExecutor` 要求 initialized handle 和自身 Qt owner thread；
+- 所有提交使用 `mpv_command_async`，`requestId` 原样进入 `reply_userdata`；
+- executor 不维护 pending map、不保存播放状态、不解释 command reply。
 
-第 9 个 CTest `mpv_commands` 覆盖 encoder 的 8 类 MVP 命令映射、非法输入、未初始化 handle、跨线程提交拒绝，并通过现有 `MpvEventLoop` 验证 8 类真实 `mpv_command_async` 提交都能收到对应 `MPV_EVENT_COMMAND_REPLY`。load 集成路径使用临时目录下不存在的本地媒体路径，只验证命令提交/reply 链，不伪装成媒体播放 fixture 验证。
+第 9 个 CTest `mpv_commands` 验证八类命令编码、非法输入、未初始化/跨线程拒绝和真实异步 reply。用户在 Windows `edbc549` 运行正常 build/test，9/9 CTest 全部通过；总测试时间 1.63 秒。
 
-用户在 Windows `edbc549` 运行正常 build/test，9/9 CTest 全部通过，新增 `mpv_commands` 通过；总测试时间 1.63 秒。
+### R2-06 — Complete
 
-### R2-06 — Implemented; Windows build/test acceptance pending
+`src/playback/infrastructure/mpv/properties/` 已实现：
 
-新增 `src/playback/infrastructure/mpv/properties/`：
+- `MpvPropertyRegistry` 集中拥有 11 个核心 property：position、duration、pause、volume、mute、speed、seekable、core-idle、eof-reached、track-list、chapter-list；
+- 每个 property 具有稳定 observation id、唯一 mpv name 与明确格式；
+- `MpvPropertyObserver` 要求 initialized handle，并要求 start/stop 在自身 Qt owner thread 执行；
+- observe 中途失败回滚已注册 observation；start/stop 幂等；
+- `MPV_FORMAT_NONE`/null 明确转成 unavailable `std::monostate`；FLAG 解码 bool，DOUBLE 解码 double；
+- 错误格式和未知 observation id 返回明确诊断，不崩溃；
+- track/chapter `MPV_FORMAT_NODE` 的注册入口由本任务建立，真实深拷贝 decode 在 R2-07 接通。
 
-- `MpvPropertyRegistry` 集中拥有 11 个当前/近期开销明确的 property 定义：position、duration、pause、volume、mute、speed、seekable、core-idle、eof-reached、track-list、chapter-list；
-- 每个 property 具有唯一稳定 observation id、唯一 mpv name 与明确预期格式，property 字符串不再散到后续上层；
-- `MpvPropertyObserver` 要求 initialized handle，并要求 `start/stop` 在自身 Qt owner thread 执行；
-- start 逐项调用 `mpv_observe_property`，中途失败会回滚已注册 observation；重复 start 幂等；
-- stop 逐项 `mpv_unobserve_property`，重复 stop 幂等；observer 析构时若仍在 owner thread 且仍处于 observing 状态会执行同一 unobserve 路径；
-- `MPV_FORMAT_NONE` 或 `data == nullptr` 明确解码为 unavailable `std::monostate`，不会解引用空数据；
-- FLAG 解码为 bool，DOUBLE 解码为 double；未知 observation id 或与 registry 不符的格式返回明确诊断而不是崩溃；
-- track/chapter 的 `MPV_FORMAT_NODE` 已集中注册，但完整 Node typed decode 明确留给 R2-07 event decoder，不在 R2-06 提前扩大职责；
-- 当前不建立 PlaybackSnapshot、不保存播放真值，也不把 raw mpv 指针暴露给 application/QML。
+第 10 个 CTest `mpv_properties` 覆盖 registry 唯一性、未初始化/跨线程拒绝、真实 pause/volume/mute/speed observation、None/null、错误格式、未知 id、Node 入口和重复 start/stop。
 
-新增第 10 个 CTest `mpv_properties`，覆盖 registry 唯一性、未初始化拒绝、跨线程 start 拒绝、真实 pause/volume/mute/speed property observation 与 typed decode、None/null 安全路径、错误格式、未知 observation id、Node 延后入口、重复 start/stop。该测试为了验证 R2-06 自身链路直接在测试线程使用 `mpv_wait_event` 读取 raw property event；现有 `MpvEventLoop` 与完整 typed event 主链将在 R2-07 收敛。
+用户在 Windows `a0aeff3` 运行正常 build/test，**10/10 CTest 全部通过**，新增 `mpv_properties` 通过；总测试时间 **1.88 秒**。
 
-当前连接环境无法运行用户的 Windows Qt/MSVC/libmpv 二进制，因此 R2-06 的第 10 个 CTest 与全量 build/test 仍待用户本机确认。
+### R2-07 — Implemented; Windows build/test acceptance pending
+
+新增并收敛以下职责：
+
+- `src/playback/infrastructure/mpv/errors/` 新增 `MpvErrorMapper`，把 libmpv 公开错误码映射为内部 `MpvErrorCode`，同时保留 raw code 和 `mpv_error_string` 诊断；未知负错误码安全保留为 `Unknown`；
+- `events/mpv_event.h` 定义内部 `MpvEvent`、event type、end-file reason 及 start/end/log/unknown/decode-failure payload；
+- `MpvEventDecoder` 覆盖 `START_FILE`、`FILE_LOADED`、`END_FILE`、`COMMAND_REPLY`、`PROPERTY_CHANGE`、`LOG_MESSAGE`、`SHUTDOWN`；
+- 未知 event 统一变成 `MpvEventType::Unknown`，已知 event 缺少必需 payload 时变成 `DecodeFailure`，均不崩溃；
+- `MpvEventLoop` 不再向外发出 `event id/reply userdata/error` 三元 raw metadata，而是在下一次 `mpv_wait_event` 前调用 decoder，发出 Qt-owned `MpvEvent`；
+- `MpvPropertyChange` 已提取为独立数据契约，避免 observer QObject 与 typed event 数据相互绑死；
+- `MpvNodeDecoder` 支持 NONE/STRING/FLAG/INT64/DOUBLE/NODE_ARRAY/NODE_MAP/BYTE_ARRAY，递归深拷贝到 QVariant 系列并校验无效 list/null pointer/递归深度；
+- track-list/chapter-list Node 因此不再持有 libmpv 瞬时内存，后续 R3 可以直接消费内部 event；
+- R2-04/R2-05 既有事件循环和命令测试已迁移到 `eventDecoded(const MpvEvent&)`，不再依赖 raw event metadata；
+- 没有建立 PlaybackSnapshot、CommandTracker 或 R3 PlaybackSession，也没有新增生产依赖。
+
+新增第 11 个 CTest `mpv_event_decoder`，覆盖：
+
+- 已知/未知 libmpv error mapping；
+- synthetic start/file-loaded/end/command-reply/log/shutdown 解码；
+- synthetic track-list Node array/map 深拷贝；
+- 未知 event 与 malformed known event 安全路径；
+- 测试运行时自行生成一个极短 silent PCM WAV，并使用 test-only `config=no + ao=null + vo=null` 初始化 profile，验证真实 `load → command reply → start-file → file-loaded → property-change → end-file/EOF` typed event 链。
+
+该 WAV 由测试代码即时生成，仅用于验证 R2-07 事件链，不引入第三方媒体文件，也不代表被跳过的 R0-06 完整媒体 fixture 策略已经恢复或闭环。
+
+连接环境无法执行用户 Windows Qt/MSVC/libmpv 二进制，所以 R2-07 当前只完成源码/CMake/静态边界复核；第 11 个 CTest 与全量 Windows build/test 等待用户本机确认。
 
 ## Validation record
 
@@ -274,31 +300,32 @@ R1-01 ~ R1-06：Complete。用户 Windows 环境已经验证 configure/build/tes
 - 完整 libmpv 依赖源码构建成功，FFmpeg 8.0.3 官方签名验证成功，最终 package 17 个 manifest artifact hash 全部通过；
 - 自动 Qt runtime deployment 与开发 marker 链通过；
 - R2-02：6/6 CTest 通过；
-- R2-03：7/7 CTest 通过，`mpv_initialization` 通过；
-- R2-04：8/8 CTest 通过，`mpv_event_loop` 通过；
-- R2-05：9/9 CTest 通过，`mpv_commands` 通过；
+- R2-03：7/7 CTest 通过；
+- R2-04：8/8 CTest 通过；
+- R2-05：9/9 CTest 通过；
+- R2-06：10/10 CTest 通过，`mpv_properties` 通过，总测试时间 1.88 秒；
 - `Player.exe` 可正常启动并保持响应；
 - `player.log` 根目录落盘问题仍为单独已知缺口，不阻塞当前普通 R2 Atomic Task。
 
-R2-06 当前尚未在连接环境执行真实 Windows build/test。下一次本机验收应报告 10 个 CTest，其中新增 `mpv_properties` 必须通过。
+R2-07 尚未在用户 Windows 环境执行。下一次本机验收应报告 11 个 CTest，其中新增 `mpv_event_decoder` 必须通过。
 
 ## Change Log
 
 ### 2026-08-08
 
-- Accepted R2-05 after the user confirmed the real Windows build and all nine CTests passed, including `mpv_commands`, in 1.63 seconds total.
-- Implemented R2-06 `properties/` with centralized property identities/formats and a separate observer lifecycle/typed-decode boundary.
-- Registered the core R3/R6 property set plus track/chapter Node entry points; FLAG/DOUBLE/None are decoded now, while complete Node/event decoding remains assigned to R2-07.
-- Added rollback on partial observe failure, owner-thread start/stop enforcement, idempotent observation lifecycle, null/None safety, unknown-id and wrong-format diagnostics.
-- Added the tenth `mpv_properties` CTest covering registry uniqueness, real property observation/changes, typed values, invalid paths and observation lifecycle.
-- Accepted R2-04 after the user confirmed the real Windows build and all eight CTests passed, including `mpv_event_loop`, in 1.63 seconds total.
-- Implemented R2-05 `commands/` with separate typed request, argv encoder and async executor responsibilities; all playback-control submissions use `mpv_command_async` and preserve request ids as `reply_userdata` for the later R3 tracker.
-- Added command validation for empty/NUL load sources, non-finite seek values, invalid volume values and invalid speed values; executor also rejects uninitialized-handle and wrong-thread submission.
-- Added the ninth `mpv_commands` CTest covering all eight MVP command encodings and real async submission/reply delivery through the existing R2-04 event loop.
-- Accepted R2-03 after the user confirmed the real Windows build and all seven CTests passed, including `mpv_initialization`.
-- Implemented R2-04 `events/` module with `MpvWakeupBridge` and `MpvEventLoop`: libmpv internal-thread wakeups are marshalled through a queued Qt signal, while all `mpv_wait_event(0)` draining remains on the event loop's owning Qt thread.
-- Added shutdown protection for the wakeup bridge: deactivate first, unregister the libmpv wakeup callback, wait for callbacks already in flight, and make queued drains no-op after stop.
-- Added the eighth `mpv_event_loop` CTest covering real wakeup delivery, owner-thread draining, idempotent start/stop, post-stop suppression, and destructor shutdown ordering.
+- Accepted R2-06 after the user confirmed the real Windows build and all ten CTests passed, including `mpv_properties`, in 1.88 seconds total.
+- Implemented R2-07 typed event boundary: raw `mpv_event` is decoded inside `infrastructure/mpv` into Qt-owned `MpvEvent` before the next `mpv_wait_event` call.
+- Added `errors/MpvErrorMapper` with known/unknown libmpv error mapping and preserved raw diagnostics.
+- Added recursive Node deep-copy for track/chapter payloads, eliminating libmpv node-pointer lifetime from the outward event contract.
+- Migrated the R2-04 event loop and R2-05 command-reply tests from raw metadata signals to typed `MpvEvent` delivery.
+- Added the eleventh `mpv_event_decoder` CTest with synthetic event/error/Node cases plus a runtime-generated silent PCM WAV for a real short-media typed event sequence.
+- Kept the generated WAV strictly test-local; R0-06 remains skipped and no complete external media-fixture policy is claimed.
+- Accepted R2-05 after the user confirmed all nine CTests passed, including `mpv_commands`, in 1.63 seconds total.
+- Implemented R2-06 centralized property registry/observer with owner-thread lifecycle, rollback, None/null safety and typed FLAG/DOUBLE decoding.
+- Accepted R2-04 after the user confirmed all eight CTests passed, including `mpv_event_loop`, in 1.63 seconds total.
+- Implemented R2-05 typed async command request/encoder/executor boundaries.
+- Accepted R2-03 after the user confirmed all seven CTests passed, including `mpv_initialization`.
+- Implemented R2-04 wakeup bridge/event-loop ownership and shutdown protection.
 - Accepted R2-02 after the user confirmed six CTests passed, including the `MpvHandle` lifecycle/100-cycle regression.
 - Implemented R2-03 initialization profile with centralized `config=no`, pre-initialize option application, validation and failure cleanup.
 - Recorded the unresolved R2-01 repository-root `player.log` as a non-blocking validation gap by explicit user direction.
@@ -312,7 +339,7 @@ R2-06 当前尚未在连接环境执行真实 Windows build/test。下一次本�
 
 ## Current R2 local verification
 
-For R2-06, do not retest the deferred `player.log` issue. Pull, build and run the normal suite:
+R2-07 不需要重新验证已延后的 `player.log`。从仓库根目录执行：
 
 ```powershell
 git pull --ff-only origin agent/r2-stage
@@ -320,4 +347,4 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r2.log 2>&1
 powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-R2-06 acceptance requires a successful build and **10/10 CTest** with `mpv_properties` passing. If this gate is green, the next Atomic Task is R2-07 Event decoder / error mapper.
+R2-07 的局部验收条件是成功 build，并且 **11/11 CTest** 全部通过，其中新增 `mpv_event_decoder` 必须通过。若该门禁为绿色，下一 Atomic Task 是 R2-08 控制台 `playback_probe`。
