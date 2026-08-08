@@ -1,5 +1,6 @@
 add_library(player_mpv_infrastructure STATIC)
 
+add_subdirectory(client)
 add_subdirectory(runtime)
 
 player_apply_compiler_options(player_mpv_infrastructure)
