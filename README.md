@@ -1,6 +1,6 @@
 # Modular Qt 6 + libmpv Player
 
-Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。当前仍处于 R2：无 UI libmpv 播放核心阶段；R2-10 已完成 Windows 验收，R2-11 已实现。R2-11 首次 Windows 构建因 `playback_probe` target 未声明模块 include root 而在编译阶段失败，该构建缺口已修复，当前等待重新执行本机 build/CTest 行为矩阵验收。
+Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。Stage R2：无 UI libmpv 播放核心已经完成；R2-11 在修复 `playback_probe` target 模块 include root 后完成 Windows 重新构建与 14/14 CTest 行为矩阵验收。
 
 ## Current baseline
 
@@ -22,21 +22,22 @@ Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。当前�
 - R2-08 `tools/playback_probe/`：无 QML 的真实 libmpv 控制台探针，复用现有 typed command/event/property 主链；
 - R2-09 `events/`：保留完整 end-file typed/raw reason、error 与 playlist 边界元数据，并新增独立事件语义回归矩阵；
 - R2-10 `properties/`：Property Baseline 从 11 项扩展到 22 项，统一覆盖 seek/buffering/cache、媒体 identity、当前轨道选择和最小 video/audio 参数入口；
-- R2-11 `tools/playback_probe/`：新增脚本化 8 场景 headless 行为矩阵、运行时生成媒体、typed trace 与自动 CTest 门禁；
+- R2-11 `tools/playback_probe/`：脚本化 8 场景 headless 行为矩阵、运行时生成媒体、typed trace 与自动 CTest 门禁；
 - Windows 构建后显式 `windeployqt` 与 `.player-development-root` 开发标记；
 - R2-08 已由用户 Windows 环境完成最终验收：11/11 CTest 全绿（1.47 秒），真实媒体主链 PASS，非法媒体错误路径返回明确加载失败诊断；
 - R2-09 已由用户 Windows 环境完成最终验收：12/12 CTest 全绿（2.31 秒），新增 `mpv_event_semantics` 通过；
-- R2-10 已由用户 Windows 环境完成最终验收：13/13 CTest 全绿（2.40 秒），`mpv_properties` 与新增 `mpv_property_baseline` 均通过。
+- R2-10 已由用户 Windows 环境完成最终验收：13/13 CTest 全绿（2.40 秒），`mpv_properties` 与新增 `mpv_property_baseline` 均通过；
+- R2-11 已由用户 Windows 环境完成最终验收：14/14 CTest 全绿（2.22 秒），新增 `playback_probe_matrix` 通过（0.62 秒）。
 
-R2-01~R2-10 已完成或按既有记录验收；R2-11 源码与自动行为矩阵已实现。首次 Windows build 在进入 CTest 前因 probe 子模块 include root 缺失而失败，现已补上 `target_include_directories(playback_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})`，仍需用户本机重新 build 并达到 **14/14 CTest** 才能验收。PlaybackSession 仍从 R3 开始；Render API、数据库、播放列表、完整播放器 UI 与安装包继续在后续阶段实现，不提前堆入 R2。
+R2-02~R2-11 均已完成并通过对应阶段验收；R2-01 的仓库根 `player.log` 落盘问题继续作为用户明确允许延期的非阻塞诊断缺口保留。依据 Stage R2 关闭条件与跨阶段补强矩阵，当前 **Stage R2：Complete**。PlaybackSession 仍从 R3 开始；Render API、数据库、播放列表、完整播放器 UI 与安装包继续在后续阶段实现，不提前堆入 R2。
 
 ## Product scope
 
 首版目标是一个以 libmpv 为播放内核、Qt Quick/QML 为界面的 Windows 10/11 x64 桌面播放器，同时保持 macOS/Linux 清晰适配边界。
 
-MVP 包括：本地文件、网络 URL、播放/暂停/停止、绝对/相对 Seek、Timeline、音量/静音、倍速、全屏、播放列表、音轨、字幕、外挂字幕、音画延迟、章节、媒体信息、错误反馈、加载/缓冲/暂停/结束状态、最近播放、恢复进度、快捷键、系统媒体键、防休眠、单实例、文件关联和 Windows 安装包。
+MVP 包括：本地文件、网络 URL、播放/暂停/停止、绝对/相对 Seek、Timeline、音量/静音、倍速、全屏、播放列表、音轨、字幕、外挂字幕、音画延迟、章节、媒体信息、错误反馈、加载、缓冲、暂停、播放结束状态、最近播放、恢复进度、快捷键、系统媒体键、防休眠、单实例、文件关联和 Windows 安装包。
 
-第二阶段再做截图、A-B 循环、画面比例/裁剪/旋转、字幕样式、播放质量预设、Shader、迷你播放器、画中画、高级统计和 macOS/Linux 适配。在线站点解析、媒体服务器、DLNA/AirPlay/Chromecast、账号、云同步、在线字幕搜索、插件市场、视频剪辑/转码和 AI 字幕/画质增强不属于首版。
+第二阶段再做截图、A-B 循环、画面比例、裁剪、旋转、字幕样式、播放质量预设、Shader、迷你播放器、画中画、高级统计和 macOS/Linux 适配。在线站点解析、媒体服务器、DLNA/AirPlay/Chromecast、账号、云同步、在线字幕搜索、插件市场、视频剪辑、转码和 AI 字幕、画质增强不属于首版。
 
 ## Architecture boundary
 
@@ -119,7 +120,7 @@ R2-11 不新增产品状态。`playback_probe --matrix` 运行时生成三段无
 
 ## Module growth rule
 
-模块按职责拆分，不按行数拆分。一个已有文件出现第二项可独立描述、独立测试、独立演进的职责时，升级为职责目录；不允许把页面/播放核心全部堆入一个文件，也不允许 `old/new/v2/final/copy` 源码历史副本。Git 负责历史。
+模块按职责拆分，不按行数拆分。一个已有文件出现第二项可独立描述、独立测试、独立演进的职责时，升级为职责目录；不允许把页面、播放核心全部堆入一个文件，也不允许 `old/new/v2/final/copy` 源码历史副本。Git 负责历史。
 
 ## Toolchain and controlled dependency baseline
 
@@ -223,7 +224,7 @@ R1-01 ~ R1-06：Complete。用户 Windows 环境已经验证 configure/build/tes
 
 固定 libmpv target、受控源码构建、manifest/hash、runtime probe、Qt runtime staging 与当时 5 个 CTest 均已在用户 Windows 环境验证。`Player.exe` 可以启动并保持响应，Qt/MSVC Debug DLL 从 `build/windows-msvc-debug` 加载。
 
-仍存在一个明确记录的非阻塞缺口：开发模式预期的仓库根目录 `player.log` 没有生成。用户已明确要求不让该问题继续阻塞 R2 普通框架任务。它必须在后续相关诊断/发布门禁前重新关闭，但不计入 R2-02 之后普通 Atomic Task 的局部验收。
+仍存在一个明确记录的非阻塞缺口：开发模式预期的仓库根目录 `player.log` 没有生成。用户已明确要求不让该问题继续阻塞 R2 普通框架任务。它必须在后续相关诊断、发布门禁前重新关闭，但不计入 R2-02 之后普通 Atomic Task 的局部验收，也不阻塞当前 Stage R2 关闭。
 
 ### R2-02 — Complete
 
@@ -273,7 +274,7 @@ R1-01 ~ R1-06：Complete。用户 Windows 环境已经验证 configure/build/tes
 - 所有提交使用 `mpv_command_async`，`requestId` 原样进入 `reply_userdata`；
 - executor 不维护 pending map、不保存播放状态、不解释 command reply。
 
-第 9 个 CTest `mpv_commands` 验证八类命令编码、非法输入、未初始化/跨线程拒绝和真实异步 reply。用户在 Windows `edbc549` 运行正常 build/test，9/9 CTest 全部通过；总测试时间 1.63 秒。
+第 9 个 CTest `mpv_commands` 验证八类命令编码、非法输入、未初始化、跨线程拒绝和真实异步 reply。用户在 Windows `edbc549` 运行正常 build/test，9/9 CTest 全部通过；总测试时间 1.63 秒。
 
 ### R2-06 — Complete
 
@@ -287,7 +288,7 @@ R1-01 ~ R1-06：Complete。用户 Windows 环境已经验证 configure/build/tes
 - 错误格式和未知 observation id 返回明确诊断，不崩溃；
 - track/chapter `MPV_FORMAT_NODE` 的注册入口由本任务建立，真实深拷贝 decode 在 R2-07 接通。
 
-第 10 个 CTest `mpv_properties` 覆盖 registry 唯一性、未初始化/跨线程拒绝、真实 pause/volume/mute/speed observation、None/null、错误格式、未知 id、Node 入口和重复 start/stop。
+第 10 个 CTest `mpv_properties` 覆盖 registry 唯一性、未初始化、跨线程拒绝、真实 pause/volume/mute/speed observation、None/null、错误格式、未知 id、Node 入口和重复 start/stop。
 
 用户在 Windows `a0aeff3` 运行正常 build/test，**10/10 CTest 全部通过**，新增 `mpv_properties` 通过；总测试时间 **1.88 秒**。
 
@@ -308,7 +309,7 @@ R1-01 ~ R1-06：Complete。用户 Windows 环境已经验证 configure/build/tes
 
 第 11 个 CTest `mpv_event_decoder` 覆盖：
 
-- 已知/未知 libmpv error mapping；
+- 已知、未知 libmpv error mapping；
 - synthetic start/file-loaded/end/command-reply/log/shutdown 解码；
 - synthetic track-list Node array/map 深拷贝；
 - 未知 event 与 malformed known event 安全路径；
@@ -365,7 +366,7 @@ R2-10 在 R2-06 的统一 registry/observer 上补齐后续 R3/R6/R8 明确依�
 
 用户在 Windows `a67a0ec` 基线执行正常 build/test，**13/13 CTest 全部通过，0 failed，总测试时间 2.40 秒**；`mpv_properties` 和新增 `mpv_property_baseline` 均通过。R2-10 因此正式验收完成。
 
-### R2-11 — Implemented; Windows verification pending
+### R2-11 — Complete
 
 R2-11 在不改变 R2-08 原单媒体探针行为的前提下新增 `playback_probe --matrix`：
 
@@ -388,7 +389,7 @@ R2-11 在不改变 R2-08 原单媒体探针行为的前提下新增 `playback_pr
 7. 收到 `start-file` 后触发 loading 期间 queued shutdown；
 8. `file-loaded + play reply` 后触发 playback 期间 queued shutdown。
 
-`playback_probe_matrix` 已直接注册为第 14 个 CTest，并设置 90 秒 CTest 总超时；内部每一步单独 10 秒超时。首次用户 Windows 构建在 CTest 之前失败：MSVC C1083 分别报告 `scenarios/playback_probe_scenario_catalog.cpp` 无法找到 `fixtures/playback_probe_media_set.h`，以及 AutoMOC 编译 `playback_probe_scenario_runner.h` 时无法找到 `runtime/playback_probe_runtime.h`。两者属于同一 CMake target include-root 缺口；现已在 `tools/playback_probe/CMakeLists.txt` 为 `playback_probe` 增加私有 `${CMAKE_CURRENT_SOURCE_DIR}` include root。该修复不修改场景逻辑、公共接口、生产依赖或用户可观察播放行为。修复后的 Windows build 与 **14/14 CTest 尚未执行，不声明通过**。
+`playback_probe_matrix` 已直接注册为第 14 个 CTest，并设置 90 秒 CTest 总超时；内部每一步单独 10 秒超时。首次用户 Windows 构建在 CTest 之前失败：MSVC C1083 分别报告 `scenarios/playback_probe_scenario_catalog.cpp` 无法找到 `fixtures/playback_probe_media_set.h`，以及 AutoMOC 编译 `playback_probe_scenario_runner.h` 时无法找到 `runtime/playback_probe_runtime.h`。两者属于同一 CMake target include-root 缺口；随后在 `tools/playback_probe/CMakeLists.txt` 为 `playback_probe` 增加私有 `${CMAKE_CURRENT_SOURCE_DIR}` include root。用户在修复后重新执行标准 build/test，开发 runtime marker 恢复正常，`playback_probe_matrix` 通过，最终 **14/14 CTest 全部通过，0 failed，总测试时间 2.22 秒**，其中行为矩阵耗时 **0.62 秒**。R2-11 因此正式验收完成。
 
 ## Validation record
 
@@ -406,22 +407,24 @@ R2-11 在不改变 R2-08 原单媒体探针行为的前提下新增 `playback_pr
 - R2-08：11/11 CTest 回归通过，总测试时间 1.47 秒；合法媒体 probe PASS；不存在媒体得到 `end-file(reason=error)` + `loading failed`，失败链返回非零退出码；
 - R2-09：12/12 CTest 通过，`mpv_event_semantics` 通过，总测试时间 2.31 秒；
 - R2-10：13/13 CTest 通过，`mpv_property_baseline` 通过，总测试时间 2.40 秒；
-- R2-11：首次 Windows build 在进入 CTest 前因 probe target 缺少模块 include root 失败；C1083 日志已确认 `fixtures/...` 与 AutoMOC 下的 `runtime/...` 两条同源路径。CMake 修复已提交，**修复后的 build 与 14/14 Windows CTest 尚未执行，不声明通过**；
+- R2-11：首次 Windows build 的 C1083 include-root 问题修复后，标准 build/test 成功进入 CTest，`playback_probe_matrix` 0.62 秒通过，最终 **14/14 CTest 全部通过，0 failed，总测试时间 2.22 秒**；
 - `Player.exe` 可正常启动并保持响应；
-- `player.log` 根目录落盘问题仍为单独已知缺口，不阻塞当前普通 R2 Atomic Task。
+- `player.log` 根目录落盘问题仍为单独已知非阻塞缺口，保留到后续相关诊断、发布门禁关闭。
 
-R2-10 已完成；R2-11 当前为 Implemented、build fix committed、待 Windows 重新验收。R2-11 通过后，跨阶段补强矩阵中的 R2-09~R2-11 即全部关闭，Stage R2 才可进入最终关闭判断。已知的仓库根 `player.log` 落盘缺口继续按既有记录作为非阻塞事项保留，后续在相关诊断/发布门禁前关闭。
+R2-09~R2-11 跨阶段补强任务均已完成；R2 主链可真实运行、错误可诊断、标准 Windows build/CTest 全绿，没有当前已知的 R2 硬阻断。依据 Stage R2 关闭条件，**Stage R2 正式 Complete**。下一阶段为 R3：领域状态与 PlaybackSession。
 
 ## Change Log
 
 ### 2026-08-08
 
+- Accepted R2-11 after the user reran the standard Windows build/test flow: the development runtime marker recovered, `playback_probe_matrix` passed in 0.62 seconds, and all 14 CTests passed with 0 failures in 2.22 seconds total.
+- Closed Stage R2 after R2-09~R2-11 mature-player behavior supplements were all implemented and verified; the previously recorded repository-root `player.log` issue remains an explicit non-blocking diagnostic gap for a later gate.
 - Accepted R2-10 after the user confirmed the real Windows environment passed all 13 CTests, including `mpv_property_baseline`, in 2.40 seconds total.
 - Implemented R2-11 as a modular scripted `playback_probe --matrix` path while preserving the accepted R2-08 `playback_probe <source>` behavior.
 - Added separate generated-media fixture, scenario catalog/executor, matrix orchestration and bounded typed trace responsibilities instead of extending the existing R2-08 runner into a multi-purpose state machine.
 - Added all eight required R2-11 real libmpv scenarios: transport sequence, paused seek, consecutive seek, immediate A->B replacement, EOF/stop distinction, load error, shutdown during loading and shutdown during playback.
 - Kept shutdown scenarios on queued teardown so the runtime is never destroyed from inside the synchronous `MpvEventLoop` drain signal stack.
-- Registered `playback_probe --matrix` as the 14th CTest `playback_probe_matrix`; expected Windows regression gate is now 14/14.
+- Registered `playback_probe --matrix` as the 14th CTest `playback_probe_matrix`; Windows regression gate is 14/14.
 - Kept generated WAV files temporary and probe-local; R0-06 remains skipped and no distributable external fixture policy is falsely claimed complete.
 - Recorded the first R2-11 Windows build failure before CTest: MSVC C1083 could not resolve probe-root `fixtures/...` and AutoMOC `runtime/...` includes because the target had no module include root.
 - Fixed that single build-system root cause by adding `${CMAKE_CURRENT_SOURCE_DIR}` as a PRIVATE include directory of `playback_probe`; no scenario logic or production interface changed.
@@ -441,8 +444,8 @@ R2-10 已完成；R2-11 当前为 Implemented、build fix committed、待 Window
 - Added a probe-only `config=no + vo=null + ao=null` profile and direct Qt6 Core/libmpv runtime staging so the console probe does not depend on a QML window, user mpv.conf or physical audio output.
 - Accepted R2-08 after the user confirmed all 11 CTests still passed in 1.47 seconds, a real local media probe completed the full headless control chain with PASS, and a missing-media probe produced `end-file(reason=error)` with `loading failed` and a non-zero failure exit path.
 - Corrected the documented playback probe output path to `build/windows-msvc-debug/cmake/playback_probe.exe`; no source, public-interface, dependency or runtime behavior change was required for this correction.
-- Corrected the premature R2 closure: the mandatory mature-player behavior supplement adds R2-09 through R2-11, so Stage R2 remains open.
-- Kept the accepted R2-08 Windows results unchanged; this correction changes documentation/status only and does not modify source, dependencies, interfaces or runtime behavior.
+- Corrected the premature R2 closure: the mandatory mature-player behavior supplement adds R2-09 through R2-11, so Stage R2 remained open until those tasks were verified.
+- Kept the accepted R2-08 Windows results unchanged; this correction changed documentation/status only and did not modify source, dependencies, interfaces or runtime behavior.
 - Accepted R2-06 after the user confirmed the real Windows build and all ten CTests passed, including `mpv_properties`, in 1.88 seconds total.
 - Implemented R2-07 typed event boundary: raw `mpv_event` is decoded inside `infrastructure/mpv` into Qt-owned `MpvEvent` before the next `mpv_wait_event` call.
 - Added `errors/MpvErrorMapper` with known/unknown libmpv error mapping and preserved raw diagnostics.
@@ -467,9 +470,9 @@ R2-10 已完成；R2-11 当前为 Implemented、build fix committed、待 Window
 - Added the project-controlled MSYS2 CLANG64 libmpv source-build pipeline and fixed source/archive acquisition boundaries.
 - Kept all third-party binaries/build trees outside Git and preserved repository-parent-relative dependency paths。
 
-## R2-11 local verification
+## R2 final Windows verification
 
-R2-11 已把行为矩阵接入标准 CTest，不需要手工准备第二个媒体文件。首次 Windows build 已确认因 probe target 缺少模块 include root 而在 CTest 前失败；该问题已经修复。请从仓库根目录重新执行：
+R2-11 行为矩阵已接入标准 CTest，不需要手工准备第二个媒体文件。最终 Windows 验收使用：
 
 ```powershell
 git pull --ff-only origin agent/r2-stage
@@ -477,26 +480,20 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r2.log 2>&1
 powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-预期 CTest 总数从 13 增加到 **14**，新增项为：
+实际结果：
 
 ```text
-playback_probe_matrix
+playback_probe_matrix ............ Passed    0.62 sec
+100% tests passed, 0 tests failed out of 14
+Total Test time (real) = 2.22 sec
 ```
 
-必须达到 **14/14 passed, 0 failed**。`playback_probe_matrix` 会真实启动 libmpv 并依次运行全部 8 个 R2-11 场景；失败时 `scripts/test.ps1` 会打印对应场景的 bounded typed trace。
-
-如需主动查看完整成功 trace，可单独执行：
-
-```powershell
-.\build\windows-msvc-debug\cmake\playback_probe.exe --matrix
-```
-
-成功结尾应包含：
+测试前开发 runtime marker 校验成功：
 
 ```text
-[playback_probe] MATRIX PASS: 8/8 scripted headless scenarios
+[OK] Development runtime root marker -> build/windows-msvc-debug/.player-development-root
 ```
 
-R2-01 记录的仓库根 `player.log` 落盘问题仍是明确的非阻塞缺口，不因 R2-11 实施而伪装为已解决；应在后续相关诊断/发布门禁前单独关闭。
+R2-01 记录的仓库根 `player.log` 落盘问题仍是明确的非阻塞缺口；它没有被本次验收伪装为已解决，后续仍需在相关诊断、发布门禁前单独关闭。
 
-**Stage R2：In Progress。R2-10：Complete。R2-11：Implemented; build fix committed; Windows verification pending。**
+**Stage R2：Complete。R2-10：Complete。R2-11：Complete。下一阶段：R3。**
