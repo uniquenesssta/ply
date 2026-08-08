@@ -1,3 +1,4 @@
+#include "playback_probe_matrix_runner.h"
 #include "playback_probe_runner.h"
 
 #include <QCoreApplication>
@@ -5,7 +6,20 @@
 #include <QStringList>
 #include <QTextStream>
 
+using player::tools::playback_probe::PlaybackProbeMatrixRunner;
 using player::tools::playback_probe::PlaybackProbeRunner;
+
+namespace {
+
+void printUsage()
+{
+    QTextStream error(stderr);
+    error << "Usage:" << Qt::endl;
+    error << "  playback_probe <local-media-or-url>" << Qt::endl;
+    error << "  playback_probe --matrix" << Qt::endl;
+}
+
+} // namespace
 
 int main(int argc, char* argv[])
 {
@@ -14,9 +28,25 @@ int main(int argc, char* argv[])
 
     const QStringList arguments = QCoreApplication::arguments();
     if (arguments.size() != 2) {
-        QTextStream error(stderr);
-        error << "Usage: playback_probe <local-media-or-url>" << Qt::endl;
+        printUsage();
         return 64;
+    }
+
+    if (arguments.at(1) == QStringLiteral("--matrix")) {
+        PlaybackProbeMatrixRunner runner;
+        QObject::connect(
+            &runner,
+            &PlaybackProbeMatrixRunner::finished,
+            &app,
+            [](int exitCode) { QCoreApplication::exit(exitCode); });
+
+        QString errorMessage;
+        if (!runner.start(&errorMessage)) {
+            QTextStream error(stderr);
+            error << "[playback_probe] MATRIX FAIL: " << errorMessage << Qt::endl;
+            return 1;
+        }
+        return app.exec();
     }
 
     PlaybackProbeRunner runner;
