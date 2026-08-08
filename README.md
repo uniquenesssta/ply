@@ -7,10 +7,10 @@ A Windows-first, cross-platform-ready desktop player project. The product name i
 This repository is now the active R2 modular playback-core scaffold. It currently provides:
 
 - a root CMake entry limited to mandatory project/testing bootstrap and delegation to `cmake/CMakeLists.txt`;
-- responsibility-separated CMake modules for dependency, compiler, analysis, target, source, test, and development-runtime configuration;
+- responsibility-separated CMake modules for dependency, compiler, analysis, target, source, and test configuration;
 - a Qt 6.8.3 Qt Quick application bootstrap;
 - a dedicated `RuntimePaths` bootstrap module for installed and portable path resolution;
-- a generated `.player-development-root` build marker that contains only the relative route `../..`, so development logging can resolve the repository root without machine-specific drive paths or runtime directory heuristics;
+- an explicit post-build `.player-development-root` marker that contains only the relative route `../..`, so development logging can resolve the repository root without machine-specific drive paths or runtime directory heuristics;
 - a dedicated foundation logging module with categories, file sink, rotation, redaction, and shutdown flush;
 - an `ApplicationContainer` composition root that owns the current top-level runtime objects and defines their shutdown order;
 - repository/build/dependency configuration that stores only repository-relative paths rather than machine-specific drive paths;
@@ -154,7 +154,7 @@ R0-06 is not accepted or complete. Later playback tests must not claim complete 
 ### R1-02 — Complete
 
 - `RuntimePaths` owns installed/portable runtime directory resolution;
-- build-tree development mode is selected only by the generated `.player-development-root` marker, whose committed generation rule contains the relative route `../..` and no machine-specific source path;
+- build-tree development mode is selected only by `.player-development-root`, whose post-build staging rule writes the relative route `../..` and never stores a machine-specific source path;
 - normal installed mode continues to use Qt standard locations when that marker is absent, and portable mode remains controlled by `portable.flag` outside development output;
 - path resolution performs no filesystem mutation;
 - the `runtime_paths` Qt Test passes on the user's Windows/Qt environment.
@@ -223,9 +223,10 @@ Implemented on 2026-08-07/08 in `agent/r2-stage`:
 - `Msys2Environment.psm1` executes arbitrary CLANG64 shell text through a temporary UTF-8-no-BOM LF `.sh` file written directly under the resolved MSYS2 `tmp` directory and invokes it through the stable `/tmp/...` path, avoiding both multiline `bash -lc` quoting and an extra `cygpath` conversion step;
 - ordinary Git source acquisition is isolated in `scripts/libmpv/clang64/source/source_checkout.sh`: a clean checkout whose `HEAD` already equals the pinned commit is reused offline without contacting the remote; initialized submodules that already match recorded commits are also reused offline; only missing/mismatched source state falls back to bounded shallow HTTP/1.1 fetches, while local changes/non-Git content remain protected and `player_fetch_source` stdout remains reserved for the final source path;
 - large signed release acquisition is isolated in `scripts/libmpv/clang64/source/source_archive.sh`: FFmpeg downloads use resumable curl transfer, the official release archive/signature/key are kept outside Git, the public key is imported only into an isolated build-cache keyring and must match the pinned fingerprint, extraction occurs only after signature/tag identity validation, and partial downloads remain resumable rather than restarting a Git pack;
-- `cmake/DevelopmentRuntime.cmake` now generates `.player-development-root` beside `Player.exe` with only `../..`; `RuntimePaths` consumes that explicit marker instead of inferring the development root from the current working directory, repository filenames, or preset-directory names;
-- `scripts/modules/DevelopmentRuntime.psm1` independently verifies that the marker exists, contains only the expected relative route, and resolves back to the active repository before build/deploy reports success;
-- `scripts/modules/QtRuntimeDeployment.psm1` owns Windows build-tree Qt deployment and post-deploy verification; `scripts/build.ps1` invokes it explicitly after a successful CMake build, while `scripts/deploy-runtime.ps1` exposes the same operation as a short targeted entry;
+- `scripts/modules/DevelopmentRuntime.psm1` owns development marker staging and verification: after a successful Player build it writes only `../..` beside `Player.exe`, rejects absolute/unexpected marker values, and verifies that the route resolves back to the active repository;
+- `scripts/build.ps1` stages that marker only after the CMake build succeeds, then performs Qt deployment; `scripts/deploy-runtime.ps1` can repair the same marker for an existing Player build before targeted Qt deployment;
+- `scripts/test.ps1` now requires the marker before running its build/CTest path, preventing a failed build from being followed by a misleading green test result against stale output;
+- `scripts/modules/QtRuntimeDeployment.psm1` owns Windows build-tree Qt deployment and post-deploy verification;
 - no `mpv_handle`, initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
 
 The approved source-build set is intentionally narrow. MSYS2/CLANG64 is a **build-only** toolchain; it is not a Player production dependency. The source build does not consume MSYS2-packaged FFmpeg/libass/libplacebo/etc. The release-time dependency/license scan in R13 remains mandatory, including any compiler runtime DLL or bundled source component actually present in the final binary graph.
@@ -236,18 +237,19 @@ Confirmed on the user's Windows workspace:
 - the complete source build finishes through FreeType, FriBidi, HarfBuzz, libass, libplacebo, signed FFmpeg `8.0.3`, and mpv `0.41.0`;
 - the final sibling package is generated at `../libmpv/0.41.0/windows-x64`;
 - `verify-package.ps1` passes with the header/import library/runtime DLL present and all 17 manifest artifact hashes verified;
-- `verify-project-layout.ps1` and `verify-dependencies.ps1` pass against the produced package before the latest marker follow-up;
+- `verify-project-layout.ps1` and `verify-dependencies.ps1` pass against the produced package;
 - dependency verification records libmpv runtime SHA-256 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc` and MSVC import-library SHA-256 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`;
 - direct manual invocation of the pinned Qt `windeployqt.exe --debug --force --verbose 0 --no-translations --qmldir ...` deployed the expected Debug Qt DLLs plus `platforms/qwindowsd.dll`, after which `Player.exe` launched successfully from a normal CMD;
-- the explicit PowerShell post-build deployment path is locally verified: `scripts/build.ps1` ends with `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug` without a manual deployment command;
-- all five CTest targets pass locally, including `mpv_runtime_probe`;
-- the latest real run at commit `10dc553` still launched `Player.exe` after a green automatic deployment and green 5/5 CTest result but produced no repository-root `player.log`; this invalidated the heuristic root-detection approach and is why the generated marker now replaces it.
+- the explicit PowerShell post-build deployment path was locally verified before the marker follow-up: `scripts/build.ps1` ended with `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug` without a manual deployment command;
+- the complete R2-01 CTest set has passed 5/5 repeatedly, including `mpv_runtime_probe`;
+- in the latest real run at commit `343aaa7`, `verify-project-layout.ps1` passed, but the redirected build log contained neither the development-marker success line nor the Qt-deployment success line, and the repository-root log was still absent after launching Player. The following 5/5 CTest output therefore cannot be used as acceptance evidence for that marker attempt because the expected post-build marker was not present.
 
 Still required for R2-01 acceptance:
 
-- reconfigure once so CMake generates `build/windows-msvc-debug/.player-development-root`, then confirm the layout gate and build marker verifier are green;
-- confirm all five CTests remain green with the marker-based RuntimePaths/ApplicationContainer regression cases;
-- launch `build/windows-msvc-debug/Player.exe` from the repository root and confirm `<repository>/player.log` exists and contains `libmpv runtime validated` with the actual DLL path and manifest identity.
+- pull the current post-build marker fix and run a fresh configure/build sequence;
+- confirm `build.ps1` prints both `[OK] Development runtime root marker -> build/windows-msvc-debug/.player-development-root` and `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug`;
+- confirm `test.ps1` remains green; it now refuses to run against an output tree missing the marker;
+- launch `build/windows-msvc-debug/Player.exe` and confirm `<repository>/player.log` exists and contains `libmpv runtime validated` with the actual DLL path and manifest identity.
 
 R13 still performs the final clean-machine binary dependency/license scan for the distributable package; the current build-tree deployment is a development/runtime acceptance path, not the final installer implementation.
 
@@ -281,8 +283,10 @@ Rules:
 - Windows path validation treats `..\Qt\...` and `../Qt/...` as the same repository-relative form;
 - Visual Studio x64 environment initialization is automatic through `vswhere.exe` and `vcvars64.bat`;
 - Qt DLL/plugin paths for tests are resolved from the relative Qt root and exist only in the child process environment;
-- the standard Windows `build.ps1` explicitly verifies the generated development-root marker, stages the matching Qt runtime/plugins/QML imports beside `Player.exe` after CMake succeeds, and verifies the core runtime files before reporting success;
-- the generated `.player-development-root` contains only `../..`; RuntimePaths rejects an absolute marker value and normal installed/portable behavior remains active when the marker is absent;
+- the standard Windows `build.ps1` writes and validates `.player-development-root` only after CMake successfully produces `Player.exe`, then stages the matching Qt runtime/plugins/QML imports and verifies the core runtime files before reporting success;
+- `deploy-runtime.ps1` can recreate the same relative marker for an already-built Player before a targeted Qt deployment;
+- the marker contains only `../..`; RuntimePaths rejects an absolute marker value and normal installed/portable behavior remains active when the marker is absent;
+- `test.ps1` requires the marker before it can report a CTest result, so a previous output tree cannot mask a failed current build;
 - `configure.ps1` uses CMake `--fresh` because generated CMake cache data is disposable and location-specific;
 - starting with R2, libmpv is a required sibling dependency rather than an optional future dependency;
 - MSYS2 is an external build tool installation discovered at runtime through `MSYS2_ROOT`, PATH, or the normal system-drive installation; it is not stored in the repository-parent dependency workspace.
@@ -308,18 +312,15 @@ CMakeLists.txt
 
 cmake/CMakeLists.txt
   Global build orchestration and relative entry into ../src and ../tests.
-
-cmake/DevelopmentRuntime.cmake
-  Generates the development-only relative root marker beside Player.exe.
-  It contains no machine-specific project path.
+  Development marker creation is intentionally not owned by CMake.
 
 cmake/FindLibMpv.cmake
   R2-01 fixed sibling-package discovery, full manifest identity checks,
   imported target metadata, and target-local runtime staging.
 
 scripts/modules/DevelopmentRuntime.psm1
-  Verifies the generated development-root marker and its resolution back to
-  the active repository before development build/deploy success is reported.
+  Owns development-only marker staging and verification after Player.exe exists.
+  The generated marker stores only the relative route ../... .
 
 scripts/modules/QtRuntimeDeployment.psm1
   Windows build-tree Qt runtime/QML deployment plus required-file verification.
@@ -455,17 +456,13 @@ The Windows debug executable is:
 build/windows-msvc-debug/Player.exe
 ```
 
-`configure.ps1` generates `build/<preset>/.player-development-root` through CMake. The marker contains only:
+After CMake successfully builds `Player.exe`, `build.ps1` writes `build/<preset>/.player-development-root`. The marker contains only:
 
 ```text
 ../..
 ```
 
-`build.ps1` verifies that marker resolves back to the active repository, then invokes `windeployqt` explicitly and verifies the required Qt Debug/Release DLLs plus the Windows platform plugin. For a short deployment-only rerun without the full build output, use:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\deploy-runtime.ps1
-```
+`build.ps1` immediately verifies that this route resolves back to the active repository, then invokes `windeployqt` and verifies the required Qt Debug/Release DLLs plus the Windows platform plugin. `deploy-runtime.ps1` performs the same marker staging for an existing Player build before targeted Qt deployment.
 
 The generic preset output contract is:
 
@@ -479,7 +476,7 @@ A marker-backed development build writes its log directly at:
 <repository>/player.log
 ```
 
-The repository path is derived from the relative generated marker at runtime; no machine-specific drive path is committed.
+The repository path is derived from the relative marker at runtime; no machine-specific drive path is committed.
 
 After R2-01, a successful application startup must log a line beginning with:
 
@@ -499,8 +496,7 @@ A file may receive new code only when the code has the same responsibility and r
 - Approved R2-R14 fast-framework stage plans: `docs/plans/stages/00_INDEX.md`
 - Third-party license inventory and release gate: `LICENSES/README.md`
 - Build orchestrator: `cmake/CMakeLists.txt`
-- Development runtime marker generation: `cmake/DevelopmentRuntime.cmake`
-- Development runtime marker verification: `scripts/modules/DevelopmentRuntime.psm1`
+- Development runtime marker staging/verification: `scripts/modules/DevelopmentRuntime.psm1`
 - Toolchain/dependency compatibility manifest: `cmake/DependencyVersions.cmake`
 - Relative shared dependency paths: `cmake/DependencyPaths.cmake`
 - R2 libmpv imported-target integration: `cmake/FindLibMpv.cmake`
@@ -529,23 +525,24 @@ Confirmed by the user on the Windows 10 development workspace through R1-06:
 - the minimal QML shell displays and closes normally;
 - the user explicitly marked R1-06 accepted on 2026-08-07.
 
-The R2 dependency build is locally verified on the user's Windows workspace. MSYS2 bootstrap completes, the controlled source build completes through the full pinned dependency chain, the signed FFmpeg 8.0.3 archive verifies with the pinned release key, and the final libmpv package verifies all 17 recorded artifact hashes. `verify-project-layout.ps1` and `verify-dependencies.ps1` also passed against that package before the latest marker follow-up.
+The R2 dependency build is locally verified on the user's Windows workspace. MSYS2 bootstrap completes, the controlled source build completes through the full pinned dependency chain, the signed FFmpeg 8.0.3 archive verifies with the pinned release key, and the final libmpv package verifies all 17 recorded artifact hashes. `verify-project-layout.ps1` and `verify-dependencies.ps1` also pass against that package.
 
-The Qt build-tree runtime path is locally verified: direct manual `windeployqt` first proved the built executable and Qt kit, then the explicit `build.ps1` deployment path was verified to finish with `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug`. The complete R2-01 CTest set passed 5/5 again at commit `10dc553`, including `mpv_runtime_probe`.
+The Qt build-tree runtime path is locally verified: direct manual `windeployqt` first proved the built executable and Qt kit, then the explicit `build.ps1` deployment path was verified to finish with `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug`. The complete R2-01 CTest set has passed 5/5 repeatedly, including `mpv_runtime_probe`.
 
-The application file-log acceptance remains open because the real `10dc553` launch still created no repository-root `player.log`. That result rules out continuing to add directory-name/current-working-directory heuristics. The current implementation replaces those heuristics with one explicit build artifact: CMake generates `.player-development-root` beside `Player.exe`, containing only `../..`; RuntimePaths accepts only that relative value for development routing, and PowerShell verifies the marker resolves to the active repository before a build/deploy is accepted.
+The application file-log acceptance remains open. On the real `343aaa7` follow-up, `verify-project-layout.ps1` passed, but the redirected build log did not contain either post-build success marker and Player still produced no repository-root log. The subsequent 5/5 CTest result therefore proved the existing test binaries remained healthy, but it did not prove that the new build path had completed. The current repair removes configure-time marker generation, makes PowerShell create the marker only after `Player.exe` exists, and makes `test.ps1` reject an output tree that lacks that marker.
 
-Connected-environment verification for this follow-up covers CMake syntax for target-local `file(GENERATE)` marker creation, the final source/diff structure, relative-only marker policy, and marker verification logic. This environment does not contain the user's Windows Qt 6.8.3/MSVC runtime, so the new configure/build/test/launch result remains pending the user's local run.
+Connected-environment verification for this follow-up covers the final Git diff, PowerShell ownership boundaries, removal of the obsolete CMake marker owner, marker-relative-path validation, and structural gates. The connected environment does not contain the user's Windows Qt 6.8.3/MSVC runtime, so the new build/test/launch result remains pending the user's local run.
 
 ## Change Log
 
 ### 2026-08-08
 
-- Replaced repeated development-log path heuristics after the real `10dc553` run still produced no root log: `cmake/DevelopmentRuntime.cmake` now generates `.player-development-root` beside `Player.exe` with only the relative route `../..`, and RuntimePaths uses that explicit marker instead of the current working directory, repository-file discovery, or preset-name inference.
-- Added `scripts/modules/DevelopmentRuntime.psm1`; normal build/deploy now rejects a missing, absolute, unexpected, or mis-resolved development-root marker before reporting success. No machine-specific source path is stored.
-- Added marker-focused RuntimePaths coverage, including portable-marker precedence and rejection of absolute marker content; the ApplicationContainer/LoggingBootstrap regression now exercises the marker path directly.
-- Recorded the latest real local result at `10dc553`: automatic Qt deployment remained green and all five CTests passed, but no root `player.log` was created, so R2-01 is still pending the marker-backed Windows launch rather than being prematurely accepted.
-- Replaced the unreliable CMake `ALL` Qt deployment target with an explicit PowerShell deployment boundary: `build.ps1` now runs `windeployqt` after a successful build and fails if the expected Debug/Release Qt core DLLs or Windows platform plugin are missing; `deploy-runtime.ps1` provides the same operation with short output for targeted verification.
+- Replaced the failed configure-time development marker path after the real `343aaa7` attempt produced neither marker/deployment success output nor a root log: `DevelopmentRuntime.psm1` now creates `.player-development-root` only after a successful Player build, while `deploy-runtime.ps1` can repair it for an existing executable.
+- Removed `cmake/DevelopmentRuntime.cmake` and its CMake target hook so generated development-runtime ownership is no longer split between CMake and PowerShell.
+- Hardened `test.ps1` to require the current development marker before CTest can run, preventing a failed configure/build from being followed by a misleading 5/5 result against stale output.
+- Updated `verify-project-layout.ps1` to enforce the single PowerShell owner, reject reintroduced CMake marker generation, require the marker staging/validation functions, and verify test/build/deploy integration without machine-absolute paths.
+- Retained the marker-focused RuntimePaths and ApplicationContainer/LoggingBootstrap regression coverage; RuntimePaths still accepts only the exact relative marker value `../..` and preserves normal installed/portable behavior when the marker is absent.
+- Replaced the unreliable CMake `ALL` Qt deployment target with an explicit PowerShell deployment boundary: `build.ps1` runs `windeployqt` after a successful build and fails if the expected Debug/Release Qt core DLLs or Windows platform plugin are missing; `deploy-runtime.ps1` provides the same operation with short output for targeted verification.
 - Confirmed manually on Windows that the pinned `windeployqt` command deploys the required Debug Qt runtime and that `Player.exe` launches successfully afterward.
 - Recorded successful R2 source-package creation and verification: the complete pinned libmpv dependency chain built, the signed FFmpeg 8.0.3 release verified, and all 17 package artifact hashes passed.
 - Changed Git-backed source reruns to reuse clean local checkouts when `HEAD` already equals the pinned commit, and to reuse already initialized exact submodules; remote shallow fetch/update is now only a fallback for missing or mismatched source state, eliminating repeated GitHub access for previously verified dependencies.
@@ -571,7 +568,7 @@ Connected-environment verification for this follow-up covers CMake syntax for ta
 
 ### R2-01 local verification after sync
 
-The source-built libmpv package, automatic Qt runtime deployment, and five CTests were already locally verified before this follow-up. Because the development-root marker is generated at configure time, run one fresh configure before the next acceptance attempt:
+The source-built libmpv package, Qt runtime deployment, and five CTests were already independently proven before this follow-up. Run the current chain in order so a failure cannot be mistaken for a later green stale result:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-project-layout.ps1
