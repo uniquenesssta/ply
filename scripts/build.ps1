@@ -30,7 +30,7 @@ try {
         throw "CMake build failed with exit code $LASTEXITCODE."
     }
 
-    Assert-PlayerDevelopmentRuntimeMarker `
+    Set-PlayerDevelopmentRuntimeMarker `
         -Preset $Preset `
         -ProjectRoot $projectRoot
 
