@@ -24,6 +24,23 @@ function Get-PlayerDevelopmentRuntimePaths {
     }
 }
 
+function Clear-PlayerDevelopmentRuntimeMarker {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("windows-msvc-debug", "windows-msvc-release")]
+        [string]$Preset,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot
+    )
+
+    $paths = Get-PlayerDevelopmentRuntimePaths -Preset $Preset -ProjectRoot $ProjectRoot
+    if (Test-Path -LiteralPath $paths.MarkerPath -PathType Leaf) {
+        Remove-Item -LiteralPath $paths.MarkerPath -Force
+    }
+}
+
 function Assert-PlayerDevelopmentRuntimeMarker {
     [CmdletBinding()]
     param(
@@ -50,9 +67,15 @@ function Assert-PlayerDevelopmentRuntimeMarker {
     }
 
     $resolvedRoot = [System.IO.Path]::GetFullPath((Join-Path $paths.OutputDirectory $markerValue))
+    $trimSeparators = [char[]]@(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar)
+    $resolvedRootComparable = $resolvedRoot.TrimEnd($trimSeparators)
+    $projectRootComparable = $paths.ProjectRoot.TrimEnd($trimSeparators)
+
     if (-not [string]::Equals(
-        $resolvedRoot.TrimEnd('\', '/'),
-        $paths.ProjectRoot.TrimEnd('\', '/'),
+        $resolvedRootComparable,
+        $projectRootComparable,
         [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Development runtime marker resolves outside the active project root: '$resolvedRoot'."
     }
@@ -87,5 +110,6 @@ function Set-PlayerDevelopmentRuntimeMarker {
 
 Export-ModuleMember -Function @(
     "Assert-PlayerDevelopmentRuntimeMarker",
+    "Clear-PlayerDevelopmentRuntimeMarker",
     "Set-PlayerDevelopmentRuntimeMarker"
 )
