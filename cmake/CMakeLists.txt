@@ -26,6 +26,7 @@ find_package(LibMpv ${PLAYER_MPV_VERSION} EXACT REQUIRED)
 qt_standard_project_setup(REQUIRES ${PLAYER_QT_VERSION})
 
 add_subdirectory("../src" "../src")
+add_subdirectory("../tools" "../tools")
 
 if(PLAYER_BUILD_TESTS)
     add_subdirectory("../tests" "../tests")
