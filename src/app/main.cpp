@@ -2,7 +2,6 @@
 #include "app/bootstrap/graphics_backend/graphics_backend_bootstrap.h"
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/bootstrap/runtime_paths.h"
-#include "app/composition/application_container.h"
 #include "foundation/logging/log_categories.h"
 
 #include <QDebug>
@@ -18,10 +17,7 @@ int main(int argc, char* argv[])
     player::app::ApplicationBootstrap::configureApplicationMetadata();
 
     player::app::RuntimePaths runtimePaths =
-        player::app::RuntimePaths::fromExecutableFilePath(
-            argc > 0 && argv[0] != nullptr
-                ? QString::fromLocal8Bit(argv[0])
-                : QString{});
+        player::app::RuntimePaths::fromCurrentProcessExecutable();
 
     auto loggingBootstrap = std::make_unique<player::app::LoggingBootstrap>();
     QString loggingError;
