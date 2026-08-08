@@ -11,6 +11,8 @@ namespace player::app {
 namespace {
 
 constexpr auto kPortableMarkerFileName = "portable.flag";
+constexpr auto kBuildDirectoryName = "build";
+constexpr auto kWindowsMsvcPresetPrefix = "windows-msvc-";
 
 QString normalizedPath(QString path)
 {
@@ -28,6 +30,36 @@ QString childPath(const QString& parent, const QString& child)
     }
 
     return normalizedPath(QDir(parent).filePath(child));
+}
+
+QString developmentProjectDirectory(const QString& executableDirectory)
+{
+    QDir directory(executableDirectory);
+    if (!directory.dirName().startsWith(QString::fromLatin1(kWindowsMsvcPresetPrefix))) {
+        return {};
+    }
+
+    if (!directory.cdUp() || directory.dirName() != QString::fromLatin1(kBuildDirectoryName)) {
+        return {};
+    }
+
+    if (!directory.cdUp()) {
+        return {};
+    }
+
+    return normalizedPath(directory.absolutePath());
+}
+
+QString installedLogDirectory(
+    const QString& executableDirectory,
+    const QString& dataDirectory)
+{
+    const QString projectDirectory = developmentProjectDirectory(executableDirectory);
+    if (!projectDirectory.isEmpty()) {
+        return projectDirectory;
+    }
+
+    return childPath(dataDirectory, QStringLiteral("logs"));
 }
 
 QString installedScreenshotDirectory(const QString& dataDirectory)
@@ -75,7 +107,7 @@ RuntimePaths RuntimePaths::resolve(Mode mode, const QString& executableDirectory
         normalizedExecutableDirectory,
         configDirectory,
         dataDirectory,
-        childPath(dataDirectory, QStringLiteral("logs")),
+        installedLogDirectory(normalizedExecutableDirectory, dataDirectory),
         installedScreenshotDirectory(dataDirectory));
 }
 
