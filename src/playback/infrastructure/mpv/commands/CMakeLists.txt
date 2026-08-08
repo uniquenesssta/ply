@@ -1,0 +1,9 @@
+target_sources(
+    player_mpv_infrastructure
+    PRIVATE
+        mpv_command_encoder.cpp
+        mpv_command_encoder.h
+        mpv_command_executor.cpp
+        mpv_command_executor.h
+        mpv_command_request.h
+)

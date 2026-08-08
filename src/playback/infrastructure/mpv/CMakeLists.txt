@@ -2,6 +2,7 @@ add_library(player_mpv_infrastructure STATIC)
 
 add_subdirectory(client)
 add_subdirectory(initialization)
+add_subdirectory(commands)
 add_subdirectory(events)
 add_subdirectory(runtime)
 

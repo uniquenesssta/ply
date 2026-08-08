@@ -207,6 +207,32 @@ add_test(
 )
 
 add_executable(
+    mpv_command_tests
+    unit/playback/infrastructure/mpv/commands/mpv_command_executor_test.cpp
+)
+
+player_apply_compiler_options(mpv_command_tests)
+player_enable_compiler_warnings(mpv_command_tests)
+player_enable_sanitizers(mpv_command_tests)
+player_enable_static_analysis(mpv_command_tests)
+
+target_link_libraries(
+    mpv_command_tests
+    PRIVATE
+        player_mpv_infrastructure
+        LibMpv::LibMpv
+        Qt6::Core
+        Qt6::Test
+)
+
+player_stage_libmpv_runtime(mpv_command_tests)
+
+add_test(
+    NAME mpv_commands
+    COMMAND mpv_command_tests
+)
+
+add_executable(
     mpv_runtime_probe_tests
     unit/playback/infrastructure/mpv/runtime/mpv_runtime_probe_test.cpp
 )
