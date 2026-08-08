@@ -40,6 +40,7 @@ private slots:
     void initTestCase();
     void cleanupTestCase();
     void installedModeUsesStandardLocations();
+    void currentProcessExecutableUsesLoadedModulePath();
     void executableFilePathUsesDevelopmentMarkerBeforeGuiApplication();
     void developmentMarkerWritesLogToProjectRoot();
     void developmentMarkerOverridesPortableMode();
@@ -85,6 +86,15 @@ void RuntimePathsTest::installedModeUsesStandardLocations()
     QCOMPARE(paths.dataDirectory(), expectedData);
     QCOMPARE(paths.logDirectory(), childPath(expectedData, QStringLiteral("logs")));
     QCOMPARE(paths.screenshotDirectory(), expectedScreenshots);
+}
+
+void RuntimePathsTest::currentProcessExecutableUsesLoadedModulePath()
+{
+    const RuntimePaths paths = RuntimePaths::fromCurrentProcessExecutable();
+
+    QCOMPARE(
+        paths.executableDirectory(),
+        cleanPath(QCoreApplication::applicationDirPath()));
 }
 
 void RuntimePathsTest::executableFilePathUsesDevelopmentMarkerBeforeGuiApplication()
