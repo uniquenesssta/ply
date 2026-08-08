@@ -7,7 +7,7 @@ A Windows-first, cross-platform-ready desktop player project. The product name i
 This repository is now the active R2 modular playback-core scaffold. It currently provides:
 
 - a root CMake entry limited to mandatory project/testing bootstrap and delegation to `cmake/CMakeLists.txt`;
-- responsibility-separated CMake modules for dependency, compiler, analysis, target, source, and test configuration;
+- responsibility-separated CMake modules for dependency, compiler, analysis, target, source, test, and build-tree Qt runtime deployment configuration;
 - a Qt 6.8.3 Qt Quick application bootstrap;
 - a dedicated `RuntimePaths` bootstrap module for installed and portable path resolution;
 - a dedicated foundation logging module with categories, file sink, rotation, redaction, and shutdown flush;
@@ -20,6 +20,7 @@ This repository is now the active R2 modular playback-core scaffold. It currentl
 - an R2-01 mpv runtime module that validates client-API compatibility, the actual loaded DLL path, and the staged dependency-manifest identity before QML startup;
 - a modular MSYS2 CLANG64 source-build chain that produces the project-controlled libmpv SDK/runtime package from pinned upstream source identities without placing build trees or third-party binaries in Git;
 - automatic staging of the fixed libmpv package runtime DLLs plus its dependency manifest beside executable/test targets;
+- build-tree deployment of the matching Qt Debug/Release DLLs, platform plugins, and QML imports beside `Player.exe` through the pinned Qt kit's `windeployqt.exe`, without relying on a developer PATH;
 - architecture decisions, the original full development task book, and the approved R2-R14 fast-framework stage taskbooks under `docs/plans/stages/`;
 - an explicit Windows/MSVC/Qt/libmpv/FFmpeg/transitive-source identity baseline plus minimum-compatible CMake/Ninja development-tool gates;
 - stable configure, build, and test entry scripts that can initialize the Visual Studio x64 build environment from an ordinary Windows CMD/PowerShell session;
@@ -160,7 +161,7 @@ Runtime paths returned by Windows/Qt may naturally be absolute operating-system 
 
 ### R1-03 — Complete
 
-- `src/foundation/logging/` owns logging categories, rotating file sink, redaction, and flush behavior;
+- `src/foundation/logging/` owns logging categories, file sink, rotation, redaction, and flush behavior;
 - `LoggingBootstrap` connects RuntimePaths to the file sink without moving sink internals into startup code;
 - logging failure does not prevent core application startup;
 - the `logging` Qt Test passes on the user's Windows/Qt environment.
@@ -193,9 +194,9 @@ Runtime paths returned by Windows/Qt may naturally be absolute operating-system 
 - the layout verifier enforces the QML module/shell boundaries and rejects direct libmpv calls from `PlayerScreen.qml`;
 - the user explicitly accepted R1-06 after local configure/build/test/window verification on 2026-08-07.
 
-### R2-01 — Implemented; source-built libmpv package acceptance pending
+### R2-01 — Implemented; final Player runtime acceptance pending
 
-Implemented on 2026-08-07 in `agent/r2-stage`:
+Implemented on 2026-08-07/08 in `agent/r2-stage`:
 
 - `cmake/FindLibMpv.cmake` is the only CMake discovery boundary for the fixed libmpv sibling package;
 - discovery is constrained to `../libmpv/0.41.0/windows-x64` and does not search a system mpv installation or arbitrary PATH location;
@@ -220,20 +221,28 @@ Implemented on 2026-08-07 in `agent/r2-stage`:
 - `Msys2Environment.psm1` executes arbitrary CLANG64 shell text through a temporary UTF-8-no-BOM LF `.sh` file written directly under the resolved MSYS2 `tmp` directory and invokes it through the stable `/tmp/...` path, avoiding both multiline `bash -lc` quoting and an extra `cygpath` conversion step;
 - ordinary Git source acquisition is isolated in `scripts/libmpv/clang64/source/source_checkout.sh`: a clean checkout whose `HEAD` already equals the pinned commit is reused offline without contacting the remote; initialized submodules that already match recorded commits are also reused offline; only missing/mismatched source state falls back to bounded shallow HTTP/1.1 fetches, while local changes/non-Git content remain protected and `player_fetch_source` stdout remains reserved for the final source path;
 - large signed release acquisition is isolated in `scripts/libmpv/clang64/source/source_archive.sh`: FFmpeg downloads use resumable curl transfer, the official release archive/signature/key are kept outside Git, the public key is imported only into an isolated build-cache keyring and must match the pinned fingerprint, extraction occurs only after signature/tag identity validation, and partial downloads remain resumable rather than restarting a Git pack;
+- `cmake/QtRuntimeDeployment.cmake` now owns Windows build-tree Qt deployment: the standard build invokes the pinned Qt kit's `windeployqt.exe` for the active Debug/Release configuration, scans `src/presentation/qml`, and deploys Qt DLLs/plugins/QML imports beside `Player.exe` without mutating PATH;
 - no `mpv_handle`, initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
 
 The approved source-build set is intentionally narrow. MSYS2/CLANG64 is a **build-only** toolchain; it is not a Player production dependency. The source build does not consume MSYS2-packaged FFmpeg/libass/libplacebo/etc. The release-time dependency/license scan in R13 remains mandatory, including any compiler runtime DLL or bundled source component actually present in the final binary graph.
 
-Still required on the user's Windows workspace:
+Confirmed on the user's Windows workspace:
 
-- the original MSYS2 CLANG64 bootstrap is locally verified; rerun `bootstrap-build-environment.ps1` once after this change so curl/GnuPG/tar/xz archive-verification tools are explicitly present;
-- the full project-controlled source build must rerun with offline reuse of already verified Git checkouts plus the signed FFmpeg release-archive path, complete, and create the fixed sibling package;
-- `verify-package.ps1` and `verify-dependencies.ps1` must validate the real package identity and artifact hashes;
-- fresh configure/build must link against `LibMpv::LibMpv` and stage its runtime files;
+- MSYS2 CLANG64 bootstrap passes with curl/GnuPG/tar/xz and the pinned compiler/build tools present;
+- the complete source build finishes through FreeType, FriBidi, HarfBuzz, libass, libplacebo, signed FFmpeg `8.0.3`, and mpv `0.41.0`;
+- the final sibling package is generated at `../libmpv/0.41.0/windows-x64`;
+- `verify-package.ps1` passes with the header/import library/runtime DLL present and all 17 manifest artifact hashes verified;
+- `verify-project-layout.ps1` and `verify-dependencies.ps1` pass against the produced package;
+- dependency verification records libmpv runtime SHA-256 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc` and MSVC import-library SHA-256 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`;
+- direct launch of the previously built Debug `Player.exe` then exposed missing Qt build-tree deployment (`Qt6Quickd.dll`, `Qt6Guid.dll`, `Qt6Qmld.dll`, and `Qt6Cored.dll`), which is the runtime path repaired by `QtRuntimeDeployment.cmake`.
+
+Still required for R2-01 acceptance:
+
+- pull the Qt runtime deployment fix, rerun fresh configure/build, and confirm the standard build deploys the Qt Debug runtime/plugins/QML imports beside `Player.exe`;
 - CTest must pass all five tests including `mpv_runtime_probe`;
-- `build/windows-msvc-debug/Player.exe` must start using the staged DLL and log `libmpv runtime validated` with the actual DLL path and manifest identity.
+- `build/windows-msvc-debug/Player.exe` must launch directly from a normal CMD/Explorer context and log `libmpv runtime validated` with the actual DLL path and manifest identity.
 
-The exact artifact hashes, transitive DLL set, source commits for dependencies other than the already pinned mpv commit, and final package size are not claimed until the user's real source build completes. R13 still performs the final clean-machine binary dependency/license scan for the distributable package.
+R13 still performs the final clean-machine binary dependency/license scan for the distributable package; the current build-tree deployment is a development/runtime acceptance path, not the final installer implementation.
 
 ## Parent-workspace and relative-path policy
 
@@ -265,6 +274,7 @@ Rules:
 - Windows path validation treats `..\Qt\...` and `../Qt/...` as the same repository-relative form;
 - Visual Studio x64 environment initialization is automatic through `vswhere.exe` and `vcvars64.bat`;
 - Qt DLL/plugin paths for tests are resolved from the relative Qt root and exist only in the child process environment;
+- the standard Windows build now also stages the matching Qt runtime/plugins/QML imports beside `Player.exe` through the pinned Qt kit, so direct build-tree launch does not depend on a preconfigured PATH;
 - `configure.ps1` uses CMake `--fresh` because generated CMake cache data is disposable and location-specific;
 - starting with R2, libmpv is a required sibling dependency rather than an optional future dependency;
 - MSYS2 is an external build tool installation discovered at runtime through `MSYS2_ROOT`, PATH, or the normal system-drive installation; it is not stored in the repository-parent dependency workspace.
@@ -294,6 +304,10 @@ cmake/CMakeLists.txt
 cmake/FindLibMpv.cmake
   R2-01 fixed sibling-package discovery, full manifest identity checks,
   imported target metadata, and target-local runtime staging.
+
+cmake/QtRuntimeDeployment.cmake
+  Windows build-tree Qt runtime/QML deployment through the pinned Qt kit.
+  Keeps Qt deployment separate from application target and libmpv ownership.
 
 scripts/libmpv/
   Project-controlled third-party source build only. PowerShell owns Windows
@@ -390,30 +404,7 @@ Future `playback_composition`, `persistence_composition`, and `platform_composit
 
 `source_checkout.sh` owns Git-backed fixed-ref source acquisition: clean local checkouts at the pinned commit are accepted as authoritative cached inputs and reused without a remote fetch; recursive submodules are likewise reused when `git submodule status --recursive` reports exact initialized commits. Missing or mismatched source state falls back to staged shallow HTTP/1.1 fetches with exact commit verification, failed staging is removed, and existing local changes are protected. `source_archive.sh` owns immutable signed release archives: the FFmpeg tarball/signature/key download is resumable under `../downloads/libmpv/archives`, the release key is checked in an isolated cache keyring against the pinned fingerprint, the signed archive is verified before extraction, and only a tiny peeled-tag lookup is used to confirm `n8.0.3` still maps to the pinned release commit. Verified archive extraction is disposable under `../cache/libmpv-build/archive-sources`; it does not overwrite user-maintained Git source checkouts or change global Git/GPG configuration.
 
-The manifest generated after the real build includes at least:
-
-```json
-{
-  "mpv": {
-    "version": "0.41.0",
-    "tag": "v0.41.0",
-    "commit": "41f6a645068483470267271e1d09966ca3b9f413",
-    "sourceCommit": "..."
-  },
-  "ffmpeg": { "version": "8.0.3", "ref": "n8.0.3", "sourceCommit": "..." },
-  "libplacebo": { "version": "7.351.0", "ref": "v7.351.0", "sourceCommit": "..." },
-  "libass": { "version": "0.17.4", "ref": "0.17.4", "sourceCommit": "..." },
-  "freetype": { "version": "2.13.3", "ref": "VER-2-13-3", "sourceCommit": "..." },
-  "fribidi": { "version": "1.0.16", "ref": "v1.0.16", "sourceCommit": "..." },
-  "harfbuzz": { "version": "10.2.0", "ref": "10.2.0", "sourceCommit": "..." },
-  "artifacts": [
-    { "path": "bin/...dll", "sha256": "...", "bytes": 0 },
-    { "path": "lib/mpv.lib", "sha256": "...", "bytes": 0 }
-  ]
-}
-```
-
-The real values replace the ellipses only after a successful local source build. The project does not invent binary hashes or unresolved source commits in source control.
+The manifest generated by the verified package records the pinned source identities plus artifact hashes; the real Windows package currently verifies 17 recorded runtime/import artifacts through `verify-package.ps1`.
 
 ## Build the libmpv dependency package
 
@@ -448,6 +439,8 @@ The Windows debug executable is:
 build/windows-msvc-debug/Player.exe
 ```
 
+The standard Windows build also creates/refreshes the Qt runtime payload beside that executable through `windeployqt`; direct launch should therefore not require a separate Qt PATH setup.
+
 The generic preset output contract is:
 
 ```text
@@ -475,6 +468,7 @@ A file may receive new code only when the code has the same responsibility and r
 - Toolchain/dependency compatibility manifest: `cmake/DependencyVersions.cmake`
 - Relative shared dependency paths: `cmake/DependencyPaths.cmake`
 - R2 libmpv imported-target integration: `cmake/FindLibMpv.cmake`
+- Windows build-tree Qt runtime deployment: `cmake/QtRuntimeDeployment.cmake`
 - R2 source-build entry: `scripts/libmpv/build-package.ps1`
 - R2 Git source checkout/network boundary: `scripts/libmpv/clang64/source/source_checkout.sh`
 - R2 signed release archive boundary: `scripts/libmpv/clang64/source/source_archive.sh`
@@ -498,28 +492,18 @@ Confirmed by the user on the Windows 10 development workspace through R1-06:
 - the minimal QML shell displays and closes normally;
 - the user explicitly marked R1-06 accepted on 2026-08-07.
 
-The user's first R2-01 local verification on 2026-08-07 confirmed that the new R2 hard gate correctly stops all configure/build/test entry points when `../libmpv/0.41.0/windows-x64/include/mpv/client.h` is absent. This is expected behavior and is not treated as a source failure. The source-build chain was then added to create that package from the approved source identities instead of weakening the gate.
+The R2 dependency build is now locally verified on the user's Windows workspace. MSYS2 bootstrap completes, the controlled source build completes through the full pinned dependency chain, the signed FFmpeg 8.0.3 archive verifies with the pinned release key, and the final libmpv package verifies all 17 recorded artifact hashes. `verify-project-layout.ps1` and `verify-dependencies.ps1` also pass against that package.
 
-The MSYS2 bootstrap path is locally verified through the original CLANG64 tool set: package installation completed and the post-install check returned `MSYS2 CLANG64 build environment is ready.` The current signed-archive follow-up adds curl/GnuPG/tar/xz as explicit build-only requirements and still needs one local bootstrap rerun to confirm their presence through the same entry point.
+The first direct launch after package verification exposed a separate build-tree runtime issue: `Player.exe` could not load `Qt6Quickd.dll`, followed by `Qt6Guid.dll`, `Qt6Qmld.dll`, and `Qt6Cored.dll`. The prior test path had temporarily injected Qt directories into the child process, but the standard application build did not deploy Qt beside the executable. `cmake/QtRuntimeDeployment.cmake` now owns this responsibility and invokes the pinned kit's `windeployqt.exe` from the normal CMake build, including QML import scanning, without changing user/global PATH.
 
-The first real `build-package.ps1` run then reached FreeType source acquisition and cloned the repository successfully, but the source-safety check immediately rejected that fresh checkout as locally modified. Review confirmed the cause was `git clone --no-checkout` followed by `git status --porcelain`: the intentionally empty worktree appears as tracked deletions. The source checkout recovery now only repairs that provably empty/all-tracked-deletions state; actual local changes remain protected.
-
-The next local rerun recovered the FreeType checkout, fetched `VER-2-13-3`, detached at the pinned `42608f77...` commit, and reached Meson. Meson then received an invalid source path beginning with `Recovering incomplete no-checkout source clone:` because `player_fetch_source()` is consumed through command substitution and that recovery diagnostic was still written to stdout. The source checkout module now reserves stdout exclusively for the final source-path return value and routes recovery plus Git operational output to stderr.
-
-The following local run confirmed that correction by completing the FreeType configure, compile, and install stages. The build then moved to FriBidi, where the first full GitHub clone timed out after 300000 ms. Because the old source function relied on shell `errexit` inside command substitution, it continued after the failed clone and emitted several misleading missing-directory errors plus an empty source-identity mismatch. Source acquisition was isolated in `source/source_checkout.sh`; network operations gained bounded three-attempt retry, staging/cleanup, and explicit failure propagation.
-
-The next local run progressed beyond FriBidi and reached HarfBuzz. HarfBuzz full-history clone failed on all three attempts with OpenSSL unexpected EOF, HTTP/2 stream reset, and connection-abort errors while transferring a repository with more than 130,000 objects. The retry/cleanup boundary worked correctly and installed no failed HarfBuzz checkout. The source-network implementation then switched Git-backed dependencies to shallow fixed-ref HTTP/1.1 fetches.
-
-A later local run confirmed that the shallow-fetch change progressed through HarfBuzz and subsequent dependencies to FFmpeg. FFmpeg still required 9,850 objects even at depth 1, and all three Git pack attempts failed mid-transfer with `curl 18`, `curl 56`, EOF, and invalid `index-pack` output. FFmpeg acquisition was therefore moved to its official approximately 11 MB `ffmpeg-8.0.3.tar.xz` release archive, resumable curl transfer, official `.asc` signature, an isolated GPG keyring pinned to release fingerprint `FCF986EA15E6E293A5644F10B4322F04D67658D8`, and only a small peeled-tag lookup to retain the pinned `n8.0.3 -> 8ae0b349...` commit identity check.
-
-The next local rerun then failed earlier at FriBidi even though that checkout had already been downloaded and built: three attempts to refresh `v1.0.16` failed with connection abort / inability to reach `github.com:443`. This exposed an unnecessary network dependency in the rerun path. `source_checkout.sh` now checks the clean local `HEAD` first and reuses it immediately when it equals the pinned commit; recursive submodules are also reused when their recorded commits are already initialized and exact. Remote fetch is now a fallback for missing or mismatched local source state rather than a mandatory step on every rebuild.
-
-Connected-environment verification for this follow-up covers structural review of the local-cache identity path, submodule status gate, network fallback boundary, signed archive trust boundary, and existing source/package contracts. This environment cannot execute the user's Windows MSYS2 network/download path, so the real offline reuse on the user's existing checkouts, signed archive download/resume, GPG verification, FFmpeg compile, remaining mpv build, produced DLL graph, import-library generation, package hashes, Player linking, five CTests, and runtime loader probe remain local acceptance requirements.
+Connected-environment verification for this follow-up covers the final diff/structure and the new CMake deployment boundary. This environment does not have the user's Windows Qt 6.8.3 kit, so the real `windeployqt` execution, five CTests, direct Windows launch, and `libmpv runtime validated` log remain local acceptance requirements.
 
 ## Change Log
 
 ### 2026-08-08
 
+- Added a dedicated build-tree Qt runtime deployment module after direct `Player.exe` launch exposed missing `Qt6Quickd.dll`, `Qt6Guid.dll`, `Qt6Qmld.dll`, and `Qt6Cored.dll`; the normal Windows build now runs the pinned Qt kit's `windeployqt.exe` for the active Debug/Release configuration and deploys DLLs/plugins/QML imports beside the executable without relying on PATH.
+- Recorded successful R2 source-package creation and verification: the complete pinned libmpv dependency chain built, the signed FFmpeg 8.0.3 release verified, and all 17 package artifact hashes passed.
 - Changed Git-backed source reruns to reuse clean local checkouts when `HEAD` already equals the pinned commit, and to reuse already initialized exact submodules; remote shallow fetch/update is now only a fallback for missing or mismatched source state, eliminating repeated GitHub access for previously verified dependencies.
 - Replaced FFmpeg's remaining Git-pack source transfer with the official signed `ffmpeg-8.0.3.tar.xz` release path after three depth-1 fetches still failed while transferring 9,850 objects; downloads are resumable, release signature verification uses an isolated GPG keyring pinned to the official release fingerprint, the remote release tag is still checked against the pinned commit, and no global Git/GPG configuration is modified.
 - Added curl/GnuPG/tar/xz as build-only MSYS2 requirements for signed release archive verification; they are not Player runtime dependencies.
@@ -543,16 +527,7 @@ Connected-environment verification for this follow-up covers structural review o
 
 ### R2-01 local verification after sync
 
-First create and verify the sibling libmpv package:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\libmpv\verify-build-layout.ps1
-powershell -ExecutionPolicy Bypass -File scripts\libmpv\bootstrap-build-environment.ps1
-powershell -ExecutionPolicy Bypass -File scripts\libmpv\build-package.ps1
-powershell -ExecutionPolicy Bypass -File scripts\libmpv\verify-package.ps1
-```
-
-Then validate Player:
+The source-built libmpv package is already created and verified. After pulling the latest R2 branch, validate the Qt deployment and Player chain with:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-project-layout.ps1
@@ -562,10 +537,10 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-Expected CTest registration after R2-01: five tests (`runtime_paths`, `logging`, `graphics_backend`, `application_container`, `mpv_runtime_probe`). Then launch:
+Expected CTest registration: five tests (`runtime_paths`, `logging`, `graphics_backend`, `application_container`, `mpv_runtime_probe`). Then launch directly from a normal CMD/Explorer context:
 
 ```text
 build\windows-msvc-debug\Player.exe
 ```
 
-R2-01 acceptance requires the source-built fixed sibling package to pass identity/hash checks, the build to link and stage its actual runtime dependency graph, all five tests to pass, and the application to log `libmpv runtime validated` while loading the DLL from the staged executable directory. Any source-build/package failure must remain explicit; do not replace it with a random system or third-party mpv binary.
+R2-01 acceptance requires the standard build to place the required Qt runtime/QML payload beside the executable, all five tests to pass, and the application to log `libmpv runtime validated` while loading the libmpv DLL from the staged executable directory. Any runtime failure must remain explicit; do not replace it with a system Qt/mpv PATH workaround.
