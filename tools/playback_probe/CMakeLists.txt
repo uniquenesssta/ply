@@ -18,6 +18,12 @@ add_executable(
     trace/playback_probe_trace.h
 )
 
+target_include_directories(
+    playback_probe
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 player_apply_compiler_options(playback_probe)
 player_enable_compiler_warnings(playback_probe)
 player_enable_sanitizers(playback_probe)
