@@ -21,6 +21,7 @@ $requiredFiles = @(
     "scripts/test.ps1",
     "scripts/modules/DependencyPaths.psm1",
     "scripts/modules/DependencyVersions.psm1",
+    "scripts/modules/DevelopmentRuntime.psm1",
     "scripts/modules/MsvcEnvironment.psm1",
     "scripts/modules/QtRuntimeDeployment.psm1",
     "src/CMakeLists.txt",
@@ -91,6 +92,7 @@ Restore the complete scaffold before configuring.
 }
 
 foreach ($obsoletePath in @(
+    "cmake/DevelopmentRuntime.cmake",
     "cmake/QtRuntimeDeployment.cmake",
     "src/app/bootstrap/graphics_backend_bootstrap.cpp",
     "src/app/bootstrap/graphics_backend_bootstrap.h"
@@ -143,8 +145,13 @@ foreach ($fragment in @(
         throw "cmake/CMakeLists.txt is missing required orchestration fragment: $fragment"
     }
 }
-if ($orchestrator.Contains("include(QtRuntimeDeployment)")) {
-    throw "cmake/CMakeLists.txt reintroduced the unreliable CMake Qt runtime deployment path."
+foreach ($forbiddenFragment in @(
+    "include(DevelopmentRuntime)",
+    "include(QtRuntimeDeployment)"
+)) {
+    if ($orchestrator.Contains($forbiddenFragment)) {
+        throw "cmake/CMakeLists.txt reintroduced generated-runtime deployment ownership: $forbiddenFragment"
+    }
 }
 
 $findLibMpv = Get-Content -LiteralPath (Join-Path $projectRoot "cmake/FindLibMpv.cmake") -Raw
@@ -177,8 +184,13 @@ foreach ($fragment in @(
         throw "src/CMakeLists.txt is missing required R2-01 playback/runtime staging fragment: $fragment"
     }
 }
-if ($srcCMake.Contains("player_enable_qt_runtime_deployment(")) {
-    throw "src/CMakeLists.txt reintroduced Qt runtime deployment into the CMake target graph."
+foreach ($forbiddenFragment in @(
+    "player_enable_qt_runtime_deployment(",
+    "player_generate_development_runtime_marker("
+)) {
+    if ($srcCMake.Contains($forbiddenFragment)) {
+        throw "src/CMakeLists.txt reintroduced runtime deployment into the CMake target graph: $forbiddenFragment"
+    }
 }
 
 $appCMake = Get-Content -LiteralPath (Join-Path $projectRoot "src/app/CMakeLists.txt") -Raw
@@ -348,17 +360,37 @@ if (-not $configureScript.Contains('"--fresh", "--preset"')) {
     throw "configure.ps1 must use CMake --fresh so generated cache paths cannot bind a moved or renamed checkout to its previous location."
 }
 
+$developmentRuntimeModule = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/modules/DevelopmentRuntime.psm1") -Raw
+foreach ($fragment in @(
+    'function Assert-PlayerDevelopmentRuntimeMarker',
+    'function Set-PlayerDevelopmentRuntimeMarker',
+    '.player-development-root',
+    '"../.."',
+    '[System.IO.File]::WriteAllText',
+    '[System.IO.Path]::IsPathRooted',
+    '[OK] Development runtime root marker'
+)) {
+    if (-not $developmentRuntimeModule.Contains($fragment)) {
+        throw "DevelopmentRuntime.psm1 is missing required marker staging/verification fragment: $fragment"
+    }
+}
+if ($developmentRuntimeModule -match '[A-Za-z]:[/\\]') {
+    throw "DevelopmentRuntime.psm1 contains a machine-absolute Windows path."
+}
+
 $buildScript = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/build.ps1") -Raw
 foreach ($fragment in @(
+    'modules/DevelopmentRuntime.psm1',
     'modules/QtRuntimeDeployment.psm1',
     'Resolve-PlayerQtRoot -Layout $layout',
+    'Set-PlayerDevelopmentRuntimeMarker',
     'Invoke-PlayerQtRuntimeDeployment',
     '-Preset $Preset',
     '-ProjectRoot $projectRoot',
     '-QtRoot $qtRoot'
 )) {
     if (-not $buildScript.Contains($fragment)) {
-        throw "build.ps1 is missing required post-build Qt deployment fragment: $fragment"
+        throw "build.ps1 is missing required post-build runtime staging fragment: $fragment"
     }
 }
 if ($buildScript -match '[A-Za-z]:[/\\]') {
@@ -367,13 +399,15 @@ if ($buildScript -match '[A-Za-z]:[/\\]') {
 
 $deployRuntimeScript = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/deploy-runtime.ps1") -Raw
 foreach ($fragment in @(
+    'modules/DevelopmentRuntime.psm1',
     'modules/QtRuntimeDeployment.psm1',
     'Initialize-PlayerMsvcEnvironment -Versions $versions',
+    'Set-PlayerDevelopmentRuntimeMarker',
     'Invoke-PlayerQtRuntimeDeployment',
     '-Preset $Preset'
 )) {
     if (-not $deployRuntimeScript.Contains($fragment)) {
-        throw "deploy-runtime.ps1 is missing required targeted Qt deployment fragment: $fragment"
+        throw "deploy-runtime.ps1 is missing required targeted runtime deployment fragment: $fragment"
     }
 }
 if ($deployRuntimeScript -match '[A-Za-z]:[/\\]') {
@@ -412,6 +446,8 @@ if ($qtRuntimeModule -match '(?i)SetEnvironmentVariable|\$env:PATH\s*=') {
 
 $testScript = Get-Content -LiteralPath (Join-Path $projectRoot "scripts/test.ps1") -Raw
 foreach ($fragment in @(
+    'modules/DevelopmentRuntime.psm1',
+    'Assert-PlayerDevelopmentRuntimeMarker',
     "Resolve-PlayerCTest",
     '& $ctest --preset $Preset',
     'Join-Path $qtRoot "bin"',
@@ -493,4 +529,4 @@ if ($dependencyVerifier.Contains("it becomes required in Stage R2")) {
     throw "verify-dependencies.ps1 still treats libmpv as optional after R2 started."
 }
 
-Write-Host "Project layout, R2-01 fixed libmpv target/runtime probe, explicit post-build Qt runtime deployment, R1-06 QML shell diagnostics, R1-05 composition root ownership, parent-workspace relative paths, Windows normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R2-01 fixed libmpv target/runtime probe, explicit post-build development marker and Qt runtime deployment, stale-test rejection, R1-06 QML shell diagnostics, R1-05 composition root ownership, parent-workspace relative paths, Windows normalization, compatible tool gates, and CMake responsibility boundaries are complete."
