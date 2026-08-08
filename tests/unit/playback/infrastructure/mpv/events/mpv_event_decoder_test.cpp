@@ -61,6 +61,8 @@ QByteArray makeSilentPcmWav()
     appendLittleEndian32(bytes, kByteRate);
     appendLittleEndian16(bytes, kBlockAlign);
     appendLittleEndian16(bytes, kBitsPerSample);
+    bytes.append("data", 4);
+    appendLittleEndian32(bytes, kDataSize);
     bytes.append(QByteArray(static_cast<qsizetype>(kDataSize), '\0'));
     return bytes;
 }
