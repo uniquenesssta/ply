@@ -18,6 +18,8 @@ mpv_format toMpvFormat(MpvPropertyFormat format) noexcept
         return MPV_FORMAT_FLAG;
     case MpvPropertyFormat::Double:
         return MPV_FORMAT_DOUBLE;
+    case MpvPropertyFormat::String:
+        return MPV_FORMAT_STRING;
     case MpvPropertyFormat::Node:
         return MPV_FORMAT_NODE;
     }
@@ -165,6 +167,15 @@ std::optional<MpvPropertyChange> MpvPropertyObserver::decode(
         return MpvPropertyChange{
             definition->id,
             *static_cast<const double*>(rawData)};
+    case MpvPropertyFormat::String: {
+        const auto* value = static_cast<char* const*>(rawData);
+        if (value == nullptr || *value == nullptr) {
+            return MpvPropertyChange{definition->id, std::monostate{}};
+        }
+        return MpvPropertyChange{
+            definition->id,
+            QString::fromUtf8(*value)};
+    }
     case MpvPropertyFormat::Node: {
         const auto* node = static_cast<const mpv_node*>(rawData);
         auto decoded = MpvNodeDecoder::decode(*node, errorMessage);

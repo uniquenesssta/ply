@@ -19,12 +19,24 @@ enum class MpvPropertyId : quint16
     EofReached,
     TrackList,
     ChapterList,
+    Seeking,
+    PausedForCache,
+    CacheBufferingState,
+    DemuxerCacheState,
+    MediaTitle,
+    Path,
+    SelectedAudioTrack,
+    SelectedSubtitleTrack,
+    SelectedVideoTrack,
+    VideoParams,
+    AudioParams,
 };
 
 enum class MpvPropertyFormat : quint8
 {
     Flag,
     Double,
+    String,
     Node,
 };
 

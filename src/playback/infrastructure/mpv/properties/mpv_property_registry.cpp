@@ -15,6 +15,17 @@ const QList<MpvPropertyDefinition> kCoreDefinitions{
     {MpvPropertyId::EofReached, 2009, QByteArrayLiteral("eof-reached"), MpvPropertyFormat::Flag},
     {MpvPropertyId::TrackList, 2010, QByteArrayLiteral("track-list"), MpvPropertyFormat::Node},
     {MpvPropertyId::ChapterList, 2011, QByteArrayLiteral("chapter-list"), MpvPropertyFormat::Node},
+    {MpvPropertyId::Seeking, 2012, QByteArrayLiteral("seeking"), MpvPropertyFormat::Flag},
+    {MpvPropertyId::PausedForCache, 2013, QByteArrayLiteral("paused-for-cache"), MpvPropertyFormat::Flag},
+    {MpvPropertyId::CacheBufferingState, 2014, QByteArrayLiteral("cache-buffering-state"), MpvPropertyFormat::Node},
+    {MpvPropertyId::DemuxerCacheState, 2015, QByteArrayLiteral("demuxer-cache-state"), MpvPropertyFormat::Node},
+    {MpvPropertyId::MediaTitle, 2016, QByteArrayLiteral("media-title"), MpvPropertyFormat::String},
+    {MpvPropertyId::Path, 2017, QByteArrayLiteral("path"), MpvPropertyFormat::String},
+    {MpvPropertyId::SelectedAudioTrack, 2018, QByteArrayLiteral("aid"), MpvPropertyFormat::Node},
+    {MpvPropertyId::SelectedSubtitleTrack, 2019, QByteArrayLiteral("sid"), MpvPropertyFormat::Node},
+    {MpvPropertyId::SelectedVideoTrack, 2020, QByteArrayLiteral("vid"), MpvPropertyFormat::Node},
+    {MpvPropertyId::VideoParams, 2021, QByteArrayLiteral("video-params"), MpvPropertyFormat::Node},
+    {MpvPropertyId::AudioParams, 2022, QByteArrayLiteral("audio-params"), MpvPropertyFormat::Node},
 };
 
 } // namespace
