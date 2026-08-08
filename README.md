@@ -11,7 +11,7 @@ This repository is now the active R2 modular playback-core scaffold. It currentl
 - a Qt 6.8.3 Qt Quick application bootstrap;
 - a dedicated `RuntimePaths` bootstrap module for installed and portable path resolution;
 - an explicit post-build `.player-development-root` marker that contains only the relative route `../..`, so development logging can resolve the repository root without machine-specific drive paths or runtime directory heuristics;
-- file logging armed before `QGuiApplication` construction for development startup diagnostics, with the same `LoggingBootstrap` ownership transferred into `ApplicationContainer` after the GUI application exists;
+- file logging armed before `QGuiApplication` construction for development startup diagnostics, with the true process executable path resolved from the loaded Windows module rather than `argv[0]`, and with the same `LoggingBootstrap` ownership transferred into `ApplicationContainer` after the GUI application exists;
 - a dedicated foundation logging module with categories, file sink, rotation, redaction, and shutdown flush;
 - an `ApplicationContainer` composition root that owns the current top-level runtime objects and defines their shutdown order;
 - repository/build/dependency configuration that stores only repository-relative paths rather than machine-specific drive paths;
@@ -227,7 +227,7 @@ Implemented on 2026-08-07/08 in `agent/r2-stage`:
 - `scripts/modules/DevelopmentRuntime.psm1` owns development marker staging and verification: after a successful Player build it writes only `../..` beside `Player.exe`, rejects absolute/unexpected marker values, and verifies that the route resolves back to the active repository;
 - `scripts/build.ps1` stages that marker only after the CMake build succeeds, then performs Qt deployment; `scripts/deploy-runtime.ps1` can repair the same marker for an existing Player build before targeted Qt deployment;
 - `scripts/test.ps1` requires the marker before running its build/CTest path, preventing a failed build from being followed by a misleading green test result against stale output;
-- development startup now resolves `RuntimePaths` from the invoked executable path and starts the real `LoggingBootstrap` before constructing `QGuiApplication`; `ApplicationBootstrap` then transfers that same logger into `ApplicationContainer`, and the idempotent `start()` call does not create a duplicate sink;
+- development startup resolves the real current-process executable with `GetModuleFileNameW(nullptr, ...)`, resolves the existing relative marker from that actual module directory, and starts the real `LoggingBootstrap` before constructing `QGuiApplication`; `ApplicationBootstrap` then transfers that same logger into `ApplicationContainer`, and the idempotent `start()` call does not create a duplicate sink;
 - `scripts/modules/QtRuntimeDeployment.psm1` owns Windows build-tree Qt deployment and post-deploy verification;
 - no `mpv_handle`, initialization profile, event loop, command encoder, property observer, render context, PlaybackSession, or QML playback behavior was introduced in R2-01.
 
@@ -244,14 +244,15 @@ Confirmed on the user's Windows workspace:
 - direct manual invocation of the pinned Qt `windeployqt.exe --debug --force --verbose 0 --no-translations --qmldir ...` deployed the expected Debug Qt DLLs plus `platforms/qwindowsd.dll`, after which `Player.exe` launched successfully from a normal CMD;
 - on the real `d766902` run, the current build chain printed both `[OK] Development runtime root marker -> build/windows-msvc-debug/.player-development-root` and `[OK] Qt runtime deployed for windows-msvc-debug -> build/windows-msvc-debug`;
 - the same `d766902` run passed all five CTest targets, and `test.ps1` independently revalidated the development marker before running CTest;
-- despite that valid current build/test chain, launching `Player.exe` still produced no repository-root `player.log`; this rules out marker staging and stale test output as the remaining cause and isolates the uncovered startup interval before `ApplicationBootstrap::run()`.
+- on the real `07ccc53` run, Player stayed alive and responsive with a visible `Player` window, and the loaded Qt/MSVC debug modules came from `build/windows-msvc-debug`; no repository-root `player.log` existed, so Windows Loader failure, Qt deployment failure, GUI startup failure, and stale-build marker failure are no longer credible explanations for the missing file;
+- that result leaves pre-GUI executable-location resolution as the remaining path-specific gap in the current logging chain; the follow-up removes `argv[0]` from that responsibility and uses the actual loaded process module path instead.
 
 Still required for R2-01 acceptance:
 
-- pull the current pre-GUI logging repair and rebuild;
-- confirm all five CTests remain green, including the new executable-file-path and pre-started-logger transfer regressions;
+- pull the current process-module path repair and rebuild;
+- confirm all five CTests remain green, including the new current-process executable regression;
 - launch `build/windows-msvc-debug/Player.exe` and confirm `<repository>/player.log` now exists;
-- confirm the log contains `libmpv runtime validated` with the actual DLL path and manifest identity. If GUI initialization exits before `ApplicationBootstrap::run()`, the same root log must now exist early enough to retain that diagnostic path rather than disappearing before logging starts.
+- confirm the log contains `libmpv runtime validated` with the actual DLL path and manifest identity.
 
 R13 still performs the final clean-machine binary dependency/license scan for the distributable package; the current build-tree deployment is a development/runtime acceptance path, not the final installer implementation.
 
@@ -330,8 +331,9 @@ scripts/modules/QtRuntimeDeployment.psm1
 
 src/app/main.cpp
   Owns only the pre-GUI startup order: graphics API selection, application
-  metadata, RuntimePaths resolution from argv[0], early LoggingBootstrap start,
-  QGuiApplication construction, and handoff to ApplicationBootstrap.
+  metadata, RuntimePaths resolution from the true loaded process executable,
+  early LoggingBootstrap start, QGuiApplication construction, and handoff to
+  ApplicationBootstrap.
 
 src/app/bootstrap/
   Startup sequencing after QGuiApplication exists, libmpv/graphics probes,
@@ -479,7 +481,7 @@ A marker-backed development build writes its log directly at:
 <repository>/player.log
 ```
 
-For the direct development launch path, application metadata and RuntimePaths are resolved and the real file sink is opened before `QGuiApplication` is constructed. No machine-specific drive path is committed; the executable argument and `../..` marker determine the runtime repository location.
+For the direct Windows development launch path, application metadata and RuntimePaths are resolved and the real file sink is opened before `QGuiApplication` is constructed. No machine-specific drive path is committed; Windows resolves the current process module path at runtime and the relative `../..` marker determines the repository location.
 
 After R2-01, a successful application startup must log a line beginning with:
 
@@ -530,16 +532,18 @@ Confirmed by the user on the Windows 10 development workspace through R1-06:
 
 The R2 dependency build is locally verified on the user's Windows workspace. MSYS2 bootstrap completes, the controlled source build completes through the full pinned dependency chain, the signed FFmpeg 8.0.3 archive verifies with the pinned release key, and the final libmpv package verifies all 17 recorded artifact hashes. `verify-project-layout.ps1` and `verify-dependencies.ps1` also pass against that package.
 
-The latest confirmed Windows result before the current source follow-up is commit `d766902`: configure/build completed, the post-build development marker was validated, automatic Qt runtime deployment was validated, and all five CTests passed. Direct `Player.exe` launch still produced no repository-root `player.log`. Because the build marker and stale-output gates were proven green in that same run, the remaining uncovered boundary is before `ApplicationBootstrap::run()`: `QGuiApplication` was previously constructed before the file logger existed.
+The latest confirmed Windows result before the current source follow-up is commit `07ccc53`: Player remained alive and responsive after launch, exposed a visible `Player` window, and loaded its Qt/MSVC debug runtime from `build/windows-msvc-debug`, while the repository-root `player.log` remained absent. The same branch state had already proven the build marker, automatic Qt deployment, and five CTests green. This removes Loader, Qt deployment, stale output, and GUI startup from the remaining explanation set.
 
-The current source follow-up moves the real `LoggingBootstrap` start ahead of `QGuiApplication`, derives pre-GUI RuntimePaths from the invoked executable path plus the existing relative marker, transfers that already-active logger into `ApplicationContainer`, and makes repeated `LoggingBootstrap::start()` idempotent. Added unit coverage checks the executable-file-path marker route and the transfer of a pre-started logger. Connected-environment review covers the final diff and ownership/lifecycle changes, but this environment does not contain the user's Windows Qt/MSVC runtime, so the new build/test/direct-launch result remains pending local verification.
+The current source follow-up keeps the early `LoggingBootstrap` ownership change but removes the last unreliable input to RuntimePaths: `main()` no longer infers the executable directory from `argv[0]`. On Windows, `RuntimePaths::fromCurrentProcessExecutable()` now obtains the actual loaded executable path with `GetModuleFileNameW(nullptr, ...)`, then applies the existing relative development marker. Added unit coverage compares that process-module-derived directory with Qt's application directory when a test application is available. Connected-environment review covers the final source diff; this environment does not contain the user's Windows Qt/MSVC runtime, so the new build/test/direct-launch result remains pending local verification.
 
 ## Change Log
 
 ### 2026-08-08
 
+- Replaced pre-GUI `argv[0]` executable-location inference after the real `07ccc53` process inspection proved Player was alive, responsive, and visibly running with the expected staged Qt runtime while no root log existed. Windows startup now resolves the actual loaded `Player.exe` module with `GetModuleFileNameW(nullptr, ...)`, and RuntimePaths applies the existing `../..` marker from that true module directory.
+- Added RuntimePaths regression coverage that compares the current-process executable directory with Qt's application directory once a test application exists; the existing explicit-file-path marker tests remain in place.
 - Moved development file logging ahead of `QGuiApplication` construction after the real `d766902` run proved the marker, Qt deployment, and 5/5 tests were current while `player.log` was still absent; the same logger is transferred into `ApplicationContainer` instead of creating a competing sink.
-- Added `RuntimePaths::fromExecutableFilePath()` so the pre-GUI phase can resolve the existing `.player-development-root` marker without depending on `QCoreApplication::applicationDirPath()` before a Qt application object exists.
+- Added `RuntimePaths::fromExecutableFilePath()` so explicit executable-path behavior remains independently testable without depending on `QCoreApplication::applicationDirPath()` before a Qt application object exists.
 - Made `LoggingBootstrap::start()` idempotent for an already-active sink and added regression coverage for pre-started logger adoption plus executable-file-path development routing.
 - Replaced the failed configure-time development marker path after the real `343aaa7` attempt produced neither marker/deployment success output nor a root log: `DevelopmentRuntime.psm1` now creates `.player-development-root` only after a successful Player build, while `deploy-runtime.ps1` can repair it for an existing executable.
 - Removed `cmake/DevelopmentRuntime.cmake` and its CMake target hook so generated development-runtime ownership is no longer split between CMake and PowerShell.
@@ -572,10 +576,9 @@ The current source follow-up moves the real `LoggingBootstrap` start ahead of `Q
 
 ### R2-01 local verification after sync
 
-The source-built libmpv package, current post-build marker, automatic Qt deployment, and five CTests are already independently proven. For the pre-GUI logging follow-up, run only the normal current chain:
+The source-built libmpv package, current post-build marker, automatic Qt deployment, responsive Player window, and five CTests are already independently proven. For the current process-module path follow-up, only rebuild and rerun the existing test/runtime acceptance path:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\configure.ps1
 powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
@@ -593,4 +596,4 @@ type player.log
 findstr /C:"libmpv runtime validated" player.log
 ```
 
-R2-01 acceptance requires the application to create the repository-root file log before GUI initialization can fail and, on successful startup, to log `libmpv runtime validated` while loading the staged libmpv DLL. Any runtime failure must remain explicit; do not replace it with a system Qt/mpv PATH workaround.
+R2-01 acceptance requires the application to create the repository-root file log and to log `libmpv runtime validated` while loading the staged libmpv DLL. Any runtime failure must remain explicit; do not replace it with a system Qt/mpv PATH workaround.
