@@ -9,8 +9,10 @@ Set-StrictMode -Version Latest
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $versionModulePath = Join-Path $PSScriptRoot "modules/DependencyVersions.psm1"
 $pathModulePath = Join-Path $PSScriptRoot "modules/DependencyPaths.psm1"
+$developmentRuntimeModulePath = Join-Path $PSScriptRoot "modules/DevelopmentRuntime.psm1"
 Import-Module $versionModulePath -Force
 Import-Module $pathModulePath -Force
+Import-Module $developmentRuntimeModulePath -Force
 
 Push-Location $projectRoot
 try {
@@ -21,6 +23,10 @@ try {
     $cmake = Resolve-PlayerCMake -Layout $layout
     $ctest = Resolve-PlayerCTest -Layout $layout
     $qtRoot = Resolve-PlayerQtRoot -Layout $layout
+
+    Assert-PlayerDevelopmentRuntimeMarker `
+        -Preset $Preset `
+        -ProjectRoot $projectRoot
 
     $qtBinRelative = Join-Path $qtRoot "bin"
     $qtPluginsRelative = Join-Path $qtRoot "plugins"
