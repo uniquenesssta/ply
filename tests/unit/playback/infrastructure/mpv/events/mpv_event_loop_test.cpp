@@ -1,6 +1,8 @@
 #include "playback/infrastructure/mpv/client/mpv_handle.h"
+#include "playback/infrastructure/mpv/events/mpv_event.h"
 #include "playback/infrastructure/mpv/events/mpv_event_loop.h"
 #include "playback/infrastructure/mpv/initialization/mpv_initializer.h"
+#include "playback/infrastructure/mpv/properties/mpv_property_registry.h"
 
 #include <mpv/client.h>
 
@@ -14,10 +16,14 @@
 namespace player::playback::mpv {
 namespace {
 
-bool containsEventId(const QSignalSpy& spy, int eventId)
+bool containsEventType(const QSignalSpy& spy, MpvEventType eventType)
 {
     for (const QList<QVariant>& arguments : spy) {
-        if (!arguments.isEmpty() && arguments.first().toInt() == eventId) {
+        if (arguments.isEmpty()) {
+            continue;
+        }
+        const MpvEvent event = qvariant_cast<MpvEvent>(arguments.first());
+        if (event.type == eventType) {
             return true;
         }
     }
@@ -45,11 +51,17 @@ class MpvEventLoopTest final : public QObject
     Q_OBJECT
 
 private slots:
+    void initTestCase();
     void requiresInitializedHandle();
     void drainsWakeupsOnOwningQtThread();
     void stopIsIdempotentAndSuppressesFurtherDrain();
     void destructorDisablesWakeupBeforeTargetDestruction();
 };
+
+void MpvEventLoopTest::initTestCase()
+{
+    qRegisterMetaType<MpvEvent>();
+}
 
 void MpvEventLoopTest::requiresInitializedHandle()
 {
@@ -69,14 +81,17 @@ void MpvEventLoopTest::drainsWakeupsOnOwningQtThread()
     auto handle = createInitializedHandle(&error);
     QVERIFY2(handle != nullptr, qPrintable(error));
 
+    const MpvPropertyDefinition* pause = MpvPropertyRegistry::findById(MpvPropertyId::Pause);
+    QVERIFY(pause != nullptr);
+
     MpvEventLoop eventLoop(*handle);
-    QSignalSpy spy(&eventLoop, &MpvEventLoop::eventDrained);
+    QSignalSpy spy(&eventLoop, &MpvEventLoop::eventDecoded);
     QThread* deliveryThread = nullptr;
     connect(
         &eventLoop,
-        &MpvEventLoop::eventDrained,
+        &MpvEventLoop::eventDecoded,
         this,
-        [&deliveryThread](int, quint64, int) {
+        [&deliveryThread](const MpvEvent&) {
             deliveryThread = QThread::currentThread();
         });
 
@@ -84,21 +99,20 @@ void MpvEventLoopTest::drainsWakeupsOnOwningQtThread()
     QVERIFY(eventLoop.isRunning());
     QVERIFY2(eventLoop.start(&error), qPrintable(error));
 
-    constexpr uint64_t kObservationId = 1001;
     const int observeResult = mpv_observe_property(
         handle->nativeHandle(),
-        kObservationId,
-        "pause",
+        pause->observationId,
+        pause->name.constData(),
         MPV_FORMAT_FLAG);
     QVERIFY2(
         observeResult >= 0,
         qPrintable(QStringLiteral("mpv_observe_property failed: %1")
                        .arg(QString::fromUtf8(mpv_error_string(observeResult)))));
 
-    QTRY_VERIFY_WITH_TIMEOUT(containsEventId(spy, MPV_EVENT_PROPERTY_CHANGE), 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(containsEventType(spy, MpvEventType::PropertyChange), 2000);
     QCOMPARE(deliveryThread, QThread::currentThread());
 
-    const int unobserveResult = mpv_unobserve_property(handle->nativeHandle(), kObservationId);
+    const int unobserveResult = mpv_unobserve_property(handle->nativeHandle(), pause->observationId);
     QVERIFY(unobserveResult >= 0);
 
     eventLoop.stop();
@@ -111,18 +125,20 @@ void MpvEventLoopTest::stopIsIdempotentAndSuppressesFurtherDrain()
     auto handle = createInitializedHandle(&error);
     QVERIFY2(handle != nullptr, qPrintable(error));
 
+    const MpvPropertyDefinition* pause = MpvPropertyRegistry::findById(MpvPropertyId::Pause);
+    QVERIFY(pause != nullptr);
+
     MpvEventLoop eventLoop(*handle);
-    QSignalSpy spy(&eventLoop, &MpvEventLoop::eventDrained);
+    QSignalSpy spy(&eventLoop, &MpvEventLoop::eventDecoded);
     QVERIFY2(eventLoop.start(&error), qPrintable(error));
 
-    constexpr uint64_t kObservationId = 1002;
     const int observeResult = mpv_observe_property(
         handle->nativeHandle(),
-        kObservationId,
-        "pause",
+        pause->observationId,
+        pause->name.constData(),
         MPV_FORMAT_FLAG);
     QVERIFY(observeResult >= 0);
-    QTRY_VERIFY_WITH_TIMEOUT(containsEventId(spy, MPV_EVENT_PROPERTY_CHANGE), 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(containsEventType(spy, MpvEventType::PropertyChange), 2000);
 
     spy.clear();
     eventLoop.stop();
@@ -137,7 +153,7 @@ void MpvEventLoopTest::stopIsIdempotentAndSuppressesFurtherDrain()
     QTest::qWait(100);
     QCOMPARE(spy.count(), 0);
 
-    const int unobserveResult = mpv_unobserve_property(handle->nativeHandle(), kObservationId);
+    const int unobserveResult = mpv_unobserve_property(handle->nativeHandle(), pause->observationId);
     QVERIFY(unobserveResult >= 0);
 }
 
@@ -147,26 +163,28 @@ void MpvEventLoopTest::destructorDisablesWakeupBeforeTargetDestruction()
     auto handle = createInitializedHandle(&error);
     QVERIFY2(handle != nullptr, qPrintable(error));
 
-    constexpr uint64_t kObservationId = 1003;
+    const MpvPropertyDefinition* mute = MpvPropertyRegistry::findById(MpvPropertyId::Mute);
+    QVERIFY(mute != nullptr);
+
     {
         auto eventLoop = std::make_unique<MpvEventLoop>(*handle);
-        QSignalSpy spy(eventLoop.get(), &MpvEventLoop::eventDrained);
+        QSignalSpy spy(eventLoop.get(), &MpvEventLoop::eventDecoded);
         QVERIFY2(eventLoop->start(&error), qPrintable(error));
 
         const int observeResult = mpv_observe_property(
             handle->nativeHandle(),
-            kObservationId,
-            "mute",
+            mute->observationId,
+            mute->name.constData(),
             MPV_FORMAT_FLAG);
         QVERIFY(observeResult >= 0);
-        QTRY_VERIFY_WITH_TIMEOUT(containsEventId(spy, MPV_EVENT_PROPERTY_CHANGE), 2000);
+        QTRY_VERIFY_WITH_TIMEOUT(containsEventType(spy, MpvEventType::PropertyChange), 2000);
     }
 
     const int setResult = mpv_set_property_string(handle->nativeHandle(), "mute", "yes");
     QVERIFY(setResult >= 0);
     QTest::qWait(100);
 
-    const int unobserveResult = mpv_unobserve_property(handle->nativeHandle(), kObservationId);
+    const int unobserveResult = mpv_unobserve_property(handle->nativeHandle(), mute->observationId);
     QVERIFY(unobserveResult >= 0);
 }
 

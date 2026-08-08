@@ -143,14 +143,14 @@ void MpvPropertyObserverTest::registryOwnsCorePropertyDefinitions()
     const MpvPropertyDefinition* position = MpvPropertyRegistry::findById(MpvPropertyId::Position);
     QVERIFY(position != nullptr);
     QCOMPARE(position->name, QByteArrayLiteral("time-pos"));
-    QVERIFY(position->format == MpvPropertyFormat::Double);
+    QCOMPARE(position->format, MpvPropertyFormat::Double);
 
     const MpvPropertyDefinition* trackList = MpvPropertyRegistry::findById(MpvPropertyId::TrackList);
     const MpvPropertyDefinition* chapterList = MpvPropertyRegistry::findById(MpvPropertyId::ChapterList);
     QVERIFY(trackList != nullptr);
     QVERIFY(chapterList != nullptr);
-    QVERIFY(trackList->format == MpvPropertyFormat::Node);
-    QVERIFY(chapterList->format == MpvPropertyFormat::Node);
+    QCOMPARE(trackList->format, MpvPropertyFormat::Node);
+    QCOMPARE(chapterList->format, MpvPropertyFormat::Node);
 }
 
 void MpvPropertyObserverTest::observerRequiresInitializedHandle()
@@ -242,11 +242,15 @@ void MpvPropertyObserverTest::decodeHandlesUnavailableUnexpectedAndNodeFormats()
     QVERIFY(!unknown.has_value());
     QVERIFY(!error.isEmpty());
 
+    mpv_node_list emptyList{};
     mpv_node node{};
-    node.format = MPV_FORMAT_NODE;
+    node.format = MPV_FORMAT_NODE_ARRAY;
+    node.u.list = &emptyList;
     auto nodeChange = observer.decode(trackList->observationId, MPV_FORMAT_NODE, &node, &error);
-    QVERIFY(!nodeChange.has_value());
-    QVERIFY(error.contains(QStringLiteral("R2-07")));
+    QVERIFY2(nodeChange.has_value(), qPrintable(error));
+    const QVariant* nodeValue = std::get_if<QVariant>(&nodeChange->value);
+    QVERIFY(nodeValue != nullptr);
+    QVERIFY(nodeValue->toList().isEmpty());
 }
 
 } // namespace player::playback::mpv

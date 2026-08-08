@@ -1,6 +1,7 @@
 #include "playback/infrastructure/mpv/events/mpv_event_loop.h"
 
 #include "playback/infrastructure/mpv/client/mpv_handle.h"
+#include "playback/infrastructure/mpv/events/mpv_event_decoder.h"
 #include "playback/infrastructure/mpv/events/mpv_wakeup_bridge.h"
 
 #include <mpv/client.h>
@@ -87,10 +88,7 @@ void MpvEventLoop::drainPendingEvents()
             return;
         }
 
-        emit eventDrained(
-            static_cast<int>(event->event_id),
-            static_cast<quint64>(event->reply_userdata),
-            event->error);
+        emit eventDecoded(MpvEventDecoder::decode(*event));
     }
 }
 

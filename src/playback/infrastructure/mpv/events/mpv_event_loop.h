@@ -1,7 +1,8 @@
 #pragma once
 
+#include "playback/infrastructure/mpv/events/mpv_event.h"
+
 #include <QObject>
-#include <QtGlobal>
 
 class QString;
 
@@ -27,7 +28,7 @@ public:
     [[nodiscard]] bool isRunning() const noexcept;
 
 signals:
-    void eventDrained(int eventId, quint64 replyUserdata, int error);
+    void eventDecoded(const player::playback::mpv::MpvEvent& event);
 
 private slots:
     void drainPendingEvents();

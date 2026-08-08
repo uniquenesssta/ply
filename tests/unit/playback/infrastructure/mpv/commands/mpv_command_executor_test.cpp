@@ -2,10 +2,9 @@
 #include "playback/infrastructure/mpv/commands/mpv_command_encoder.h"
 #include "playback/infrastructure/mpv/commands/mpv_command_executor.h"
 #include "playback/infrastructure/mpv/commands/mpv_command_request.h"
+#include "playback/infrastructure/mpv/events/mpv_event.h"
 #include "playback/infrastructure/mpv/events/mpv_event_loop.h"
 #include "playback/infrastructure/mpv/initialization/mpv_initializer.h"
-
-#include <mpv/client.h>
 
 #include <QSet>
 #include <QSignalSpy>
@@ -40,10 +39,13 @@ bool containsCommandReplies(
 {
     QSet<quint64> observedRequestIds;
     for (const QList<QVariant>& arguments : spy) {
-        if (arguments.size() < 3 || arguments.at(0).toInt() != MPV_EVENT_COMMAND_REPLY) {
+        if (arguments.isEmpty()) {
             continue;
         }
-        observedRequestIds.insert(arguments.at(1).toULongLong());
+        const MpvEvent event = qvariant_cast<MpvEvent>(arguments.first());
+        if (event.type == MpvEventType::CommandReply) {
+            observedRequestIds.insert(event.replyUserdata);
+        }
     }
 
     for (quint64 requestId : expectedRequestIds) {
@@ -61,12 +63,18 @@ class MpvCommandExecutorTest final : public QObject
     Q_OBJECT
 
 private slots:
+    void initTestCase();
     void encoderProducesExpectedCommands();
     void encoderRejectsInvalidRequests();
     void executorRequiresInitializedHandle();
     void executorRejectsSubmissionFromAnotherThread();
     void asyncSubmissionRepliesForMvpCommands();
 };
+
+void MpvCommandExecutorTest::initTestCase()
+{
+    qRegisterMetaType<MpvEvent>();
+}
 
 void MpvCommandExecutorTest::encoderProducesExpectedCommands()
 {
@@ -186,7 +194,7 @@ void MpvCommandExecutorTest::asyncSubmissionRepliesForMvpCommands()
     QVERIFY2(handle != nullptr, qPrintable(error));
 
     MpvEventLoop eventLoop(*handle);
-    QSignalSpy eventSpy(&eventLoop, &MpvEventLoop::eventDrained);
+    QSignalSpy eventSpy(&eventLoop, &MpvEventLoop::eventDecoded);
     QVERIFY2(eventLoop.start(&error), qPrintable(error));
 
     MpvCommandExecutor executor(*handle);

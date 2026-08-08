@@ -1,6 +1,9 @@
 target_sources(
     player_mpv_infrastructure
     PRIVATE
+        mpv_event.h
+        mpv_event_decoder.cpp
+        mpv_event_decoder.h
         mpv_event_loop.cpp
         mpv_event_loop.h
         mpv_wakeup_bridge.cpp

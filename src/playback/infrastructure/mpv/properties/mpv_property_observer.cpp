@@ -1,6 +1,7 @@
 #include "playback/infrastructure/mpv/properties/mpv_property_observer.h"
 
 #include "playback/infrastructure/mpv/client/mpv_handle.h"
+#include "playback/infrastructure/mpv/properties/mpv_node_decoder.h"
 
 #include <mpv/client.h>
 
@@ -126,7 +127,7 @@ std::optional<MpvPropertyChange> MpvPropertyObserver::decode(
     quint64 observationId,
     int rawFormat,
     const void* rawData,
-    QString* errorMessage) const
+    QString* errorMessage)
 {
     if (errorMessage != nullptr) {
         errorMessage->clear();
@@ -164,12 +165,14 @@ std::optional<MpvPropertyChange> MpvPropertyObserver::decode(
         return MpvPropertyChange{
             definition->id,
             *static_cast<const double*>(rawData)};
-    case MpvPropertyFormat::Node:
-        if (errorMessage != nullptr) {
-            *errorMessage = QStringLiteral("Node property '%1' is registered for observation, but typed node decoding is deferred to R2-07.")
-                                .arg(propertyLabel(*definition));
+    case MpvPropertyFormat::Node: {
+        const auto* node = static_cast<const mpv_node*>(rawData);
+        auto decoded = MpvNodeDecoder::decode(*node, errorMessage);
+        if (!decoded.has_value()) {
+            return std::nullopt;
         }
-        return std::nullopt;
+        return MpvPropertyChange{definition->id, *decoded};
+    }
     }
 
     if (errorMessage != nullptr) {

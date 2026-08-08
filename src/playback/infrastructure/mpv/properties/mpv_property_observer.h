@@ -1,26 +1,18 @@
 #pragma once
 
+#include "playback/infrastructure/mpv/properties/mpv_property_change.h"
 #include "playback/infrastructure/mpv/properties/mpv_property_registry.h"
 
 #include <QObject>
 #include <QtGlobal>
 
 #include <optional>
-#include <variant>
 
 class QString;
 
 namespace player::playback::mpv {
 
 class MpvHandle;
-
-using MpvPropertyValue = std::variant<std::monostate, bool, double>;
-
-struct MpvPropertyChange final
-{
-    MpvPropertyId id;
-    MpvPropertyValue value;
-};
 
 class MpvPropertyObserver final : public QObject
 {
@@ -37,11 +29,11 @@ public:
     [[nodiscard]] bool stop(QString* errorMessage = nullptr);
     [[nodiscard]] bool isObserving() const noexcept;
 
-    [[nodiscard]] std::optional<MpvPropertyChange> decode(
+    [[nodiscard]] static std::optional<MpvPropertyChange> decode(
         quint64 observationId,
         int rawFormat,
         const void* rawData,
-        QString* errorMessage = nullptr) const;
+        QString* errorMessage = nullptr);
 
 private:
     [[nodiscard]] bool isOnOwningThread() const noexcept;
