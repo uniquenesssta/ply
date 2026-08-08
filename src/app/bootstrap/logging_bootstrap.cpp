@@ -18,6 +18,15 @@ LoggingBootstrap::~LoggingBootstrap()
 
 bool LoggingBootstrap::start(const RuntimePaths& paths, QString* errorMessage)
 {
+    if (m_sink != nullptr && m_sink->isActive()) {
+        return true;
+    }
+
+    if (m_sink != nullptr) {
+        m_sink->stop();
+        m_sink.reset();
+    }
+
     player::logging::LogFileSinkOptions options;
     options.directory = paths.logDirectory();
 

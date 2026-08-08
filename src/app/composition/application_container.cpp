@@ -8,10 +8,22 @@
 namespace player::app {
 
 ApplicationContainer::ApplicationContainer(RuntimePaths runtimePaths)
+    : ApplicationContainer(
+        std::move(runtimePaths),
+        std::make_unique<LoggingBootstrap>())
+{
+}
+
+ApplicationContainer::ApplicationContainer(
+    RuntimePaths runtimePaths,
+    std::unique_ptr<LoggingBootstrap> loggingBootstrap)
     : runtimePaths_(std::move(runtimePaths))
-    , loggingBootstrap_(std::make_unique<LoggingBootstrap>())
+    , loggingBootstrap_(std::move(loggingBootstrap))
     , qmlBootstrap_(std::make_unique<QmlBootstrap>())
 {
+    if (loggingBootstrap_ == nullptr) {
+        loggingBootstrap_ = std::make_unique<LoggingBootstrap>();
+    }
 }
 
 ApplicationContainer::~ApplicationContainer()

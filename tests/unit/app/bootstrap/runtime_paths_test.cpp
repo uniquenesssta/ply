@@ -40,6 +40,7 @@ private slots:
     void initTestCase();
     void cleanupTestCase();
     void installedModeUsesStandardLocations();
+    void executableFilePathUsesDevelopmentMarkerBeforeGuiApplication();
     void developmentMarkerWritesLogToProjectRoot();
     void developmentMarkerOverridesPortableMode();
     void invalidDevelopmentMarkerFallsBackToPortableMode();
@@ -84,6 +85,34 @@ void RuntimePathsTest::installedModeUsesStandardLocations()
     QCOMPARE(paths.dataDirectory(), expectedData);
     QCOMPARE(paths.logDirectory(), childPath(expectedData, QStringLiteral("logs")));
     QCOMPARE(paths.screenshotDirectory(), expectedScreenshots);
+}
+
+void RuntimePathsTest::executableFilePathUsesDevelopmentMarkerBeforeGuiApplication()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    const QString projectDirectory = childPath(
+        temporaryDirectory.path(),
+        QStringLiteral("project root with spaces"));
+    const QString executableDirectory = childPath(
+        projectDirectory,
+        QStringLiteral("build/windows-msvc-debug"));
+    QVERIFY(QDir().mkpath(executableDirectory));
+
+    const QString markerPath = childPath(
+        executableDirectory,
+        QStringLiteral(".player-development-root"));
+    QVERIFY(writeTextFile(markerPath, QByteArray("../..\n")));
+
+    const QString executableFilePath = childPath(
+        executableDirectory,
+        QStringLiteral("Player.exe"));
+    const RuntimePaths paths = RuntimePaths::fromExecutableFilePath(executableFilePath);
+
+    QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
+    QCOMPARE(paths.executableDirectory(), executableDirectory);
+    QCOMPARE(paths.logDirectory(), projectDirectory);
 }
 
 void RuntimePathsTest::developmentMarkerWritesLogToProjectRoot()

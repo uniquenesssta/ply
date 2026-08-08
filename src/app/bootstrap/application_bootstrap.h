@@ -1,15 +1,23 @@
 #pragma once
 
+#include "app/bootstrap/runtime_paths.h"
+
+#include <memory>
+
 class QGuiApplication;
 
 namespace player::app {
 
+class LoggingBootstrap;
+
 class ApplicationBootstrap final {
 public:
-    [[nodiscard]] int run(QGuiApplication& application);
+    static void configureApplicationMetadata();
 
-private:
-    static void configureApplicationMetadata(QGuiApplication& application);
+    [[nodiscard]] int run(
+        QGuiApplication& application,
+        RuntimePaths runtimePaths,
+        std::unique_ptr<LoggingBootstrap> loggingBootstrap);
 };
 
 } // namespace player::app

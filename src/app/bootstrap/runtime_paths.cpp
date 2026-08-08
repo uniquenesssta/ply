@@ -94,6 +94,17 @@ RuntimePaths RuntimePaths::current()
     return resolve(detectMode(executableDirectory), executableDirectory);
 }
 
+RuntimePaths RuntimePaths::fromExecutableFilePath(const QString& executableFilePath)
+{
+    if (executableFilePath.trimmed().isEmpty()) {
+        return resolve(Mode::Installed, {});
+    }
+
+    const QFileInfo executableInfo(executableFilePath);
+    const QString executableDirectory = normalizedPath(executableInfo.absolutePath());
+    return resolve(detectMode(executableDirectory), executableDirectory);
+}
+
 RuntimePaths RuntimePaths::resolve(Mode mode, const QString& executableDirectory)
 {
     const QString normalizedExecutableDirectory = normalizedPath(executableDirectory);
@@ -129,9 +140,6 @@ RuntimePaths::Mode RuntimePaths::detectMode(const QString& executableDirectory)
         return Mode::Installed;
     }
 
-    // A generated development-root marker is authoritative for build-tree
-    // executables. Portable mode remains controlled by portable.flag everywhere
-    // else, so installed/portable release behavior is unaffected.
     if (!developmentProjectDirectory(normalizedExecutableDirectory).isEmpty()) {
         return Mode::Installed;
     }

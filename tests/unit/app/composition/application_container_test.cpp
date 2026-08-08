@@ -8,6 +8,8 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include <memory>
+
 namespace player::app {
 
 class ApplicationContainerTest final : public QObject
@@ -17,6 +19,7 @@ class ApplicationContainerTest final : public QObject
 private slots:
     void ownsResolvedRuntimePathsByValue();
     void loggingBootstrapCreatesResolvedDevelopmentLog();
+    void adoptsPreStartedLoggingBootstrap();
     void shutdownIsIdempotent();
 };
 
@@ -71,6 +74,32 @@ void ApplicationContainerTest::loggingBootstrapCreatesResolvedDevelopmentLog()
 
     const QString logPath = QDir(projectDirectory).filePath(QStringLiteral("player.log"));
     QVERIFY2(QFileInfo(logPath).isFile(), qPrintable(logPath));
+
+    container.shutdown();
+}
+
+void ApplicationContainerTest::adoptsPreStartedLoggingBootstrap()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    const RuntimePaths runtimePaths = RuntimePaths::resolve(
+        RuntimePaths::Mode::Portable,
+        temporaryDirectory.path());
+    auto loggingBootstrap = std::make_unique<LoggingBootstrap>();
+
+    QString error;
+    QVERIFY2(loggingBootstrap->start(runtimePaths, &error), qPrintable(error));
+    QVERIFY2(
+        QFileInfo(QDir(runtimePaths.logDirectory()).filePath(QStringLiteral("player.log"))).isFile(),
+        qPrintable(runtimePaths.logDirectory()));
+
+    ApplicationContainer container(runtimePaths, std::move(loggingBootstrap));
+
+    error.clear();
+    QVERIFY2(
+        container.loggingBootstrap().start(container.runtimePaths(), &error),
+        qPrintable(error));
 
     container.shutdown();
 }

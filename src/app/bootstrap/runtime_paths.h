@@ -13,6 +13,7 @@ public:
     };
 
     static RuntimePaths current();
+    static RuntimePaths fromExecutableFilePath(const QString& executableFilePath);
     static RuntimePaths resolve(Mode mode, const QString& executableDirectory);
     static Mode detectMode(const QString& executableDirectory);
 

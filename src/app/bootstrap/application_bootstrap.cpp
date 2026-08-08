@@ -3,7 +3,6 @@
 #include "app/bootstrap/graphics_backend/graphics_backend_probe.h"
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/bootstrap/qml_bootstrap.h"
-#include "app/bootstrap/runtime_paths.h"
 #include "app/composition/application_container.h"
 #include "foundation/logging/log_categories.h"
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
@@ -14,16 +13,19 @@
 #include <QString>
 
 #include <cstdlib>
+#include <memory>
 #include <utility>
 
 namespace player::app {
 
-int ApplicationBootstrap::run(QGuiApplication& application)
+int ApplicationBootstrap::run(
+    QGuiApplication& application,
+    RuntimePaths runtimePaths,
+    std::unique_ptr<LoggingBootstrap> loggingBootstrap)
 {
-    configureApplicationMetadata(application);
-
-    RuntimePaths runtimePaths = RuntimePaths::current();
-    ApplicationContainer container(std::move(runtimePaths));
+    ApplicationContainer container(
+        std::move(runtimePaths),
+        std::move(loggingBootstrap));
 
     QString loggingError;
     if (!container.loggingBootstrap().start(container.runtimePaths(), &loggingError)) {
@@ -84,12 +86,12 @@ int ApplicationBootstrap::run(QGuiApplication& application)
     return exitCode;
 }
 
-void ApplicationBootstrap::configureApplicationMetadata(QGuiApplication& application)
+void ApplicationBootstrap::configureApplicationMetadata()
 {
-    application.setOrganizationName(QStringLiteral("ModularPlayer"));
-    application.setOrganizationDomain(QStringLiteral("local.modularplayer"));
-    application.setApplicationName(QStringLiteral("Player"));
-    application.setApplicationVersion(QStringLiteral("0.1.0"));
+    QCoreApplication::setOrganizationName(QStringLiteral("ModularPlayer"));
+    QCoreApplication::setOrganizationDomain(QStringLiteral("local.modularplayer"));
+    QCoreApplication::setApplicationName(QStringLiteral("Player"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
 }
 
 } // namespace player::app
