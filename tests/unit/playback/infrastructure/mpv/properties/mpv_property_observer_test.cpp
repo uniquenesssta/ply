@@ -124,7 +124,7 @@ private slots:
 void MpvPropertyObserverTest::registryOwnsCorePropertyDefinitions()
 {
     const QList<MpvPropertyDefinition>& definitions = MpvPropertyRegistry::coreDefinitions();
-    QCOMPARE(definitions.size(), qsizetype{11});
+    QCOMPARE(definitions.size(), qsizetype{22});
 
     QSet<int> ids;
     QSet<quint64> observationIds;
