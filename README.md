@@ -1,6 +1,6 @@
 # Modular Qt 6 + libmpv Player
 
-Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。R2：无 UI libmpv 播放核心已完成验收；下一阶段为 R3：领域状态与 PlaybackSession。
+Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。当前仍处于 R2：无 UI libmpv 播放核心阶段；R2-08 已完成验收，下一 Atomic Task 为补强矩阵中的 R2-09。
 
 ## Current baseline
 
@@ -23,7 +23,7 @@ Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。R2：�
 - Windows 构建后显式 `windeployqt` 与 `.player-development-root` 开发标记；
 - R2-08 已由用户 Windows 环境完成最终验收：11/11 CTest 全绿（1.47 秒），真实媒体主链 PASS，非法媒体错误路径返回明确加载失败诊断。
 
-R2 已完成：固定 libmpv、RAII、初始化 profile、wakeup/event loop、typed async commands、property observation、typed event/error/node decode 与 headless playback probe 均已实现并通过阶段门禁。PlaybackSession 从 R3 开始；Render API、数据库、播放列表、完整播放器 UI 与安装包继续在后续阶段实现，不提前堆入 R2。
+R2-01~R2-08 已完成或按既有记录验收；但跨阶段强制补充《成熟播放器行为补强与验收矩阵》还要求在 R2 关闭前完成 R2-09~R2-11，因此 R2 尚未关闭。PlaybackSession 仍从 R3 开始；Render API、数据库、播放列表、完整播放器 UI 与安装包继续在后续阶段实现，不提前堆入 R2。
 
 ## Product scope
 
@@ -315,6 +315,18 @@ CMake 新增顶层 `tools/` 构建入口；`playback_probe` 链接 `player_mpv_i
 
 用户在 Windows `0d2fc38` 基线完成 R2-08 本机验收：`scripts/test.ps1` 报告 **11/11 CTest 全部通过**、0 failed，总测试时间 **1.47 秒**；实际 probe 产物位于 `build/windows-msvc-debug/cmake/playback_probe.exe`。本地合法媒体完整通过 `load -> pause -> file-loaded -> play -> seek -> stop -> end-file(reason=stop) -> close` 并输出 PASS。不存在媒体进入 `end-file(reason=error)`，输出 `FAIL: media ended with an error: loading failed`；runner 的失败路径使用默认退出码 2，`main.cpp` 将该退出码传给 `QCoreApplication::exit()`，因此错误路径为非零退出。未观察到 crash、deadlock 或步骤超时。
 
+### R2-09 — Pending (next)
+
+跨阶段强制补充《成熟播放器行为补强与验收矩阵》要求补齐事件语义完整性与媒体边界信息：重点核验 `start-file`、`file-loaded`、`end-file`、`shutdown`、`command-reply`、`property-change` 的产品无关信息是否足以支撑 R3，并覆盖 EOF、stop、load error、unknown event、null/none property、command success/error。是否已有部分能力由 R2-07 覆盖，必须在 R2-09 实施时按真实代码与测试逐项确认后才能标记完成。
+
+### R2-10 — Pending
+
+补强 Property Baseline，确保 R3/R6/R8 明确需要的 position/duration/pause/seekable/speed/volume/mute、buffering/cache、媒体 identity、track/chapter、当前 track 选择与最小 video/audio 信息都有统一 registry/observer 入口，禁止后续在上层散写 property 字符串。
+
+### R2-11 — Pending
+
+扩展 headless probe 行为矩阵，包括暂停态 seek、连续 seek、load A 后立即 load B、EOF/stop reason 区分、错误媒体、loading/playback 期间 shutdown 等真实事件序列，为 R3 Reducer/GenerationGate 提供输入依据。
+
 ## Validation record
 
 已由用户 Windows 工作区真实确认：
@@ -332,7 +344,7 @@ CMake 新增顶层 `tools/` 构建入口；`playback_probe` 链接 `player_mpv_i
 - `Player.exe` 可正常启动并保持响应；
 - `player.log` 根目录落盘问题仍为单独已知缺口，不阻塞当前普通 R2 Atomic Task。
 
-R2-08 已完成，R2 阶段关闭。已知的仓库根 `player.log` 落盘缺口继续按既有记录作为非阻塞事项保留，后续在相关诊断/发布门禁前关闭；下一 Atomic Task 为 R3-01。
+R2-08 已完成，但 R2 尚未关闭。根据 `docs/plans/stages/00_INDEX.md` 与跨阶段强制补充《成熟播放器行为补强与验收矩阵》，R2 还包含 R2-09~R2-11；下一 Atomic Task 为 R2-09。已知的仓库根 `player.log` 落盘缺口继续按既有记录作为非阻塞事项保留，后续在相关诊断/发布门禁前关闭。
 
 ## Change Log
 
@@ -345,7 +357,8 @@ R2-08 已完成，R2 阶段关闭。已知的仓库根 `player.log` 落盘缺口
 - Added a probe-only `config=no + vo=null + ao=null` profile and direct Qt6 Core/libmpv runtime staging so the console probe does not depend on a QML window, user mpv.conf or physical audio output.
 - Accepted R2-08 after the user confirmed all 11 CTests still passed in 1.47 seconds, a real local media probe completed the full headless control chain with PASS, and a missing-media probe produced `end-file(reason=error)` with `loading failed` and a non-zero failure exit path.
 - Corrected the documented playback probe output path to `build/windows-msvc-debug/cmake/playback_probe.exe`; no source, public-interface, dependency or runtime behavior change was required for this correction.
-- Closed Stage R2; the next Atomic Task is R3-01.
+- Corrected the premature R2 closure: the mandatory mature-player behavior supplement adds R2-09 through R2-11, so the next Atomic Task is R2-09 and Stage R2 remains open.
+- Kept the accepted R2-08 Windows results unchanged; this correction changes documentation/status only and does not modify source, dependencies, interfaces or runtime behavior.
 - Accepted R2-06 after the user confirmed the real Windows build and all ten CTests passed, including `mpv_properties`, in 1.88 seconds total.
 - Implemented R2-07 typed event boundary: raw `mpv_event` is decoded inside `infrastructure/mpv` into Qt-owned `MpvEvent` before the next `mpv_wait_event` call.
 - Added `errors/MpvErrorMapper` with known/unknown libmpv error mapping and preserved raw diagnostics.
@@ -370,7 +383,7 @@ R2-08 已完成，R2 阶段关闭。已知的仓库根 `player.log` 落盘缺口
 - Added the project-controlled MSYS2 CLANG64 libmpv source-build pipeline and fixed source/archive acquisition boundaries.
 - Kept all third-party binaries/build trees outside Git and preserved repository-parent-relative dependency paths。
 
-## R2 final acceptance
+## R2-08 acceptance
 
 R2-08 的最终 Windows 本机验收基于 `0d2fc38`：
 
@@ -385,4 +398,4 @@ missing media: end-file reason=error; FAIL: media ended with an error: loading f
 
 R2-01 记录的仓库根 `player.log` 落盘问题仍是明确的非阻塞缺口，不因 R2-08 完成而伪装为已解决；应在后续相关诊断/发布门禁前单独关闭。
 
-**Stage R2：Complete。下一 Atomic Task：R3-01。**
+**Stage R2：In Progress。R2-08：Complete。下一 Atomic Task：R2-09；之后仍有 R2-10、R2-11。**
