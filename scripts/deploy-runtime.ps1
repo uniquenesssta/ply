@@ -26,7 +26,7 @@ try {
 
     Initialize-PlayerMsvcEnvironment -Versions $versions
 
-    Assert-PlayerDevelopmentRuntimeMarker `
+    Set-PlayerDevelopmentRuntimeMarker `
         -Preset $Preset `
         -ProjectRoot $projectRoot
 
