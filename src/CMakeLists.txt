@@ -6,6 +6,7 @@ add_subdirectory(app)
 add_subdirectory(presentation)
 
 player_configure_application_target(player_app)
+player_generate_development_runtime_marker(player_app)
 player_stage_libmpv_runtime(player_app)
 
 install(

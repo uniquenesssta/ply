@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
 
@@ -11,8 +12,8 @@ namespace player::app {
 namespace {
 
 constexpr auto kPortableMarkerFileName = "portable.flag";
-constexpr auto kBuildDirectoryName = "build";
-constexpr auto kWindowsMsvcPresetPrefix = "windows-msvc-";
+constexpr auto kDevelopmentRootMarkerFileName = ".player-development-root";
+constexpr auto kExpectedDevelopmentRootRoute = "../..";
 
 QString normalizedPath(QString path)
 {
@@ -32,114 +33,32 @@ QString childPath(const QString& parent, const QString& child)
     return normalizedPath(QDir(parent).filePath(child));
 }
 
-Qt::CaseSensitivity pathCaseSensitivity()
-{
-#ifdef Q_OS_WIN
-    return Qt::CaseInsensitive;
-#else
-    return Qt::CaseSensitive;
-#endif
-}
-
-bool isPathInsideDirectory(const QString& path, const QString& directory)
-{
-    const QString normalizedCandidate = normalizedPath(path);
-    const QString normalizedDirectory = normalizedPath(directory);
-    if (normalizedCandidate.isEmpty() || normalizedDirectory.isEmpty()) {
-        return false;
-    }
-
-    if (normalizedCandidate.compare(normalizedDirectory, pathCaseSensitivity()) == 0) {
-        return true;
-    }
-
-    const QString prefix = normalizedDirectory.endsWith(QLatin1Char('/'))
-        ? normalizedDirectory
-        : normalizedDirectory + QLatin1Char('/');
-    return normalizedCandidate.startsWith(prefix, pathCaseSensitivity());
-}
-
-bool isProjectRootDirectory(const QDir& directory)
-{
-    return QFileInfo(directory.filePath(QStringLiteral("CMakeLists.txt"))).isFile()
-        && QFileInfo(directory.filePath(QStringLiteral("ALL_AI_CODE.md"))).isFile()
-        && QFileInfo(directory.filePath(QStringLiteral("AI_PROJECT_RULES.md"))).isFile()
-        && QFileInfo(directory.filePath(QStringLiteral("src"))).isDir();
-}
-
-QString developmentProjectDirectoryFromWorkingDirectory(const QString& executableDirectory)
-{
-    QDir workingDirectory(QDir::currentPath());
-    if (!isProjectRootDirectory(workingDirectory)) {
-        return {};
-    }
-
-    const QString projectDirectory = normalizedPath(workingDirectory.absolutePath());
-    const QString buildDirectory = childPath(projectDirectory, QString::fromLatin1(kBuildDirectoryName));
-    if (!isPathInsideDirectory(executableDirectory, buildDirectory)) {
-        return {};
-    }
-
-    return projectDirectory;
-}
-
-QString developmentProjectDirectoryFromAncestors(const QString& executableDirectory)
+QString developmentProjectDirectory(const QString& executableDirectory)
 {
     const QString normalizedExecutableDirectory = normalizedPath(executableDirectory);
     if (normalizedExecutableDirectory.isEmpty()) {
         return {};
     }
 
-    QDir directory(normalizedExecutableDirectory);
-    for (int depth = 0; depth < 6; ++depth) {
-        if (isProjectRootDirectory(directory)) {
-            const QString projectDirectory = normalizedPath(directory.absolutePath());
-            const QString buildDirectory = childPath(projectDirectory, QString::fromLatin1(kBuildDirectoryName));
-            if (isPathInsideDirectory(normalizedExecutableDirectory, buildDirectory)) {
-                return projectDirectory;
-            }
-        }
-
-        if (!directory.cdUp()) {
-            break;
-        }
-    }
-
-    return {};
-}
-
-QString developmentProjectDirectoryFromLegacyLayout(const QString& executableDirectory)
-{
-    QDir directory(executableDirectory);
-    if (!directory.dirName().startsWith(QString::fromLatin1(kWindowsMsvcPresetPrefix))) {
+    QFile marker(QDir(normalizedExecutableDirectory).filePath(
+        QString::fromLatin1(kDevelopmentRootMarkerFileName)));
+    if (!marker.open(QIODevice::ReadOnly | QIODevice::Text)) {
         return {};
     }
 
-    if (!directory.cdUp() || directory.dirName() != QString::fromLatin1(kBuildDirectoryName)) {
+    const QString relativeRoot = QString::fromUtf8(marker.readAll()).trimmed();
+    if (relativeRoot != QString::fromLatin1(kExpectedDevelopmentRootRoute)
+        || QDir::isAbsolutePath(relativeRoot)) {
         return {};
     }
 
-    if (!directory.cdUp()) {
+    const QString projectDirectory = normalizedPath(
+        QDir(normalizedExecutableDirectory).absoluteFilePath(relativeRoot));
+    if (projectDirectory.isEmpty() || !QFileInfo(projectDirectory).isDir()) {
         return {};
     }
 
-    return normalizedPath(directory.absolutePath());
-}
-
-QString developmentProjectDirectory(const QString& executableDirectory)
-{
-    const QString workingDirectoryProject =
-        developmentProjectDirectoryFromWorkingDirectory(executableDirectory);
-    if (!workingDirectoryProject.isEmpty()) {
-        return workingDirectoryProject;
-    }
-
-    const QString ancestorProject = developmentProjectDirectoryFromAncestors(executableDirectory);
-    if (!ancestorProject.isEmpty()) {
-        return ancestorProject;
-    }
-
-    return developmentProjectDirectoryFromLegacyLayout(executableDirectory);
+    return projectDirectory;
 }
 
 QString installedLogDirectory(
@@ -210,9 +129,9 @@ RuntimePaths::Mode RuntimePaths::detectMode(const QString& executableDirectory)
         return Mode::Installed;
     }
 
-    // Development builds always use the repository-root runtime policy. Project
-    // identity is resolved from the active repository or its build ancestry,
-    // with the original preset-layout rule retained as a compatibility fallback.
+    // A generated development-root marker is authoritative for build-tree
+    // executables. Portable mode remains controlled by portable.flag everywhere
+    // else, so installed/portable release behavior is unaffected.
     if (!developmentProjectDirectory(normalizedExecutableDirectory).isEmpty()) {
         return Mode::Installed;
     }

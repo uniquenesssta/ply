@@ -3,6 +3,7 @@
 #include "app/bootstrap/logging_bootstrap.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -46,8 +47,14 @@ void ApplicationContainerTest::loggingBootstrapCreatesResolvedDevelopmentLog()
     const QString projectDirectory = QDir(temporaryDirectory.path()).filePath(
         QStringLiteral("project root with spaces"));
     const QString executableDirectory = QDir(projectDirectory).filePath(
-        QStringLiteral("build/windows-msvc-debug"));
+        QStringLiteral("build/custom-output"));
     QVERIFY(QDir().mkpath(executableDirectory));
+
+    QFile developmentMarker(QDir(executableDirectory).filePath(
+        QStringLiteral(".player-development-root")));
+    QVERIFY(developmentMarker.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text));
+    QCOMPARE(developmentMarker.write("../..\n"), qint64(6));
+    developmentMarker.close();
 
     ApplicationContainer container(RuntimePaths::resolve(
         RuntimePaths::Mode::Installed,

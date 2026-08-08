@@ -4,7 +4,6 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QScopeGuard>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -22,21 +21,13 @@ QString childPath(const QString& parent, const QString& child)
     return cleanPath(QDir(parent).filePath(child));
 }
 
-bool writeEmptyFile(const QString& path)
+bool writeTextFile(const QString& path, const QByteArray& content)
 {
     QFile file(path);
-    return file.open(QIODevice::WriteOnly | QIODevice::Truncate);
-}
-
-bool createProjectMarkers(const QString& projectDirectory)
-{
-    if (!QDir().mkpath(childPath(projectDirectory, QStringLiteral("src")))) {
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
         return false;
     }
-
-    return writeEmptyFile(childPath(projectDirectory, QStringLiteral("CMakeLists.txt")))
-        && writeEmptyFile(childPath(projectDirectory, QStringLiteral("ALL_AI_CODE.md")))
-        && writeEmptyFile(childPath(projectDirectory, QStringLiteral("AI_PROJECT_RULES.md")));
+    return file.write(content) == content.size();
 }
 
 } // namespace
@@ -49,9 +40,9 @@ private slots:
     void initTestCase();
     void cleanupTestCase();
     void installedModeUsesStandardLocations();
-    void developmentBuildWritesLogToProjectRoot();
-    void developmentBuildIgnoresPortableMarkerForAutomaticModeDetection();
-    void workingDirectoryProjectIdentityHandlesNonstandardBuildLeaf();
+    void developmentMarkerWritesLogToProjectRoot();
+    void developmentMarkerOverridesPortableMode();
+    void invalidDevelopmentMarkerFallsBackToPortableMode();
     void portableModeStaysBesideExecutable();
     void portableMarkerControlsAutomaticModeDetection();
 };
@@ -95,50 +86,7 @@ void RuntimePathsTest::installedModeUsesStandardLocations()
     QCOMPARE(paths.screenshotDirectory(), expectedScreenshots);
 }
 
-void RuntimePathsTest::developmentBuildWritesLogToProjectRoot()
-{
-    QTemporaryDir projectDirectory;
-    QVERIFY(projectDirectory.isValid());
-
-    const QString buildDirectory = childPath(projectDirectory.path(), QStringLiteral("build"));
-    const QString executableDirectory = childPath(
-        buildDirectory,
-        QStringLiteral("windows-msvc-debug"));
-    QVERIFY(QDir().mkpath(executableDirectory));
-
-    const RuntimePaths paths = RuntimePaths::resolve(
-        RuntimePaths::Mode::Installed,
-        executableDirectory);
-
-    QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
-    QCOMPARE(paths.executableDirectory(), executableDirectory);
-    QCOMPARE(paths.logDirectory(), cleanPath(projectDirectory.path()));
-}
-
-void RuntimePathsTest::developmentBuildIgnoresPortableMarkerForAutomaticModeDetection()
-{
-    QTemporaryDir projectDirectory;
-    QVERIFY(projectDirectory.isValid());
-
-    const QString buildDirectory = childPath(projectDirectory.path(), QStringLiteral("build"));
-    const QString executableDirectory = childPath(
-        buildDirectory,
-        QStringLiteral("windows-msvc-debug"));
-    QVERIFY(QDir().mkpath(executableDirectory));
-
-    QFile marker(QDir(executableDirectory).filePath(QStringLiteral("portable.flag")));
-    QVERIFY(marker.open(QIODevice::WriteOnly));
-    marker.close();
-
-    const RuntimePaths::Mode detectedMode = RuntimePaths::detectMode(executableDirectory);
-    QCOMPARE(detectedMode, RuntimePaths::Mode::Installed);
-
-    const RuntimePaths paths = RuntimePaths::resolve(detectedMode, executableDirectory);
-    QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
-    QCOMPARE(paths.logDirectory(), cleanPath(projectDirectory.path()));
-}
-
-void RuntimePathsTest::workingDirectoryProjectIdentityHandlesNonstandardBuildLeaf()
+void RuntimePathsTest::developmentMarkerWritesLogToProjectRoot()
 {
     QTemporaryDir temporaryDirectory;
     QVERIFY(temporaryDirectory.isValid());
@@ -146,30 +94,65 @@ void RuntimePathsTest::workingDirectoryProjectIdentityHandlesNonstandardBuildLea
     const QString projectDirectory = childPath(
         temporaryDirectory.path(),
         QStringLiteral("project root with spaces"));
-    QVERIFY(QDir().mkpath(projectDirectory));
-    QVERIFY(createProjectMarkers(projectDirectory));
-
     const QString executableDirectory = childPath(
-        childPath(projectDirectory, QStringLiteral("build")),
-        QStringLiteral("custom-debug-output"));
+        projectDirectory,
+        QStringLiteral("build/custom-output"));
     QVERIFY(QDir().mkpath(executableDirectory));
 
-    QFile marker(QDir(executableDirectory).filePath(QStringLiteral("portable.flag")));
-    QVERIFY(marker.open(QIODevice::WriteOnly));
-    marker.close();
+    const QString markerPath = childPath(
+        executableDirectory,
+        QStringLiteral(".player-development-root"));
+    QVERIFY(writeTextFile(markerPath, QByteArray("../..\n")));
 
-    const QString originalWorkingDirectory = QDir::currentPath();
-    QVERIFY(QDir::setCurrent(projectDirectory));
-    [[maybe_unused]] const auto restoreWorkingDirectory = qScopeGuard([originalWorkingDirectory]() {
-        QDir::setCurrent(originalWorkingDirectory);
-    });
+    const RuntimePaths paths = RuntimePaths::resolve(
+        RuntimePaths::Mode::Installed,
+        executableDirectory);
+
+    QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
+    QCOMPARE(paths.executableDirectory(), executableDirectory);
+    QCOMPARE(paths.logDirectory(), projectDirectory);
+}
+
+void RuntimePathsTest::developmentMarkerOverridesPortableMode()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    const QString projectDirectory = childPath(temporaryDirectory.path(), QStringLiteral("project"));
+    const QString executableDirectory = childPath(
+        projectDirectory,
+        QStringLiteral("build/custom-output"));
+    QVERIFY(QDir().mkpath(executableDirectory));
+
+    QVERIFY(writeTextFile(
+        childPath(executableDirectory, QStringLiteral(".player-development-root")),
+        QByteArray("../..\n")));
+    QVERIFY(writeTextFile(
+        childPath(executableDirectory, QStringLiteral("portable.flag")),
+        QByteArray()));
 
     const RuntimePaths::Mode detectedMode = RuntimePaths::detectMode(executableDirectory);
     QCOMPARE(detectedMode, RuntimePaths::Mode::Installed);
 
     const RuntimePaths paths = RuntimePaths::resolve(detectedMode, executableDirectory);
-    QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
-    QCOMPARE(paths.logDirectory(), cleanPath(projectDirectory));
+    QCOMPARE(paths.logDirectory(), projectDirectory);
+}
+
+void RuntimePathsTest::invalidDevelopmentMarkerFallsBackToPortableMode()
+{
+    QTemporaryDir executableDirectory;
+    QVERIFY(executableDirectory.isValid());
+
+    QVERIFY(writeTextFile(
+        childPath(executableDirectory.path(), QStringLiteral(".player-development-root")),
+        QDir::rootPath().toUtf8()));
+    QVERIFY(writeTextFile(
+        childPath(executableDirectory.path(), QStringLiteral("portable.flag")),
+        QByteArray()));
+
+    QCOMPARE(
+        RuntimePaths::detectMode(executableDirectory.path()),
+        RuntimePaths::Mode::Portable);
 }
 
 void RuntimePathsTest::portableModeStaysBesideExecutable()
