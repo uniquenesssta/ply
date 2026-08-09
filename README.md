@@ -1242,3 +1242,40 @@ R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事
 - Confirmed `playback_request_tracker` 0.18 seconds, `playback_session` 1.14 seconds, `playback_shutdown` 6.94 seconds and `playback_media_generation` 0.18 seconds remained green with supersession enabled.
 - Closed Stage R3 after R3-01~R3-12 all reached their recorded acceptance conditions; R4-01 OpenGL proc resolver is the next Atomic Task.
 - Kept R8-03 track-selection command/backend implementation outside R3-12 while preserving its three pre-defined supersession lanes, and kept the existing R2-01 `player.log` diagnostic gap open.
+
+## R4-01 Windows verification and acceptance — current
+
+> 本节记录 R4-01 OpenGL proc resolver 的实际实现边界与 Windows 最终验收，并作为当前 Stage R4 状态的权威追加记录。
+
+R4-01 在 `src/playback/infrastructure/mpv/render/` 内新增独立 `OpenGlProcResolver`，只负责 libmpv OpenGL Render API 创建前的 Qt OpenGL procedure 解析边界：要求当前线程存在有效 `QOpenGLContext`，满足 desktop OpenGL 2.1 或 OpenGL ES 2.0 最低版本，能够通过 `QOpenGLContext::getProcAddress()` 解析基础 `glGetString`，并为 `mpv_opengl_init_params.get_proc_address` 提供与当前 expected context 绑定的 fail-closed callback。无 current context、空 procedure name、未知 procedure、无效 context 或 expected/current context 不一致均返回明确失败；本任务没有创建 `mpv_render_context`、没有接 QQuickFramebufferObject、没有新增 Render callback、QML 或 PlaybackSession 行为。
+
+新增独立 CTest `opengl_proc_resolver`，覆盖无 current context、离屏 current context 成功验证、已知/空/不存在 OpenGL procedure，以及 `mpv_opengl_init_params` callback 必须使用同一 current context 的契约。既有 `graphics_backend` 继续验证 Qt Quick OpenGL backend 与启动期 offscreen graphics probe，两者职责保持分离。
+
+用户在 `agent/r4-stage` 提交 `00ee7b7a6e60aa43b6d73fa0809fe45b3137314a` 上确认工作区无未提交修改并切换到对应远端跟踪分支，随后显式执行 `scripts/configure.ps1`。Configure 成功，新 `opengl_proc_resolver` 已进入标准 29 项 CTest 门禁。工具链与依赖检查实际确认 CMake 3.30.5、Ninja 1.12.1、Qt 6.8.3、VS 2022 17.14、MSVC 19.44/v143 14.44、Windows SDK 10.0.26100.0、Windows 10.0.19045.0 和固定 libmpv 0.41.0 链可用；`WrapVulkanHeaders` 未找到仍为非阻断配置提示，CMake 最终 Configuring/Generating done。
+
+libmpv runtime SHA-256 保持 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc`，import SHA-256 保持 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`。用户执行 `scripts/build.ps1 > build-r4.log 2>&1`；该重定向日志正文没有在对话中提供，因此本 README 不声明已单独审计其中的 warning 文本。随后 `scripts/test.ps1` 验证 development runtime marker 成功，Ninja 报告 `no work to do`。
+
+最终 Windows CTest 实际结果：
+
+```text
+graphics_backend ................. Passed    0.48 sec
+opengl_proc_resolver ............. Passed    0.60 sec
+playback_session ................. Passed    0.96 sec
+playback_shutdown ................ Passed    6.80 sec
+playback_media_generation ........ Passed    0.17 sec
+100% tests passed, 0 tests failed out of 29
+Total Test time (real) = 13.01 sec
+```
+
+因此 R4-01 正式 Complete。当前已证明 Qt OpenGL backend 与独立 resolver 基线在实际 Windows Qt 6.8.3 / MSVC / libmpv 0.41.0 环境可用，同时全部 R2/R3 回归继续保持全绿。R4-02 `MpvRenderContext RAII` 尚未实施；`mpv_render_context_create/free/render`、Render update bridge、QQuickFramebufferObject 和视频画面输出仍按后续 Atomic Task 独立推进。
+
+R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留，没有因 R4-01 验收而伪装为已解决。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。下一 Atomic Task：R4-02 MpvRenderContext RAII。**
+
+### 2026-08-09 — R4-01 acceptance addendum
+
+- Accepted R4-01 from the user's explicitly reconfigured Windows tree: `graphics_backend` passed in 0.48 seconds, `opengl_proc_resolver` passed in 0.60 seconds, and all 29 CTests passed with 0 failures in 13.01 seconds total.
+- Confirmed the development runtime marker, fixed libmpv runtime/import hashes and all prior R2/R3 regressions remained green.
+- Recorded that `build-r4.log` was redirected and not supplied for separate warning-text audit.
+- Kept R4-02 render-context ownership/create/free and all later Render/QQuickFramebufferObject work outside the R4-01 acceptance scope; the existing R2-01 `player.log` diagnostic gap remains open.
