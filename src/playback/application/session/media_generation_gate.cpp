@@ -1,6 +1,7 @@
 #include "media_generation_gate.h"
 
 #include "playback/domain/events/buffering_event.h"
+#include "playback/domain/events/failure_event.h"
 #include "playback/domain/events/lifecycle_event.h"
 #include "playback/domain/events/media_event.h"
 #include "playback/domain/events/position_event.h"
