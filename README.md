@@ -15,10 +15,24 @@
 - D1：In Progress。
 - D1-01：Complete — 初始建立 `V3 / Primitive` 15 个基础色；D1-02 在真实语义映射时补充 `ink-800` 与 `violet/glow`，当前 Primitive Color 共 17 个。
 - D1-02：Complete — 已建立 `V3 / Semantic` / `Light Mist`，共 38 个 Semantic Color，并回刷 Main Player / Fullscreen / Playlist Inspector 的全部可见 Solid Paint。
-- D1-02 最终审计：`142 / 142` 个可见 Solid Paint 已绑定 Semantic Color，Visible Unbound = `0`；23 个隐藏占位 Fill 忽略，6 个 Gradient 留待材质阶段。
-- 下一任务：D1-03 建立 Typography System。
+- D1-03：Complete — 已建立 `V3 / Type Primitive` 14 个 Typography Variable 与 17 个 V3 Text Style；三张核心框架 `43 / 43` 个文本节点已绑定正式 Text Style。
+- D1-03 Timecode：改用仅限时间码的 `Geist Mono`，M / S / XS 三档等长时间码 width delta 均为 `0 px`。
+- D1-03 回归：D1-02 Semantic Color 仍为 `142 / 142` 个可见 Solid Paint 已绑定，Visible Unbound = `0`。
+- 下一任务：D1-04 建立 Spacing / Size / Radius。
 
 ## Change Log
+
+### 2026-08-09 — D1-03 建立 Typography System
+
+- 审计：三张核心框架共 43 个文本节点；原始字体集中为 Inter / Noto Sans SC，字号集中为 32 / 22 / 14 / 13 / 12 / 11 / 10。
+- 实现：新增 `V3 / Type Primitive`，共 14 个 Font Family / Font Style / Font Size / Tracking Variable。
+- 实现：新增 17 个本地 V3 Text Style，区分 Docs、Inspector Title、Media Title、Body、Metadata、Label、Keycap 与 Timecode。
+- 决策：Inter 负责英文 UI；Noto Sans SC 负责中文和多语言媒体标题；Geist Mono 仅用于 Timecode，以满足稳定数字宽度要求。
+- 回刷：Main Player / Fullscreen / Playlist Inspector 共 `43 / 43` 文本节点已绑定 V3 Text Style，Unstyled = `0`，Non-V3 / Mixed = `0`。
+- 验证：Main / Fullscreen / Playlist Inspector 高分辨率截图通过；Typography 文档板截图通过；长媒体标题、中英/韩混排通过；Timecode M/S/XS width delta 均为 `0 px`。
+- 回归：D1-02 Semantic Color 保持 `142 / 142` 可见 Solid Paint 已绑定，漏绑 `0`。
+- 限制：Text Style 当前保持 Auto line-height，以避免已确认框架发生无依据布局漂移；固定行高若最终需要，将在 Handoff 基于实际字体度量补充。
+- 记录：`docs/records/D1-03_建立TypographySystem.md`。
 
 ### 2026-08-09 — D1-02 建立语义颜色
 
