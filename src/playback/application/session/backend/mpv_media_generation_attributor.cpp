@@ -161,7 +161,8 @@ MediaGeneration MpvMediaGenerationAttributor::attributeEndFile(
         activePlaylistEntryId_ = 0;
         if (endFile->reason != MpvEndFileReason::Redirect) {
             activeGeneration_ = {};
-            if (propertyGeneration_ == generation) {
+            const bool replacementStillPending = !pendingLoads_.empty();
+            if (!replacementStillPending && propertyGeneration_ == generation) {
                 propertyGeneration_ = {};
             }
         }
