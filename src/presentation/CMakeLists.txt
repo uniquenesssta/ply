@@ -7,6 +7,10 @@ set(PLAYER_QML_FILES
     qml/theme/Theme.qml
 )
 
+set(PLAYER_QML_CPP_SOURCES
+    qml/types/mpv_video_item_qml.h
+)
+
 foreach(qml_file IN LISTS PLAYER_QML_FILES)
     get_filename_component(qml_name "${qml_file}" NAME)
     set_source_files_properties(
@@ -25,8 +29,6 @@ qt_add_qml_module(
     URI Player.Presentation
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
-    # The scaffold currently exposes no C++ types to QML. Avoid generating an
-    # empty metatypes document until the first Q_OBJECT/QML_ELEMENT type is added.
-    NO_GENERATE_QMLTYPES
+    SOURCES ${PLAYER_QML_CPP_SOURCES}
     QML_FILES ${PLAYER_QML_FILES}
 )
