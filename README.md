@@ -484,7 +484,7 @@ R3-03 新增纯 `reducePlaybackSnapshot(current, event)`，只负责 Domain 状�
 - position/duration/seekable/seeking、title/path、volume/mute/speed 各自只更新所属状态轴；不可用的 pause/buffering 不猜测新真值；
 - buffering 结束只关闭 buffering 并清 progress，不改变 transport，因此 Paused + Buffering 的成熟播放器语义保持成立；
 - EOF/Unknown end 进入 Ended + Stopped 并保留媒体 identity/timeline；显式 Stop/Shutdown end 清空媒体级状态但保留会话 controls；Redirect 回到 Opening 并丢弃旧媒体详细状态；
-- `MediaFailedEvent` 进入 Failed + Stopped，保留 source 供错误展示，清除旧 title/path/timeline/buffering并保存 typed failure；
+- `MediaFailedEvent` 进入 Failed + Stopped，保留 source 供错误展示，清除旧 title/path/timeline/buffering 并保存 typed failure；
 - backend shutdown 进入 Closing + Stopped；Protocol `PlaybackFailureEvent` 记录诊断但不伪造 MediaFailed 生命周期；
 - CoreIdle/EofReached/CommandReply 在 R3-03 不直接改变 Snapshot，避免 reducer 抢占 Session/RequestTracker 的后续职责；
 - 不实现 generation stale event gate、request supersession、invariant 修复或 Session 副作用。
