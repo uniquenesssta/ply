@@ -30,9 +30,29 @@
 - D2-02：Complete — 已建立 `D2-02 / Video Viewport Contract`（`57:2`），冻结默认 `Fit + preserve aspect + centered + no stretch + no crop`，并验证 16:9 / 21:9 / 4:3 / 9:16 / Audio-only / Empty。
 - D2-02 Token 补强：Semantic Color `38 → 42`；Effect Primitive `39 → 40`；Material Semantic `48 → 49`；Interaction Primitive `26 → 27`；Interaction Semantic `42 → 43`；新增 letterbox/audio/empty/contrast-support、16% contrast alpha 与 `z/contrast-support=25`。
 - D2-02 验证：四种视频比例 Fit 最大误差 `<0.000011 px`；D2-02 Visible Solid Paint `126 / 126` Semantic-bound，Synthetic Media Gradient `6` 个故意不主题化；Contrast Support OFF=`0` node，ON=`16% / z25`；D1 回归仍为 Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`；D2-01 Standard Window 保持不变。
-- **下一任务：D2-03 建立 Floating Header。**
+- D2-03：Complete — 已建立 `D2-03 / Floating Header Contract`（`65:2`），正式采用 `Media Info Pod + Window Actions Pod` 双浮层结构；Playback State 从 Header 移出，归 D3 / D5。
+- D2-03 Token 补强：Geometry Primitive `41 → 46`、Geometry Semantic `53 → 58`；新增 Header info/action 宽度、Title-Meta gap 与 Action inset。
+- D2-03 验证：Long Title=`ENDING` ellipsis；No-title Info Pod=`0`；720-width Metadata=`0`；4 / 4 Close glyph 正确；Local Contrast Support=`16% / z25`；D2-03 Visible Solid Paint `85 / 85` Semantic-bound；D1 回归仍为 Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`。
+- **下一任务：D2-04 建立 Host 空间契约。**
 
 ## Change Log
+
+### 2026-08-09 — D2-03 建立 Floating Header
+
+- 结构：在 `02 Player Window` 新增 `D2-03 / Floating Header Contract`（`65:2`）；正式 Header 拆为 `Media Info Pod + Window Actions Pod`，不形成 full-width title bar。
+- Ownership：Header 只拥有 Media Title / Technical Metadata / Window Actions；探索稿中的 `PLAYING` 不进入正式 Header，Playback State 归 D3 / D5。
+- Geometry：新增 5 个 Primitive 与 5 个 Semantic Geometry：`size/header/info-width=420`、`size/header/info-width-compact=360`、`size/header/actions-width=110`、`spacing/header/title-meta=2`、`spacing/header/actions-inset=16`；Geometry Primitive `41→46`、Semantic `53→58`。
+- Standard：Media Info=`420×54 / R27`，Window Actions=`110×54 / R27`，Top safe edge=`26`；两个 Pod 独立占位。
+- Long title：Media Title 固定单行并实际 `textTruncation=ENDING`，content width=`376`；Window Actions 不位移。
+- Priority：`Window Actions > Media Title > Technical Metadata`；空间不足时 Metadata 先隐藏，Title 继续截断。
+- No-title：Media Info Pod=`0`，只保留 Window Actions，禁止显示空白玻璃胶囊。
+- Narrow stress：720-width 只验证 Header 自身 Compact，不冻结 D2-05 breakpoint；Info=`360×50 / R25`，Actions=`110×50 / R25`，Metadata nodes=`0`。
+- Window Actions：Minimize / Maximize-Restore / Close；Standard visual slot=`22`、Compact=`21`、gap=`6`、inset=`16`、idle opacity=`72%`，颜色绑定 `icon/secondary`。
+- Contrast Support：Bright-media 初版整条 Top Band 不符合 D2-02 local-only 契约，已改为 Media Info `460×82` 与 Window Actions `140×82` 两个局部区域，均为 `16% / z25`。
+- 修复：第一次 Board 创建因 synthetic gradient helper 少一个右括号被 Figma 原子回滚；无半成品残留。第一轮截图还发现 Close glyph 因 Line 旋转基点错误呈尖括号，4/4 已替换为标准 X path 并重新绑定 `icon/secondary`。
+- 验证：D2-03 Visible Solid Paint `85/85` Semantic-bound、Unbound=`0`；Long Title ENDING；No-title Info Pod=`0`；Narrow Metadata=`0`；4 个 Close 均正确且 idle=`72%`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01 Standard Window 保持不变，D2-02 Contract 未修改。
+- 记录：`docs/records/D2-03_建立FloatingHeader.md`。
+- 下一任务：`D2-04 建立 Host 空间契约`。
 
 ### 2026-08-09 — D2-02 定义 Video Viewport
 
@@ -72,7 +92,7 @@
 - 实现：新增 `V3 / Interaction Primitive`，共 26 个 Variable，覆盖 duration / easing / alpha / z。
 - 实现：新增 `V3 / Interaction Semantic`，共 42 个 Semantic Variable：Motion 24、Opacity 7、Z-order 11；Collection Mode 为 `Standard / Reduce Motion`。
 - Motion：OSC 160/120ms、Inspector 240/180ms、Popover 160/120ms、HUD 160/120ms、Dialog 240/180ms、Toast 200/160ms；进入 Ease Out、退出 Ease In；禁止默认 spring / bounce。
-- Reduce Motion：12 / 12 个 Motion Duration Semantic 在 Reduce Motion Mode 下全部解析为 `0 ms`，不存在第二套组件动效。
+- Reduce Motion：12 / 12 个 Semantic Duration 在 Reduce Motion Mode 下全部解析为 `0 ms`，不存在第二套组件动效。
 - Opacity：建立 hidden 0%、dialog scrim 18%、disabled 38%、idle 72%、pressed 84%、hover/visible 100%；Close 72% 已真实绑定 `opacity/control/idle`。
 - Z-order：建立 `Video 0 → Atmosphere 10 → Media 20 → Header 30 → OSC 40 → Inspector 50 → Popover 60 → HUD 70 → Toast 80 → Dialog Scrim 90 → Dialog 100`；Qt Quick/QML 后续使用同一 `z/*` 数值契约。
 - Figma：在 `01 Foundations` 新增 `D1-06 / Motion Opacity Z-order`（Node `41:2`）。
