@@ -3,6 +3,7 @@
 #include <QMetaObject>
 #include <QString>
 
+#include <mutex>
 #include <utility>
 
 namespace player::playback::application {
@@ -28,6 +29,14 @@ bool PlaybackCommandBus::submit(
         return false;
     }
 
+    std::scoped_lock lock(gateMutex_);
+    if (!acceptingCommands_) {
+        if (errorMessage != nullptr) {
+            *errorMessage = QStringLiteral("Playback command bus is closed.");
+        }
+        return false;
+    }
+
     const QPointer<PlaybackSession> guardedSession = session_;
     if (guardedSession.isNull()) {
         if (errorMessage != nullptr) {
@@ -49,6 +58,18 @@ bool PlaybackCommandBus::submit(
         *errorMessage = QStringLiteral("Failed to queue playback command to PlaybackSession.");
     }
     return queued;
+}
+
+void PlaybackCommandBus::close()
+{
+    std::scoped_lock lock(gateMutex_);
+    acceptingCommands_ = false;
+}
+
+bool PlaybackCommandBus::isAcceptingCommands() const
+{
+    std::scoped_lock lock(gateMutex_);
+    return acceptingCommands_ && !session_.isNull();
 }
 
 } // namespace player::playback::application

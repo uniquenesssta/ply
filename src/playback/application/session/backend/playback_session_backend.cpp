@@ -101,13 +101,15 @@ bool PlaybackSessionBackend::initialize(QString* errorMessage)
 
 void PlaybackSessionBackend::shutdown() noexcept
 {
-    if (propertyObserver_ != nullptr) {
-        QString ignored;
-        (void)propertyObserver_->stop(&ignored);
-    }
+    eventHandler_ = {};
 
     if (eventLoop_ != nullptr) {
         eventLoop_->stop();
+    }
+
+    if (propertyObserver_ != nullptr) {
+        QString ignored;
+        (void)propertyObserver_->stop(&ignored);
     }
 
     commandExecutor_.reset();

@@ -1,6 +1,7 @@
 #include "playback_session.h"
 
 #include "backend/playback_session_backend.h"
+#include "playback_shutdown.h"
 #include "playback/application/requests/request_timeout_monitor.h"
 #include "playback/domain/errors/playback_failure.h"
 #include "playback/domain/state/playback_invariants.h"
@@ -86,7 +87,11 @@ PlaybackSession::PlaybackSession(QObject* parent)
 
 PlaybackSession::~PlaybackSession()
 {
-    backend_->shutdown();
+    if (isOnOwningThread()) {
+        executePlaybackShutdown(requestTracker_, requestTimeoutMonitor_.get(), *backend_);
+    } else {
+        backend_->shutdown();
+    }
 }
 
 void PlaybackSession::initialize()
@@ -130,12 +135,7 @@ void PlaybackSession::shutdown()
     }
 
     stopping_ = true;
-    if (requestTimeoutMonitor_ != nullptr) {
-        requestTimeoutMonitor_->stop();
-    }
-    (void)requestTracker_.cancelAll(PlaybackRequestCancellationReason::Shutdown);
-    backend_->setEventHandler({});
-    backend_->shutdown();
+    executePlaybackShutdown(requestTracker_, requestTimeoutMonitor_.get(), *backend_);
 
     if (initialized_) {
         commitSnapshot(reducePlaybackSnapshot(

@@ -5,8 +5,14 @@
 #include "playback/application/state_publisher/state_publisher.h"
 
 #include <QMetaObject>
+#include <QtGlobal>
 
 namespace player::playback::application {
+namespace {
+
+constexpr unsigned long kShutdownWaitMilliseconds = 5000;
+
+} // namespace
 
 PlaybackSessionThread::PlaybackSessionThread(QObject* parent)
     : QObject(parent)
@@ -17,10 +23,9 @@ PlaybackSessionThread::PlaybackSessionThread(QObject* parent)
 
 PlaybackSessionThread::~PlaybackSessionThread()
 {
-    QString ignored;
-    if (!stop(&ignored) && thread_.isRunning()) {
-        thread_.quit();
-        thread_.wait();
+    QString diagnostic;
+    if (!stop(&diagnostic)) {
+        qFatal("PlaybackSessionThread destruction failed to complete bounded playback shutdown.");
     }
 }
 
@@ -28,6 +33,13 @@ bool PlaybackSessionThread::start(QString* errorMessage)
 {
     if (errorMessage != nullptr) {
         errorMessage->clear();
+    }
+
+    if (QThread::currentThread() != this->thread()) {
+        if (errorMessage != nullptr) {
+            *errorMessage = QStringLiteral("PlaybackSessionThread::start must run on the host object's owning thread.");
+        }
+        return false;
     }
 
     if (thread_.isRunning()) {
@@ -89,6 +101,9 @@ bool PlaybackSessionThread::start(QString* errorMessage)
         &PlaybackSession::startupFailed,
         session,
         [this](const QString&) {
+            if (commandBus_ != nullptr) {
+                commandBus_->close();
+            }
             thread_.quit();
         },
         Qt::DirectConnection);
@@ -97,6 +112,9 @@ bool PlaybackSessionThread::start(QString* errorMessage)
         &PlaybackSession::stopped,
         session,
         [this]() {
+            if (commandBus_ != nullptr) {
+                commandBus_->close();
+            }
             thread_.quit();
         },
         Qt::DirectConnection);
@@ -118,8 +136,25 @@ bool PlaybackSessionThread::stop(QString* errorMessage)
         return false;
     }
 
+    if (QThread::currentThread() != this->thread()) {
+        if (errorMessage != nullptr) {
+            *errorMessage = QStringLiteral("PlaybackSessionThread::stop must run on the host object's owning thread.");
+        }
+        return false;
+    }
+
+    if (commandBus_ != nullptr) {
+        commandBus_->close();
+    }
+
     if (!thread_.isRunning()) {
         commandBus_.reset();
+        if (!session_.isNull()) {
+            if (errorMessage != nullptr) {
+                *errorMessage = QStringLiteral("Playback thread is stopped but PlaybackSession is still alive.");
+            }
+            return false;
+        }
         return true;
     }
 
@@ -143,7 +178,7 @@ bool PlaybackSessionThread::stop(QString* errorMessage)
         thread_.quit();
     }
 
-    if (!thread_.wait(5000)) {
+    if (!thread_.wait(kShutdownWaitMilliseconds)) {
         if (errorMessage != nullptr) {
             *errorMessage = QStringLiteral("Playback thread did not stop within 5 seconds.");
         }
@@ -151,6 +186,14 @@ bool PlaybackSessionThread::stop(QString* errorMessage)
     }
 
     commandBus_.reset();
+
+    if (!session_.isNull()) {
+        if (errorMessage != nullptr) {
+            *errorMessage = QStringLiteral("Playback thread stopped but PlaybackSession was not released.");
+        }
+        return false;
+    }
+
     return true;
 }
 

@@ -6,6 +6,8 @@
 #include <QObject>
 #include <QPointer>
 
+#include <mutex>
+
 class QString;
 
 namespace player::playback::application {
@@ -22,8 +24,13 @@ public:
         player::playback::domain::PlaybackCommand command,
         QString* errorMessage = nullptr);
 
+    void close();
+    [[nodiscard]] bool isAcceptingCommands() const;
+
 private:
+    mutable std::mutex gateMutex_;
     QPointer<PlaybackSession> session_;
+    bool acceptingCommands_ = true;
 };
 
 } // namespace player::playback::application
