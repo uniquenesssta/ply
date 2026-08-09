@@ -18,10 +18,28 @@
 - D1-03：Complete — 已建立 `V3 / Type Primitive` 14 个 Typography Variable 与 17 个 V3 Text Style；三张核心框架 `43 / 43` 个文本节点已绑定正式 Text Style。
 - D1-04：Complete — 已建立 `V3 / Geometry Primitive` 38 个 FLOAT Variable 与 `V3 / Geometry Semantic` 49 个 Semantic Geometry；三张核心框架共 55 个目标节点已绑定 Size / Radius Geometry Variable。
 - D1-04 Spacing：23 个 Semantic Spacing 已建立；当前探索框架保持绝对布局，不强制转换 Auto Layout；Foundations 中 8 / 8 个 Spacing specimen 已真实绑定 GAP Variable，正式 Window / OSC / Inspector 组件从 D2 / D3 / D4 开始消费 Gap / Padding Token。
-- D1-04 回归：Typography `43 / 43`；Semantic Color `142 / 142`；均无漏绑。
-- 下一任务：D1-05 建立 Glass / Blur / Shadow。
+- D1-05：Complete — 已建立 `V3 / Effect Primitive` 38 个 FLOAT Variable、`V3 / Material Semantic` 47 个 Semantic Material Variable，以及 16 个本地 V3 Effect Style。
+- D1-05 回刷：当前三张核心框架 25 / 25 个真实 Effect 节点已绑定正式 Effect Style，Assignment Issues = `0`，相关 Effect 节点未样式化残留 = `0`。
+- D1-05 材质：Window / Header / OSC / Control / Inspector / Field / Footer 与 Atmosphere 已形成明确职责；HUD / Dialog 只冻结独立语义，暂复用已验证材质层级，待 D5 真实状态场景验证。
+- D1-05 回归：Semantic Color `142 / 142`；Typography `43 / 43`；Geometry `55 / 55`；均无漏绑或回归。
+- 下一任务：D1-06 建立 Motion / Opacity / Z-order。
 
 ## Change Log
+
+### 2026-08-09 — D1-05 建立 Glass / Blur / Shadow
+
+- 审计：从 Main Player / Fullscreen / Playlist Inspector 提取真实 Window Elevation、Floating Glass、Inspector 与 Atmosphere Blur，确认现有材质集中为少数稳定层级，而不是随机效果堆叠。
+- 实现：新增 `V3 / Effect Primitive`，共 38 个 FLOAT Variable，覆盖 Blur、Shadow radius/y/spread 与框架当前真实 Material Alpha。
+- 实现：新增 `V3 / Material Semantic`，共 47 个 Semantic Material Variable，覆盖 Glass Blur、Atmosphere Blur、Window/Floating/Control Shadow 及 Material Alpha。
+- 实现：新增 16 个本地 Effect Style：2 个 Elevation、10 个 Glass、4 个 Atmosphere。
+- 决策：HUD / Dialog 已建立独立语义 Effect Style，但暂时分别复用 Control / Inspector 的已验证效果强度，不在 D5 真实状态画面出现前虚构新的材质层级。
+- 回刷：25 / 25 个当前真实 Effect 节点已接入正式 Effect Style；Assignment Issues = `0`；相关 Effect 节点未样式化残留 = `0`。
+- 修复：Inspector 场景 Play Button 描边从异常 `100%` 统一回同职责 Main Play Button 的 `48%`；标准 Window Shadow 从 Main 的 `13%` / Inspector 的 `12%` 收敛为统一 `12%`，Fullscreen 保留 `11%` Immersive 层级。
+- 边界：Playlist 普通 Row 继续保持无 Blur / 无 Shadow；Material Alpha 作为设计与实现真值记录，但不错误绑定整个 Frame opacity；状态级 Opacity 留给 D1-06。
+- Figma：在 `01 Foundations` 新增 `D1-05 / Glass Blur Shadow`（Node `35:2`），包含 Material/Elevation Roles、Atmosphere Layer Blur、Material Alpha Map、Bright/Dark/Warm 背景压力测试、Product Material Map 与规则说明。
+- 验证：Main / Fullscreen / Playlist Inspector 高分辨率截图回归通过；Bright / Dark / Warm 三种复杂背景下玻璃边界与文字可读性通过；D1-05 Foundations 文档板截图无裁切。
+- 回归：Semantic Color 保持 `142 / 142`；Typography 保持 `43 / 43`；Geometry 保持 `55 / 55`。
+- 记录：`docs/records/D1-05_建立GlassBlurShadow.md`。
 
 ### 2026-08-09 — D1-04 建立 Spacing / Size / Radius
 
