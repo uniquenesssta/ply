@@ -43,7 +43,7 @@ R2-02~R2-11 均已完成并通过对应阶段验收；R2-01 的仓库根 `player
 
 首版目标是一个以 libmpv 为播放内核、Qt Quick/QML 为界面的 Windows 10/11 x64 桌面播放器，同时保持 macOS/Linux 清晰适配边界。
 
-MVP 包括：本地文件、网络 URL、播放/暂停/停止、绝对/相对 Seek、Timeline、音量/静音、倍速、全屏、播放列表、音轨、字幕、外挂字幕、音画延迟、章节、媒体信息、错误反馈、加载、缓冲、暂停、播放结束状态、最近播放、恢复进度、快捷键、系统媒体键、防休眠、单实例、文件关联和 Windows 安装包。
+MVP 包括：本地文件、网络 URL、播放/暂停、停止、绝对/相对 Seek、Timeline、音量/静音、倍速、全屏、播放列表、音轨、字幕、外挂字幕、音画延迟、章节、媒体信息、错误反馈、加载、缓冲、暂停、播放结束状态、最近播放、恢复进度、快捷键、系统媒体键、防休眠、单实例、文件关联和 Windows 安装包。
 
 第二阶段再做截图、A-B 循环、画面比例、裁剪、旋转、字幕样式、播放质量预设、Shader、迷你播放器、画中画、高级播放统计和 macOS/Linux 适配。在线站点解析、媒体服务器、DLNA/AirPlay/Chromecast、账号、云同步、在线字幕搜索、插件市场、视频剪辑、转码和 AI 字幕、画质增强不属于首版。
 
@@ -797,3 +797,35 @@ playback_request_tracker
 - Implemented generation-aware RequestTracker ownership for async command replies, cancellation, timeout, unknown/duplicate handling and shutdown cleanup without moving playback truth out of PlaybackSession.
 - Extracted request timeout scheduling into `RequestTimeoutMonitor`, kept media requests generation-bound even before a media is active, and added the independent `playback_request_tracker` CTest.
 - Kept full stale media-event filtering and same-kind request supersession outside R3-06.
+
+## R3-06 Windows verification and acceptance — current
+
+> 本节取代上一个 `R3-06 implementation status — current` 中的待验证状态；实现说明继续保留为历史事实。
+
+用户在 `agent/r3-stage` 的 Windows 工作区完成标准 build/test。开发 runtime root marker 校验成功，Ninja 报告 `no work to do`，随后完整 CTest 全部通过。
+
+实际结果：
+
+```text
+playback_request_tracker ......... Passed    0.16 sec
+playback_session ................. Passed    0.55 sec
+100% tests passed, 0 tests failed out of 21
+Total Test time (real) = 10.67 sec
+```
+
+测试前开发 runtime marker 校验成功：
+
+```text
+[OK] Development runtime root marker -> build/windows-msvc-debug/.player-development-root
+```
+
+R3-06 的异步请求关联链因此正式验收：RequestId/generation 绑定、A→B 旧请求取消、unknown/duplicate/cancelled/stale reply no-op、timeout 与 shutdown cancellation 的独立 tracker 测试通过；接入后的真实 `playback_session` libmpv 主链也保持通过。完整 stale media-event gate 仍归 R3-09，同类请求 supersession 仍归 R3-12，本次验收不扩大任务范围。
+
+R2-01 的仓库根 `player.log` 落盘缺口仍是明确的非阻塞诊断事项，未被本次验收视为解决。
+
+**Stage R2：Complete。Stage R3：In Progress。R3-01：Complete。R3-02：Complete。R3-03：Complete。R3-04：Complete。R3-05：Complete。R3-06：Complete。下一 Atomic Task：R3-07 State publisher。**
+
+### 2026-08-09 — R3-06 acceptance addendum
+
+- Accepted R3-06 from the user's Windows validation output: development runtime marker passed, `playback_request_tracker` passed in 0.16 seconds, `playback_session` passed in 0.55 seconds, and all 21 CTests passed with 0 failures in 10.67 seconds total.
+- Kept R3-07 StatePublisher, R3-08 shutdown hardening, R3-09 stale media-event filtering and R3-12 supersession outside the R3-06 acceptance scope.
