@@ -16,11 +16,26 @@
 - D1-01：Complete — 初始建立 `V3 / Primitive` 15 个基础色；D1-02 在真实语义映射时补充 `ink-800` 与 `violet/glow`，当前 Primitive Color 共 17 个。
 - D1-02：Complete — 已建立 `V3 / Semantic` / `Light Mist`，共 38 个 Semantic Color，并回刷 Main Player / Fullscreen / Playlist Inspector 的全部可见 Solid Paint。
 - D1-03：Complete — 已建立 `V3 / Type Primitive` 14 个 Typography Variable 与 17 个 V3 Text Style；三张核心框架 `43 / 43` 个文本节点已绑定正式 Text Style。
-- D1-03 Timecode：改用仅限时间码的 `Geist Mono`，M / S / XS 三档等长时间码 width delta 均为 `0 px`。
-- D1-03 回归：D1-02 Semantic Color 仍为 `142 / 142` 个可见 Solid Paint 已绑定，Visible Unbound = `0`。
-- 下一任务：D1-04 建立 Spacing / Size / Radius。
+- D1-04：Complete — 已建立 `V3 / Geometry Primitive` 38 个 FLOAT Variable 与 `V3 / Geometry Semantic` 49 个 Semantic Geometry；三张核心框架共 55 个目标节点已绑定 Size / Radius Geometry Variable。
+- D1-04 Spacing：23 个 Semantic Spacing 已建立；当前探索框架保持绝对布局，不强制转换 Auto Layout；Foundations 中 8 / 8 个 Spacing specimen 已真实绑定 GAP Variable，正式 Window / OSC / Inspector 组件从 D2 / D3 / D4 开始消费 Gap / Padding Token。
+- D1-04 回归：Typography `43 / 43`；Semantic Color `142 / 142`；均无漏绑。
+- 下一任务：D1-05 建立 Glass / Blur / Shadow。
 
 ## Change Log
+
+### 2026-08-09 — D1-04 建立 Spacing / Size / Radius
+
+- 审计：从 Main Player / Fullscreen / Playlist Inspector 提取真实 Window / Header / OSC / Inspector / Search / Playlist Row / Control / Timeline 几何。
+- 实现：新增 `V3 / Geometry Primitive`，共 38 个 FLOAT Variable：Spacing 17、Size 13、Radius 8。
+- 实现：新增 `V3 / Geometry Semantic`，共 49 个 Semantic Geometry：Spacing 23、Size 14、Radius 12。
+- 边界：不把居中坐标、Timeline Progress 动态宽度、图标内部光学微调或单次出现的视觉间隔 Token 化。
+- 回刷：55 / 55 个目标产品节点已绑定 Size / Radius Geometry Variable，Missing = `0`。
+- Spacing：8 / 8 个 Foundations Auto Layout specimen 的 `itemSpacing` 已绑定 Semantic GAP Variable；当前三张探索框架不为追求覆盖率而强制改 Auto Layout。
+- Figma：在 `01 Foundations` 新增 `D1-04 / Spacing Size Radius` 文档板，包含 Semantic Spacing / Size / Radius / Product Geometry Map / Rules。
+- 修复：第一次文档板创建因直接写 Frame 只读 `width/height` 被 Figma 原子回滚；改用 `resize()` 后重新完整创建并截图通过。
+- 验证：Main / Fullscreen / Playlist Inspector 截图回归通过；Geometry Primitive 38、Semantic 49；55 / 55 产品目标节点绑定；8 / 8 GAP specimen 绑定；无 `13/15/17` 无语义 spacing token。
+- 回归：D1-03 Typography 保持 `43 / 43`；D1-02 Semantic Color 保持 `142 / 142`，漏绑 `0`。
+- 记录：`docs/records/D1-04_建立SpacingSizeRadius.md`。
 
 ### 2026-08-09 — D1-03 建立 Typography System
 
