@@ -13,13 +13,17 @@ function Get-PlayerDevelopmentRuntimePaths {
 
     $projectRootPath = (Resolve-Path -LiteralPath $ProjectRoot).Path
     $outputDirectory = Join-Path $projectRootPath "build/$Preset"
-    $markerPath = Join-Path $outputDirectory ".player-development-root"
+    $markerDirectory = Join-Path $outputDirectory "cmake"
+    $markerPath = Join-Path $markerDirectory ".player-development-root"
+    $legacyMarkerPath = Join-Path $outputDirectory ".player-development-root"
     $executablePath = Join-Path $outputDirectory "Player.exe"
 
     return [pscustomobject]@{
         ProjectRoot = $projectRootPath
         OutputDirectory = $outputDirectory
+        MarkerDirectory = $markerDirectory
         MarkerPath = $markerPath
+        LegacyMarkerPath = $legacyMarkerPath
         ExecutablePath = $executablePath
     }
 }
@@ -36,8 +40,10 @@ function Clear-PlayerDevelopmentRuntimeMarker {
     )
 
     $paths = Get-PlayerDevelopmentRuntimePaths -Preset $Preset -ProjectRoot $ProjectRoot
-    if (Test-Path -LiteralPath $paths.MarkerPath -PathType Leaf) {
-        Remove-Item -LiteralPath $paths.MarkerPath -Force
+    foreach ($markerPath in @($paths.MarkerPath, $paths.LegacyMarkerPath)) {
+        if (Test-Path -LiteralPath $markerPath -PathType Leaf) {
+            Remove-Item -LiteralPath $markerPath -Force
+        }
     }
 }
 
@@ -62,11 +68,11 @@ function Assert-PlayerDevelopmentRuntimeMarker {
     }
 
     $markerValue = (Get-Content -LiteralPath $paths.MarkerPath -Raw).Trim()
-    if ($markerValue -ne "../.." -or [System.IO.Path]::IsPathRooted($markerValue)) {
+    if ($markerValue -ne "../../.." -or [System.IO.Path]::IsPathRooted($markerValue)) {
         throw "Development runtime marker contains an unexpected root route: '$markerValue'."
     }
 
-    $resolvedRoot = [System.IO.Path]::GetFullPath((Join-Path $paths.OutputDirectory $markerValue))
+    $resolvedRoot = [System.IO.Path]::GetFullPath((Join-Path $paths.MarkerDirectory $markerValue))
     $trimSeparators = [char[]]@(
         [System.IO.Path]::DirectorySeparatorChar,
         [System.IO.Path]::AltDirectorySeparatorChar)
@@ -80,7 +86,7 @@ function Assert-PlayerDevelopmentRuntimeMarker {
         throw "Development runtime marker resolves outside the active project root: '$resolvedRoot'."
     }
 
-    Write-Host "[OK] Development runtime root marker -> build/$Preset/.player-development-root"
+    Write-Host "[OK] Development runtime root marker -> build/$Preset/cmake/.player-development-root"
 }
 
 function Set-PlayerDevelopmentRuntimeMarker {
@@ -98,11 +104,17 @@ function Set-PlayerDevelopmentRuntimeMarker {
     if (-not (Test-Path -LiteralPath $paths.ExecutablePath -PathType Leaf)) {
         throw "Player executable is missing at '$($paths.ExecutablePath)'; refusing to create a marker for a stale or incomplete build."
     }
+    if (-not (Test-Path -LiteralPath $paths.MarkerDirectory -PathType Container)) {
+        throw "Development runtime marker directory is missing at '$($paths.MarkerDirectory)'."
+    }
+    if (Test-Path -LiteralPath $paths.LegacyMarkerPath -PathType Leaf) {
+        Remove-Item -LiteralPath $paths.LegacyMarkerPath -Force
+    }
 
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
     [System.IO.File]::WriteAllText(
         $paths.MarkerPath,
-        "../.." + [Environment]::NewLine,
+        "../../.." + [Environment]::NewLine,
         $utf8NoBom)
 
     Assert-PlayerDevelopmentRuntimeMarker -Preset $Preset -ProjectRoot $ProjectRoot
