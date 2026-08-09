@@ -90,8 +90,7 @@ src/playback/domain/errors/
   event 模块不再拥有错误值类型本身。
 
 src/playback/domain/events/
-  按 lifecycle / media / position / buffering / property / failure / command-reply 拆分产品语义事件；
-  unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
+  按 lifecycle / media / position / buffering / property / failure / command-reply 分模块，unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
   当前只覆盖 R3-01 所需核心事件，track/chapter/video/audio domain model 留给后续对应任务。
 
 src/playback/domain/state/
@@ -1042,3 +1041,34 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 下一次验收至少要求 `mpv_property_reader`、`playback_session`、`playback_media_generation`、`playback_shutdown` 全部通过，且完整标准套件为 **25/25，0 failed**。若仍失败，以实际输出继续定位，不降低测试强度。
 
 **当前准确状态：Stage R3：In Progress；R3-01~R3-08：Complete；R3-09：Implemented / first Windows gate failed / fix submitted / Windows rerun pending。R3-10~R3-12 尚未实施。** R2-01 的仓库根 `player.log` 缺口仍为已知非阻塞诊断事项。
+
+## R3-09 Windows verification and acceptance — current
+
+> 本节取代上一节“Windows rerun pending”的状态；R3-09 现已完成真实 Windows 验收。
+
+用户在修正版 `12bea42ddfd6aca4d54b46d6bef1f12ffd0c5f85` 上重新执行标准 Windows build/test。工具链、依赖与 libmpv 包校验通过，开发 runtime root marker 正常，Ninja 报告 `no work to do`。
+
+实际结果：
+
+```text
+mpv_property_reader .............. Passed    0.14 sec
+playback_session ................. Passed    1.10 sec
+playback_shutdown ................ Passed    6.93 sec
+playback_media_generation ........ Passed    0.16 sec
+100% tests passed, 0 tests failed out of 25
+Total Test time (real) = 12.36 sec
+```
+
+依赖校验继续确认 libmpv runtime SHA-256 为 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc`，import SHA-256 为 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`；开发 runtime marker 为 `build/windows-msvc-debug/.player-development-root`。
+
+原始失败路径 `PlaybackSessionTest::rapidReplacementKeepsLatestGeneration()` 已在未降低断言强度的情况下通过；`MpvPropertyReader` 的独立读取/线程所有权覆盖、真实 Session A→B replacement、shutdown 回归与 generation gate 同时保持全绿。R3-09 因此正式验收完成。
+
+本次验收不提前实现 R3-10 PlaybackSnapshot 多轴扩展、R3-11 reducer cleanup matrix 或 R3-12 supersession；这些任务继续独立推进。R2-01 的仓库根 `player.log` 落盘缺口仍作为已知非阻塞诊断事项保留。
+
+**Stage R2：Complete。Stage R3：In Progress。R3-01：Complete。R3-02：Complete。R3-03：Complete。R3-04：Complete。R3-05：Complete。R3-06：Complete。R3-07：Complete。R3-08：Complete。R3-09：Complete。下一 Atomic Task：R3-10 PlaybackSnapshot 多轴状态。**
+
+### 2026-08-09 — R3-09 acceptance addendum
+
+- Accepted R3-09 from the user's Windows rerun: `mpv_property_reader` 0.14 seconds, `playback_session` 1.10 seconds, `playback_shutdown` 6.93 seconds, `playback_media_generation` 0.16 seconds, and all 25 CTests passed with 0 failures in 12.36 seconds total.
+- Confirmed the original immediate A→B replacement hard regression now passes without weakening the `path + duration≈5s` acceptance condition.
+- Kept R3-10~R3-12 outside the R3-09 acceptance scope; the existing R2-01 `player.log` diagnostic gap remains open.
