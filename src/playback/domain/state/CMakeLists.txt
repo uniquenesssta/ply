@@ -1,12 +1,14 @@
 target_sources(
     player_playback_domain
     PRIVATE
+        playback_invariants.cpp
         playback_reducer.cpp
         playback_snapshot.cpp
     PUBLIC
         media_generation.h
         playback_buffering_state.h
         playback_controls_state.h
+        playback_invariants.h
         playback_lifecycle_state.h
         playback_media_state.h
         playback_reducer.h
