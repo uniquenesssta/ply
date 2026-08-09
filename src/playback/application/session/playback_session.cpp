@@ -6,7 +6,9 @@
 #include "playback/domain/state/playback_reducer.h"
 
 #include <QThread>
+#include <QTimer>
 
+#include <chrono>
 #include <limits>
 #include <utility>
 #include <variant>
@@ -16,12 +18,30 @@ namespace {
 
 using namespace player::playback::domain;
 
+constexpr std::chrono::milliseconds kRequestTimeout{30000};
+constexpr int kRequestTimeoutPollMilliseconds = 1000;
+
 PlaybackFailure makeFailure(PlaybackFailureCategory category, QString diagnostic)
 {
     if (diagnostic.isEmpty()) {
         diagnostic = QStringLiteral("Playback session operation failed.");
     }
     return PlaybackFailure{category, 0, std::move(diagnostic)};
+}
+
+QString requestTrackDiagnostic(RequestTrackStatus status)
+{
+    switch (status) {
+    case RequestTrackStatus::Tracked:
+        return {};
+    case RequestTrackStatus::InvalidRequestId:
+        return QStringLiteral("RequestTracker rejected an invalid request id.");
+    case RequestTrackStatus::DuplicateRequestId:
+        return QStringLiteral("RequestTracker rejected a duplicate request id.");
+    case RequestTrackStatus::NotTrackable:
+        return QStringLiteral("RequestTracker rejected a command without an asynchronous backend request.");
+    }
+    return QStringLiteral("RequestTracker rejected a playback request.");
 }
 
 bool isMediaPropertyLifecycle(PlaybackLifecycleState lifecycle) noexcept
@@ -96,6 +116,8 @@ void PlaybackSession::initialize()
         return;
     }
 
+    ensureRequestTimeoutTimer();
+    requestTimeoutTimer_->start();
     initialized_ = true;
     emit ready();
 }
@@ -110,6 +132,10 @@ void PlaybackSession::shutdown()
     }
 
     stopping_ = true;
+    if (requestTimeoutTimer_ != nullptr) {
+        requestTimeoutTimer_->stop();
+    }
+    (void)requestTracker_.cancelAll(PlaybackRequestCancellationReason::Shutdown);
     backend_->setEventHandler({});
     backend_->shutdown();
 
@@ -159,10 +185,7 @@ void PlaybackSession::processCommand(PlaybackCommand command)
         return;
     }
 
-    QString error;
-    if (!backend_->submit(command, &error)) {
-        commitSubmissionFailure(command, std::move(error));
-    }
+    submitTrackedCommand(command);
 }
 
 void PlaybackSession::handleBackendEvent(const PlaybackEvent& event)
@@ -170,11 +193,45 @@ void PlaybackSession::handleBackendEvent(const PlaybackEvent& event)
     if (!isOnOwningThread() || !initialized_ || stopping_) {
         return;
     }
+
+    if (const auto* reply = std::get_if<CommandReplyEvent>(&event.payload)) {
+        handleCommandReply(*reply);
+        return;
+    }
+
     if (!shouldApplyBackendEvent(snapshot_, event)) {
         return;
     }
 
     commitSnapshot(reducePlaybackSnapshot(snapshot_, event));
+}
+
+void PlaybackSession::handleCommandReply(const CommandReplyEvent& reply)
+{
+    const RequestReplyResolution resolution = requestTracker_.resolve(
+        reply,
+        snapshot_.generation());
+    if (!resolution.accepted() || reply.succeeded) {
+        return;
+    }
+
+    PlaybackFailure failure = reply.failure.has_value()
+        ? *reply.failure
+        : makeFailure(
+            PlaybackFailureCategory::Command,
+            QStringLiteral("Playback backend returned a failed command reply without diagnostics."));
+
+    if (resolution.record.has_value()
+        && resolution.record->type == PlaybackRequestType::LoadMedia) {
+        commitSnapshot(reducePlaybackSnapshot(
+            snapshot_,
+            PlaybackEvent{MediaFailedEvent{std::move(failure)}}));
+        return;
+    }
+
+    commitSnapshot(reducePlaybackSnapshot(
+        snapshot_,
+        PlaybackEvent{PlaybackFailureEvent{std::move(failure)}}));
 }
 
 void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
@@ -192,6 +249,14 @@ void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
         return;
     }
 
+    const RequestTrackStatus trackStatus = requestTracker_.track(command, generation);
+    if (trackStatus != RequestTrackStatus::Tracked) {
+        commitTrackingFailure(trackStatus);
+        return;
+    }
+
+    (void)requestTracker_.cancelMediaRequestsForGenerationChange(generation);
+
     PlaybackSnapshotState seededState = snapshot_.state();
     seededState.generation = generation;
     seededState.media.source = load->source;
@@ -203,6 +268,28 @@ void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
 
     QString error;
     if (!backend_->submit(command, &error)) {
+        (void)requestTracker_.cancel(
+            command.requestId(),
+            PlaybackRequestCancellationReason::SubmissionFailed);
+        commitSubmissionFailure(command, std::move(error));
+    }
+}
+
+void PlaybackSession::submitTrackedCommand(const PlaybackCommand& command)
+{
+    const RequestTrackStatus trackStatus = requestTracker_.track(
+        command,
+        snapshot_.generation());
+    if (trackStatus != RequestTrackStatus::Tracked) {
+        commitTrackingFailure(trackStatus);
+        return;
+    }
+
+    QString error;
+    if (!backend_->submit(command, &error)) {
+        (void)requestTracker_.cancel(
+            command.requestId(),
+            PlaybackRequestCancellationReason::SubmissionFailed);
         commitSubmissionFailure(command, std::move(error));
     }
 }
@@ -242,6 +329,35 @@ void PlaybackSession::commitSubmissionFailure(
         PlaybackEvent{PlaybackFailureEvent{makeFailure(
             PlaybackFailureCategory::Command,
             std::move(diagnostic))}}));
+}
+
+void PlaybackSession::commitTrackingFailure(RequestTrackStatus status)
+{
+    commitSnapshot(reducePlaybackSnapshot(
+        snapshot_,
+        PlaybackEvent{PlaybackFailureEvent{makeFailure(
+            PlaybackFailureCategory::Protocol,
+            requestTrackDiagnostic(status))}}));
+}
+
+void PlaybackSession::ensureRequestTimeoutTimer()
+{
+    if (requestTimeoutTimer_ != nullptr) {
+        return;
+    }
+
+    requestTimeoutTimer_ = new QTimer(this);
+    requestTimeoutTimer_->setInterval(kRequestTimeoutPollMilliseconds);
+    requestTimeoutTimer_->setTimerType(Qt::CoarseTimer);
+    QObject::connect(
+        requestTimeoutTimer_,
+        &QTimer::timeout,
+        this,
+        [this]() {
+            (void)requestTracker_.cancelExpired(
+                PlaybackRequestClock::now(),
+                kRequestTimeout);
+        });
 }
 
 bool PlaybackSession::isOnOwningThread() const noexcept

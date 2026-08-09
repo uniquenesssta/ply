@@ -1,5 +1,6 @@
 add_library(player_playback_application STATIC)
 
+add_subdirectory(requests)
 add_subdirectory(session)
 add_subdirectory(command_bus)
 
