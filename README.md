@@ -836,7 +836,7 @@ R2-01 的仓库根 `player.log` 落盘缺口仍是明确的非阻塞诊断事项
 R3-07 已实现 `StatePublisher` GUI/consumer-thread 发布边界，当前状态为 **Implemented; Windows verification pending**。
 
 - 新增 `src/playback/application/state_publisher/`，`StatePublisher` 只拥有发布缓存与节流时序，不拥有或修改播放真值；权威 `PlaybackSnapshot` 仍只由 `PlaybackSession` 持有。
-- `PlaybackSnapshot` 增加 Qt metatype 声明，`StatePublisher` 注册该类型；`PlaybackSessionThread` 以 `Qt::QueuedConnection` 将 Playback Thread 的 `snapshotCommitted` 投递给创建 `PlaybackSessionThread` 的 consumer/GUI thread 上的 Publisher，未来 ViewModel 不需要跨线程访问 Session 内部状态。
+- `PlaybackSnapshot` 增加 Qt metatype声明，`StatePublisher` 注册该类型；`PlaybackSessionThread` 以 `Qt::QueuedConnection` 将 Playback Thread 的 `snapshotCommitted` 投递给创建 `PlaybackSessionThread` 的 consumer/GUI thread 上的 Publisher，未来 ViewModel 不需要跨线程访问 Session 内部状态。
 - 首个 Snapshot 立即发布；完全重复 Snapshot 不重复发布。只有“除 `timeline.positionSeconds` 外所有字段均相同”的 position-only 更新进入节流，目标频率为 **20 Hz / 50 ms**，窗口内只保留最新 pending Snapshot。
 - lifecycle、transport、media identity、duration、seekable/seeking、buffering、controls、failure 或 generation 任一变化都绕过 position throttle 立即发布；关键变化到来时会取消尚未 flush 的旧 position-only pending，因此 Pause/Error 等状态不会被位置节流延迟。
 - Publisher 使用所属 consumer thread 的 single-shot precise timer；不新增线程、不调用 libmpv、不执行 Reducer、不修改 Snapshot，也不实现 R3-09 generation stale-event filtering。
@@ -1436,3 +1436,27 @@ R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事
 - Confirmed the current development marker contract is `build/<preset>/cmake/.player-development-root` with `../../..`, and the layout verifier now checks the same contract.
 - Recorded the observed R4-03 build-gate history without inventing missing log details: initial unresolved Qt meta-object link symbols, later Ninja `missing and no known rule to make it`, then the explicit render-subdirectory MOC target dependency fix.
 - Kept actual FBO rendering, QML video-item rendering behavior and full callback/render/free/core shutdown coordination in R4-04/R4-05/R4-08 as planned; the existing R2-01 `player.log` diagnostic gap remains open.
+
+## R4-04 implementation status — current
+
+R4-04 已实现 QML-placeable `MpvVideoItem` 与 `VideoSurface` 边界，当前状态为 **Implemented; Windows verification pending**。
+
+- `MpvVideoItem : QQuickFramebufferObject` 只采集 logical size、`effectiveDevicePixelRatio()` 与 visible，并通过 `createRenderer()` 建立 Renderer 边界；不持有 `MpvRenderContext`、不调用 libmpv、不拥有播放真值。
+- `MpvVideoRenderer` 在 R4-04 仅作为同步壳：`synchronize()` 复制 presentation state，`render()` 故意为空；没有 `mpv_render_context_render()`、FBO 参数或 OpenGL 视频帧渲染，实际画面严格留给 R4-05。
+- QML 侧通过 `QML_FOREIGN + QML_NAMED_ELEMENT` 暴露 `MpvVideoItem`；`VideoSurface.qml` 以该 Item 填满视频区域，并继续用现有背景/状态层覆盖未渲染内容。
+- Render CMake 接入 Qt Quick 公共依赖和 `MpvVideoItem` 显式 MOC 生成；没有新增第三方生产依赖。
+- 新增 `mpv_video_item` CTest，覆盖 renderer 创建、640×360→1280×720 resize、effective DPR、visible true→false 以及 test-only QML 实例化。
+- 未修改 PlaybackSession、R4-02 `MpvRenderContext` 行为或 R4-03 update bridge；未提前实现 R4-06 DPI hardening、R4-07 visibility policy、R4-08 shutdown coordinator。
+
+当前连接环境无法执行 Windows Qt 6.8.3/MSVC/libmpv configure/build/CTest，也未启动实际 `Player.exe`。因此 R4-04 不标记 Complete。由于新增 CTest 与 QML module C++ registration，Windows 验收必须先重新 configure：
+
+```powershell
+git pull --ff-only origin agent/r4-stage
+powershell -ExecutionPolicy Bypass -File scripts\configure.ps1
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r4.log 2>&1
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1
+```
+
+重新 configure 后预期标准套件为 32 项，其中新增 `mpv_video_item`；`32/32` 仅为待验证目标，不是已通过事实。验收还必须确认 `Player.exe` 能正常加载 `Player.Presentation` / `VideoSurface`，不存在 `MpvVideoItem` QML type registration 错误。R2-01 的仓库根 `player.log` 缺口继续作为已知非阻塞诊断事项保留。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Implemented，Windows verification pending。**
