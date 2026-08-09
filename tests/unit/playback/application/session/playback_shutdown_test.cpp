@@ -98,7 +98,7 @@ void PlaybackShutdownTest::stopDuringPlaybackSuppressesLateSnapshots()
     const QString mediaPath = directory.filePath(QStringLiteral("shutdown-playing.wav"));
     QString error;
     QVERIFY2(
-        test_support::writeSilentPcmWav(mediaPath, 5000, &error),
+        test_support::writeSilentPcmWav(mediaPath, 30000, &error),
         qPrintable(error));
 
     PlaybackSessionThread host;
@@ -106,6 +106,7 @@ void PlaybackShutdownTest::stopDuringPlaybackSuppressesLateSnapshots()
     QVERIFY(publisher != nullptr);
 
     bool readySnapshotSeen = false;
+    bool pausedSnapshotSeen = false;
     bool playingSnapshotSeen = false;
     bool closingSnapshotSeen = false;
     int publishedSnapshotCount = 0;
@@ -119,6 +120,10 @@ void PlaybackShutdownTest::stopDuringPlaybackSuppressesLateSnapshots()
                 && snapshot.media().source.has_value()
                 && *snapshot.media().source == mediaPath) {
                 readySnapshotSeen = true;
+            }
+            if (snapshot.lifecycle() == PlaybackLifecycleState::Ready
+                && snapshot.transport() == PlaybackTransportState::Paused) {
+                pausedSnapshotSeen = true;
             }
             if (snapshot.lifecycle() == PlaybackLifecycleState::Ready
                 && snapshot.transport() == PlaybackTransportState::Playing) {
@@ -141,9 +146,18 @@ void PlaybackShutdownTest::stopDuringPlaybackSuppressesLateSnapshots()
         qPrintable(error));
     QTRY_VERIFY_WITH_TIMEOUT(readySnapshotSeen, 7000);
 
+    // Force a confirmed transport transition before shutdown. A redundant Play while
+    // libmpv is already unpaused is not required to emit another pause=false update.
     QVERIFY2(
         host.commandBus()->submit(
-            makeCommand(21, TransportCommand{TransportAction::Play}),
+            makeCommand(21, TransportCommand{TransportAction::Pause}),
+            &error),
+        qPrintable(error));
+    QTRY_VERIFY_WITH_TIMEOUT(pausedSnapshotSeen, 5000);
+
+    QVERIFY2(
+        host.commandBus()->submit(
+            makeCommand(22, TransportCommand{TransportAction::Play}),
             &error),
         qPrintable(error));
     QTRY_VERIFY_WITH_TIMEOUT(playingSnapshotSeen, 5000);
