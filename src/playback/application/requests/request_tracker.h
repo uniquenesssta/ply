@@ -19,6 +19,10 @@ public:
         player::playback::domain::MediaGeneration generation = {},
         PlaybackRequestClock::time_point submittedAt = PlaybackRequestClock::now());
 
+    [[nodiscard]] std::size_t supersedePendingFor(
+        const player::playback::domain::PlaybackCommand& replacement,
+        player::playback::domain::MediaGeneration generation) noexcept;
+
     [[nodiscard]] RequestReplyResolution resolve(
         const player::playback::domain::CommandReplyEvent& reply,
         player::playback::domain::MediaGeneration currentGeneration);
