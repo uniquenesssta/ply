@@ -90,8 +90,7 @@ src/playback/domain/errors/
   event 模块不再拥有错误值类型本身。
 
 src/playback/domain/events/
-  按 lifecycle / media / position / buffering / property / failure / command-reply 拆分产品语义事件；
-  unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
+  按 lifecycle / media / position / buffering / property / failure / command-reply 分模块，unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
   当前只覆盖 R3-01 所需核心事件，track/chapter/video/audio domain model 留给后续对应任务。
 
 src/playback/domain/state/
@@ -1194,3 +1193,51 @@ R3-11 的 Reducer cleanup policy、Empty→Opening、Loaded A→Opening B、Stop
 - Confirmed `playback_reducer` 0.12 seconds, `playback_invariants` 0.12 seconds, `playback_session` 1.12 seconds, `playback_shutdown` 6.92 seconds and `playback_media_generation` 0.17 seconds remained green with the cleanup matrix enabled.
 - Recorded that `build-r3.log` was redirected and not supplied for separate warning-text audit; the standard test script still validated the development marker, found Ninja up to date and completed the entire 27-test suite successfully.
 - Kept R3-12 supersession outside the R3-11 acceptance scope; the existing R2-01 `player.log` diagnostic gap remains open.
+
+## R3-12 Windows verification and Stage R3 acceptance — current
+
+> 本节同时记录 R3-12 实施边界、Windows 最终验收与 Stage R3 关闭结论，并取代此前的 `R3-12 尚未实施 / Windows verification pending` 状态。
+
+R3-12 在 `src/playback/application/requests/` 内新增独立 `RequestSupersessionPolicy`，而 `RequestTracker` 继续作为 pending/completed/cancelled request lifecycle 的唯一 owner，没有建立第二张请求状态表。`PlaybackRequestCancellationReason` 新增 `Superseded`，把“被后来请求替代”与 generation change、submission failure、timeout、shutdown 区分开。
+
+实际 supersession 规则：
+
+- Load 使用 latest-wins：Load B 登记后先把旧 pending Load A 标记为 `Superseded`，再执行既有 generation-change cancellation 清理其他旧媒体请求；后一步不会覆盖 A 已经冻结的 `Superseded` 原因。
+- Absolute/Relative Seek 共用一个 Seek supersession lane；同一 `MediaGeneration` 内的新 Seek 取消旧 pending Seek，不同 generation 不互相覆盖。
+- Audio/Subtitle/Video Track Selection 分别冻结为三条独立 supersession lane，供后续 R8-03 真正实现 track-selection command/backend 时复用；R3-12 没有提前新增 `aid/sid/vid` 选择命令、backend 提交或 UI 行为。
+- Play/Pause/Stop、Volume/Mute/Speed 不进入 same-kind supersession group，避免把不同语义的普通控制误判为 latest-wins。
+- Shutdown 继续复用 R3-08 已验收的 `cancelAll(Shutdown)`，覆盖全部仍 pending 的普通请求。
+- R3-12 不要求物理撤销已经进入 libmpv 的旧异步命令；上层通过 RequestTracker 把旧结果明确失效，旧/失败 reply 只能得到 cancelled/no-op disposition，不能形成新的 Snapshot failure 或其他播放副作用。
+
+新增独立 CTest `playback_request_supersession`，覆盖 supersession group 分类、Load A→B、同 generation 连续 absolute/relative Seek、三类 track-selection lane 隔离、Shutdown cancel-all、late failed reply no-op，以及 Session 实际顺序下 `Superseded` 不被随后 generation-change cancellation 覆盖。`PlaybackSession` 只在 backend submit 前接入 tracker supersession；Snapshot、Reducer、MediaGenerationGate、QML、Render、Playlist 与生产依赖均未因 R3-12 改变。
+
+用户先确认工作区无未提交修改，随后 fast-forward 到 `4bfa9e934e8b3f4eb570c045919a6b735e1ce3f9` 并显式执行 `scripts/configure.ps1`。Configure 成功，新 `playback_request_supersession` 已进入标准 28 项 CTest 门禁。工具链与依赖检查实际确认 CMake 3.30.5、Ninja 1.12.1、Qt 6.8.3、VS 2022 17.14、MSVC 19.44/v143 14.44、Windows SDK 10.0.26100.0、Windows 10.0.19045.0 和固定 libmpv 0.41.0 链可用；`WrapVulkanHeaders` 未找到仍为非阻断配置提示，CMake 最终 Configuring/Generating done。
+
+libmpv runtime SHA-256 保持 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc`，import SHA-256 保持 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`。用户执行 `scripts/build.ps1 > build-r3.log 2>&1`，该重定向日志正文没有在对话中提供，因此不声明已单独审计其中的 warning 文本；随后 `scripts/test.ps1` 验证 development runtime marker 成功，Ninja 报告 `no work to do`。
+
+最终 Windows CTest 实际结果：
+
+```text
+playback_cleanup_matrix .......... Passed    0.02 sec
+playback_request_tracker ......... Passed    0.18 sec
+playback_request_supersession .... Passed    0.18 sec
+playback_state_publisher ......... Passed    0.78 sec
+playback_session ................. Passed    1.14 sec
+playback_shutdown ................ Passed    6.94 sec
+playback_media_generation ........ Passed    0.18 sec
+100% tests passed, 0 tests failed out of 28
+Total Test time (real) = 11.59 sec
+```
+
+因此 R3-12 正式 Complete。结合此前已经验收的 Command/Event、PlaybackSnapshot、多轴媒体状态、Reducer、Invariant、PlaybackSession Thread、RequestTracker、StatePublisher、有界 shutdown、MediaGeneration stale-event gate 与 cleanup matrix，Stage R3 的关闭条件已经满足：播放真值保持单一 owner，GUI/QML 不直接调用 libmpv，Session 可创建/有界关闭，核心纯状态测试与真实 libmpv Session 链均可运行，快速媒体切换以及 late event/reply 不会污染当前媒体。完整压力、更多非法事件组合和 Render 资源竞态继续按任务书留到 R12/R4 对应阶段，不反向扩大 R3。
+
+R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留，没有因 Stage R3 关闭而伪装为已解决。
+
+**Stage R2：Complete。Stage R3：Complete。R3-01~R3-12：Complete。下一 Atomic Task：R4-01 OpenGL proc resolver。**
+
+### 2026-08-09 — R3-12 / Stage R3 acceptance addendum
+
+- Accepted R3-12 from the user's explicitly reconfigured Windows tree: `playback_request_supersession` passed in 0.18 seconds and all 28 CTests passed with 0 failures in 11.59 seconds total.
+- Confirmed `playback_request_tracker` 0.18 seconds, `playback_session` 1.14 seconds, `playback_shutdown` 6.94 seconds and `playback_media_generation` 0.18 seconds remained green with supersession enabled.
+- Closed Stage R3 after R3-01~R3-12 all reached their recorded acceptance conditions; R4-01 OpenGL proc resolver is the next Atomic Task.
+- Kept R8-03 track-selection command/backend implementation outside R3-12 while preserving its three pre-defined supersession lanes, and kept the existing R2-01 `player.log` diagnostic gap open.
