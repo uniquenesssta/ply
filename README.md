@@ -23,9 +23,29 @@
 - D1-06 Motion：12 / 12 个 Semantic Duration 在 `Reduce Motion` 下解析为 `0 ms`；建立 4-step Smoke Prototype 与 3 段真实 Smart Animate Reaction。
 - D1-06 Opacity / Z-order：Close 72% 已绑定 `opacity/control/idle`；建立 11 级 `z/*` 契约，并给当前 9 个关键产品层写入共享 Z-role 注记。
 - D1 最终回归：Semantic Color `142 / 142`；Typography `43 / 43`；Geometry `55 / 55`；Effect `25 / 25`；三张核心框架截图均通过。
-- **下一任务：D2-01 定义 Player Window 外壳。**
+- **D2：In Progress。**
+- D2-01：Complete — 已建立正式 `02 Player Window` 与 Window Surface Contract；Standard=`1320×700 / R32 / Window Elevation / border 70% / clipping`，Maximized=`R0 / no elevation / no outer border / clipping`。
+- D2-01 Token 补强：Geometry Primitive `38 → 41`、Geometry Semantic `49 → 53`、Effect Primitive `38 → 39`、Material Semantic `47 → 48`；新增 reference size、safe-min、maximized radius 与 window border alpha 语义。
+- D2-01 验证：Product Solid Paint `26 / 26` Semantic-bound；D1 回归 Semantic Color `142 / 142`、Typography `43 / 43`、Geometry `55 / 55`、Effect `25 / 25`。
+- **下一任务：D2-02 定义 Video Viewport。**
 
 ## Change Log
+
+### 2026-08-09 — D2-01 定义 Player Window 外壳
+
+- 审计：从已确认 Main Player 读取真实 Window Shell：`1320×700 / R32 / clipsContent=true / border 70% / V3 Elevation Window`；确认 Window 本体无实体 Fill，Video Scene 贴满外壳。
+- 结构：新增 Figma Page `02 Player Window`（`48:11`）与 `D2-01 / Player Window Shell Contract`（`50:2`）。
+- Standard：`50:22` 真实绑定 `size/window/reference-width`、`size/window/reference-height`、`radius/window/player`、`border/glass` 与 `V3 / Elevation / Window`。
+- Maximized：`50:34` 使用 `radius/window/maximized=0`，无 outer border、无 outer elevation，保留 clipping；明确 Maximized 不是 Fullscreen。
+- Safe Area：新增 `spacing/window/safe-min=26`；`50:17` 四边 padding 真实绑定同一 Variable；它只表示 Floating Host minimum edge，不等于整个窗口统一 content padding。
+- Geometry Token：新增 `radius/0`、`size/700`、`size/1320`、`spacing/window/safe-min`、`size/window/reference-width`、`size/window/reference-height`、`radius/window/maximized`。
+- Material Token：新增 `alpha/70` 与 `alpha/window/border`，记录 Window Border 70% 的实现真值。
+- Ownership：Window Surface 只拥有 radius / border / elevation / clipping / safe minimum；D2-02 拥有 Video Viewport，D2-03 拥有 Header，D3 拥有 OSC，D4 拥有 Inspector。
+- 修复：首次生成时 `setBoundVariableForPaint()` 将 Paint opacity 重置为 1.0，导致占位柔光和 Window Border 过强；恢复 22 个 Fill/Stroke 透明度后第二轮截图通过。
+- 验证：Standard、Maximized、Background Contrast 与完整 D2-01 Board 截图通过；D2-01 产品 Solid Paint `26/26` Semantic-bound、Unbound=`0`。
+- D1 回归：Semantic Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`。
+- 记录：`docs/records/D2-01_定义PlayerWindow外壳.md`。
+- 下一任务：`D2-02 定义 Video Viewport`。
 
 ### 2026-08-09 — D1-06 建立 Motion / Opacity / Z-order；Stage D1 关闭
 
