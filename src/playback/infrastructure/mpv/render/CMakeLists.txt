@@ -1,6 +1,8 @@
 target_sources(
     player_mpv_infrastructure
     PRIVATE
+        mpv_render_context.cpp
+        mpv_render_context.h
         opengl_proc_resolver.cpp
         opengl_proc_resolver.h
 )

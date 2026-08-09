@@ -1279,3 +1279,39 @@ R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事
 - Confirmed the development runtime marker, fixed libmpv runtime/import hashes and all prior R2/R3 regressions remained green.
 - Recorded that `build-r4.log` was redirected and not supplied for separate warning-text audit.
 - Kept R4-02 render-context ownership/create/free and all later Render/QQuickFramebufferObject work outside the R4-01 acceptance scope; the existing R2-01 `player.log` diagnostic gap remains open.
+
+## R4-02 implementation status — current
+
+R4-02 已实现 `MpvRenderContext` 独占生命周期边界，当前状态为 **Implemented; Windows verification pending**。
+
+- 新增 `src/playback/infrastructure/mpv/render/mpv_render_context.*`，作为 `mpv_render_context` 的唯一 owner。工厂只借用现有 `mpv_handle*`，不接管 R2 `MpvHandle` 的 core 所有权；wrapper 不暴露 raw render context，避免后续模块绕过统一生命周期与线程门禁。
+- 创建路径只支持冻结架构中的 `MPV_RENDER_API_TYPE_OPENGL`，复用 R4-01 `OpenGlProcResolver` 构造 `mpv_opengl_init_params`；无 core、无有效 current OpenGL context 或 libmpv create 失败均返回明确诊断。
+- 创建时记录 `std::thread::id` 与当前 `QOpenGLContext`；`update()`、`render()`、`close()` 均要求仍在创建线程且同一个有效 OpenGL context 当前，否则 fail-closed，不调用对应 `mpv_render_*`。因此 R4-02 暴露的 render 调用面天然串行在单一 owner thread。
+- `close()` 幂等，并且只有安全门禁通过后才调用 `mpv_render_context_free()`；析构复用同一关闭路径，若 thread/GL context 已不满足契约，则记录 lifecycle critical 而不是猜测执行未定义的 free。callback quiescence、render critical-section 收敛和 core shutdown 协调仍归 R4-08。
+- `update()` 与 `render()` 只建立后续 R4-03/R4-05 需要的 Render API 封装；本任务没有注册 render update callback、没有创建 QQuickFramebufferObject/Renderer、没有接 QML，也没有新增视频画面输出。
+- 新增独立 CTest `mpv_render_context`：覆盖无 current GL 拒绝、同一 initialized core 上 3 次 `create -> update -> default-FBO render -> free` 循环、错误 current GL context 下 update/free fail-closed 后恢复原 context 成功释放，以及 libmpv 对未知 API type 返回 `MPV_ERROR_NOT_IMPLEMENTED` 的负向契约。生产 wrapper 本身不接受任意 API type 参数，因此错误 API type 不进入产品调用面。
+- Render CMake 仅接入本模块与独立测试，不新增生产依赖、配置项、PlaybackSession、QML 或用户可观察播放行为。
+
+当前连接环境没有项目 Qt 6.8.3/libmpv 开发依赖，且容器 DNS 无法解析 GitHub 域名，因此不能在这里执行真实 Windows Qt/MSVC configure/build/CTest。本回合已完成规则、R4 任务书、ADR、现有 `MpvHandle`/R4-01 resolver/CMake/Test 链以及 libmpv 0.41.0 Render API 契约的静态影响审查；Windows 门禁尚未运行，所以 R4-02 不标记 Complete。
+
+由于本任务新增 CTest，Windows 验收必须先重新 configure：
+
+```powershell
+git pull --ff-only origin agent/r4-stage
+powershell -ExecutionPolicy Bypass -File scripts\configure.ps1
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r4.log 2>&1
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1
+```
+
+重新 configure 后标准套件应包含新增 `mpv_render_context`，CTest 数量由 R4-01 的 29 增至 30。只有实际 Windows build/test 全绿后再将 R4-02 标记 Complete；在此之前不推进 R4-03。
+
+R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留，没有因 R4-02 实施而伪装为已解决。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Implemented，Windows verification pending。**
+
+### 2026-08-09 — R4-02 implementation addendum
+
+- Implemented single-owner `MpvRenderContext` create/update/render/free lifecycle with owner-thread and exact-current-OpenGL-context fail-closed checks, reusing the accepted R4-01 resolver and preserving `MpvHandle` core ownership.
+- Added independent `mpv_render_context` CTest coverage for repeated lifecycle use, context mismatch protection and unknown render API rejection without adding production dependencies or QML/render-callback behavior.
+- Recorded that the connected environment cannot run the real Windows Qt/MSVC/libmpv gate; R4-02 remains implemented but unaccepted until the reconfigured 30-test suite is run successfully.
+- Kept R4-03 callback bridge, R4-04 QML video item, R4-05 FBO renderer and R4-08 shutdown-race coordination outside R4-02.
