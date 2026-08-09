@@ -17,6 +17,7 @@
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
+- **D5：In Progress — D5-01 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -30,8 +31,9 @@
 - D4-04：Tracks Content，唯一 Content Component Set `183:823`。
 - D4-05：Subtitles Content，唯一 Content Component Set `191:1565`。
 - D4-06：Chapters Content，唯一 Content Component Set `200:2168`。
-- **D4-07：Inspector Responsive & Dismissal Contract，Contract `207:2497` / Verification `209:2497` / Prototype Navigation `216:3436`。**
-- **下一任务：D5-01 Feedback Priority Matrix。**
+- D4-07：Inspector Responsive & Dismissal Contract，Contract `207:2497` / Verification `209:2497` / Prototype Navigation `216:3436`。
+- **D5-01：Feedback Priority Matrix，Page `219:2` / Contract `220:2` / Verification `221:2`。**
+- **下一任务：D5-02 Empty / Loading。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -161,7 +163,7 @@ Hide 120ms · Ease In
 Reduce Motion = 0ms
 ```
 
-Visible-state 母材质冻结：
+Visible-state母材质冻结：
 
 ```text
 REST = ACTIVE = LOCKEDVISIBLE
@@ -247,9 +249,9 @@ D3-01 ～ D3-06 保持
 Figma：
 
 ```text
-Contract              207:2497
-Responsive Verification 209:2497
-Prototype Navigation   216:3436
+Contract                 207:2497
+Responsive Verification  209:2497
+Prototype Navigation      216:3436
 ```
 
 继续消费 D2-05 既有 Responsive Variable，不新增第二套 breakpoint：
@@ -293,14 +295,14 @@ Closed → Overlay 1228×406，OSC 1228×124
 
 ```text
 Narrow / Standard Overlay
-Close        → close
-ESC          → close
-Outside Click→ close
+Close         → close
+ESC           → close
+Outside Click → close
 
 Wide Dock
-Close        → close
-ESC          → close
-Outside Click→ keep open
+Close         → close
+ESC           → close
+Outside Click → keep open
 ```
 
 Mode retention Prototype：
@@ -340,16 +342,132 @@ D4-07 generic unnamed residues = 0
 
 **Stage D4：Complete。**
 
-## Next
+## Stage D5 — Playback States & Feedback · In Progress
 
-**D5-01 — Feedback Priority Matrix**
+### D5-01 Feedback Priority Matrix · Complete
 
-下一步按 `docs/plans/stages/D5_播放状态与反馈系统.md` 建立：
+Figma：
 
 ```text
-state / error
-  → severity / recoverability
-  → Overlay / HUD / Toast / Dialog
+Page                    219:2   05 States & Feedback
+Contract                220:2   D5-01 / Feedback Priority Matrix
+20 Event Verification   221:2   D5-01 / 20 Event Verification
 ```
 
-先冻结反馈层级与唯一主入口，再进入 Empty / Loading / Playing / Paused / Buffering / Seeking / Ended / Error 的具体视觉设计。
+D5-01 只冻结反馈路由规则，不提前创建 D5-02～D5-07 的正式 HUD / Toast / Dialog / Error Overlay 组件。
+
+主路由：
+
+```text
+Decision required
+  → Dialog
+
+Current-media lifecycle / current-media failure
+  → Overlay
+
+Direct timeline seek interaction
+  → Seek Preview
+
+Mergeable playback-control feedback
+  → HUD
+
+Non-blocking action result
+  → Toast
+
+Feature-scoped validation
+  → Inline
+
+Stable Playing / Paused transport state
+  → Player State / no transient surface
+```
+
+继续复用已有 z-order，不创建第二套反馈层：
+
+```text
+Overlay      z35
+OSC          z40
+Inspector    z50
+Popover      z60
+HUD          z70
+Toast        z80
+Dialog Scrim z90
+Dialog       z100
+```
+
+20 个典型事件已全部归类，Primary Route 分布：
+
+```text
+Overlay / Error  6
+Player State     3
+Seek Preview     2
+HUD              4
+Toast            2
+Inline           2
+Dialog           1
+Total           20 / 20
+```
+
+关键路由事实：
+
+- First launch / no media → `Overlay · Empty`。
+- Local / network media opening → `Overlay · Loading`。
+- Playing → no transient feedback。
+- Paused → 复用 D3 `OSC persistent`，不创建巨大暂停 Overlay/HUD。
+- Buffering while playing → `Overlay · Buffering`。
+- Buffering signal while paused → 只允许 secondary Inline 状态，用户 Pause 意图保持 primary。
+- Timeline Scrub / Pending Seek → `Seek Preview`，不伪装成 Buffering。
+- Keyboard/media-key Seek、Volume、Speed、Audio/Subtitle Track switch → HUD，连续同类事件原位合并，不排队。
+- Screenshot success → Toast。
+- EOF without next → Ended Overlay；next/repeat 自动切换时不闪 Ended。
+- Current-media network/decode/render failure → Error Overlay。
+- Non-current Playlist missing / external subtitle invalid → owning Inspector Inline；只有成为当前媒体失败时才升级为 Error Overlay。
+- Settings save failure → Toast。
+- Resume playback choice → Dialog。
+
+冲突验证：
+
+```text
+Paused + Buffering                     PASS
+Loading + current-media Error          PASS
+Error Overlay → recovery Dialog        PASS
+Repeated Volume / Seek / Speed HUD     PASS
+Scoped Invalid → current-media Error   PASS
+```
+
+统一冲突规则：
+
+- 同一事件只有一个 Primary Surface。
+- Error Overlay 替换同媒体的 Loading/Buffering，不三层并发。
+- Dialog 打开后成为消息与动作 primary owner；底层 Error Overlay 只可保留上下文，不重复文案/动作。
+- HUD 同类高频反馈原位合并；Toast 不承载连续播放控制。
+- Inline 错误保持 feature-local；只有影响当前媒体时才全局升级。
+
+最终结构审计：
+
+```text
+05 States & Feedback sections = 2
+D5-01 event rows            = 20
+Primary route populated     = 20 / 20
+Premature Components        = 0
+New feedback variables      = 0
+Generic unnamed residues    = 0
+```
+
+审计命中的 `motion/hud/*`、`motion/toast/*`、`motion/dialog/*`、`opacity/dialog/scrim` 均为 D1 已存在的基础变量，本任务没有新增或修改这些 Variable。
+
+本任务只新增 Figma Page/Section 与根 README 事实记录；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D5-01：Complete。**
+
+## Next
+
+**D5-02 — Empty / Loading**
+
+下一步直接消费 D5-01 已冻结的路由：
+
+```text
+no media → Overlay · Empty
+loading local/network → Overlay · Loading
+```
+
+只设计 Empty / Loading 的 Status Overlay；保持同一 Player Window 几何，不提前实现 Buffering / Ended / Error / HUD / Toast / Dialog。
