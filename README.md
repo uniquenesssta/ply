@@ -598,7 +598,7 @@ R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage
 - Migrated the R2-04 event loop and R2-05 command-reply tests from raw metadata signals to typed `MpvEvent` delivery.
 - Added the eleventh `mpv_event_decoder` CTest with synthetic event/error/Node cases plus a runtime-generated silent PCM WAV for a real short-media typed event sequence.
 - Kept the generated WAV strictly test-local；R0-06 remains skipped and no complete external media-fixture policy is claimed.
-- Accepted R2-05 after the user confirmed all nine CTests passed, including `mpv_commands`, in 1.63 seconds total.
+- Accepted R2-05 after the user confirmed all nine CTests passed, including the `mpv_commands`, in 1.63 seconds total.
 - Implemented R2-06 centralized property registry/observer with owner-thread lifecycle, rollback, None/null safety and typed FLAG/DOUBLE decoding.
 - Accepted R2-04 after the user confirmed all eight CTests passed, including `mpv_event_loop`, in 1.63 seconds total.
 - Implemented R2-05 typed async command request/encoder/executor boundaries.
@@ -1158,3 +1158,39 @@ R3-10 的 typed Track/Chapter/Stream/Cache Node 映射、Snapshot 多轴状态�
 - Accepted R3-10 from the user's explicitly reconfigured Windows build/test tree: `playback_media_state_mapping` passed in 0.13 seconds and all 26 CTests passed with 0 failures in 13.07 seconds total.
 - Confirmed `playback_session` 1.12 seconds, `playback_shutdown` 6.95 seconds and `playback_media_generation` 0.18 seconds remained green with the new multi-axis media state.
 - Kept R3-11 cleanup-matrix and R3-12 supersession work outside the R3-10 acceptance scope; the existing R2-01 `player.log` diagnostic gap remains open.
+
+## R3-11 Windows verification and acceptance — current
+
+> 本节记录 R3-11 最终 Windows 验收，并取代此前对 R3-11 的 `Windows verification pending` 状态。
+
+用户在 `agent/r3-stage` 提交 `ac29eadaa8c4f6c98bfa22185c8710c2bbcce25b` 上先确认工作区无未提交修改，随后 fast-forward 到该提交，并显式执行 `scripts/configure.ps1` 重新生成构建树。Configure 成功，新独立 CTest `playback_cleanup_matrix` 已进入标准 27 项门禁。
+
+配置检查实际确认 CMake 3.30.5、Ninja 1.12.1、Qt 6.8.3、VS 2022 17.14、MSVC 19.44/v143 14.44、Windows SDK 10.0.26100.0、Windows 10.0.19045.0 与固定 libmpv 0.41.0 依赖链可用；libmpv runtime SHA-256 为 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc`，import SHA-256 为 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`。Configure 输出中的 `WrapVulkanHeaders` 未找到没有阻断配置，CMake 最终报告 Configuring/Generating done。
+
+用户随后执行 `scripts/build.ps1 > build-r3.log 2>&1`；该重定向日志正文未在对话中提供，因此 README 不虚构其 warning 细节。紧接着 `scripts/test.ps1` 验证开发 runtime marker 成功，Ninja 报告 `no work to do`，完整 CTest 实际结果：
+
+```text
+playback_reducer ................. Passed    0.12 sec
+playback_invariants .............. Passed    0.12 sec
+playback_cleanup_matrix .......... Passed    0.12 sec
+playback_request_tracker ......... Passed    0.17 sec
+playback_state_publisher ......... Passed    0.77 sec
+playback_session ................. Passed    1.12 sec
+playback_shutdown ................ Passed    6.92 sec
+playback_media_generation ........ Passed    0.17 sec
+100% tests passed, 0 tests failed out of 27
+Total Test time (real) = 13.28 sec
+```
+
+R3-11 的 Reducer cleanup policy、Empty→Opening、Loaded A→Opening B、Stop/Unload、Failed、Ended/EOF 以及 generation 变化后的旧媒体状态隔离因此与既有 R3-09 generation gate、R3-10 多轴 Snapshot、RequestTracker、StatePublisher、真实 Session 和 shutdown 回归共同保持全绿。R3-11 正式验收完成。
+
+本次验收收口只更新 README，不修改生产源码、公共接口、配置或依赖。R3-12 Supersession/Cancellation 仍未实施；R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留。
+
+**Stage R2：Complete。Stage R3：In Progress。R3-01~R3-11：Complete。下一 Atomic Task：R3-12 Supersession / Cancellation。**
+
+### 2026-08-09 — R3-11 acceptance addendum
+
+- Accepted R3-11 from the user's explicitly reconfigured Windows tree: `playback_cleanup_matrix` passed in 0.12 seconds and all 27 CTests passed with 0 failures in 13.28 seconds total.
+- Confirmed `playback_reducer` 0.12 seconds, `playback_invariants` 0.12 seconds, `playback_session` 1.12 seconds, `playback_shutdown` 6.92 seconds and `playback_media_generation` 0.17 seconds remained green with the cleanup matrix enabled.
+- Recorded that `build-r3.log` was redirected and not supplied for separate warning-text audit; the standard test script still validated the development marker, found Ninja up to date and completed the entire 27-test suite successfully.
+- Kept R3-12 supersession outside the R3-11 acceptance scope; the existing R2-01 `player.log` diagnostic gap remains open.
