@@ -109,6 +109,7 @@ void PlaybackSession::initialize()
     }
 
     stopping_ = false;
+    mediaGenerationGate_.reset();
     backend_->setEventHandler([this](const PlaybackEvent& event) {
         handleBackendEvent(event);
     });
@@ -147,6 +148,7 @@ void PlaybackSession::shutdown()
             PlaybackEvent{PlaybackBackendShutdownEvent{}}));
     }
 
+    mediaGenerationGate_.reset();
     initialized_ = false;
     emit stopped();
 }
@@ -198,6 +200,10 @@ void PlaybackSession::handleBackendEvent(const PlaybackEvent& event)
 
     if (const auto* reply = std::get_if<CommandReplyEvent>(&event.payload)) {
         handleCommandReply(*reply);
+        return;
+    }
+
+    if (!mediaGenerationGate_.accepts(event)) {
         return;
     }
 
@@ -258,6 +264,7 @@ void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
     }
 
     (void)requestTracker_.cancelMediaRequestsForGenerationChange(generation);
+    mediaGenerationGate_.activate(generation);
 
     PlaybackSnapshotState seededState = snapshot_.state();
     seededState.generation = generation;
@@ -269,7 +276,7 @@ void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
     commitSnapshot(opening);
 
     QString error;
-    if (!backend_->submit(command, &error)) {
+    if (!backend_->submit(command, generation, &error)) {
         (void)requestTracker_.cancel(
             command.requestId(),
             PlaybackRequestCancellationReason::SubmissionFailed);
@@ -288,7 +295,7 @@ void PlaybackSession::submitTrackedCommand(const PlaybackCommand& command)
     }
 
     QString error;
-    if (!backend_->submit(command, &error)) {
+    if (!backend_->submit(command, snapshot_.generation(), &error)) {
         (void)requestTracker_.cancel(
             command.requestId(),
             PlaybackRequestCancellationReason::SubmissionFailed);

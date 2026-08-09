@@ -1,7 +1,9 @@
 #pragma once
 
+#include "mpv_media_generation_attributor.h"
 #include "playback/domain/commands/playback_command.h"
 #include "playback/domain/events/playback_event.h"
+#include "playback/domain/state/media_generation.h"
 
 #include <functional>
 #include <memory>
@@ -36,10 +38,12 @@ public:
     [[nodiscard]] bool isReady() const noexcept;
     [[nodiscard]] bool submit(
         const player::playback::domain::PlaybackCommand& command,
+        player::playback::domain::MediaGeneration generation,
         QString* errorMessage = nullptr);
 
 private:
     EventHandler eventHandler_;
+    MpvMediaGenerationAttributor mediaGenerationAttributor_;
     std::unique_ptr<player::playback::mpv::MpvHandle> handle_;
     std::unique_ptr<player::playback::mpv::MpvPropertyObserver> propertyObserver_;
     std::unique_ptr<player::playback::mpv::MpvEventLoop> eventLoop_;

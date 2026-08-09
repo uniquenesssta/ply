@@ -1,5 +1,6 @@
 #pragma once
 
+#include "media_generation_gate.h"
 #include "playback/application/requests/request_tracker.h"
 #include "playback/domain/commands/playback_command.h"
 #include "playback/domain/events/playback_event.h"
@@ -60,6 +61,7 @@ private:
 
     std::unique_ptr<PlaybackSessionBackend> backend_;
     RequestTracker requestTracker_;
+    MediaGenerationGate mediaGenerationGate_;
     std::unique_ptr<RequestTimeoutMonitor> requestTimeoutMonitor_;
     player::playback::domain::PlaybackSnapshot snapshot_;
     quint64 nextGenerationValue_ = 1;

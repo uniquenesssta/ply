@@ -13,6 +13,7 @@
 #include <QtGlobal>
 
 #include <utility>
+#include <variant>
 
 namespace player::playback::application {
 
@@ -49,6 +50,8 @@ bool PlaybackSessionBackend::initialize(QString* errorMessage)
         return false;
     }
 
+    mediaGenerationAttributor_.reset();
+
     QString error;
     handle_ = player::playback::mpv::MpvHandle::create(&error);
     if (handle_ == nullptr) {
@@ -75,11 +78,16 @@ bool PlaybackSessionBackend::initialize(QString* errorMessage)
         &player::playback::mpv::MpvEventLoop::eventDecoded,
         eventLoop_.get(),
         [this](const player::playback::mpv::MpvEvent& event) {
+            const player::playback::domain::MediaGeneration generation =
+                mediaGenerationAttributor_.attribute(event);
+
             if (!eventHandler_) {
                 return;
             }
-            const auto mapped = player::playback::mpv::MpvPlaybackEventMapper::map(event);
+
+            auto mapped = player::playback::mpv::MpvPlaybackEventMapper::map(event);
             if (mapped.has_value()) {
+                mapped->generation = generation;
                 eventHandler_(*mapped);
             }
         });
@@ -124,6 +132,8 @@ void PlaybackSessionBackend::shutdown() noexcept
         handle_->close();
         handle_.reset();
     }
+
+    mediaGenerationAttributor_.reset();
 }
 
 bool PlaybackSessionBackend::isReady() const noexcept
@@ -136,6 +146,7 @@ bool PlaybackSessionBackend::isReady() const noexcept
 
 bool PlaybackSessionBackend::submit(
     const player::playback::domain::PlaybackCommand& command,
+    player::playback::domain::MediaGeneration generation,
     QString* errorMessage)
 {
     if (errorMessage != nullptr) {
@@ -157,7 +168,26 @@ bool PlaybackSessionBackend::submit(
         return false;
     }
 
-    return commandExecutor_->submit(command.requestId().value(), *request, errorMessage);
+    const bool isLoad = std::holds_alternative<player::playback::domain::LoadMediaCommand>(
+        command.payload());
+    if (isLoad) {
+        if (!generation.isValid()) {
+            if (errorMessage != nullptr) {
+                *errorMessage = QStringLiteral("Load submission requires a valid MediaGeneration.");
+            }
+            return false;
+        }
+        mediaGenerationAttributor_.noteLoadSubmission(command.requestId(), generation);
+    }
+
+    const bool submitted = commandExecutor_->submit(
+        command.requestId().value(),
+        *request,
+        errorMessage);
+    if (!submitted && isLoad) {
+        mediaGenerationAttributor_.cancelLoadSubmission(command.requestId());
+    }
+    return submitted;
 }
 
 } // namespace player::playback::application

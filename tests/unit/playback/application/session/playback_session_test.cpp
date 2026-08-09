@@ -34,6 +34,7 @@ class PlaybackSessionTest final : public QObject
 
 private slots:
     void realMediaMainPathRunsOnPlaybackThread();
+    void rapidReplacementKeepsLatestGeneration();
     void threadHostStartsAndStops();
     void threadHostPublishesSnapshotsOnConsumerThread();
 };
@@ -145,6 +146,53 @@ void PlaybackSessionTest::realMediaMainPathRunsOnPlaybackThread()
 
     QCOMPARE(harness.snapshotCallbackThread(), harness.playbackThread());
     QCOMPARE(harness.invariantViolations(), 0);
+    QVERIFY2(harness.stop(&error), qPrintable(error));
+}
+
+void PlaybackSessionTest::rapidReplacementKeepsLatestGeneration()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+
+    const QString mediaA = directory.filePath(QStringLiteral("rapid-a.wav"));
+    const QString mediaB = directory.filePath(QStringLiteral("rapid-b.wav"));
+    QString error;
+    QVERIFY2(test_support::writeSilentPcmWav(mediaA, 250, &error), qPrintable(error));
+    QVERIFY2(test_support::writeSilentPcmWav(mediaB, 5000, &error), qPrintable(error));
+
+    test_support::PlaybackSessionTestHarness harness;
+    QVERIFY2(harness.start(&error), qPrintable(error));
+
+    const quint64 sequence = harness.snapshotSequence();
+    QVERIFY2(
+        harness.bus().submit(
+            makeCommand(5001, LoadMediaCommand{mediaA}),
+            &error),
+        qPrintable(error));
+    QVERIFY2(
+        harness.bus().submit(
+            makeCommand(5002, LoadMediaCommand{mediaB}),
+            &error),
+        qPrintable(error));
+
+    QVERIFY(harness.waitForSnapshotAfter(
+        sequence,
+        [&mediaB](const PlaybackSnapshot& snapshot) {
+            return snapshot.lifecycle() == PlaybackLifecycleState::Ready
+                && snapshot.generation().value() == 2
+                && snapshot.media().source.has_value()
+                && *snapshot.media().source == mediaB;
+        },
+        7000));
+
+    QTest::qWait(700);
+    const PlaybackSnapshot latest = harness.latestSnapshot();
+    QCOMPARE(latest.generation().value(), quint64{2});
+    QCOMPARE(latest.lifecycle(), PlaybackLifecycleState::Ready);
+    QVERIFY(latest.media().source.has_value());
+    QCOMPARE(*latest.media().source, mediaB);
+    QCOMPARE(harness.invariantViolations(), 0);
+
     QVERIFY2(harness.stop(&error), qPrintable(error));
 }
 

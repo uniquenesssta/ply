@@ -7,6 +7,7 @@
 #include "playback/domain/events/media_event.h"
 #include "playback/domain/events/position_event.h"
 #include "playback/domain/events/property_event.h"
+#include "playback/domain/state/media_generation.h"
 
 #include <variant>
 
@@ -38,6 +39,7 @@ using PlaybackEventPayload = std::variant<
 struct PlaybackEvent final
 {
     PlaybackEventPayload payload;
+    MediaGeneration generation{};
 };
 
 } // namespace player::playback::domain
