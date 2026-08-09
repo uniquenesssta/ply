@@ -24,13 +24,11 @@ namespace {
 
 using player::playback::mpv::MpvPropertyId;
 
-constexpr std::array<MpvPropertyId, 11> kMediaRefreshProperties{
+constexpr std::array<MpvPropertyId, 9> kMediaRefreshProperties{
     MpvPropertyId::Position,
     MpvPropertyId::Duration,
     MpvPropertyId::Pause,
     MpvPropertyId::Seekable,
-    MpvPropertyId::CoreIdle,
-    MpvPropertyId::EofReached,
     MpvPropertyId::Seeking,
     MpvPropertyId::PausedForCache,
     MpvPropertyId::CacheBufferingState,
