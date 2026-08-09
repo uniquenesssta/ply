@@ -1,8 +1,9 @@
+add_subdirectory(reducer)
+
 target_sources(
     player_playback_domain
     PRIVATE
         playback_invariants.cpp
-        playback_reducer.cpp
         playback_snapshot.cpp
     PUBLIC
         media_generation.h
