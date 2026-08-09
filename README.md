@@ -33,9 +33,30 @@
 - D2-03：Complete — 已建立 `D2-03 / Floating Header Contract`（`65:2`），正式采用 `Media Info Pod + Window Actions Pod` 双浮层结构；Playback State 从 Header 移出，归 D3 / D5。
 - D2-03 Token 补强：Geometry Primitive `41 → 46`、Geometry Semantic `53 → 58`；新增 Header info/action 宽度、Title-Meta gap 与 Action inset。
 - D2-03 验证：Long Title=`ENDING` ellipsis；No-title Info Pod=`0`；720-width Metadata=`0`；4 / 4 Close glyph 正确；Local Contrast Support=`16% / z25`；D2-03 Visible Solid Paint `85 / 85` Semantic-bound；D1 回归仍为 Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`。
-- **下一任务：D2-04 建立 Host 空间契约。**
+- D2-04：Complete — 已建立 `D2-04 / Host Spatial Contract`（`70:2`），冻结 OSC / Inspector / Overlay 的安全区、碰撞与层级规则；Inspector Open 不 resize Video，只缩小 OSC / Overlay 的 floating range。
+- D2-04 Token 补强：Geometry Primitive `46 → 47`、Geometry Semantic `58 → 59`；Interaction Primitive `27 → 28`、Interaction Semantic `43 → 44`；新增 `spacing/inspector/top-with-header=92` 与 `z/overlay=35`。
+- D2-04 验证：Header→Inspector=`12px`、Overlay→OSC=`26px`、OSC→Inspector=`26px`、Overlay→Inspector=`26px`；OSC Height binding=`3/3`、Inspector Width binding=`2/2`；D2-04 Visible Solid Paint `95/95` Semantic-bound；D1 回归仍为 Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`；D2-01～03 保持不变。
+- **下一任务：D2-05 响应式窗口骨架。**
 
 ## Change Log
+
+### 2026-08-09 — D2-04 建立 Host 空间契约
+
+- 结构：在 `02 Player Window` 新增 `D2-04 / Host Spatial Contract`（`70:2`），只定义 OSC Host / Inspector Host / Overlay Host 的位置、可用范围、碰撞和层级，不提前实现 D3 / D4 / D5 Feature 内容。
+- 审计：发现探索稿 Inspector `y24 / h652` 会与 D2-03 固定 Window Actions `y26 / h54` 发生真实碰撞；禁止通过临时移动 Window Actions、提高单节点 z 或挖异形 Inspector 缺口规避。
+- Inspector Contract：正式改为 `x924 / y92 / w368 / h584`；`top=26+54+12=92`，right=`28`，bottom=`24`，与 Window Actions 保持 `12px` 硬间隔。
+- OSC Contract：bottom=`38`、height reference=`124`、top=`538`；Inspector Closed 为 `x26 / w1268`，Open 为 `x26 / w872`，右边界始终停在 Inspector left 前 `26px`。
+- Overlay Contract：新增 `z/overlay=35`；content safe rect vertical=`y106…512`，Closed=`x26 / w1268`，Inspector Open=`x26 / w872`；位于 Header 下方、OSC 上方、Inspector 左侧。
+- Layer：`Media z20 → Header z30 → Overlay z35 → OSC z40 → Inspector z50 → Popover z60 → HUD z70 → Dialog z100`。
+- Geometry Token：新增 `spacing/92` 与 `spacing/inspector/top-with-header → 92`；Geometry Primitive `46→47`、Semantic `58→59`。
+- Interaction Token：新增 `z/35` 与 `z/overlay → z35`；Interaction Primitive `27→28`、Semantic `43→44`。
+- Simultaneous State：真实摆放 D5 Error Placeholder 于 Overlay z35，同时保留 OSC z40 和 Inspector z50，验证三层共存且 Window / Video 不改变尺寸。
+- 修复：第一轮 Host Fill 虽几何正确但青/紫/橙色块过重，容易被误认成真实产品 Surface；第二轮收敛为 Overlay `2.5%`、OSC `3%`、Inspector `4.5%` 的极淡填充 + outline，并新增显式 Z Ladder。
+- Binding：3/3 OSC Host height 绑定 `size/osc/height`；2/2 Inspector Host width 绑定 `size/inspector/width`；所有 Host 写入共享 `z-role`。
+- 验证：硬间隔 Header→Inspector=`12`、Overlay→OSC=`26`、OSC→Inspector=`26`、Overlay→Inspector=`26`；D2-04 Board Visible Solid Paint=`95/95` Semantic-bound、Unbound=`0`。
+- 回归：D1 Semantic Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`；D2-01 Standard Window 保持 `1320×700 / R32 / clipping / border70% / Window Elevation`，D2-02 / D2-03 Contract 均存在且未修改。
+- 记录：`docs/records/D2-04_建立Host空间契约.md`。
+- 下一任务：`D2-05 响应式窗口骨架`。
 
 ### 2026-08-09 — D2-03 建立 Floating Header
 
@@ -92,7 +113,7 @@
 - 实现：新增 `V3 / Interaction Primitive`，共 26 个 Variable，覆盖 duration / easing / alpha / z。
 - 实现：新增 `V3 / Interaction Semantic`，共 42 个 Semantic Variable：Motion 24、Opacity 7、Z-order 11；Collection Mode 为 `Standard / Reduce Motion`。
 - Motion：OSC 160/120ms、Inspector 240/180ms、Popover 160/120ms、HUD 160/120ms、Dialog 240/180ms、Toast 200/160ms；进入 Ease Out、退出 Ease In；禁止默认 spring / bounce。
-- Reduce Motion：12 / 12 个 Semantic Duration 在 Reduce Motion Mode 下全部解析为 `0 ms`，不存在第二套组件动效。
+- Reduce Motion：12 / 12 个 Motion Duration Semantic 在 Reduce Motion Mode 下全部解析为 `0 ms`，不存在第二套组件动效。
 - Opacity：建立 hidden 0%、dialog scrim 18%、disabled 38%、idle 72%、pressed 84%、hover/visible 100%；Close 72% 已真实绑定 `opacity/control/idle`。
 - Z-order：建立 `Video 0 → Atmosphere 10 → Media 20 → Header 30 → OSC 40 → Inspector 50 → Popover 60 → HUD 70 → Toast 80 → Dialog Scrim 90 → Dialog 100`；Qt Quick/QML 后续使用同一 `z/*` 数值契约。
 - Figma：在 `01 Foundations` 新增 `D1-06 / Motion Opacity Z-order`（Node `41:2`）。
