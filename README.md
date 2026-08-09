@@ -569,9 +569,9 @@ R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage
 - Added all eight required R2-11 real libmpv scenarios: transport sequence, paused seek, consecutive seek, immediate A->B replacement, EOF/stop distinction, load error, shutdown during loading and shutdown during playback.
 - Kept shutdown scenarios on queued teardown so the runtime is never destroyed from inside the synchronous `MpvEventLoop` drain signal stack.
 - Registered `playback_probe --matrix` as the 14th CTest `playback_probe_matrix`; Windows regression gate is 14/14.
-- Kept generated WAV files temporary and probe-local；R0-06 remains skipped and no distributable external fixture policy is falsely claimed complete.
-- Recorded the first R2-11 Windows build failure before CTest：MSVC C1083 could not resolve probe-root `fixtures/...` and AutoMOC `runtime/...` includes because the target had no module include root.
-- Fixed that single build-system root cause by adding `${CMAKE_CURRENT_SOURCE_DIR}` as a PRIVATE include directory of `playback_probe`; no scenario logic or production interface changed.
+- Kept generated WAV files temporary and probe-local；R0-06 remains skipped and no distributable external fixture policy is falsely claimed complete。
+- Recorded the first R2-11 Windows build failure before CTest：MSVC C1083 could not resolve probe-root `fixtures/...` and AutoMOC `runtime/...` includes because the target had no module include root。
+- Fixed that single build-system root cause by adding `${CMAKE_CURRENT_SOURCE_DIR}` as a PRIVATE include directory of `playback_probe`; no scenario logic or production interface changed。
 - Accepted R2-09 after the user confirmed the real Windows environment passed all 12 CTests, including `mpv_event_semantics`, in 2.31 seconds total.
 - Implemented R2-10 Property Baseline expansion from 11 to 22 centralized registry entries while preserving the original observation IDs and all existing observer lifecycle behavior.
 - Added centralized seeking/cache/media identity/current track/video/audio property entries; flexible native values remain Node-backed and raw property strings do not escape `infrastructure/mpv`.
@@ -863,3 +863,35 @@ playback_state_publisher
 - Implemented GUI/consumer-thread StatePublisher handoff with queued `PlaybackSnapshot` delivery and 20 Hz position-only coalescing while keeping all non-position state changes immediate.
 - Added `playback_state_publisher` CTest plus a real PlaybackSessionThread-to-StatePublisher short-media handoff check; Windows build/test remains pending before acceptance.
 - Kept shutdown hardening, stale media-event filtering, supersession and full ViewModel/QML integration outside R3-07.
+
+## R3-07 Windows verification and acceptance — current
+
+> 本节取代上一个 `R3-07 implementation status — current` 中的待验证状态；实现说明继续保留为历史事实。
+
+用户在 `agent/r3-stage` 的 Windows 工作区完成标准 build/test。依赖检查报告 libmpv import SHA-256 为 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`，开发 runtime root marker 校验成功，Ninja 报告 `no work to do`，随后完整 CTest 全部通过。
+
+实际结果：
+
+```text
+playback_state_publisher ......... Passed    0.66 sec
+playback_session ................. Passed    0.37 sec
+100% tests passed, 0 tests failed out of 22
+Total Test time (real) = 5.03 sec
+```
+
+测试前开发 runtime marker 校验成功：
+
+```text
+[OK] Development runtime root marker -> build/windows-msvc-debug/.player-development-root
+```
+
+R3-07 的 GUI/consumer-thread 状态发布边界因此正式验收：独立 `playback_state_publisher` 测试通过，真实 `PlaybackSessionThread → StatePublisher` 短媒体接线继续由 `playback_session` 回归覆盖；其余 20 项既有测试同时保持全绿。本次验收不扩大范围，R3-08 Session shutdown、R3-09 stale media-event gate 与 R3-12 supersession 仍按后续 Atomic Task 单独实施。
+
+R2-01 的仓库根 `player.log` 落盘缺口仍是明确的非阻塞诊断事项，未被本次验收视为解决。
+
+**Stage R2：Complete。Stage R3：In Progress。R3-01：Complete。R3-02：Complete。R3-03：Complete。R3-04：Complete。R3-05：Complete。R3-06：Complete。R3-07：Complete。下一 Atomic Task：R3-08 Session shutdown。**
+
+### 2026-08-09 — R3-07 acceptance addendum
+
+- Accepted R3-07 from the user's Windows validation output: development runtime marker passed, `playback_state_publisher` passed in 0.66 seconds, `playback_session` passed in 0.37 seconds, and all 22 CTests passed with 0 failures in 5.03 seconds total.
+- Kept R3-08 shutdown hardening, R3-09 stale media-event filtering, R3-12 supersession and full ViewModel/QML integration outside the R3-07 acceptance scope.
