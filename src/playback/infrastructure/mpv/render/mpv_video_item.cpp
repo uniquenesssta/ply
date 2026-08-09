@@ -20,7 +20,7 @@ MpvVideoPresentationState MpvVideoItem::presentationState() const noexcept
 {
     const QQuickWindow* quickWindow = window();
     const qreal devicePixelRatio = quickWindow != nullptr
-        ? quickWindow->devicePixelRatio()
+        ? quickWindow->effectiveDevicePixelRatio()
         : qreal{1.0};
 
     return MpvVideoPresentationState{
