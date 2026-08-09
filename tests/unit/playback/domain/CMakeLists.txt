@@ -137,3 +137,5 @@ add_test(
     NAME playback_invariants
     COMMAND playback_invariants_domain_tests
 )
+
+add_subdirectory(state/reducer)
