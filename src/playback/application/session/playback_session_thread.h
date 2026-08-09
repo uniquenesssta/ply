@@ -1,0 +1,43 @@
+#pragma once
+
+#include <QObject>
+#include <QPointer>
+#include <QString>
+#include <QThread>
+
+#include <memory>
+
+namespace player::playback::application {
+
+class PlaybackCommandBus;
+class PlaybackSession;
+
+class PlaybackSessionThread final : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit PlaybackSessionThread(QObject* parent = nullptr);
+    ~PlaybackSessionThread() override;
+
+    PlaybackSessionThread(const PlaybackSessionThread&) = delete;
+    PlaybackSessionThread& operator=(const PlaybackSessionThread&) = delete;
+
+    [[nodiscard]] bool start(QString* errorMessage = nullptr);
+    [[nodiscard]] bool stop(QString* errorMessage = nullptr);
+
+    [[nodiscard]] bool isRunning() const noexcept;
+    [[nodiscard]] PlaybackCommandBus* commandBus() noexcept;
+
+signals:
+    void ready();
+    void startupFailed(const QString& diagnostic);
+    void stopped();
+
+private:
+    QThread thread_;
+    QPointer<PlaybackSession> session_;
+    std::unique_ptr<PlaybackCommandBus> commandBus_;
+};
+
+} // namespace player::playback::application

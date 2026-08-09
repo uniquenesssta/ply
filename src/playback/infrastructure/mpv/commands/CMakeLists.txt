@@ -6,4 +6,6 @@ target_sources(
         mpv_command_executor.cpp
         mpv_command_executor.h
         mpv_command_request.h
+        mpv_playback_command_mapper.cpp
+        mpv_playback_command_mapper.h
 )

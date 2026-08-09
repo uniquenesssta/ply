@@ -370,3 +370,4 @@ add_test(
 )
 
 add_subdirectory(unit/playback/domain)
+add_subdirectory(unit/playback/application)
