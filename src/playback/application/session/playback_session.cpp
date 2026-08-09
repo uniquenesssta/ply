@@ -81,7 +81,6 @@ bool shouldApplyBackendEvent(
 PlaybackSession::PlaybackSession(QObject* parent)
     : QObject(parent)
     , backend_(std::make_unique<PlaybackSessionBackend>())
-    , requestTimeoutMonitor_(new RequestTimeoutMonitor(requestTracker_, this))
 {
 }
 
@@ -113,6 +112,9 @@ void PlaybackSession::initialize()
         return;
     }
 
+    if (requestTimeoutMonitor_ == nullptr) {
+        requestTimeoutMonitor_ = std::make_unique<RequestTimeoutMonitor>(requestTracker_);
+    }
     requestTimeoutMonitor_->start();
     initialized_ = true;
     emit ready();
@@ -128,7 +130,9 @@ void PlaybackSession::shutdown()
     }
 
     stopping_ = true;
-    requestTimeoutMonitor_->stop();
+    if (requestTimeoutMonitor_ != nullptr) {
+        requestTimeoutMonitor_->stop();
+    }
     (void)requestTracker_.cancelAll(PlaybackRequestCancellationReason::Shutdown);
     backend_->setEventHandler({});
     backend_->shutdown();

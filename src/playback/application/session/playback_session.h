@@ -60,7 +60,7 @@ private:
 
     std::unique_ptr<PlaybackSessionBackend> backend_;
     RequestTracker requestTracker_;
-    RequestTimeoutMonitor* requestTimeoutMonitor_ = nullptr;
+    std::unique_ptr<RequestTimeoutMonitor> requestTimeoutMonitor_;
     player::playback::domain::PlaybackSnapshot snapshot_;
     quint64 nextGenerationValue_ = 1;
     bool initialized_ = false;
