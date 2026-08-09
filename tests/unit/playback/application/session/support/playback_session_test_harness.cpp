@@ -6,6 +6,7 @@
 #include <QElapsedTimer>
 #include <QMetaObject>
 #include <QMutexLocker>
+#include <QtGlobal>
 
 namespace player::playback::application::test_support {
 
@@ -70,10 +71,9 @@ PlaybackSessionTestHarness::PlaybackSessionTestHarness()
 
 PlaybackSessionTestHarness::~PlaybackSessionTestHarness()
 {
-    QString ignored;
-    if (!stop(&ignored) && thread_.isRunning()) {
-        thread_.quit();
-        thread_.wait();
+    QString diagnostic;
+    if (!stop(&diagnostic)) {
+        qFatal("PlaybackSessionTestHarness failed bounded shutdown.");
     }
 }
 
@@ -111,6 +111,11 @@ bool PlaybackSessionTestHarness::stop(QString* errorMessage)
     if (errorMessage != nullptr) {
         errorMessage->clear();
     }
+
+    if (bus_ != nullptr) {
+        bus_->close();
+    }
+
     if (!thread_.isRunning()) {
         bus_.reset();
         return true;
@@ -134,7 +139,7 @@ bool PlaybackSessionTestHarness::stop(QString* errorMessage)
     thread_.quit();
     if (!thread_.wait(5000)) {
         if (errorMessage != nullptr) {
-            *errorMessage = QStringLiteral("PlaybackSession test thread did not stop.");
+            *errorMessage = QStringLiteral("PlaybackSession test thread did not stop within 5 seconds.");
         }
         return false;
     }
