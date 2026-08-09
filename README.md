@@ -7,7 +7,8 @@
 入口：
 - `docs/plans/Qt6-libmpv播放器-第三版AiryGlass-完整UI设计任务书.md`
 - `docs/plans/stages/00_INDEX.md`
-- `docs/records/`：每个已完成 Design Atomic Task 的独立事实记录；详细实施、异常、修复与验证以这里为准。
+- 根 `README.md`：当前分支唯一 canonical change record。
+- `docs/records/`：保留已存在的历史详细事实记录；不再替代根 README 的变更记录职责。
 
 ## Current design status
 
@@ -15,14 +16,22 @@
 - **D1：Complete — D1-01 ～ D1-06 全部关闭。**
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
+- **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
 - D3-04：Transport Cluster，Board `117:2`。
 - D3-05：Volume Cluster，Board `127:2`。
 - D3-06：Utility Action Cluster，Board `134:2`。
-- **D3-07：OSC Visibility Lifecycle，Board `142:2`。**
-- **下一任务：D4-01 Inspector Shell。**
+- D3-07：OSC Visibility Lifecycle，Board `142:2`。
+- D4-01：Inspector Shell，唯一 Shell Component `152:4`。
+- D4-02：Inspector Navigation，唯一 Mode Switch Component Set `160:88`。
+- D4-03：Playlist Content，唯一 Content Component Set `172:284`。
+- D4-04：Tracks Content，唯一 Content Component Set `183:823`。
+- D4-05：Subtitles Content，唯一 Content Component Set `191:1565`。
+- D4-06：Chapters Content，唯一 Content Component Set `200:2168`。
+- **D4-07：Inspector Responsive & Dismissal Contract，Contract `207:2497` / Verification `209:2497` / Prototype Navigation `216:3436`。**
+- **下一任务：D5-01 Feedback Priority Matrix。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -222,13 +231,125 @@ D3-01 ～ D3-06 保持
 
 **Stage D3：Complete。**
 
+## Stage D4 — Inspector System · Complete
+
+### D4-01 ～ D4-06 Source Contracts
+
+- `Inspector / Shell` 是唯一 Drawer/Inspector 几何 owner；Header、Mode Switch、Content Host、Footer Host 通过 Slot 组合。
+- `Inspector / Mode Switch` 只拥有 Playlist / Tracks / Subtitles / Chapters 单选导航，不拥有 Shell 尺寸。
+- Playlist / Tracks / Subtitles / Chapters 均保持独立 Content Component Set，只负责各自内容与局部状态，不重建 Shell。
+- D4-04 Track Selection Row 统一 Audio / Video / Subtitle 的 Default / Selected / Pending / Off / Focus 表达。
+- D4-05 外挂字幕文件 Pending/Invalid 生命周期与已加载 Subtitle Track selection 分离。
+- D4-06 Chapters 明确 Current 与 Pending Jump 可同时存在，避免把 Seek 请求目标伪装成已确认当前章节。
+
+### D4-07 Inspector Responsive & Dismissal Contract
+
+Figma：
+
+```text
+Contract              207:2497
+Responsive Verification 209:2497
+Prototype Navigation   216:3436
+```
+
+继续消费 D2-05 既有 Responsive Variable，不新增第二套 breakpoint：
+
+```text
+Narrow    0–839     overlay   width 320
+Standard  840–1199 overlay   width 368
+Wide      >=1200    dock      width 368
+```
+
+单一 Shell 适配真实 Player Host：
+
+```text
+720×700   Shell 320×450   Content 276×214
+960×700   Shell 368×420   Content 324×184
+1280×700  Shell 368×584   Content 324×348
+```
+
+`Content Host`（`152:11`）统一启用 Vertical Scrolling；Header=`54`、Mode Switch=`42`、Footer=`54` 保持固定，窗口高度收缩只改变 Content 可视区，不反向修改 Window/Header/Video Viewport。
+
+覆盖关系：
+
+```text
+720 Overlay Open
+Overlay 322×436
+OSC     668×106
+Closed → Overlay 668×436，OSC 不变
+
+960 Overlay Open
+Overlay 512×406
+OSC     908×124
+Closed → Overlay 908×406，OSC 不变
+
+1280 Dock Open
+Overlay 832×406
+OSC     832×124
+Closed → Overlay 1228×406，OSC 1228×124
+```
+
+关闭策略：
+
+```text
+Narrow / Standard Overlay
+Close        → close
+ESC          → close
+Outside Click→ close
+
+Wide Dock
+Close        → close
+ESC          → close
+Outside Click→ keep open
+```
+
+Mode retention Prototype：
+
+- Playlist / Tracks / Subtitles / Chapters 四个 960×700 screen 的 Shell 均为 `x564 / y92 / 368×420`。
+- 四个 Mode 的 Content Host 均为 `324×184 / Vertical`，Footer 均为 `324×54`。
+- Mode click 使用 `SMART_ANIMATE 160ms`，只切换 Content/选中态；不改变 open state、Shell x/y/w/h 或 Footer slot。
+- Close/ESC/Outside 使用已提交的 page-level Prototype destination；Figma `NAVIGATE` 的 destination 必须是同页顶层 Frame，因此 `D4-07 / Prototype Navigation` 只负责视觉分区，不接管 Prototype screen parent。
+
+最终审计：
+
+```text
+Authoritative source count
+Inspector / Shell        1
+Inspector / Mode Switch  1
+Playlist / Content       1
+Tracks / Content         1
+Subtitles / Content      1
+Chapters / Content       1
+
+Responsive token duplicates
+breakpoint/narrow-min             1
+breakpoint/standard-min           1
+breakpoint/wide-min               1
+inspector/presentation            1
+inspector/affects-osc-range       1
+inspector/affects-overlay-range   1
+inspector/width                   1
+inspector/top                     1
+
+D4-07 generic unnamed residues = 0
+```
+
+视觉验证已覆盖：720 Overlay open/closed、960 四 Mode、1280 Dock open/closed；Host guide 使用低透明工程范围，不伪装成真实产品 Surface。
+
+本任务只修改 Figma 设计与根 README；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**Stage D4：Complete。**
+
 ## Next
 
-**D4-01 — Inspector Shell**
+**D5-01 — Feedback Priority Matrix**
 
-下一步建立单一 Inspector Shell，直接消费：
+下一步按 `docs/plans/stages/D5_播放状态与反馈系统.md` 建立：
 
-- D2-04：Inspector z50 / Host Spatial Contract；
-- D2-05：Narrow/Standard overlay、Wide dock；
-- D3-06：Subtitles / Audio / Chapters / Playlist 单一 destination 语义；
-- D3-07：Inspector Open → LockedVisible。
+```text
+state / error
+  → severity / recoverability
+  → Overlay / HUD / Toast / Dialog
+```
+
+先冻结反馈层级与唯一主入口，再进入 Empty / Loading / Playing / Paused / Buffering / Seeking / Ended / Error 的具体视觉设计。
