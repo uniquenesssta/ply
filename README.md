@@ -895,3 +895,39 @@ R2-01 的仓库根 `player.log` 落盘缺口仍是明确的非阻塞诊断事项
 
 - Accepted R3-07 from the user's Windows validation output: development runtime marker passed, `playback_state_publisher` passed in 0.66 seconds, `playback_session` passed in 0.37 seconds, and all 22 CTests passed with 0 failures in 5.03 seconds total.
 - Kept R3-08 shutdown hardening, R3-09 stale media-event filtering, R3-12 supersession and full ViewModel/QML integration outside the R3-07 acceptance scope.
+
+## R3-08 implementation status — current
+
+R3-08 已实现 PlaybackSession 有界关闭协议，当前状态为 **Implemented; Windows verification pending**。
+
+- `PlaybackCommandBus` 新增线程安全 close gate；`PlaybackSessionThread::stop()` 开始时先关闭入口，之后 submit 明确失败，不再把新命令排入正在关闭的 Playback Thread。
+- 新增 `application/session/playback_shutdown.*`，集中执行 Session 级关闭顺序：停止 request timeout 调度 → `RequestTracker` 将全部 pending 标记为 Shutdown cancellation → backend teardown。
+- `PlaybackSessionBackend::shutdown()` 先清空上层 event handler，再停止 `MpvEventLoop`；其 stop 会 deactivate/unregister libmpv wakeup callback 并收敛在途 callback，随后才 unobserve properties、释放 executor/observer/event loop、关闭 mpv handle，因此普通 libmpv client API 与 teardown 都仍发生在 Playback Thread。
+- `PlaybackSession` 在 `stopping_` 后拒绝命令并忽略 backend event/reply，资源关闭完成后提交最终 Closing + Stopped Snapshot；late backend callback/reply 不再进入 Reducer。
+- `PlaybackSessionThread::stop()` 保持 5 秒有界等待并验证 worker 已释放；析构不再退化为无期限 `QThread::wait()`，若安全有界关闭无法完成则 fail-fast，不使用不安全的 `QThread::terminate()`。
+- 现有 `PlaybackSessionTestHarness` 同步移除无限 wait 兜底，避免测试基础设施掩盖 shutdown hang。
+- backend/session 析构不再提供跨线程 libmpv teardown 兜底；正常关闭必须先在 Playback Thread 完成资源释放，若带着 live backend 资源越界析构则 fail-fast。
+- 新增独立 CTest `playback_shutdown`：覆盖 command bus close rejection、loading 中 stop、playing 中 stop + final Closing 后无 late Snapshot、同一 `PlaybackSessionThread` 100 次 start/stop 生命周期；CTest 总超时 120 秒。
+- 本任务不实现 R3-09 MediaGeneration stale event gate，也不实现 R3-12 request supersession。
+
+当前连接环境未执行 Windows Qt/MSVC build/test。标准门禁预计从 22 项增加到 **23/23**：
+
+```powershell
+git pull --ff-only origin agent/r3-stage
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r3.log 2>&1
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1
+```
+
+预期新增：
+
+```text
+playback_shutdown
+```
+
+当前准确状态：**Stage R3：In Progress；R3-01~R3-07：Complete；R3-08：Implemented，Windows verification pending。** R2-01 的 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留；后续仍需执行 R3-09~R3-12 补强任务。
+
+### 2026-08-09 — R3-08 implementation addendum
+
+- Implemented bounded PlaybackSession shutdown ordering with a closed command ingress, pending-request cancellation, wakeup/event-loop teardown before handle destruction, and no unbounded QThread wait.
+- Added independent `playback_shutdown` coverage for loading/playback shutdown and 100 Session lifecycle cycles; Windows build/test remains pending before acceptance.
+- Kept R3-09 stale media-event filtering and R3-12 supersession outside R3-08.
