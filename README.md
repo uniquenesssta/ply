@@ -483,7 +483,7 @@ R3-03 新增纯 `reducePlaybackSnapshot(current, event)`，只负责 Domain 状�
 - `MediaLoadedEvent` 将 lifecycle 置为 Ready；Pause property 独立决定 Playing/Paused，不与 buffering 合并；
 - position/duration/seekable/seeking、title/path、volume/mute/speed 各自只更新所属状态轴；不可用的 pause/buffering 不猜测新真值；
 - buffering 结束只关闭 buffering 并清 progress，不改变 transport，因此 Paused + Buffering 的成熟播放器语义保持成立；
-- EOF/Unknown end 进入 Ended + Stopped 并保留媒体 identity/timeline；显式 Stop/Shutdown end 清空媒体级状态但保留会话 controls；Redirect 回到 Opening 并丢弃旧媒体详细状态；
+- EOF/Unknown end 进入 Ended + Stopped 并保留媒体 identity/timeline；显式 Stop/Shutdown end 清空媒体级状态但保留 controls；Redirect 回到 Opening 并丢弃旧媒体详细状态；
 - `MediaFailedEvent` 进入 Failed + Stopped，保留 source 供错误展示，清除旧 title/path/timeline/buffering 并保存 typed failure；
 - backend shutdown 进入 Closing + Stopped；Protocol `PlaybackFailureEvent` 记录诊断但不伪造 MediaFailed 生命周期；
 - CoreIdle/EofReached/CommandReply 在 R3-03 不直接改变 Snapshot，避免 reducer 抢占 Session/RequestTracker 的后续职责；
@@ -505,7 +505,7 @@ R3-04 集中建立少量高价值 Snapshot invariants，不自动修复状态：
 - Failed lifecycle 必须携带 failure；buffering active 只能位于 Opening/Ready；seeking=true 只能位于 Ready，且不能与明确 `seekable=false` 同时存在；
 - `checkPlaybackTransitionInvariants(previous, next)` 单独检测 generation 回退：一旦 previous generation 有效，next 不得变 invalid，也不得数值下降；
 - checker 只返回 violation，不修改 Snapshot、不抛业务决策、不接触 libmpv/线程/IO；真正的 stale-event filtering 仍归 R3-09；
-- 新增独立 CTest `playback_invariants`，同时验证 canonical Snapshot、Reducer 主路径输出、非法结构组合与 generation same/increase/regression。
+- 新增独立 CTest `playback_invariants`，同时验证 canonical Snapshot、Reducer 主路径输出、非法 snapshot/transition cases 与 generation same/increase/regression。
 
 用户在 Windows 工作区完成标准 build/test，开发 runtime marker 校验通过，`playback_invariants` **0.11 秒**通过；连同此前全部回归，最终 **19/19 CTest 全部通过，0 failed，总测试时间 3.44 秒**。R3-04 因此正式验收完成。
 
@@ -967,3 +967,39 @@ R2-01 的仓库根 `player.log` 落盘缺口仍是明确的非阻塞诊断事项
 - Recorded the first R3-08 Windows gate accurately as 22/23 with `playback_shutdown` failing only its direct-Play precondition; loading shutdown and the 100-cycle Session lifecycle path already passed.
 - Stabilized that test without product-code changes by requiring a confirmed Pause before Play and extending the generated media duration, then accepted R3-08 from the user's rerun: `playback_shutdown` passed in 6.99 seconds and all 23 CTests passed with 0 failures in 9.84 seconds total.
 - Kept R3-09 stale media-event filtering and the remaining R3-10~R3-12 supplement tasks outside the R3-08 acceptance scope.
+
+## R3-09 implementation status — current
+
+R3-09 已实现 MediaGeneration stale-event gate，当前状态为 **Implemented; Windows verification pending**。
+
+- `PlaybackEvent` 新增后端无关的 `MediaGeneration` 标签；0/invalid 保留为“未归属”，mpv playlist-entry id 不进入 Domain 或 Snapshot。
+- 新增 `application/session/backend/MpvMediaGenerationAttributor`，只负责把 Load RequestId/generation 与 libmpv `start-file/end-file` 的 playlist-entry identity、FileLoaded 顺序和 property replacement fence 对应起来；它不决定事件是否可进入 Reducer。
+- replacement fence：Session 接受 Load B 时立即切到 B generation；在 B 自己的 FileLoaded 之前，媒体 property 仍归属此前已建立 generation，因此 A 的晚到 position/title/path/track/chapter property 会被当前 B gate 拒绝，而不是因为 Start B 已出现就误标成 B。
+- 新增 Session 内部 `MediaGenerationGate`；媒体级事件必须带有效且等于当前 generation 的标签才允许继续进入 lifecycle acceptance / Reducer。missing/stale generation 只累计 diagnostics，不改 Snapshot。
+- `start-file/file-loaded/end-file/error/position/duration/seekable/seeking/pause/buffering/media identity/core-idle/eof` 走 generation gate；Volume/Mute/Speed 保持 session-scoped；CommandReply 仍由 R3-06 RequestTracker 负责 RequestId + generation 的 exactly-once 关联。
+- Redirect 产生的插入 playlist entry 继承同一 generation；backend shutdown 会 reset attribution state。
+- 当前 `MpvPlaybackEventMapper` 仍不把 track-list/chapter-list Node 转成 Domain state，因此 R3-09 只建立这些 raw property 的 generation attribution 边界；真正的 typed tracks/chapters 与 Snapshot 多轴扩展仍归 R3-10。本任务没有提前实现 R3-10、R3-11 或 R3-12 supersession。
+- 新增独立 CTest `playback_media_generation`，覆盖 synthetic A→B late position/file-loaded/end/property、missing generation fail-closed、session-scoped control、failed load cancellation 与 redirect generation inheritance；现有真实 `playback_session` 追加 250ms A → 5s B 的 immediate replacement 回归，并在 A 足以结束后仍要求 B generation/source/lifecycle 不被污染。
+- 真实 libmpv 0.41.0 的 immediate A→B event ordering 由新增 Session 回归作为本任务硬门禁；当前连接环境未执行 Windows Qt/MSVC，因此尚未证明该实际时序通过。
+
+当前连接环境未执行 Windows Qt/MSVC build/test。新增一个 CTest 后，标准门禁**预计**从 23 项增加到 **24/24**；这是待验证目标，不是已通过结果：
+
+```powershell
+git pull --ff-only origin agent/r3-stage
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r3.log 2>&1
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1
+```
+
+预期新增：
+
+```text
+playback_media_generation
+```
+
+当前准确状态：**Stage R3：In Progress；R3-01~R3-08：Complete；R3-09：Implemented，Windows verification pending。** R2-01 的 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留；R3-10~R3-12 尚未实施。
+
+### 2026-08-09 — R3-09 implementation addendum
+
+- Implemented backend media-generation attribution plus a Session stale-event gate before Reducer, including a replacement property fence that does not relabel queued A properties as B.
+- Added independent synthetic generation-gate coverage and a real immediate A→B libmpv Session regression; Windows build/test remains pending.
+- Kept track/chapter Snapshot expansion, reducer cleanup matrix and generalized supersession in R3-10~R3-12.
