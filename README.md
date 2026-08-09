@@ -483,7 +483,7 @@ R3-03 新增纯 `reducePlaybackSnapshot(current, event)`，只负责 Domain 状�
 - `MediaLoadedEvent` 将 lifecycle 置为 Ready；Pause property 独立决定 Playing/Paused，不与 buffering 合并；
 - position/duration/seekable/seeking、title/path、volume/mute/speed 各自只更新所属状态轴；不可用的 pause/buffering 不猜测新真值；
 - buffering 结束只关闭 buffering 并清 progress，不改变 transport，因此 Paused + Buffering 的成熟播放器语义保持成立；
-- EOF/Unknown end 进入 Ended + Stopped 并保留媒体 identity/timeline；显式 Stop/Shutdown end 清空媒体级状态但保留 controls；Redirect 回到 Opening 并丢弃旧媒体详细状态；
+- EOF/Unknown end 进入 Ended + Stopped 并保留媒体 identity/timeline；显式 Stop/Shutdown end 清空媒体级状态但保留会话 controls；Redirect 回到 Opening 并丢弃旧媒体详细状态；
 - `MediaFailedEvent` 进入 Failed + Stopped，保留 source 供错误展示，清除旧 title/path/timeline/buffering 并保存 typed failure；
 - backend shutdown 进入 Closing + Stopped；Protocol `PlaybackFailureEvent` 记录诊断但不伪造 MediaFailed 生命周期；
 - CoreIdle/EofReached/CommandReply 在 R3-03 不直接改变 Snapshot，避免 reducer 抢占 Session/RequestTracker 的后续职责；
@@ -505,7 +505,7 @@ R3-04 集中建立少量高价值 Snapshot invariants，不自动修复状态：
 - Failed lifecycle 必须携带 failure；buffering active 只能位于 Opening/Ready；seeking=true 只能位于 Ready，且不能与明确 `seekable=false` 同时存在；
 - `checkPlaybackTransitionInvariants(previous, next)` 单独检测 generation 回退：一旦 previous generation 有效，next 不得变 invalid，也不得数值下降；
 - checker 只返回 violation，不修改 Snapshot、不抛业务决策、不接触 libmpv/线程/IO；真正的 stale-event filtering 仍归 R3-09；
-- 新增独立 CTest `playback_invariants`，同时验证 canonical Snapshot、Reducer 主路径输出、非法 snapshot/transition cases 与 generation same/increase/regression。
+- 新增独立 CTest `playback_invariants`，同时验证 canonical Snapshot、Reducer 主路径输出、非法结构组合与 generation same/increase/regression。
 
 用户在 Windows 工作区完成标准 build/test，开发 runtime marker 校验通过，`playback_invariants` **0.11 秒**通过；连同此前全部回归，最终 **19/19 CTest 全部通过，0 failed，总测试时间 3.44 秒**。R3-04 因此正式验收完成。
 
