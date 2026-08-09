@@ -20,14 +20,14 @@
 - D3-01：Complete — 已建立正式 `03 OSC` 与 `D3-01 / OSC Surface & Internal Grid`（`90:3`）；OSC width=`min(host-52,880)`，Narrow=`106px`、Standard/Wide=`124px`。
 - D3-02：Complete — 已建立 `D3-02 / Timeline Basic Geometry`（`95:8`）；Timeline=`3px Track / 16px Hit / 10px Thumb / R2`。
 - D3-03：Complete — 已建立 `D3-03 / Timeline Interaction States`（`104:2`）；冻结 Preview / Scrub / Pending / Commit / Cancel / Chapter Marker 的所有权、视觉状态与 Prototype 链。
-- **D3-04：Complete — 已建立 `D3-04 / Transport Cluster`（`117:2`）。**
-- D3-04 Geometry：Transport=`116×40 / gap6`；Previous/Next=`32px hit / 22px visual / R16`；PlayPause=`40×40 / R20`。
-- D3-04 Primary：Rest/Playing=`48%`、Hover=`52%`、Pressed=`42%`、Focus ring=`82%`、Disabled node=`38%`；全部使用 `V3 / Glass / Control`，无大蓝圆回归。
-- D3-04 Secondary：Rest=`72%`、Hover=`100%`、Pressed=`84%`、Focus=`100% + 82% ring`、Disabled=`38%`。
-- D3-04 Optical：Previous≈`+0.9px`、Play≈`+0.6px`、Next≈`-0.9px`；hit geometry 保持对齐。
-- D3-04 Motion：Control state=`120ms`、Press=`0ms`；Reduce Motion 全部=`0ms`。
-- D3-04 最终审计：Visible Solid Paint=`255/255` Semantic-bound、Unbound=`0`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01～03 保持。
-- **下一任务：D3-05 Volume Cluster。**
+- D3-04：Complete — 已建立 `D3-04 / Transport Cluster`（`117:2`）；Transport=`116×40 / gap6`，Previous/Next=`32px hit / 22px visual / R16`，PlayPause=`40×40 / R20`。
+- **D3-05：Complete — 已建立 `D3-05 / Volume Cluster`（`127:2`）。**
+- D3-05 State：`volume` 与 `mute` 独立；0%=`volume=0, mute=false`，Muted 保留 backend volume value 与 remembered slider position。
+- D3-05 Geometry：Wide Inline=`138×32`；Slider=`100×16 / 90×3 visual track / 10 thumb`；端点 0/100% error=`0`。
+- D3-05 Responsive：Narrow=`popover`、Standard=`popover`、Wide=`inline`；Popover=`170×52 / R20 / z60`。
+- D3-05 Feedback：本地 Slider/Mute 不叠 HUD；键盘/媒体键反馈进入 D5 HUD `z70`；Popover 打开时 D3-07 必须锁定 OSC Visible。
+- D3-05 最终审计：Visible Solid Paint=`315/315` Semantic-bound、Text Style=`133/133`、Unbound=`0`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01～04 保持。
+- **下一任务：D3-06 Utility Action Cluster。**
 
 ## Completed design tasks
 
@@ -54,8 +54,24 @@
 - D3-02：建立 Timeline 基础几何；冻结 3px Track、16px Hit Target、10px Thumb、Buffer/Progress/Disabled 语义与端点公式。
 - D3-03：建立 Timeline 交互状态；冻结 Preview / Scrub / Pending / Commit / Cancel / Chapter Marker 的所有权、视觉状态与 Prototype 链。
 - D3-04：建立 Transport Cluster；冻结 Previous / PlayPause / Next 的层级、32/40px 命中几何、Playing/Paused 与 Hover/Pressed/Focus/Disabled 状态，以及光学中心规则。
+- D3-05：建立 Volume Cluster；冻结 volume/mute 独立所有权、0/Low/Medium/High/Muted、100px Slider、Responsive Popover 与 D5 HUD 反馈入口。
 
 ## Change Log
+
+### 2026-08-09 — D3-05 Volume Cluster
+
+- Figma：新增 `D3-05 / Volume Cluster`（`127:2`），覆盖 Wide Inline Anatomy、0/Low/Medium/High/Muted、Narrow/Standard Popover、Feedback Routing、Responsive Stress、Window Mode Continuity 与 Interaction Contract。
+- State：正式冻结 `numeric volume ≠ mute flag`；0%=`volume=0, mute=false`；Muted 保留 numeric volume，并以 38% remembered progress/thumb 表达恢复位置。
+- Threshold：0=`Zero`、1–33=`Low`、34–66=`Medium`、67–100=`High`、`mute=true` 覆盖为 Muted glyph。
+- Geometry：Inline Volume=`138×32`；Trigger=`32×32`；Slider=`100×16`；Visual Track=`90×3`；Thumb=`10×10`；0/100% endpoint error=`0`。
+- Responsive：Narrow/Standard 仅保留 32px Trigger + z60 Popover；Wide 使用 Inline；Popover=`170×52 / R20 / Fill52% / Border48% / V3 Glass Popover`。
+- Feedback：直接 Slider/Mute 仅使用本地反馈；键盘/媒体键变化发送 D5 HUD payload 到 `z70`；Popover 打开期间 D3-07 必须进入 LockedVisible，关闭后释放。
+- Token/Style：新增 `size/volume/hit-height=16`、`size/volume/thumb=10`、`radius/surface/popover=20`、`alpha/glass/popover-fill=52%` 与 `V3 / Glass / Popover`；复用现有 Track/Progress/Thumb/Control Color。
+- Motion：Popover Open/Close=`160/120ms`、HUD Show/Hide=`160/120ms`；Reduce Motion 全部=`0ms`。
+- 修复：第一次 Board 创建因不存在 `createRoundedRectangle()` 被回滚；完整 Board 创建后 Semantic Paint binding 又把多类 opacity 写回 100%，已恢复 92 个节点目标透明度而保留 Color/Geometry/Text/Effect/Responsive binding。
+- 验证：D3-05 Visible Solid Paint=`315/315`、Text Style=`133/133`、Unbound=`0`；Popover/HUD Effect Style、Muted 38% remembered state、Responsive 与端点公式全部通过；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01～04 保持。
+- 记录：`docs/records/D3-05_VolumeCluster.md`。
+- 下一任务：`D3-06 Utility Action Cluster`。
 
 ### 2026-08-09 — D3-04 Transport Cluster
 
