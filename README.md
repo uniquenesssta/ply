@@ -90,8 +90,7 @@ src/playback/domain/errors/
   event 模块不再拥有错误值类型本身。
 
 src/playback/domain/events/
-  按 lifecycle / media / position / buffering / property / failure / command-reply 拆分产品语义事件；
-  unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
+  按 lifecycle / media / position / buffering / property / failure / command-reply 分模块，unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
   当前只覆盖 R3-01 所需核心事件，track/chapter/video/audio domain model 留给后续对应任务。
 
 src/playback/domain/state/
@@ -611,8 +610,8 @@ R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage
 
 ### 2026-08-07
 
-- Started Stage R2 after accepted R1-06.
-- Added the project-controlled MSYS2 CLANG64 libmpv source-build pipeline and fixed source/archive acquisition boundaries.
+- Started Stage R2 after accepted R1-06。
+- Added the project-controlled MSYS2 CLANG64 libmpv source-build pipeline and fixed source/archive acquisition boundaries。
 - Kept all third-party binaries/build trees outside Git and preserved repository-parent-relative dependency paths。
 
 ## R2 final Windows verification
@@ -836,7 +835,7 @@ R2-01 的仓库根 `player.log` 落盘缺口仍是明确的非阻塞诊断事项
 R3-07 已实现 `StatePublisher` GUI/consumer-thread 发布边界，当前状态为 **Implemented; Windows verification pending**。
 
 - 新增 `src/playback/application/state_publisher/`，`StatePublisher` 只拥有发布缓存与节流时序，不拥有或修改播放真值；权威 `PlaybackSnapshot` 仍只由 `PlaybackSession` 持有。
-- `PlaybackSnapshot` 增加 Qt metatype声明，`StatePublisher` 注册该类型；`PlaybackSessionThread` 以 `Qt::QueuedConnection` 将 Playback Thread 的 `snapshotCommitted` 投递给创建 `PlaybackSessionThread` 的 consumer/GUI thread 上的 Publisher，未来 ViewModel 不需要跨线程访问 Session 内部状态。
+- `PlaybackSnapshot` 增加 Qt metatype 声明，`StatePublisher` 注册该类型；`PlaybackSessionThread` 以 `Qt::QueuedConnection` 将 Playback Thread 的 `snapshotCommitted` 投递给创建 `PlaybackSessionThread` 的 consumer/GUI thread 上的 Publisher，未来 ViewModel 不需要跨线程访问 Session 内部状态。
 - 首个 Snapshot 立即发布；完全重复 Snapshot 不重复发布。只有“除 `timeline.positionSeconds` 外所有字段均相同”的 position-only 更新进入节流，目标频率为 **20 Hz / 50 ms**，窗口内只保留最新 pending Snapshot。
 - lifecycle、transport、media identity、duration、seekable/seeking、buffering、controls、failure 或 generation 任一变化都绕过 position throttle 立即发布；关键变化到来时会取消尚未 flush 的旧 position-only pending，因此 Pause/Error 等状态不会被位置节流延迟。
 - Publisher 使用所属 consumer thread 的 single-shot precise timer；不新增线程、不调用 libmpv、不执行 Reducer、不修改 Snapshot，也不实现 R3-09 generation stale-event filtering。
@@ -1009,7 +1008,7 @@ playback_media_generation
 
 > 本节取代上一节“Windows verification pending”的初始状态；R3-09 仍未验收完成，直到修正版标准 Windows 门禁全绿。
 
-用户在 `fb74019990d6dbdbb7c442949a415d285c104aaa` 上完成第一次标准 Windows build/test。工具链、依赖、libmpv manifest/hash 与开发 runtime root marker 均通过，CTest 实际结果为 **23/24**：
+用户在 `fb74019990d6dbdb7c442949a415d285c104aaa` 上完成第一次标准 Windows build/test。工具链、依赖、libmpv manifest/hash 与开发 runtime root marker 均通过，CTest 实际结果为 **23/24**：
 
 ```text
 playback_session .................***Failed    7.41 sec
