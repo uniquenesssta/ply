@@ -19,15 +19,15 @@
 - **D3：In Progress。**
 - D3-01：Complete — 已建立正式 `03 OSC` 与 `D3-01 / OSC Surface & Internal Grid`（`90:3`）；OSC width=`min(host-52,880)`，Narrow=`106px`、Standard/Wide=`124px`。
 - D3-02：Complete — 已建立 `D3-02 / Timeline Basic Geometry`（`95:8`）；Timeline=`3px Track / 16px Hit / 10px Thumb / R2`。
-- **D3-03：Complete — 已建立 `D3-03 / Timeline Interaction States`（`104:2`）。**
-- D3-03 Ownership：Preview≠Playback Position；Scrub 只拥有 temporary target；Pending Seek 在 backend confirmation 前不改写 confirmed position。
-- D3-03 States：Rest / Hover Preview / Scrubbing / Pending Seek / Committed / Chapter Hover；另有 ESC Cancel → Rest。
-- D3-03 Preview：Cyan Preview Marker=`6×6 / 92%`；Seek Preview Bubble=`64×28 / R14 / 52% glass`。
-- D3-03 Chapter：Marker=`1×7`，Idle=`34%`，Hover/Target=`90%`；不创建第二条 progress track。
-- D3-03 Motion：Preview=`120ms`、Scrub update=`0ms`、Pending/Commit=`160ms`、Cancel=`120ms`；Reduce Motion 全部=`0ms`。
-- D3-03 Prototype：6 个 Page 顶层 Smoke Frame、6 条主链 Reaction、1 条 ESC Cancel Reaction。
-- D3-03 最终审计：Visible Solid Paint=`302/302` Semantic-bound、Unbound=`0`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01/02 保持。
-- **下一任务：D3-04 Transport Cluster。**
+- D3-03：Complete — 已建立 `D3-03 / Timeline Interaction States`（`104:2`）；冻结 Preview / Scrub / Pending / Commit / Cancel / Chapter Marker 的所有权、视觉状态与 Prototype 链。
+- **D3-04：Complete — 已建立 `D3-04 / Transport Cluster`（`117:2`）。**
+- D3-04 Geometry：Transport=`116×40 / gap6`；Previous/Next=`32px hit / 22px visual / R16`；PlayPause=`40×40 / R20`。
+- D3-04 Primary：Rest/Playing=`48%`、Hover=`52%`、Pressed=`42%`、Focus ring=`82%`、Disabled node=`38%`；全部使用 `V3 / Glass / Control`，无大蓝圆回归。
+- D3-04 Secondary：Rest=`72%`、Hover=`100%`、Pressed=`84%`、Focus=`100% + 82% ring`、Disabled=`38%`。
+- D3-04 Optical：Previous≈`+0.9px`、Play≈`+0.6px`、Next≈`-0.9px`；hit geometry 保持对齐。
+- D3-04 Motion：Control state=`120ms`、Press=`0ms`；Reduce Motion 全部=`0ms`。
+- D3-04 最终审计：Visible Solid Paint=`255/255` Semantic-bound、Unbound=`0`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01～03 保持。
+- **下一任务：D3-05 Volume Cluster。**
 
 ## Completed design tasks
 
@@ -53,8 +53,23 @@
 - D3-01：建立 OSC Surface 与内部网格；冻结 Max Width、两层 Vertical Grid 与 Narrow / Standard / Wide 响应式几何。
 - D3-02：建立 Timeline 基础几何；冻结 3px Track、16px Hit Target、10px Thumb、Buffer/Progress/Disabled 语义与端点公式。
 - D3-03：建立 Timeline 交互状态；冻结 Preview / Scrub / Pending / Commit / Cancel / Chapter Marker 的所有权、视觉状态与 Prototype 链。
+- D3-04：建立 Transport Cluster；冻结 Previous / PlayPause / Next 的层级、32/40px 命中几何、Playing/Paused 与 Hover/Pressed/Focus/Disabled 状态，以及光学中心规则。
 
 ## Change Log
+
+### 2026-08-09 — D3-04 Transport Cluster
+
+- Figma：新增 `D3-04 / Transport Cluster`（`117:2`），覆盖 Anatomy、Primary Play/Pause State、Previous/Next State、Narrow/Standard/Wide Context Stress、Optical Center QA 与 Interaction Contract。
+- Geometry：Transport Cluster=`116×40 / gap6`；Previous/Next=`32×32 hit / 22×22 visual / R16`；PlayPause=`40×40 / R20`；Narrow/Standard/Wide 均不缩 Transport。
+- Primary：Paused→Play、Playing→Pause，仅替换 glyph；Rest/Playing=`48%`、Hover=`52%`、Pressed=`42%`、Focus=`48% + 82% ring`、Disabled node=`38%`；全部使用 `V3 / Glass / Control`。
+- Secondary：Rest=`72%`、Hover=`100%`、Pressed=`84%`、Focus=`100% + 82% ring`、Disabled=`38%`；Rest/Hover/Pressed 不增加圆形玻璃 Surface。
+- Optical：冻结 Previous≈`+0.9px`、Play≈`+0.6px`、Next≈`-0.9px` 的光学补偿，hit target 几何中心保持统一。
+- Token：新增 `radius/16`、`radius/control/transport-secondary`、`alpha/transport/primary/rest|hover|pressed` 与 `motion/control/state-duration|press-duration|state-easing`；复用既有 `32 / 22 / 40 / R20 / gap6 / alpha42|48|52`。
+- Motion：Control Hover/Focus=`120ms Ease Out`，Press=`0ms`；Reduce Motion 下全部 duration=`0ms`。
+- 修复：Semantic Paint Binding 再次把 Primary/Card/Focus Ring opacity 写回 100%，已独立恢复 54 个节点目标透明度而保留 Color/Geometry/Effect binding。
+- 验证：D3-04 Visible Solid Paint=`255/255` Semantic-bound、Unbound=`0`；4 个 Cluster 均=`116×40 / gap6`；Primary/Secondary 状态值与 Glass Control Effect 全部通过；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01～03 保持。
+- 记录：`docs/records/D3-04_TransportCluster.md`。
+- 下一任务：`D3-05 Volume Cluster`。
 
 ### 2026-08-09 — D3-03 Timeline 交互状态
 
@@ -67,7 +82,6 @@
 - 修复：初次 Board 文本只有 Text Style、未绑定 Semantic Color，已全量回刷；交互低透明度被 Variable Binding 写回 100%，已恢复；`Chapter Marker Contract` 曾被过宽名称匹配误绑成 `1×7`，已恢复 `1696×250 / glass36% / border48%` 并收紧匹配规则。
 - 验证：D3-03 Visible Solid Paint=`302/302` Semantic-bound、Unbound=`0`；Chapter/Preview/Pending opacity 与 Geometry binding 全部通过；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01/02 保持。
 - 记录：`docs/records/D3-03_Timeline交互状态.md`。
-- 下一任务：`D3-04 Transport Cluster`。
 
 ### 2026-08-09 — D3-02 Timeline 基础几何
 
