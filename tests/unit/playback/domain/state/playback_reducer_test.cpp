@@ -34,7 +34,7 @@ PlaybackSnapshot populatedSnapshot()
     return PlaybackSnapshot{std::move(state)};
 }
 
-PlaybackEvent event(PlaybackEventPayload payload)
+PlaybackEvent makePlaybackEvent(PlaybackEventPayload payload)
 {
     return PlaybackEvent{std::move(payload)};
 }
@@ -64,7 +64,7 @@ void PlaybackReducerTest::loadStartedClearsMediaScopedState()
 {
     const PlaybackSnapshot next = reducePlaybackSnapshot(
         populatedSnapshot(),
-        event(MediaLoadStartedEvent{}));
+        makePlaybackEvent(MediaLoadStartedEvent{}));
 
     QCOMPARE(next.generation().value(), quint64{17});
     QVERIFY(next.lifecycle() == PlaybackLifecycleState::Opening);
@@ -90,7 +90,7 @@ void PlaybackReducerTest::fileLoadedMarksMediaReady()
         QStringLiteral("sample.mp4"));
     const PlaybackSnapshot next = reducePlaybackSnapshot(
         opening,
-        event(MediaLoadedEvent{}));
+        makePlaybackEvent(MediaLoadedEvent{}));
 
     QVERIFY(next.lifecycle() == PlaybackLifecycleState::Ready);
     QVERIFY(next.transport() == PlaybackTransportState::Idle);
@@ -101,13 +101,13 @@ void PlaybackReducerTest::pauseAndBufferingStayIndependent()
 {
     PlaybackSnapshot snapshot = reducePlaybackSnapshot(
         populatedSnapshot(),
-        event(PauseChangedEvent{true}));
+        makePlaybackEvent(PauseChangedEvent{true}));
     snapshot = reducePlaybackSnapshot(
         snapshot,
-        event(BufferingChangedEvent{true}));
+        makePlaybackEvent(BufferingChangedEvent{true}));
     snapshot = reducePlaybackSnapshot(
         snapshot,
-        event(BufferingProgressChangedEvent{42.0}));
+        makePlaybackEvent(BufferingProgressChangedEvent{42.0}));
 
     QVERIFY(snapshot.transport() == PlaybackTransportState::Paused);
     QVERIFY(snapshot.buffering().active);
@@ -115,7 +115,7 @@ void PlaybackReducerTest::pauseAndBufferingStayIndependent()
 
     snapshot = reducePlaybackSnapshot(
         snapshot,
-        event(BufferingChangedEvent{false}));
+        makePlaybackEvent(BufferingChangedEvent{false}));
 
     QVERIFY(snapshot.transport() == PlaybackTransportState::Paused);
     QVERIFY(!snapshot.buffering().active);
@@ -128,16 +128,16 @@ void PlaybackReducerTest::propertyEventsUpdateTheirOwnAxes()
         MediaGeneration{5},
         QStringLiteral("sample.mp4"));
 
-    snapshot = reducePlaybackSnapshot(snapshot, event(PositionChangedEvent{12.5}));
-    snapshot = reducePlaybackSnapshot(snapshot, event(DurationChangedEvent{90.0}));
-    snapshot = reducePlaybackSnapshot(snapshot, event(SeekableChangedEvent{true}));
-    snapshot = reducePlaybackSnapshot(snapshot, event(SeekingChangedEvent{false}));
-    snapshot = reducePlaybackSnapshot(snapshot, event(MediaTitleChangedEvent{QStringLiteral("Title")}));
-    snapshot = reducePlaybackSnapshot(snapshot, event(MediaPathChangedEvent{QStringLiteral("resolved.mp4")}));
-    snapshot = reducePlaybackSnapshot(snapshot, event(VolumeChangedEvent{80.0}));
-    snapshot = reducePlaybackSnapshot(snapshot, event(MuteChangedEvent{true}));
-    snapshot = reducePlaybackSnapshot(snapshot, event(SpeedChangedEvent{1.5}));
-    snapshot = reducePlaybackSnapshot(snapshot, event(PauseChangedEvent{false}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(PositionChangedEvent{12.5}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(DurationChangedEvent{90.0}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(SeekableChangedEvent{true}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(SeekingChangedEvent{false}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(MediaTitleChangedEvent{QStringLiteral("Title")}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(MediaPathChangedEvent{QStringLiteral("resolved.mp4")}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(VolumeChangedEvent{80.0}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(MuteChangedEvent{true}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(SpeedChangedEvent{1.5}));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(PauseChangedEvent{false}));
 
     QCOMPARE(*snapshot.timeline().positionSeconds, 12.5);
     QCOMPARE(*snapshot.timeline().durationSeconds, 90.0);
@@ -155,10 +155,10 @@ void PlaybackReducerTest::unavailablePauseAndBufferingDoNotInventState()
 {
     PlaybackSnapshot snapshot = reducePlaybackSnapshot(
         populatedSnapshot(),
-        event(PauseChangedEvent{std::nullopt}));
+        makePlaybackEvent(PauseChangedEvent{std::nullopt}));
     snapshot = reducePlaybackSnapshot(
         snapshot,
-        event(BufferingChangedEvent{std::nullopt}));
+        makePlaybackEvent(BufferingChangedEvent{std::nullopt}));
 
     QVERIFY(snapshot.transport() == PlaybackTransportState::Playing);
     QVERIFY(snapshot.buffering().active);
@@ -169,7 +169,7 @@ void PlaybackReducerTest::eofMarksEndedWithoutDiscardingMediaIdentity()
 {
     const PlaybackSnapshot next = reducePlaybackSnapshot(
         populatedSnapshot(),
-        event(MediaEndedEvent{MediaEndReason::Eof}));
+        makePlaybackEvent(MediaEndedEvent{MediaEndReason::Eof}));
 
     QVERIFY(next.lifecycle() == PlaybackLifecycleState::Ended);
     QVERIFY(next.transport() == PlaybackTransportState::Stopped);
@@ -186,7 +186,7 @@ void PlaybackReducerTest::stopClearsMediaScopedStateButPreservesControls()
 {
     const PlaybackSnapshot next = reducePlaybackSnapshot(
         populatedSnapshot(),
-        event(MediaEndedEvent{MediaEndReason::Stopped}));
+        makePlaybackEvent(MediaEndedEvent{MediaEndReason::Stopped}));
 
     QCOMPARE(next.generation().value(), quint64{17});
     QVERIFY(next.lifecycle() == PlaybackLifecycleState::Empty);
@@ -206,7 +206,7 @@ void PlaybackReducerTest::redirectReopensAndDropsOldMediaDetails()
 {
     const PlaybackSnapshot next = reducePlaybackSnapshot(
         populatedSnapshot(),
-        event(MediaEndedEvent{MediaEndReason::Redirected}));
+        makePlaybackEvent(MediaEndedEvent{MediaEndReason::Redirected}));
 
     QVERIFY(next.lifecycle() == PlaybackLifecycleState::Opening);
     QVERIFY(next.transport() == PlaybackTransportState::Idle);
@@ -225,7 +225,7 @@ void PlaybackReducerTest::mediaFailureClearsStaleMediaStateAndKeepsSource()
         QStringLiteral("loading failed")};
     const PlaybackSnapshot next = reducePlaybackSnapshot(
         populatedSnapshot(),
-        event(MediaFailedEvent{failure}));
+        makePlaybackEvent(MediaFailedEvent{failure}));
 
     QVERIFY(next.lifecycle() == PlaybackLifecycleState::Failed);
     QVERIFY(next.transport() == PlaybackTransportState::Stopped);
@@ -246,7 +246,7 @@ void PlaybackReducerTest::backendShutdownMarksClosing()
 {
     const PlaybackSnapshot next = reducePlaybackSnapshot(
         populatedSnapshot(),
-        event(PlaybackBackendShutdownEvent{}));
+        makePlaybackEvent(PlaybackBackendShutdownEvent{}));
 
     QVERIFY(next.lifecycle() == PlaybackLifecycleState::Closing);
     QVERIFY(next.transport() == PlaybackTransportState::Stopped);
@@ -261,13 +261,13 @@ void PlaybackReducerTest::requestAndObservationEventsDoNotOwnSnapshotState()
     const PlaybackSnapshot current = populatedSnapshot();
     PlaybackSnapshot next = reducePlaybackSnapshot(
         current,
-        event(CoreIdleChangedEvent{true}));
+        makePlaybackEvent(CoreIdleChangedEvent{true}));
     next = reducePlaybackSnapshot(
         next,
-        event(EofReachedChangedEvent{true}));
+        makePlaybackEvent(EofReachedChangedEvent{true}));
     next = reducePlaybackSnapshot(
         next,
-        event(CommandReplyEvent{
+        makePlaybackEvent(CommandReplyEvent{
             player::ids::RequestId{99},
             false,
             PlaybackFailure{
@@ -294,7 +294,7 @@ void PlaybackReducerTest::protocolFailureIsRecordedWithoutInventingMediaFailure(
         QStringLiteral("unexpected payload")};
     const PlaybackSnapshot next = reducePlaybackSnapshot(
         populatedSnapshot(),
-        event(PlaybackFailureEvent{failure}));
+        makePlaybackEvent(PlaybackFailureEvent{failure}));
 
     QVERIFY(next.lifecycle() == PlaybackLifecycleState::Ready);
     QVERIFY(next.transport() == PlaybackTransportState::Playing);
