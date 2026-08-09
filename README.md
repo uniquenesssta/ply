@@ -569,9 +569,9 @@ R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage
 - Added all eight required R2-11 real libmpv scenarios: transport sequence, paused seek, consecutive seek, immediate A->B replacement, EOF/stop distinction, load error, shutdown during loading and shutdown during playback.
 - Kept shutdown scenarios on queued teardown so the runtime is never destroyed from inside the synchronous `MpvEventLoop` drain signal stack.
 - Registered `playback_probe --matrix` as the 14th CTest `playback_probe_matrix`; Windows regression gate is 14/14.
-- Kept generated WAV files temporary and probe-local；R0-06 remains skipped and no distributable external fixture policy is falsely claimed complete。
-- Recorded the first R2-11 Windows build failure before CTest：MSVC C1083 could not resolve probe-root `fixtures/...` and AutoMOC `runtime/...` includes because the target had no module include root。
-- Fixed that single build-system root cause by adding `${CMAKE_CURRENT_SOURCE_DIR}` as a PRIVATE include directory of `playback_probe`; no scenario logic or production interface changed。
+- Kept generated WAV files temporary and probe-local；R0-06 remains skipped and no distributable external fixture policy is falsely claimed complete.
+- Recorded the first R2-11 Windows build failure before CTest：MSVC C1083 could not resolve probe-root `fixtures/...` and AutoMOC `runtime/...` includes because the target had no module include root.
+- Fixed that single build-system root cause by adding `${CMAKE_CURRENT_SOURCE_DIR}` as a PRIVATE include directory of `playback_probe`; no scenario logic or production interface changed.
 - Accepted R2-09 after the user confirmed the real Windows environment passed all 12 CTests, including `mpv_event_semantics`, in 2.31 seconds total.
 - Implemented R2-10 Property Baseline expansion from 11 to 22 centralized registry entries while preserving the original observation IDs and all existing observer lifecycle behavior.
 - Added centralized seeking/cache/media identity/current track/video/audio property entries; flexible native values remain Node-backed and raw property strings do not escape `infrastructure/mpv`.
