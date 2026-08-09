@@ -10,7 +10,8 @@ target_sources(
 )
 
 set_source_files_properties(
-    mpv_render_update_bridge.h
+    "${CMAKE_CURRENT_SOURCE_DIR}/mpv_render_update_bridge.h"
+    TARGET_DIRECTORY player_mpv_infrastructure
     PROPERTIES
         SKIP_AUTOMOC ON
 )
@@ -28,9 +29,21 @@ qt_generate_moc(
 
 set_source_files_properties(
     "${mpv_render_update_bridge_moc_source}"
+    TARGET_DIRECTORY player_mpv_infrastructure
     PROPERTIES
         GENERATED TRUE
         SKIP_AUTOMOC ON
+)
+
+add_custom_target(
+    player_mpv_render_update_bridge_moc
+    DEPENDS
+        "${mpv_render_update_bridge_moc_source}"
+)
+
+add_dependencies(
+    player_mpv_infrastructure
+    player_mpv_render_update_bridge_moc
 )
 
 target_sources(
