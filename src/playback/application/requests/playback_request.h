@@ -24,6 +24,9 @@ enum class PlaybackRequestType : quint8
     SetVolume,
     SetMuted,
     SetSpeed,
+    SelectAudioTrack,
+    SelectSubtitleTrack,
+    SelectVideoTrack,
 };
 
 enum class PlaybackRequestState : quint8
@@ -36,6 +39,7 @@ enum class PlaybackRequestState : quint8
 enum class PlaybackRequestCancellationReason : quint8
 {
     None,
+    Superseded,
     GenerationChanged,
     SubmissionFailed,
     Timeout,
@@ -88,6 +92,7 @@ struct RequestTrackerDiagnostics final
     std::size_t cancelledReplyCount = 0;
     std::size_t staleGenerationReplyCount = 0;
     std::size_t timeoutCancellationCount = 0;
+    std::size_t supersessionCancellationCount = 0;
 };
 
 } // namespace player::playback::application
