@@ -27,9 +27,28 @@
 - D2-01：Complete — 已建立正式 `02 Player Window` 与 Window Surface Contract；Standard=`1320×700 / R32 / Window Elevation / border 70% / clipping`，Maximized=`R0 / no elevation / no outer border / clipping`。
 - D2-01 Token 补强：Geometry Primitive `38 → 41`、Geometry Semantic `49 → 53`、Effect Primitive `38 → 39`、Material Semantic `47 → 48`；新增 reference size、safe-min、maximized radius 与 window border alpha 语义。
 - D2-01 验证：Product Solid Paint `26 / 26` Semantic-bound；D1 回归 Semantic Color `142 / 142`、Typography `43 / 43`、Geometry `55 / 55`、Effect `25 / 25`。
-- **下一任务：D2-02 定义 Video Viewport。**
+- D2-02：Complete — 已建立 `D2-02 / Video Viewport Contract`（`57:2`），冻结默认 `Fit + preserve aspect + centered + no stretch + no crop`，并验证 16:9 / 21:9 / 4:3 / 9:16 / Audio-only / Empty。
+- D2-02 Token 补强：Semantic Color `38 → 42`；Effect Primitive `39 → 40`；Material Semantic `48 → 49`；Interaction Primitive `26 → 27`；Interaction Semantic `42 → 43`；新增 letterbox/audio/empty/contrast-support、16% contrast alpha 与 `z/contrast-support=25`。
+- D2-02 验证：四种视频比例 Fit 最大误差 `<0.000011 px`；D2-02 Visible Solid Paint `126 / 126` Semantic-bound，Synthetic Media Gradient `6` 个故意不主题化；Contrast Support OFF=`0` node，ON=`16% / z25`；D1 回归仍为 Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`；D2-01 Standard Window 保持不变。
+- **下一任务：D2-03 建立 Floating Header。**
 
 ## Change Log
+
+### 2026-08-09 — D2-02 定义 Video Viewport
+
+- 结构：在 `02 Player Window` 新增 `D2-02 / Video Viewport Contract`（`57:2`），不修改已确认 Framework，也不把 D2-01 Window Contract 改成成品播放器。
+- Fit：冻结 `preserve aspect / centered / no stretch / no crop by default`；50% Reference Viewport `660×350` 验证 16:9=`622.2222×350`、21:9=`660×282.8571`、4:3=`466.6667×350`、9:16=`196.875×350`，最大 Figma FLOAT 误差 `<0.000011 px`。
+- Letterbox：新增 `surface/letterbox → color/neutral/ink-950`；Bars 明确由 Video Viewport 拥有，Window / OSC / Inspector 不得通过改变媒体 Fit 制造空间。
+- Audio：新增 `surface/audio → mist-100`；Audio-only 不创建假视频像素，Lavender / Cyan atmosphere 最终 node opacity=`16% / 10%`。
+- Empty：新增 `surface/empty → mist-50`；只定义安静背景，Empty CTA / Loading / Error 留给 D5；Empty Lavender atmosphere 最终收敛为 `4.5%`。
+- Contrast Support：新增 `overlay/contrast-support → ink-950`、`alpha/viewport/contrast-support=16%`、`z/contrast-support=25`；默认 OFF，只有未来 Header / OSC 在具体画面可读性不足时局部开启。
+- Layer contract：更新为 `video z0 → atmosphere z10 → media content z20 → contrast support z25 → floating controls z30+`。
+- Media pixels：6 个 Synthetic Video Gradient 只用于表达任意媒体内容，故意不绑定产品主题 Token；应用自身拥有的 D2-02 Visible Solid Paint `126/126` Semantic-bound、Unbound=`0`。
+- 修复：第一轮创建再次遇到 `setBoundVariableForPaint()` 把 Paint opacity 写回 `1.0`，导致 Empty Glow、Contrast Support、Audio Glow 与测试 pill 过强；第二轮独立恢复 44 个 Paint / Node opacity 后重新截图通过。
+- 验证：Aspect Fit、Letterbox/Pillarbox、Audio/Empty、Contrast OFF/ON 与 Ownership Contract 全部截图通过；Contrast OFF support nodes=`0`，ON Top/Bottom=`16%` 且 shared z-role=`z/contrast-support`。
+- 回归：D1 Semantic Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`；D2-01 Standard Window 仍为 `1320×700 / R32 / clipsContent / Window Elevation / border 70%`。
+- 记录：`docs/records/D2-02_定义VideoViewport.md`。
+- 下一任务：`D2-03 建立 Floating Header`。
 
 ### 2026-08-09 — D2-01 定义 Player Window 外壳
 
