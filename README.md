@@ -713,7 +713,7 @@ R3-05 已实现 `PlaybackSession thread` 主链，当前状态为 **Implemented;
 - `MpvPlaybackCommandMapper`：只把 Domain `PlaybackCommandPayload` 映射为 R2 typed mpv request，覆盖 load/play/pause/stop/absolute-relative seek/volume/mute/speed；Lifecycle command 仍由 Session 拥有。
 - 每次新的 Load 由 Session 分配单调递增 MediaGeneration，先建立 Opening/source identity 再提交 backend；事件/reply 尚未绑定 generation，因此 A→B stale event/reply 过滤仍未实现。
 - Session 对基础 property event 做 lifecycle acceptance：Empty/Failed/Closing 等不接受媒体/timeline property，pause/seeking 只在 Ready 接受，buffering 只在 Opening/Ready 接受；这是防止初始化 property observation 制造非法 Snapshot，不是 generation gate。
-- `snapshotCommitted` 目前只作为 Playback Thread 内部原始 commit 信号供测试与后续 R3-07 接入，不直接暴露给 QML/GUI，也不做 position throttle。
+- `snapshotCommitted` 目前只作为 Playback Thread 内部原始信号供测试与后续 R3-07 接入，不直接暴露给 QML/GUI，也不做 position throttle。
 
 新增真实 CTest `playback_session`：测试运行时生成 3 秒静音 PCM WAV，不使用 mock 替代 libmpv 主链；覆盖 `PlaybackCommandBus → PlaybackSession(QThread) → R2 libmpv infrastructure → PlaybackEvent → Reducer → Snapshot` 的 load/pause/play/pause/absolute-seek/stop，以及 Snapshot callback thread、0 invariant violation、`PlaybackSessionThread` start/stop smoke。
 
