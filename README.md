@@ -484,7 +484,7 @@ R3-03 新增纯 `reducePlaybackSnapshot(current, event)`，只负责 Domain 状�
 - position/duration/seekable/seeking、title/path、volume/mute/speed 各自只更新所属状态轴；不可用的 pause/buffering 不猜测新真值；
 - buffering 结束只关闭 buffering 并清 progress，不改变 transport，因此 Paused + Buffering 的成熟播放器语义保持成立；
 - EOF/Unknown end 进入 Ended + Stopped 并保留媒体 identity/timeline；显式 Stop/Shutdown end 清空媒体级状态但保留会话 controls；Redirect 回到 Opening 并丢弃旧媒体详细状态；
-- `MediaFailedEvent` 进入 Failed + Stopped，保留 source 供错误展示，清除旧 title/path/timeline/buffering 并保存 typed failure；
+- `MediaFailedEvent` 进入 Failed + Stopped，保留 source 供错误展示，清除旧 title/path/timeline/buffering并保存 typed failure；
 - backend shutdown 进入 Closing + Stopped；Protocol `PlaybackFailureEvent` 记录诊断但不伪造 MediaFailed 生命周期；
 - CoreIdle/EofReached/CommandReply 在 R3-03 不直接改变 Snapshot，避免 reducer 抢占 Session/RequestTracker 的后续职责；
 - 不实现 generation stale event gate、request supersession、invariant 修复或 Session 副作用。
@@ -731,3 +731,34 @@ playback_session
 ```
 
 当前准确状态：**Stage R3：In Progress；R3-01~R3-04：Complete；R3-05：Implemented，Windows verification pending。** R2-01 的 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留。
+
+## R3-05 Windows verification and acceptance — current
+
+> 本节取代上一个 `R3-05 implementation status — current` 中的待验证状态；实现说明继续保留为历史事实。
+
+用户在 `agent/r3-stage` 的 Windows 工作区提供了标准门禁输出：开发工具与 R2 产品依赖可用，开发 runtime root marker 校验成功，Ninja 报告 `no work to do`，随后完整 CTest 通过。
+
+实际结果：
+
+```text
+playback_session ................. Passed    0.24 sec
+100% tests passed, 0 tests failed out of 20
+Total Test time (real) = 3.39 sec
+```
+
+测试前开发 runtime marker 校验成功：
+
+```text
+[OK] Development runtime root marker -> build/windows-msvc-debug/.player-development-root
+```
+
+R3-05 的真实 Session 主链因此正式验收：`PlaybackCommandBus → PlaybackSession(QThread) → R2 libmpv infrastructure → PlaybackEvent → Reducer → PlaybackSnapshot` 的集成测试通过，并与其余 19 项既有回归共同保持全绿。本次验收不扩大 R3-05 范围；RequestTracker、StatePublisher、完整 shutdown hardening 与 stale-generation gate 仍分别属于后续 R3-06、R3-07、R3-08、R3-09。
+
+R2-01 的仓库根 `player.log` 落盘缺口仍是明确的非阻塞诊断事项，未被本次验收视为解决。
+
+**Stage R2：Complete。Stage R3：In Progress。R3-01：Complete。R3-02：Complete。R3-03：Complete。R3-04：Complete。R3-05：Complete。下一 Atomic Task：R3-06 Request tracker。**
+
+### 2026-08-09 — R3-05 acceptance addendum
+
+- Accepted R3-05 from the user's Windows validation output: development runtime marker passed, `playback_session` passed in 0.24 seconds, and all 20 CTests passed with 0 failures in 3.39 seconds total.
+- Kept R3-06 RequestTracker, R3-07 StatePublisher, R3-08 shutdown hardening and R3-09 stale-generation filtering out of the R3-05 acceptance scope.
