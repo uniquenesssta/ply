@@ -6,6 +6,7 @@
 #include <mpv/client.h>
 
 #include <QString>
+#include <QThread>
 
 #include <variant>
 
@@ -35,8 +36,9 @@ void setReadError(
 
 } // namespace
 
-MpvPropertyReader::MpvPropertyReader(MpvHandle& handle) noexcept
-    : handle_(handle)
+MpvPropertyReader::MpvPropertyReader(MpvHandle& handle, QObject* parent) noexcept
+    : QObject(parent)
+    , handle_(handle)
 {
 }
 
@@ -46,6 +48,13 @@ std::optional<MpvPropertyChange> MpvPropertyReader::read(
 {
     if (errorMessage != nullptr) {
         errorMessage->clear();
+    }
+
+    if (!isOnOwningThread()) {
+        if (errorMessage != nullptr) {
+            *errorMessage = QStringLiteral("MpvPropertyReader::read must run on the reader's owning Qt thread.");
+        }
+        return std::nullopt;
     }
 
     if (!handle_.isOpen() || !handle_.isInitialized() || handle_.nativeHandle() == nullptr) {
@@ -134,6 +143,11 @@ std::optional<MpvPropertyChange> MpvPropertyReader::read(
 
     setReadError(*definition, result, errorMessage);
     return std::nullopt;
+}
+
+bool MpvPropertyReader::isOnOwningThread() const noexcept
+{
+    return QThread::currentThread() == thread();
 }
 
 } // namespace player::playback::mpv

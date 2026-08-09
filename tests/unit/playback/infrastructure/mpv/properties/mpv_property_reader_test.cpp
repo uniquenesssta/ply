@@ -5,6 +5,7 @@
 #include <mpv/client.h>
 
 #include <QString>
+#include <QThread>
 #include <QtTest>
 
 #include <cmath>
@@ -36,6 +37,7 @@ class MpvPropertyReaderTest final : public QObject
 
 private slots:
     void requiresInitializedHandle();
+    void rejectsCrossThreadRead();
     void readsCurrentScalarValues();
 };
 
@@ -49,6 +51,26 @@ void MpvPropertyReaderTest::requiresInitializedHandle()
     const auto value = reader.read(MpvPropertyId::Pause, &error);
     QVERIFY(!value.has_value());
     QVERIFY(!error.isEmpty());
+}
+
+void MpvPropertyReaderTest::rejectsCrossThreadRead()
+{
+    QString error;
+    auto handle = createInitializedHandle(&error);
+    QVERIFY2(handle != nullptr, qPrintable(error));
+
+    MpvPropertyReader reader(*handle);
+    bool rejected = false;
+    QString diagnostic;
+
+    std::unique_ptr<QThread> worker(QThread::create([&reader, &rejected, &diagnostic]() {
+        const auto value = reader.read(MpvPropertyId::Pause, &diagnostic);
+        rejected = !value.has_value() && !diagnostic.isEmpty();
+    }));
+    QVERIFY(worker != nullptr);
+    worker->start();
+    QVERIFY(worker->wait(5000));
+    QVERIFY(rejected);
 }
 
 void MpvPropertyReaderTest::readsCurrentScalarValues()
