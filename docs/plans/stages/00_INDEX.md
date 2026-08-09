@@ -40,6 +40,14 @@ R2–R14 后续开发必须同时读取：
 - [R13_Windows 发布.md](R13_Windows 发布.md)
 - [R14_macOS 与 Linux 适配.md](R14_macOS 与 Linux 适配.md)
 
+## R4 完成后的独立架构优化
+
+- [R4后置_PlaybackSession职责边界优化.md](R4后置_PlaybackSession职责边界优化.md)
+  - 不属于 R4-04～R4-09，不改变 Stage R4 的完成条件；
+  - 仅在 Stage R4 正式 Complete 后，由用户明确调用时执行；
+  - 重点提取 Playback Event Admission Policy，并按独立职责条件评估 Failure Translation Policy；
+  - 必须保持 `PlaybackSession` 为唯一 `PlaybackSnapshot` owner 与 `MediaGeneration` allocator，不允许为拆文件制造第二状态 owner 或透明转发层。
+
 ## 跨阶段强制补充
 
 - [成熟播放器行为补强与验收矩阵.md](成熟播放器行为补强与验收矩阵.md)
