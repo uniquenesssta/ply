@@ -2,6 +2,7 @@
 
 #include "playback/application/command_bus/playback_command_bus.h"
 #include "playback/application/session/playback_session.h"
+#include "playback/application/state_publisher/state_publisher.h"
 
 #include <QMetaObject>
 
@@ -9,6 +10,7 @@ namespace player::playback::application {
 
 PlaybackSessionThread::PlaybackSessionThread(QObject* parent)
     : QObject(parent)
+    , statePublisher_(new StatePublisher(this))
 {
     thread_.setObjectName(QStringLiteral("PlaybackThread"));
 }
@@ -40,6 +42,7 @@ bool PlaybackSessionThread::start(QString* errorMessage)
     }
 
     commandBus_.reset();
+    statePublisher_->reset();
 
     auto* session = new PlaybackSession();
     session->moveToThread(&thread_);
@@ -57,6 +60,12 @@ bool PlaybackSessionThread::start(QString* errorMessage)
         &QThread::finished,
         session,
         &QObject::deleteLater);
+    QObject::connect(
+        session,
+        &PlaybackSession::snapshotCommitted,
+        statePublisher_,
+        &StatePublisher::acceptSnapshot,
+        Qt::QueuedConnection);
     QObject::connect(
         session,
         &PlaybackSession::ready,
@@ -153,6 +162,11 @@ bool PlaybackSessionThread::isRunning() const noexcept
 PlaybackCommandBus* PlaybackSessionThread::commandBus() noexcept
 {
     return commandBus_.get();
+}
+
+StatePublisher* PlaybackSessionThread::statePublisher() noexcept
+{
+    return statePublisher_;
 }
 
 } // namespace player::playback::application

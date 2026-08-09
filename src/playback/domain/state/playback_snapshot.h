@@ -9,6 +9,7 @@
 #include "playback/domain/state/playback_timeline_state.h"
 #include "playback/domain/state/playback_transport_state.h"
 
+#include <QMetaType>
 #include <QString>
 
 #include <optional>
@@ -51,3 +52,5 @@ private:
 };
 
 } // namespace player::playback::domain
+
+Q_DECLARE_METATYPE(player::playback::domain::PlaybackSnapshot)

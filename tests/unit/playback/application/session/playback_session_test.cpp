@@ -4,12 +4,14 @@
 #include "foundation/ids/request_id.h"
 #include "playback/application/command_bus/playback_command_bus.h"
 #include "playback/application/session/playback_session_thread.h"
+#include "playback/application/state_publisher/state_publisher.h"
 #include "playback/domain/commands/playback_command.h"
 
 #include <QtTest/QSignalSpy>
 #include <QtTest/QTest>
 
 #include <QTemporaryDir>
+#include <QThread>
 
 #include <cmath>
 #include <utility>
@@ -33,6 +35,7 @@ class PlaybackSessionTest final : public QObject
 private slots:
     void realMediaMainPathRunsOnPlaybackThread();
     void threadHostStartsAndStops();
+    void threadHostPublishesSnapshotsOnConsumerThread();
 };
 
 void PlaybackSessionTest::realMediaMainPathRunsOnPlaybackThread()
@@ -152,6 +155,9 @@ void PlaybackSessionTest::threadHostStartsAndStops()
     QSignalSpy startupFailureSpy(&host, &PlaybackSessionThread::startupFailed);
     QSignalSpy stoppedSpy(&host, &PlaybackSessionThread::stopped);
 
+    QVERIFY(host.statePublisher() != nullptr);
+    QCOMPARE(host.statePublisher()->thread(), QThread::currentThread());
+
     QString error;
     QVERIFY2(host.start(&error), qPrintable(error));
     QTRY_COMPARE_WITH_TIMEOUT(readySpy.count(), 1, 5000);
@@ -162,6 +168,53 @@ void PlaybackSessionTest::threadHostStartsAndStops()
     QVERIFY2(host.stop(&error), qPrintable(error));
     QVERIFY(!host.isRunning());
     QTRY_VERIFY_WITH_TIMEOUT(stoppedSpy.count() >= 1, 1000);
+}
+
+void PlaybackSessionTest::threadHostPublishesSnapshotsOnConsumerThread()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+
+    const QString mediaPath = directory.filePath(QStringLiteral("publisher-host-path.wav"));
+    QString error;
+    QVERIFY2(
+        test_support::writeSilentPcmWav(mediaPath, 1000, &error),
+        qPrintable(error));
+
+    PlaybackSessionThread host;
+    StatePublisher* publisher = host.statePublisher();
+    QVERIFY(publisher != nullptr);
+
+    bool readyPublished = false;
+    QThread* publishThread = nullptr;
+    QObject::connect(
+        publisher,
+        &StatePublisher::snapshotPublished,
+        &host,
+        [&readyPublished, &publishThread, &mediaPath](const PlaybackSnapshot& snapshot) {
+            publishThread = QThread::currentThread();
+            if (snapshot.lifecycle() == PlaybackLifecycleState::Ready
+                && snapshot.media().source.has_value()
+                && *snapshot.media().source == mediaPath) {
+                readyPublished = true;
+            }
+        });
+
+    QSignalSpy readySpy(&host, &PlaybackSessionThread::ready);
+    QVERIFY2(host.start(&error), qPrintable(error));
+    QTRY_COMPARE_WITH_TIMEOUT(readySpy.count(), 1, 5000);
+    QVERIFY(host.commandBus() != nullptr);
+    QVERIFY2(
+        host.commandBus()->submit(
+            makeCommand(100, LoadMediaCommand{mediaPath}),
+            &error),
+        qPrintable(error));
+
+    QTRY_VERIFY_WITH_TIMEOUT(readyPublished, 7000);
+    QCOMPARE(publishThread, QThread::currentThread());
+    QCOMPARE(publisher->thread(), QThread::currentThread());
+
+    QVERIFY2(host.stop(&error), qPrintable(error));
 }
 
 } // namespace player::playback::application

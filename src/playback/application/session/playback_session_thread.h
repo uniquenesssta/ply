@@ -11,6 +11,7 @@ namespace player::playback::application {
 
 class PlaybackCommandBus;
 class PlaybackSession;
+class StatePublisher;
 
 class PlaybackSessionThread final : public QObject
 {
@@ -28,6 +29,7 @@ public:
 
     [[nodiscard]] bool isRunning() const noexcept;
     [[nodiscard]] PlaybackCommandBus* commandBus() noexcept;
+    [[nodiscard]] StatePublisher* statePublisher() noexcept;
 
 signals:
     void ready();
@@ -38,6 +40,7 @@ private:
     QThread thread_;
     QPointer<PlaybackSession> session_;
     std::unique_ptr<PlaybackCommandBus> commandBus_;
+    StatePublisher* statePublisher_ = nullptr;
 };
 
 } // namespace player::playback::application
