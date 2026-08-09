@@ -931,3 +931,39 @@ playback_shutdown
 - Implemented bounded PlaybackSession shutdown ordering with a closed command ingress, pending-request cancellation, wakeup/event-loop teardown before handle destruction, and no unbounded QThread wait.
 - Added independent `playback_shutdown` coverage for loading/playback shutdown and 100 Session lifecycle cycles; Windows build/test remains pending before acceptance.
 - Kept R3-09 stale media-event filtering and R3-12 supersession outside R3-08.
+
+## R3-08 Windows verification and acceptance — current
+
+> 本节取代上一个 `R3-08 implementation status — current` 中的待验证状态；实现说明继续保留为历史事实。
+
+R3-08 第一次 Windows 门禁实际结果为 **22/23**：开发 runtime root marker 通过，`playback_shutdown` 在 `stopDuringPlaybackSuppressesLateSnapshots()` 中因 `playingSnapshotSeen == false` 失败；同一测试中的 command-bus close、loading 中关闭与 100 次 Session 生命周期循环均已通过。该次完整 CTest 总耗时 **29.11 秒**，因此没有被标记为验收通过。
+
+失败根因确认是测试前置条件而非 shutdown 生产链：测试在 Ready 后直接重复发送 Play，并错误假设 libmpv 必然再次产生 `pause=false` property change；当前 transport Snapshot 只由实际 PauseChangedEvent 更新。修复仅调整 `playback_shutdown_test.cpp`：改为 `Ready → Pause → 确认 Paused → Play → 确认 Playing → shutdown`，并把测试媒体从 5 秒延长到 30 秒以排除自然 EOF 竞争；生产源码、公共接口和运行时行为均未修改。
+
+用户随后在修正版 `agent/r3-stage` 上重新执行标准 Windows build/test，实际结果：
+
+```text
+playback_shutdown ................ Passed    6.99 sec
+100% tests passed, 0 tests failed out of 23
+Total Test time (real) = 9.84 sec
+```
+
+测试前开发 runtime marker 校验成功：
+
+```text
+[OK] Development runtime root marker -> build/windows-msvc-debug/.player-development-root
+```
+
+依赖检查继续确认 libmpv 0.41.0 / FFmpeg 8.0.3 / libplacebo 7.351.0 / libass 0.17.4 包可用，libmpv runtime SHA-256 为 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc`，import SHA-256 为 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`。
+
+R3-08 因此正式验收：关闭期间命令入口关闭、pending request cancellation、loading/playing shutdown、final Closing 后 late Snapshot 抑制以及 100 次基础 Session 生命周期均由当前测试链覆盖并通过；完整 23 项回归保持全绿。本次验收不扩大范围，R3-09 MediaGeneration stale-event gate、R3-10~R3-12 补强仍按后续 Atomic Task 单独实施。
+
+R2-01 的仓库根 `player.log` 落盘缺口仍是明确的非阻塞诊断事项，未被本次验收视为解决。
+
+**Stage R2：Complete。Stage R3：In Progress。R3-01：Complete。R3-02：Complete。R3-03：Complete。R3-04：Complete。R3-05：Complete。R3-06：Complete。R3-07：Complete。R3-08：Complete。下一 Atomic Task：R3-09 MediaGeneration 与 Stale Event Gate。**
+
+### 2026-08-09 — R3-08 acceptance addendum
+
+- Recorded the first R3-08 Windows gate accurately as 22/23 with `playback_shutdown` failing only its direct-Play precondition; loading shutdown and the 100-cycle Session lifecycle path already passed.
+- Stabilized that test without product-code changes by requiring a confirmed Pause before Play and extending the generated media duration, then accepted R3-08 from the user's rerun: `playback_shutdown` passed in 6.99 seconds and all 23 CTests passed with 0 failures in 9.84 seconds total.
+- Kept R3-09 stale media-event filtering and the remaining R3-10~R3-12 supplement tasks outside the R3-08 acceptance scope.
