@@ -7,6 +7,7 @@
 #include <QtGlobal>
 
 #include <deque>
+#include <optional>
 #include <unordered_map>
 
 namespace player::playback::application {
@@ -21,6 +22,8 @@ public:
 
     [[nodiscard]] player::playback::domain::MediaGeneration attribute(
         const player::playback::mpv::MpvEvent& event) noexcept;
+    [[nodiscard]] std::optional<player::playback::domain::MediaGeneration>
+    takePropertyRefreshGeneration() noexcept;
 
     void reset() noexcept;
 
@@ -45,6 +48,7 @@ private:
     qint64 activePlaylistEntryId_ = 0;
     player::playback::domain::MediaGeneration activeGeneration_;
     player::playback::domain::MediaGeneration propertyGeneration_;
+    std::optional<player::playback::domain::MediaGeneration> propertyRefreshGeneration_;
 };
 
 } // namespace player::playback::application

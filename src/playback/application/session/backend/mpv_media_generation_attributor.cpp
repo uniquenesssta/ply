@@ -59,6 +59,14 @@ MediaGeneration MpvMediaGenerationAttributor::attribute(const MpvEvent& event) n
     return {};
 }
 
+std::optional<MediaGeneration>
+MpvMediaGenerationAttributor::takePropertyRefreshGeneration() noexcept
+{
+    std::optional<MediaGeneration> generation = propertyRefreshGeneration_;
+    propertyRefreshGeneration_.reset();
+    return generation;
+}
+
 void MpvMediaGenerationAttributor::reset() noexcept
 {
     pendingLoads_.clear();
@@ -67,6 +75,7 @@ void MpvMediaGenerationAttributor::reset() noexcept
     activePlaylistEntryId_ = 0;
     activeGeneration_ = {};
     propertyGeneration_ = {};
+    propertyRefreshGeneration_.reset();
 }
 
 MediaGeneration MpvMediaGenerationAttributor::attributeStartFile(
@@ -125,11 +134,12 @@ MediaGeneration MpvMediaGenerationAttributor::attributeFileLoaded() noexcept
 
         if (playlistEntryId == activePlaylistEntryId_) {
             propertyGeneration_ = generation->second;
+            propertyRefreshGeneration_ = generation->second;
         }
         return generation->second;
     }
 
-    return activeGeneration_;
+    return {};
 }
 
 MediaGeneration MpvMediaGenerationAttributor::attributeEndFile(

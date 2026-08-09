@@ -15,6 +15,7 @@ class MpvCommandExecutor;
 class MpvEventLoop;
 class MpvHandle;
 class MpvPropertyObserver;
+class MpvPropertyReader;
 } // namespace player::playback::mpv
 
 namespace player::playback::application {
@@ -42,10 +43,14 @@ public:
         QString* errorMessage = nullptr);
 
 private:
+    void refreshCurrentMediaProperties(
+        player::playback::domain::MediaGeneration generation);
+
     EventHandler eventHandler_;
     MpvMediaGenerationAttributor mediaGenerationAttributor_;
     std::unique_ptr<player::playback::mpv::MpvHandle> handle_;
     std::unique_ptr<player::playback::mpv::MpvPropertyObserver> propertyObserver_;
+    std::unique_ptr<player::playback::mpv::MpvPropertyReader> propertyReader_;
     std::unique_ptr<player::playback::mpv::MpvEventLoop> eventLoop_;
     std::unique_ptr<player::playback::mpv::MpvCommandExecutor> commandExecutor_;
 };

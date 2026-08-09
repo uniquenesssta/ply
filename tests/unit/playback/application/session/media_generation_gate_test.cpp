@@ -69,6 +69,7 @@ private slots:
     void gateRejectsStaleAndUnattributedMediaEvents();
     void attributorSeparatesOverlappingAAndBEvents();
     void replacementEndBeforeStartKeepsOldPropertyFence();
+    void unmatchedFileLoadedDoesNotGuessActiveGeneration();
     void cancelledLoadDoesNotPoisonNextStartFile();
     void redirectEntriesKeepTheSameGeneration();
 };
@@ -117,6 +118,7 @@ void MediaGenerationTest::attributorSeparatesOverlappingAAndBEvents()
 
     const MediaGeneration lateFileLoadedA = attributor.attribute(fileLoaded());
     QCOMPARE(lateFileLoadedA.value(), generationA.value());
+    QVERIFY(!attributor.takePropertyRefreshGeneration().has_value());
 
     const MediaGeneration lateEndA = attributor.attribute(endFile(501));
     QCOMPARE(lateEndA.value(), generationA.value());
@@ -130,6 +132,10 @@ void MediaGenerationTest::attributorSeparatesOverlappingAAndBEvents()
 
     const MediaGeneration fileLoadedB = attributor.attribute(fileLoaded());
     QCOMPARE(fileLoadedB.value(), generationB.value());
+    const auto refreshB = attributor.takePropertyRefreshGeneration();
+    QVERIFY(refreshB.has_value());
+    QCOMPARE(refreshB->value(), generationB.value());
+    QVERIFY(!attributor.takePropertyRefreshGeneration().has_value());
     QCOMPARE(
         attributor.attribute(propertyChange(MpvPropertyId::Position)).value(),
         generationB.value());
@@ -158,6 +164,9 @@ void MediaGenerationTest::replacementEndBeforeStartKeepsOldPropertyFence()
 
     QCOMPARE(attributor.attribute(startFile(901)).value(), generationA.value());
     QCOMPARE(attributor.attribute(fileLoaded()).value(), generationA.value());
+    const auto refreshA = attributor.takePropertyRefreshGeneration();
+    QVERIFY(refreshA.has_value());
+    QCOMPARE(refreshA->value(), generationA.value());
     QCOMPARE(
         attributor.attribute(propertyChange(MpvPropertyId::Position)).value(),
         generationA.value());
@@ -175,9 +184,32 @@ void MediaGenerationTest::replacementEndBeforeStartKeepsOldPropertyFence()
         generationA.value());
 
     QCOMPARE(attributor.attribute(fileLoaded()).value(), generationB.value());
+    const auto refreshB = attributor.takePropertyRefreshGeneration();
+    QVERIFY(refreshB.has_value());
+    QCOMPARE(refreshB->value(), generationB.value());
     QCOMPARE(
         attributor.attribute(propertyChange(MpvPropertyId::Position)).value(),
         generationB.value());
+}
+
+void MediaGenerationTest::unmatchedFileLoadedDoesNotGuessActiveGeneration()
+{
+    MpvMediaGenerationAttributor attributor;
+    const MediaGeneration generationA{81};
+    const MediaGeneration generationB{82};
+
+    attributor.noteLoadSubmission(player::ids::RequestId{5001}, generationA);
+    attributor.noteLoadSubmission(player::ids::RequestId{5002}, generationB);
+    QCOMPARE(attributor.attribute(startFile(1001)).value(), generationA.value());
+    QCOMPARE(attributor.attribute(endFile(1001)).value(), generationA.value());
+    QCOMPARE(attributor.attribute(startFile(1002)).value(), generationB.value());
+
+    // Simulate an unmatched late FileLoaded after its loading entry was already removed.
+    // It has no playlist-entry identity, so guessing the active generation would violate
+    // R3-09's fail-closed rule.
+    QCOMPARE(attributor.attribute(endFile(1002)).value(), generationB.value());
+    QVERIFY(!attributor.attribute(fileLoaded()).isValid());
+    QVERIFY(!attributor.takePropertyRefreshGeneration().has_value());
 }
 
 void MediaGenerationTest::cancelledLoadDoesNotPoisonNextStartFile()
@@ -193,6 +225,9 @@ void MediaGenerationTest::cancelledLoadDoesNotPoisonNextStartFile()
 
     QCOMPARE(attributor.attribute(startFile(601)).value(), quint64{52});
     QCOMPARE(attributor.attribute(fileLoaded()).value(), quint64{52});
+    const auto refresh = attributor.takePropertyRefreshGeneration();
+    QVERIFY(refresh.has_value());
+    QCOMPARE(refresh->value(), quint64{52});
 }
 
 void MediaGenerationTest::redirectEntriesKeepTheSameGeneration()
@@ -207,6 +242,9 @@ void MediaGenerationTest::redirectEntriesKeepTheSameGeneration()
         generation.value());
     QCOMPARE(attributor.attribute(startFile(800)).value(), generation.value());
     QCOMPARE(attributor.attribute(fileLoaded()).value(), generation.value());
+    const auto refresh = attributor.takePropertyRefreshGeneration();
+    QVERIFY(refresh.has_value());
+    QCOMPARE(refresh->value(), generation.value());
 }
 
 } // namespace player::playback::application

@@ -4,6 +4,10 @@ target_sources(
         mpv_node_decoder.cpp
         mpv_node_decoder.h
         mpv_property_change.h
+        mpv_property_decoder.cpp
+        mpv_property_decoder.h
+        mpv_property_reader.cpp
+        mpv_property_reader.h
         mpv_property_registry.cpp
         mpv_property_registry.h
         mpv_property_observer.cpp

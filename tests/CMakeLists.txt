@@ -259,6 +259,32 @@ add_test(
 )
 
 add_executable(
+    mpv_property_reader_tests
+    unit/playback/infrastructure/mpv/properties/mpv_property_reader_test.cpp
+)
+
+player_apply_compiler_options(mpv_property_reader_tests)
+player_enable_compiler_warnings(mpv_property_reader_tests)
+player_enable_sanitizers(mpv_property_reader_tests)
+player_enable_static_analysis(mpv_property_reader_tests)
+
+target_link_libraries(
+    mpv_property_reader_tests
+    PRIVATE
+        player_mpv_infrastructure
+        LibMpv::LibMpv
+        Qt6::Core
+        Qt6::Test
+)
+
+player_stage_libmpv_runtime(mpv_property_reader_tests)
+
+add_test(
+    NAME mpv_property_reader
+    COMMAND mpv_property_reader_tests
+)
+
+add_executable(
     mpv_property_baseline_tests
     unit/playback/infrastructure/mpv/properties/mpv_property_baseline_test.cpp
 )
