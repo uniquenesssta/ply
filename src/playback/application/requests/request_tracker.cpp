@@ -1,5 +1,6 @@
 #include "request_tracker.h"
 
+#include "request_supersession_policy.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/speed_command.h"
@@ -43,6 +44,33 @@ RequestTrackStatus RequestTracker::track(
 
     records_.emplace(requestId.value(), std::move(record));
     return RequestTrackStatus::Tracked;
+}
+
+std::size_t RequestTracker::supersedePendingFor(
+    const PlaybackCommand& replacement,
+    MediaGeneration generation) noexcept
+{
+    const std::optional<PlaybackRequestType> replacementType = requestTypeFor(replacement);
+    if (!replacementType.has_value()) {
+        return 0;
+    }
+
+    std::size_t cancelled = 0;
+    for (auto& [id, record] : records_) {
+        Q_UNUSED(id);
+        if (record.requestId == replacement.requestId()) {
+            continue;
+        }
+        if (!shouldSupersedeRequest(record, *replacementType, generation)) {
+            continue;
+        }
+
+        markCancelled(record, PlaybackRequestCancellationReason::Superseded);
+        ++cancelled;
+    }
+
+    diagnostics_.supersessionCancellationCount += cancelled;
+    return cancelled;
 }
 
 RequestReplyResolution RequestTracker::resolve(
@@ -221,6 +249,9 @@ bool RequestTracker::isMediaScoped(PlaybackRequestType type) noexcept
     case PlaybackRequestType::Stop:
     case PlaybackRequestType::SeekAbsolute:
     case PlaybackRequestType::SeekRelative:
+    case PlaybackRequestType::SelectAudioTrack:
+    case PlaybackRequestType::SelectSubtitleTrack:
+    case PlaybackRequestType::SelectVideoTrack:
         return true;
     case PlaybackRequestType::SetVolume:
     case PlaybackRequestType::SetMuted:
