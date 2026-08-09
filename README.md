@@ -17,9 +17,13 @@
 - D2 最终产物：Window Surface、Video Viewport、Floating Header、OSC / Inspector / Overlay Host Contract、Narrow / Standard / Wide Responsive Contract。
 - D2-05 Breakpoint：Narrow=`0–839`、Standard=`840–1199`、Wide=`>=1200`。
 - D2-05 验证宽度：`720 / 960 / 1280 / 1600`；边界验证：`839 / 840 / 1199 / 1200`。
-- D2-05 Responsive Semantic：16 个 Variable；四个测试 Window 已真实消费 Header / OSC / Inspector / hit-target 响应式尺寸。
-- D2-05 最终审计：Visible Solid Paint `118/118` Semantic-bound，Unbound=`0`；D1 回归 Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`。
-- **下一任务：D3-01 OSC Surface 与内部网格。**
+- **D3：In Progress。**
+- D3-01：Complete — 已建立正式 `03 OSC` 与 `D3-01 / OSC Surface & Internal Grid`（`90:3`）。
+- D3-01 Width Rule：`surface = min(host - 2×26, 880)`；720/960/1280/1600 实测 Surface=`616 / 856 / 780 / 880`，四档 width error=`0`。
+- D3-01 Vertical Grid：Narrow=`12+26+6+40+22=106`；Standard/Wide=`18+28+14+40+24=124`。
+- D3-01 Responsive：`V3 / Responsive Semantic` 从 16 扩展到 23 个 Variable；OSC height/radius/inset/lane/padding/gap 由 Narrow / Standard / Wide Mode 解析。
+- D3-01 Paint Audit：Visible Solid Paint `141/141` Semantic-bound，Unbound=`0`；D1 回归 Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`；D2-01～05 全部保持。
+- **下一任务：D3-02 Timeline 基础几何。**
 
 ## Completed design tasks
 
@@ -40,7 +44,25 @@
 - D2-04：建立 Host 空间契约；冻结 Overlay z35 / OSC z40 / Inspector z50 及 12px / 26px 硬间隔。
 - D2-05：建立响应式窗口骨架；冻结 Narrow / Standard / Wide breakpoint 与 Inspector overlay/dock、OSC compact/standard、Utility/Volume 降级策略。
 
+### D3 OSC System
+
+- D3-01：建立 OSC Surface 与内部网格；冻结 Max Width、两层 Vertical Grid 与 Narrow / Standard / Wide 响应式几何。
+
 ## Change Log
+
+### 2026-08-09 — D3-01 OSC Surface 与内部网格
+
+- Figma：新增 Page `03 OSC`（`90:2`）与 `D3-01 / OSC Surface & Internal Grid`（`90:3`）。
+- Width：冻结 `surface=min(hostWidth-2×26,880)`；720/960/1280/1600 分别得到 `616/856/780/880`，全部 width error=`0`。
+- Grid：正式结构固定为 `Timeline Lane → Control Lane`；Narrow=`106px`，Standard/Wide=`124px`，Primary Playback 40px 不因 Narrow 缩小。
+- Geometry：新增 `size/26`、`size/28`、`size/880` 以及 11 个 OSC Geometry Semantic；当前 Geometry Semantic=`73`。
+- Responsive：新增 `osc/inset / radius / timeline-lane-height / control-lane-height / section-gap / padding-top / padding-bottom`，Responsive Semantic=`23`。
+- Material：Narrow OSC=`32% fill / 48% stroke / R32 / V3 Glass OSC Compact`；Standard/Wide=`34% / 48% / R34 / V3 Glass OSC`。
+- Ownership：D3-01 只冻结 Surface + Grid Slots；Timeline 细节留 D3-02/03，Transport/Volume/Utility 留 D3-04/05/06，Visibility 留 D3-07。
+- 修复：第一次 Board 创建因 Rectangle 不能 append Label 被 Figma 原子回滚；第二轮创建后又发现 Semantic Paint Binding 把 OSC/Guide/Inspector alpha 写回 100%，已恢复 55 个节点目标透明度，并将 Inspector Context 改为 outline-only。
+- 验证：D3-01 Visible Solid Paint=`141/141` Semantic-bound、Unbound=`0`；四档 Surface width/vertical sum 全部精确；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05 全部存在且未修改。
+- 记录：`docs/records/D3-01_OSCSurface与内部网格.md`。
+- 下一任务：`D3-02 Timeline 基础几何`。
 
 ### 2026-08-09 — D2-05 响应式窗口骨架；Stage D2 关闭
 
