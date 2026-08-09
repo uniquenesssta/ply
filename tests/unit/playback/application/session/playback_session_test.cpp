@@ -181,7 +181,11 @@ void PlaybackSessionTest::rapidReplacementKeepsLatestGeneration()
             return snapshot.lifecycle() == PlaybackLifecycleState::Ready
                 && snapshot.generation().value() == 2
                 && snapshot.media().source.has_value()
-                && *snapshot.media().source == mediaB;
+                && *snapshot.media().source == mediaB
+                && snapshot.media().path.has_value()
+                && snapshot.media().path->endsWith(QStringLiteral("rapid-b.wav"))
+                && snapshot.timeline().durationSeconds.has_value()
+                && std::abs(*snapshot.timeline().durationSeconds - 5.0) < 0.25;
         },
         7000));
 
@@ -191,6 +195,10 @@ void PlaybackSessionTest::rapidReplacementKeepsLatestGeneration()
     QCOMPARE(latest.lifecycle(), PlaybackLifecycleState::Ready);
     QVERIFY(latest.media().source.has_value());
     QCOMPARE(*latest.media().source, mediaB);
+    QVERIFY(latest.media().path.has_value());
+    QVERIFY(latest.media().path->endsWith(QStringLiteral("rapid-b.wav")));
+    QVERIFY(latest.timeline().durationSeconds.has_value());
+    QVERIFY(std::abs(*latest.timeline().durationSeconds - 5.0) < 0.25);
     QCOMPARE(harness.invariantViolations(), 0);
 
     QVERIFY2(harness.stop(&error), qPrintable(error));
