@@ -103,6 +103,7 @@ void RequestSupersessionTest::loadReplacementCancelsOlderLoadAcrossGenerations()
 
     QCOMPARE(tracker.supersedePendingFor(loadB, generationB), std::size_t{1});
     QCOMPARE(tracker.diagnostics().supersessionCancellationCount, std::size_t{1});
+    QCOMPARE(tracker.cancelMediaRequestsForGenerationChange(generationB), std::size_t{0});
 
     const auto oldLoad = tracker.record(player::ids::RequestId{1});
     QVERIFY(oldLoad.has_value());
