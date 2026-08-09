@@ -16,14 +16,14 @@
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - D2 最终产物：Window Surface、Video Viewport、Floating Header、OSC / Inspector / Overlay Host Contract、Narrow / Standard / Wide Responsive Contract。
 - D2-05 Breakpoint：Narrow=`0–839`、Standard=`840–1199`、Wide=`>=1200`。
-- D2-05 验证宽度：`720 / 960 / 1280 / 1600`；边界验证：`839 / 840 / 1199 / 1200`。
 - **D3：In Progress。**
-- D3-01：Complete — 已建立正式 `03 OSC` 与 `D3-01 / OSC Surface & Internal Grid`（`90:3`）。
-- D3-01 Width Rule：`surface = min(host - 2×26, 880)`；720/960/1280/1600 实测 Surface=`616 / 856 / 780 / 880`，四档 width error=`0`。
-- D3-01 Vertical Grid：Narrow=`12+26+6+40+22=106`；Standard/Wide=`18+28+14+40+24=124`。
-- D3-01 Responsive：`V3 / Responsive Semantic` 从 16 扩展到 23 个 Variable；OSC height/radius/inset/lane/padding/gap 由 Narrow / Standard / Wide Mode 解析。
-- D3-01 Paint Audit：Visible Solid Paint `141/141` Semantic-bound，Unbound=`0`；D1 回归 Color `142/142`、Typography `43/43`、Geometry `55/55`、Effect `25/25`；D2-01～05 全部保持。
-- **下一任务：D3-02 Timeline 基础几何。**
+- D3-01：Complete — 已建立正式 `03 OSC` 与 `D3-01 / OSC Surface & Internal Grid`（`90:3`）；OSC width=`min(host-52,880)`，Narrow=`106px`、Standard/Wide=`124px`。
+- **D3-02：Complete — 已建立 `D3-02 / Timeline Basic Geometry`（`95:8`）。**
+- D3-02 Timeline：Visual Track=`3px`、Hit Target=`16px`、Thumb=`10px`、Track Radius=`2px`；端点公式 `trackX=5 / trackWidth=W-10 / thumbX=ratio×trackWidth`。
+- D3-02 状态：0/50/100%、Unknown Duration、Non-seekable 已验证；560/728/828 三种实际 Lane 宽度共享同一几何。
+- D3-02 Token：新增 `size/timeline/hit-height`、Standard/Wide offset=`12`、Narrow offset=`10`、`control/buffered`、`control/thumb-border`；Thumb border=`1px / 28%`。
+- D3-02 最终审计：Visible Solid Paint=`144/144` Semantic-bound、Unbound=`0`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05 与 D3-01 保持。
+- **下一任务：D3-03 Timeline 交互状态。**
 
 ## Completed design tasks
 
@@ -47,8 +47,22 @@
 ### D3 OSC System
 
 - D3-01：建立 OSC Surface 与内部网格；冻结 Max Width、两层 Vertical Grid 与 Narrow / Standard / Wide 响应式几何。
+- D3-02：建立 Timeline 基础几何；冻结 3px Track、16px Hit Target、10px Thumb、Buffer/Progress/Disabled 语义与端点公式。
 
 ## Change Log
+
+### 2026-08-09 — D3-02 Timeline 基础几何
+
+- Figma：新增 `D3-02 / Timeline Basic Geometry`（`95:8`），覆盖 Anatomy、0/50/100%、Unknown、Non-seekable 与 560/728/828 Width Stress。
+- Geometry：Visual Track=`3px`、Hit Target=`16px`、Thumb=`10px`、Track Radius=`2px`；`trackX=5`、`trackWidth=W-10`、`thumbX=ratio×trackWidth`。
+- Endpoint QA：252px Timeline 的 0/50/100% Thumb left=`0/121/242`，100% Thumb right=`252`，右端误差=`0`。
+- Responsive：`timeline/control-offset` 为 Narrow=`10`、Standard/Wide=`12`；Track/Thumb/Hit Target 尺寸不因 Narrow 缩小。
+- Color：新增 `control/buffered` 与 `control/thumb-border`；Thumb 使用 1px / 28% 柔紫 inside stroke，解决亮色视频背景可读性。
+- 状态：Unknown 与 Non-seekable 保持同一 3px Base Track，不创建第二套几何；Progress/Buffer/Thumb 按状态移除或禁用。
+- 修复：第一轮 Hit Target 工程辅助层过强，已改为 Anatomy 极淡 outline、其余产品态完全隐藏；Thumb Border 变量绑定后 Stroke opacity 被写回 100%，已恢复全部 7 个 Thumb 到 28%。
+- 验证：D3-02 Visible Solid Paint=`144/144` Semantic-bound、Unbound=`0`；9 个 Timeline 样本 Hit Target=`16`、Track=`3`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05 与 D3-01 保持。
+- 记录：`docs/records/D3-02_Timeline基础几何.md`。
+- 下一任务：`D3-03 Timeline 交互状态`。
 
 ### 2026-08-09 — D3-01 OSC Surface 与内部网格
 
@@ -62,7 +76,6 @@
 - 修复：第一次 Board 创建因 Rectangle 不能 append Label 被 Figma 原子回滚；第二轮创建后又发现 Semantic Paint Binding 把 OSC/Guide/Inspector alpha 写回 100%，已恢复 55 个节点目标透明度，并将 Inspector Context 改为 outline-only。
 - 验证：D3-01 Visible Solid Paint=`141/141` Semantic-bound、Unbound=`0`；四档 Surface width/vertical sum 全部精确；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05 全部存在且未修改。
 - 记录：`docs/records/D3-01_OSCSurface与内部网格.md`。
-- 下一任务：`D3-02 Timeline 基础几何`。
 
 ### 2026-08-09 — D2-05 响应式窗口骨架；Stage D2 关闭
 
