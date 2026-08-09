@@ -397,3 +397,4 @@ add_test(
 
 add_subdirectory(unit/playback/domain)
 add_subdirectory(unit/playback/application)
+add_subdirectory(unit/playback/infrastructure/mpv/render)
