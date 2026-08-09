@@ -90,8 +90,7 @@ src/playback/domain/errors/
   event 模块不再拥有错误值类型本身。
 
 src/playback/domain/events/
-  按 lifecycle / media / position / buffering / property / failure / command-reply 拆分产品语义事件；
-  unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
+  按 lifecycle / media / position / buffering / property / failure / command-reply 分模块，unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
   当前只覆盖 R3-01 所需核心事件，track/chapter/video/audio domain model 留给后续对应任务。
 
 src/playback/domain/state/
@@ -1390,3 +1389,49 @@ R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事
 - Implemented a signal-only libmpv render update bridge with owner-thread callback registration, queued Qt delivery, in-flight callback draining and activation-epoch invalidation of stale queued requests.
 - Added independent `mpv_render_update_bridge` coverage including a generated-video continuous redraw path while keeping production rendering, QML video items and full shutdown coordination outside R4-03.
 - Windows configure/build/CTest remains pending before R4-03 acceptance; the expected reconfigured suite size is 31 tests.
+
+## R4-03 Windows verification and acceptance — current
+
+> 本节取代上一个 `R4-03 implementation status — current` 的待验证状态，并作为当前 development runtime marker 路径与 R4-03 验收状态的权威记录。早期 `Build and test` 小节中仍保留的 `build/<preset>/.player-development-root` / `../..` 是历史契约；当前实际契约已经改为 `build/<preset>/cmake/.player-development-root`，marker 内容为 `../../..`。
+
+R4-03 第一次 Windows build 在 CTest 前失败于 `mpv_render_update_bridge_tests.exe` 链接：MSVC 报告 `updateRequested()`、`staticMetaObject`、`metaObject()`、`qt_metacast`、`qt_metacall` 等 Qt meta-object 符号未解析，并以 `LNK1120: 5 unresolved externals` 结束。之后的手工 MOC 接线仍未形成稳定 Ninja 生成链；其中一次中间尝试的 build 正文没有在对话中提供，因此 README 不补写未观察到的具体 compiler/linker 错误。
+
+随后用户提供的明确 Ninja 失败为：`src/playback/infrastructure/mpv/render/moc_mpv_render_update_bridge.cpp` 已成为 `player_mpv_infrastructure_autogen_timestamp_deps` 依赖，但 `missing and no known rule to make it`。仅改成 `qt_generate_moc()` 后该跨目录 generated-source 问题仍存在。最终 `88cc68f58c275a5fadad3a705f185b42a45ef594` 在 `render/` 子目录建立专门的 MOC 生成 target，并令父级 `player_mpv_infrastructure` 显式依赖它，使生成 rule 与消费 target 闭环；生产 C++、R4-03 测试断言、libmpv callback 生命周期和公共接口没有因此改变。
+
+开发 marker 同期按实际 Windows build tree 统一到 `build/<preset>/cmake/.player-development-root`，marker route 为 `../../..`；`scripts/verify-project-layout.ps1` 的布局门禁随后同步到相同契约。该调整只影响开发构建/测试 staging，不改变 Player 用户可观察行为、生产依赖或 libmpv/Qt runtime 版本。
+
+用户在最终修正版 `agent/r4-stage` 上重新执行完整 configure/build/test。Configure 成功；`WrapVulkanHeaders` 未找到继续是非阻断提示。工具链与固定依赖实际确认 CMake 3.30.5、Ninja 1.12.1、Qt 6.8.3、MSVC 19.44 / toolset 14.44、Visual Studio 17.14、Windows SDK 10.0.26100.0、Windows 10.0.19045.0、libmpv 0.41.0 / FFmpeg 8.0.3 / libplacebo 7.351.0 / libass 0.17.4 可用；libmpv runtime SHA-256 保持 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc`，import SHA-256 保持 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`。
+
+测试前开发 marker 实际通过：
+
+```text
+[OK] Development runtime root marker -> build/windows-msvc-debug/cmake/.player-development-root
+ninja: no work to do.
+```
+
+最终 Windows CTest 实际结果：
+
+```text
+graphics_backend ................. Passed    0.53 sec
+playback_session ................. Passed    1.13 sec
+playback_shutdown ................ Passed    6.92 sec
+playback_media_generation ........ Passed    0.17 sec
+opengl_proc_resolver ............. Passed    0.61 sec
+mpv_render_context ............... Passed    0.65 sec
+mpv_render_update_bridge ......... Passed    1.08 sec
+100% tests passed, 0 tests failed out of 31
+Total Test time (real) = 15.31 sec
+```
+
+因此 R4-03 正式 Complete。`MpvRenderUpdateBridge` 的 callback→queued Qt 通知、deactivate 后旧 queued request 抑制、重复 activate/deactivate 生命周期以及运行时生成 Y4M 的持续 frame-update 路径已经在实际 Windows Qt 6.8.3 / MSVC / libmpv 0.41.0 环境通过；其余 30 项回归同时保持全绿。`build-r4.log` 仍是重定向文件且正文没有单独提供，因此本 README 不声明已经独立审计其中的 warning 文本。
+
+R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留；R4-04 只进入 QML-placeable video item 边界，不提前实现 R4-05 实际 FBO rendering。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。下一 Atomic Task：R4-04 QML Video Item。**
+
+### 2026-08-10 — R4-03 acceptance addendum
+
+- Accepted R4-03 from the user's explicitly reconfigured Windows tree: `mpv_render_update_bridge` passed in 1.08 seconds and all 31 CTests passed with 0 failures in 15.31 seconds total.
+- Confirmed the current development marker contract is `build/<preset>/cmake/.player-development-root` with `../../..`, and the layout verifier now checks the same contract.
+- Recorded the observed R4-03 build-gate history without inventing missing log details: initial unresolved Qt meta-object link symbols, later Ninja `missing and no known rule to make it`, then the explicit render-subdirectory MOC target dependency fix.
+- Kept actual FBO rendering, QML video-item rendering behavior and full callback/render/free/core shutdown coordination in R4-04/R4-05/R4-08 as planned; the existing R2-01 `player.log` diagnostic gap remains open.
