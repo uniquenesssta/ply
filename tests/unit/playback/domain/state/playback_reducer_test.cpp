@@ -4,6 +4,7 @@
 #include <QtTest/QTest>
 
 #include <optional>
+#include <utility>
 
 namespace player::playback::domain {
 namespace {
@@ -278,7 +279,11 @@ void PlaybackReducerTest::requestAndObservationEventsDoNotOwnSnapshotState()
     QVERIFY(next.transport() == PlaybackTransportState::Playing);
     QCOMPARE(*next.media().title, QStringLiteral("Old title"));
     QCOMPARE(*next.timeline().positionSeconds, 41.0);
-    QCOMPARE(*next.failure(), *current.failure());
+    QVERIFY(next.failure().has_value());
+    QVERIFY(current.failure().has_value());
+    QVERIFY(next.failure()->category == current.failure()->category);
+    QCOMPARE(next.failure()->backendCode, current.failure()->backendCode);
+    QCOMPARE(next.failure()->diagnostic, current.failure()->diagnostic);
 }
 
 void PlaybackReducerTest::protocolFailureIsRecordedWithoutInventingMediaFailure()
