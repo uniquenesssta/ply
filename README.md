@@ -12,19 +12,40 @@
 ## Current design status
 
 - 第三版核心框架：Main Player / Fullscreen / Playlist Inspector 已确认。
-- D1：In Progress。
+- **D1：Complete — D1-01 ～ D1-06 全部关闭。**
 - D1-01：Complete — 初始建立 `V3 / Primitive` 15 个基础色；D1-02 在真实语义映射时补充 `ink-800` 与 `violet/glow`，当前 Primitive Color 共 17 个。
 - D1-02：Complete — 已建立 `V3 / Semantic` / `Light Mist`，共 38 个 Semantic Color，并回刷 Main Player / Fullscreen / Playlist Inspector 的全部可见 Solid Paint。
 - D1-03：Complete — 已建立 `V3 / Type Primitive` 14 个 Typography Variable 与 17 个 V3 Text Style；三张核心框架 `43 / 43` 个文本节点已绑定正式 Text Style。
 - D1-04：Complete — 已建立 `V3 / Geometry Primitive` 38 个 FLOAT Variable 与 `V3 / Geometry Semantic` 49 个 Semantic Geometry；三张核心框架共 55 个目标节点已绑定 Size / Radius Geometry Variable。
 - D1-04 Spacing：23 个 Semantic Spacing 已建立；当前探索框架保持绝对布局，不强制转换 Auto Layout；Foundations 中 8 / 8 个 Spacing specimen 已真实绑定 GAP Variable，正式 Window / OSC / Inspector 组件从 D2 / D3 / D4 开始消费 Gap / Padding Token。
-- D1-05：Complete — 已建立 `V3 / Effect Primitive` 38 个 FLOAT Variable、`V3 / Material Semantic` 47 个 Semantic Material Variable，以及 16 个本地 V3 Effect Style。
-- D1-05 回刷：当前三张核心框架 25 / 25 个真实 Effect 节点已绑定正式 Effect Style，Assignment Issues = `0`，相关 Effect 节点未样式化残留 = `0`。
-- D1-05 材质：Window / Header / OSC / Control / Inspector / Field / Footer 与 Atmosphere 已形成明确职责；HUD / Dialog 只冻结独立语义，暂复用已验证材质层级，待 D5 真实状态场景验证。
-- D1-05 回归：Semantic Color `142 / 142`；Typography `43 / 43`；Geometry `55 / 55`；均无漏绑或回归。
-- 下一任务：D1-06 建立 Motion / Opacity / Z-order。
+- D1-05：Complete — 已建立 `V3 / Effect Primitive` 38 个 FLOAT Variable、`V3 / Material Semantic` 47 个 Semantic Material Variable，以及 16 个本地 V3 Effect Style；当前三张核心框架 25 / 25 个真实 Effect 节点已绑定正式 Effect Style。
+- D1-06：Complete — 已建立 `V3 / Interaction Primitive` 26 个 Variable 与 `V3 / Interaction Semantic` 42 个 Semantic Interaction Variable，包含 `Standard / Reduce Motion` 两个 Mode。
+- D1-06 Motion：12 / 12 个 Semantic Duration 在 `Reduce Motion` 下解析为 `0 ms`；建立 4-step Smoke Prototype 与 3 段真实 Smart Animate Reaction。
+- D1-06 Opacity / Z-order：Close 72% 已绑定 `opacity/control/idle`；建立 11 级 `z/*` 契约，并给当前 9 个关键产品层写入共享 Z-role 注记。
+- D1 最终回归：Semantic Color `142 / 142`；Typography `43 / 43`；Geometry `55 / 55`；Effect `25 / 25`；三张核心框架截图均通过。
+- **下一任务：D2-01 定义 Player Window 外壳。**
 
 ## Change Log
+
+### 2026-08-09 — D1-06 建立 Motion / Opacity / Z-order；Stage D1 关闭
+
+- 审计：三张核心框架可见节点 162 个、Prototype Reaction 0 个；唯一 Node opacity 例外为 Floating Header Close = 72%；现有 child order 已形成 `Video → Header/OSC → Inspector` 基本层级。
+- 实现：新增 `V3 / Interaction Primitive`，共 26 个 Variable，覆盖 duration / easing / alpha / z。
+- 实现：新增 `V3 / Interaction Semantic`，共 42 个 Semantic Variable：Motion 24、Opacity 7、Z-order 11；Collection Mode 为 `Standard / Reduce Motion`。
+- Motion：OSC 160/120ms、Inspector 240/180ms、Popover 160/120ms、HUD 160/120ms、Dialog 240/180ms、Toast 200/160ms；进入 Ease Out、退出 Ease In；禁止默认 spring / bounce。
+- Reduce Motion：12 / 12 个 Motion Duration Semantic 在 Reduce Motion Mode 下全部解析为 `0 ms`，不存在第二套组件动效。
+- Opacity：建立 hidden 0%、dialog scrim 18%、disabled 38%、idle 72%、pressed 84%、hover/visible 100%；Close 72% 已真实绑定 `opacity/control/idle`。
+- Z-order：建立 `Video 0 → Atmosphere 10 → Media 20 → Header 30 → OSC 40 → Inspector 50 → Popover 60 → HUD 70 → Toast 80 → Dialog Scrim 90 → Dialog 100`；Qt Quick/QML 后续使用同一 `z/*` 数值契约。
+- Figma：在 `01 Foundations` 新增 `D1-06 / Motion Opacity Z-order`（Node `41:2`）。
+- Prototype：创建 `41:155 / 41:170 / 41:185 / 41:200` 四个 Smoke Frame，并建立 3 段 `ON_CLICK + SMART_ANIMATE + EASE_OUT` Reaction；最终态同时保留 OSC / Inspector / HUD / Dialog。
+- 修复：普通 `setPluginData` 在当前 Host Runtime 不支持，原子回滚后改用 `setSharedPluginData(openai.v3player, z-role, ...)`。
+- 修复：Figma `OPACITY` Scope FLOAT 使用 0–100；初始 `0.72` 绑定后错误变成 `0.72%`，已统一修正 Primitive 为 0/18/38/72/84/100，Close 实际恢复 72%。
+- 修复：Smoke Final 初始 HUD 被 Dialog 完全遮挡；仅调整测试稿光学位置，不改变 Z-order，最终四层均可辨认。
+- 验证：Interaction Primitive 26、Semantic 42、Modes 2；Reduce Motion 12/12 = 0ms；Smoke Frame 4、Reaction 3、Mismatch 0；Close 72%；Z-role 产品节点 9。
+- D1 最终回归：Semantic Color `142 / 142`、Typography `43 / 43`、Geometry `55 / 55`、Effect `25 / 25`；Main / Fullscreen / Playlist Inspector / Foundations / Smoke Final 截图通过。
+- 边界：D1 只定义 transition duration/easing/opacity/z；OSC 自动隐藏 timer 生命周期留到 D3，不在 Foundations 建立第二套 timer 规则。
+- 记录：`docs/records/D1-06_建立MotionOpacityZOrder.md`。
+- 结论：Stage D1 关闭；下一任务为 `D2-01 定义 Player Window 外壳`。
 
 ### 2026-08-09 — D1-05 建立 Glass / Blur / Shadow
 
