@@ -10,6 +10,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QtGlobal>
 
 #include <utility>
 
@@ -19,7 +20,10 @@ PlaybackSessionBackend::PlaybackSessionBackend() = default;
 
 PlaybackSessionBackend::~PlaybackSessionBackend()
 {
-    shutdown();
+    if (handle_ != nullptr || propertyObserver_ != nullptr || eventLoop_ != nullptr
+        || commandExecutor_ != nullptr) {
+        qFatal("PlaybackSessionBackend must be shut down on the playback thread before destruction.");
+    }
 }
 
 void PlaybackSessionBackend::setEventHandler(EventHandler handler)

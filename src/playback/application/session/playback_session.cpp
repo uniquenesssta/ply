@@ -8,6 +8,7 @@
 #include "playback/domain/state/playback_reducer.h"
 
 #include <QThread>
+#include <QtGlobal>
 
 #include <limits>
 #include <utility>
@@ -87,11 +88,14 @@ PlaybackSession::PlaybackSession(QObject* parent)
 
 PlaybackSession::~PlaybackSession()
 {
-    if (isOnOwningThread()) {
-        executePlaybackShutdown(requestTracker_, requestTimeoutMonitor_.get(), *backend_);
-    } else {
-        backend_->shutdown();
+    if (!isOnOwningThread()) {
+        if (initialized_) {
+            qFatal("PlaybackSession with live backend resources must be destroyed on its owning playback thread.");
+        }
+        return;
     }
+
+    executePlaybackShutdown(requestTracker_, requestTimeoutMonitor_.get(), *backend_);
 }
 
 void PlaybackSession::initialize()
