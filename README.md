@@ -17,7 +17,7 @@
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
-- **D5：In Progress — D5-01 Complete。**
+- **D5：In Progress — D5-01 ～ D5-02 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -32,8 +32,9 @@
 - D4-05：Subtitles Content，唯一 Content Component Set `191:1565`。
 - D4-06：Chapters Content，唯一 Content Component Set `200:2168`。
 - D4-07：Inspector Responsive & Dismissal Contract，Contract `207:2497` / Verification `209:2497` / Prototype Navigation `216:3436`。
-- **D5-01：Feedback Priority Matrix，Page `219:2` / Contract `220:2` / Verification `221:2`。**
-- **下一任务：D5-02 Empty / Loading。**
+- D5-01：Feedback Priority Matrix，Page `219:2` / Contract `220:2` / Verification `221:2`。
+- **D5-02：Empty / Loading，Source `223:2` / Verification `223:3` / Player Status Overlay `225:30`。**
+- **下一任务：D5-03 Playing / Paused。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -459,15 +460,90 @@ Generic unnamed residues    = 0
 
 **D5-01：Complete。**
 
-## Next
+### D5-02 Empty / Loading · Complete
 
-**D5-02 — Empty / Loading**
-
-下一步直接消费 D5-01 已冻结的路由：
+Figma：
 
 ```text
-no media → Overlay · Empty
-loading local/network → Overlay · Loading
+Source / Components      223:2   D5-02 / Empty & Loading
+Verification             223:3   D5-02 / Verification
+Open Media Action        224:24  Feedback / Open Media Action
+Loading Indicator        224:25  Feedback / Loading Indicator
+Player Status Overlay    225:30  Player Status Overlay
 ```
 
-只设计 Empty / Loading 的 Status Overlay；保持同一 Player Window 几何，不提前实现 Buffering / Ended / Error / HUD / Toast / Dialog。
+继续消费 D5-01 已冻结路由：
+
+```text
+no media              → Overlay · Empty
+local/network loading → Overlay · Loading
+```
+
+单一 `Player Status Overlay` 只定义：
+
+```text
+State=Empty
+State=Loading
+```
+
+不提前加入 Playing / Paused / Buffering / Seeking / Ended / Error，也不创建平行 Overlay。
+
+Empty：
+
+- 无额外大卡片；在 `surface/empty` Player 背景上只保留小型 Media Glyph、标题、说明、Open Media CTA 与拖入提示。
+- `Feedback / Open Media Action`=`144×42`，State=`Default / Hover / Focus / Pressed`；Focus=`1.5px` 可见焦点环。
+- Open Media 是 Empty 唯一主动作，不拥有文件对话框实现或播放器状态真值。
+
+Loading：
+
+- `Feedback / Loading Indicator`=`28×28`，只表达媒体准备中，不表达 Buffering 百分比。
+- Loading 使用 `290×65` Compact Status Pod；Pod 背景继续绑定 `overlay/contrast-support`，通过独立背景层 opacity=`0.46` 保持语义绑定与透明度稳定，文字使用 `text/inverse`。
+- 不使用中央大 Spinner 卡片，不发 Toast/Dialog，不提前定义 Buffering 进度。
+
+真实 Host 验证：
+
+```text
+First Launch          230:13   960×700   Empty    Overlay 908×406 @ 26,106
+Local Loading         230:32   960×700   Loading  Overlay 908×406 @ 26,106
+Network Loading       231:34   960×700   Loading  Overlay 908×406 @ 26,106
+Pure Audio Loading    231:56   960×700   Loading  Overlay 908×406 @ 26,106
+Narrow Empty          231:91   720×700   Empty    Overlay 668×436 @ 26,102
+```
+
+验证事实：
+
+- Network Loading 在高亮/暗色/暖色拼接背景上仍保持可读。
+- Pure Audio 只替换媒体背景上下文；不复制第二套 Player Window 或 Status Overlay。
+- 720 Narrow 的 Empty CTA、文案和提示无横向溢出。
+- Header / OSC 只作为 D2 Host guide；D5-02 不拥有或修改其几何。
+
+最终审计：
+
+```text
+Feedback / Open Media Action  1 authority
+Feedback / Loading Indicator  1 authority
+Player Status Overlay         1 authority
+Player Status Overlay states  2 / 2 (Empty, Loading)
+Unexpected D5-03+ components  0
+New feedback variables        0
+Generic unnamed residues      0
+```
+
+所有源组件可见 Solid Paint 均保持 Semantic-bound；D5-01 Contract / Verification 坐标与尺寸未改变。
+
+本任务只修改 Figma 设计与根 README；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D5-02：Complete。**
+
+## Next
+
+**D5-03 — Playing / Paused**
+
+下一步继续消费 D5-01 已冻结规则：
+
+```text
+Playing → no transient feedback
+Paused  → Player State + D3 OSC persistent
+```
+
+保持同一 Player Window 几何；Playing 默认最少 UI，Paused 提高 OSC 可见性，但不创建中央巨大暂停图标或第二套播放器页面。
