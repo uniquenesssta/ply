@@ -1,6 +1,7 @@
 target_sources(
     player_playback_domain
     PRIVATE
+        playback_reducer.cpp
         playback_snapshot.cpp
     PUBLIC
         media_generation.h
@@ -8,6 +9,7 @@ target_sources(
         playback_controls_state.h
         playback_lifecycle_state.h
         playback_media_state.h
+        playback_reducer.h
         playback_snapshot.h
         playback_timeline_state.h
         playback_transport_state.h
