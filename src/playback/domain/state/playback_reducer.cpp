@@ -1,11 +1,22 @@
 #include "playback_reducer.h"
 
+#include <algorithm>
 #include <type_traits>
 #include <utility>
 #include <variant>
 
 namespace player::playback::domain {
 namespace {
+
+void clearMediaDetails(PlaybackSnapshotState& state)
+{
+    state.timeline = {};
+    state.buffering = {};
+    state.capabilities = {};
+    state.streams = {};
+    state.tracks = {};
+    state.chapters = {};
+}
 
 void clearForOpening(PlaybackSnapshotState& state)
 {
@@ -14,8 +25,7 @@ void clearForOpening(PlaybackSnapshotState& state)
     state.transport = PlaybackTransportState::Idle;
     state.media = {};
     state.media.source = source;
-    state.timeline = {};
-    state.buffering = {};
+    clearMediaDetails(state);
     state.failure.reset();
 }
 
@@ -24,8 +34,7 @@ void clearStoppedMedia(PlaybackSnapshotState& state)
     state.lifecycle = PlaybackLifecycleState::Empty;
     state.transport = PlaybackTransportState::Stopped;
     state.media = {};
-    state.timeline = {};
-    state.buffering = {};
+    clearMediaDetails(state);
     state.failure.reset();
 }
 
@@ -34,7 +43,9 @@ void markEnded(PlaybackSnapshotState& state)
     state.lifecycle = PlaybackLifecycleState::Ended;
     state.transport = PlaybackTransportState::Stopped;
     state.timeline.seeking = false;
-    state.buffering = {};
+    state.buffering.active = false;
+    state.buffering.progressPercent.reset();
+    state.buffering.cache.reset();
     state.failure.reset();
 }
 
@@ -45,9 +56,69 @@ void markMediaFailed(PlaybackSnapshotState& state, const PlaybackFailure& failur
     state.transport = PlaybackTransportState::Stopped;
     state.media = {};
     state.media.source = source;
-    state.timeline = {};
-    state.buffering = {};
+    clearMediaDetails(state);
     state.failure = failure;
+}
+
+bool trackExists(
+    const PlaybackTrackState& state,
+    qint64 id,
+    TrackKind kind)
+{
+    return std::any_of(
+        state.tracks.cbegin(),
+        state.tracks.cend(),
+        [id, kind](const TrackDescriptor& track) {
+            return track.id == id && track.kind == kind;
+        });
+}
+
+void applySelectedTrack(
+    PlaybackTrackState& state,
+    std::optional<qint64>& selected,
+    const std::optional<qint64>& incoming,
+    TrackKind kind)
+{
+    if (!incoming.has_value()) {
+        selected.reset();
+        return;
+    }
+    if (trackExists(state, *incoming, kind)) {
+        selected = incoming;
+    }
+}
+
+void rebuildTrackSelectionsAndCapabilities(PlaybackSnapshotState& state)
+{
+    state.tracks.selectedVideoId.reset();
+    state.tracks.selectedAudioId.reset();
+    state.tracks.selectedSubtitleId.reset();
+    state.capabilities.hasVideoTrack = false;
+    state.capabilities.hasAudioTrack = false;
+    state.capabilities.hasSubtitleTrack = false;
+
+    for (const TrackDescriptor& track : state.tracks.tracks) {
+        switch (track.kind) {
+        case TrackKind::Video:
+            state.capabilities.hasVideoTrack = true;
+            if (track.selected && !state.tracks.selectedVideoId.has_value()) {
+                state.tracks.selectedVideoId = track.id;
+            }
+            break;
+        case TrackKind::Audio:
+            state.capabilities.hasAudioTrack = true;
+            if (track.selected && !state.tracks.selectedAudioId.has_value()) {
+                state.tracks.selectedAudioId = track.id;
+            }
+            break;
+        case TrackKind::Subtitle:
+            state.capabilities.hasSubtitleTrack = true;
+            if (track.selected && !state.tracks.selectedSubtitleId.has_value()) {
+                state.tracks.selectedSubtitleId = track.id;
+            }
+            break;
+        }
+    }
 }
 
 } // namespace
@@ -109,6 +180,8 @@ PlaybackSnapshot reducePlaybackSnapshot(
                 }
             } else if constexpr (std::is_same_v<Payload, BufferingProgressChangedEvent>) {
                 state.buffering.progressPercent = payload.percent;
+            } else if constexpr (std::is_same_v<Payload, CacheStatusChangedEvent>) {
+                state.buffering.cache = payload.status;
             } else if constexpr (std::is_same_v<Payload, PauseChangedEvent>) {
                 if (payload.paused.has_value()) {
                     state.transport = *payload.paused
@@ -121,15 +194,42 @@ PlaybackSnapshot reducePlaybackSnapshot(
                 state.controls.muted = payload.muted;
             } else if constexpr (std::is_same_v<Payload, SpeedChangedEvent>) {
                 state.controls.speed = payload.rate;
+            } else if constexpr (std::is_same_v<Payload, TrackListChangedEvent>) {
+                state.tracks.tracks = payload.tracks;
+                rebuildTrackSelectionsAndCapabilities(state);
+            } else if constexpr (std::is_same_v<Payload, SelectedVideoTrackChangedEvent>) {
+                applySelectedTrack(
+                    state.tracks,
+                    state.tracks.selectedVideoId,
+                    payload.trackId,
+                    TrackKind::Video);
+            } else if constexpr (std::is_same_v<Payload, SelectedAudioTrackChangedEvent>) {
+                applySelectedTrack(
+                    state.tracks,
+                    state.tracks.selectedAudioId,
+                    payload.trackId,
+                    TrackKind::Audio);
+            } else if constexpr (std::is_same_v<Payload, SelectedSubtitleTrackChangedEvent>) {
+                applySelectedTrack(
+                    state.tracks,
+                    state.tracks.selectedSubtitleId,
+                    payload.trackId,
+                    TrackKind::Subtitle);
+            } else if constexpr (std::is_same_v<Payload, ChapterListChangedEvent>) {
+                state.chapters.chapters = payload.chapters;
+                state.capabilities.hasChapters = !payload.chapters.isEmpty();
+            } else if constexpr (std::is_same_v<Payload, VideoStreamInfoChangedEvent>) {
+                state.streams.video = payload.info;
+            } else if constexpr (std::is_same_v<Payload, AudioStreamInfoChangedEvent>) {
+                state.streams.audio = payload.info;
             } else if constexpr (std::is_same_v<Payload, PlaybackFailureEvent>) {
                 state.failure = payload.failure;
             } else if constexpr (
                 std::is_same_v<Payload, CoreIdleChangedEvent>
                 || std::is_same_v<Payload, EofReachedChangedEvent>
                 || std::is_same_v<Payload, CommandReplyEvent>) {
-                // These events carry backend/request observations, but they do not own
-                // PlaybackSnapshot truth at R3-03. Later tasks consume them where their
-                // responsibilities live (RequestTracker / Session policy).
+                // These observations are consumed by Session/request policy rather than
+                // owning PlaybackSnapshot state directly.
             }
         },
         event.payload);

@@ -1,12 +1,15 @@
 #pragma once
 
 #include "playback/domain/events/buffering_event.h"
+#include "playback/domain/events/chapter_event.h"
 #include "playback/domain/events/command_event.h"
 #include "playback/domain/events/failure_event.h"
 #include "playback/domain/events/lifecycle_event.h"
 #include "playback/domain/events/media_event.h"
 #include "playback/domain/events/position_event.h"
 #include "playback/domain/events/property_event.h"
+#include "playback/domain/events/stream_event.h"
+#include "playback/domain/events/track_event.h"
 #include "playback/domain/state/media_generation.h"
 
 #include <variant>
@@ -27,12 +30,20 @@ using PlaybackEventPayload = std::variant<
     SeekingChangedEvent,
     BufferingChangedEvent,
     BufferingProgressChangedEvent,
+    CacheStatusChangedEvent,
     PauseChangedEvent,
     VolumeChangedEvent,
     MuteChangedEvent,
     SpeedChangedEvent,
     CoreIdleChangedEvent,
     EofReachedChangedEvent,
+    TrackListChangedEvent,
+    SelectedVideoTrackChangedEvent,
+    SelectedAudioTrackChangedEvent,
+    SelectedSubtitleTrackChangedEvent,
+    ChapterListChangedEvent,
+    VideoStreamInfoChangedEvent,
+    AudioStreamInfoChangedEvent,
     CommandReplyEvent,
     PlaybackFailureEvent>;
 

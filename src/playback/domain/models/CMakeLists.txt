@@ -1,0 +1,9 @@
+target_sources(
+    player_playback_domain
+    PUBLIC
+        audio_stream_info.h
+        cache_status.h
+        chapter_descriptor.h
+        track_descriptor.h
+        video_stream_info.h
+)

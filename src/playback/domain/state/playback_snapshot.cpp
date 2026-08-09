@@ -68,6 +68,26 @@ const PlaybackControlsState& PlaybackSnapshot::controls() const noexcept
     return state_.controls;
 }
 
+const PlaybackCapabilitiesState& PlaybackSnapshot::capabilities() const noexcept
+{
+    return state_.capabilities;
+}
+
+const PlaybackStreamState& PlaybackSnapshot::streams() const noexcept
+{
+    return state_.streams;
+}
+
+const PlaybackTrackState& PlaybackSnapshot::tracks() const noexcept
+{
+    return state_.tracks;
+}
+
+const PlaybackChapterState& PlaybackSnapshot::chapters() const noexcept
+{
+    return state_.chapters;
+}
+
 const std::optional<PlaybackFailure>& PlaybackSnapshot::failure() const noexcept
 {
     return state_.failure;

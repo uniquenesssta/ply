@@ -1,6 +1,7 @@
 add_library(player_playback_domain STATIC)
 
 add_subdirectory(errors)
+add_subdirectory(models)
 add_subdirectory(commands)
 add_subdirectory(events)
 add_subdirectory(state)

@@ -84,13 +84,23 @@ void MediaGenerationTest::gateRejectsStaleAndUnattributedMediaEvents()
     QVERIFY(!gate.accepts(mediaEvent(
         MediaEndedEvent{MediaEndReason::Eof},
         MediaGeneration{41})));
+    QVERIFY(!gate.accepts(mediaEvent(TrackListChangedEvent{}, MediaGeneration{41})));
+    QVERIFY(!gate.accepts(mediaEvent(ChapterListChangedEvent{}, MediaGeneration{41})));
 
     QVERIFY(gate.accepts(mediaEvent(MediaPathChangedEvent{QStringLiteral("B.wav")}, MediaGeneration{42})));
+    QVERIFY(gate.accepts(mediaEvent(TrackListChangedEvent{}, MediaGeneration{42})));
     QVERIFY(gate.accepts(PlaybackEvent{VolumeChangedEvent{50.0}}));
     QVERIFY(!gate.accepts(PlaybackEvent{DurationChangedEvent{12.0}}));
 
+    const PlaybackFailure protocolFailure{
+        PlaybackFailureCategory::Protocol,
+        0,
+        QStringLiteral("stale media property")};
+    QVERIFY(!gate.accepts(mediaEvent(PlaybackFailureEvent{protocolFailure}, MediaGeneration{41})));
+    QVERIFY(gate.accepts(PlaybackEvent{PlaybackFailureEvent{protocolFailure}}));
+
     QCOMPARE(gate.currentGeneration().value(), quint64{42});
-    QCOMPARE(gate.diagnostics().staleGenerationEventCount, quint64{3});
+    QCOMPARE(gate.diagnostics().staleGenerationEventCount, quint64{6});
     QCOMPARE(gate.diagnostics().missingGenerationEventCount, quint64{1});
 }
 
@@ -110,8 +120,6 @@ void MediaGenerationTest::attributorSeparatesOverlappingAAndBEvents()
 
     QCOMPARE(attributor.attribute(startFile(502)).value(), generationB.value());
 
-    // Replacement fence: until B itself reaches FileLoaded, media properties stay
-    // attributed to the previously established generation and are rejected by B's gate.
     const MediaGeneration transitionPosition = attributor.attribute(
         propertyChange(MpvPropertyId::Position));
     QCOMPARE(transitionPosition.value(), generationA.value());
@@ -148,8 +156,8 @@ void MediaGenerationTest::attributorSeparatesOverlappingAAndBEvents()
     QVERIFY(!gate.accepts(mediaEvent(
         MediaEndedEvent{MediaEndReason::Stopped},
         lateEndA)));
-    QVERIFY(!gate.accepts(mediaEvent(MediaTitleChangedEvent{QStringLiteral("A")}, lateTrackA)));
-    QVERIFY(!gate.accepts(mediaEvent(MediaPathChangedEvent{QStringLiteral("A")}, lateChapterA)));
+    QVERIFY(!gate.accepts(mediaEvent(TrackListChangedEvent{}, lateTrackA)));
+    QVERIFY(!gate.accepts(mediaEvent(ChapterListChangedEvent{}, lateChapterA)));
     QVERIFY(gate.accepts(mediaEvent(MediaLoadedEvent{}, fileLoadedB)));
 }
 
@@ -171,8 +179,6 @@ void MediaGenerationTest::replacementEndBeforeStartKeepsOldPropertyFence()
         attributor.attribute(propertyChange(MpvPropertyId::Position)).value(),
         generationA.value());
 
-    // B is already accepted by Session, but libmpv may end A before emitting StartFile for B.
-    // Keep A as the property attribution fence until B itself reaches FileLoaded.
     QCOMPARE(attributor.attribute(endFile(901)).value(), generationA.value());
     QCOMPARE(
         attributor.attribute(propertyChange(MpvPropertyId::MediaTitle)).value(),
@@ -204,9 +210,6 @@ void MediaGenerationTest::unmatchedFileLoadedDoesNotGuessActiveGeneration()
     QCOMPARE(attributor.attribute(endFile(1001)).value(), generationA.value());
     QCOMPARE(attributor.attribute(startFile(1002)).value(), generationB.value());
 
-    // Simulate an unmatched late FileLoaded after its loading entry was already removed.
-    // It has no playlist-entry identity, so guessing the active generation would violate
-    // R3-09's fail-closed rule.
     QCOMPARE(attributor.attribute(endFile(1002)).value(), generationB.value());
     QVERIFY(!attributor.attribute(fileLoaded()).isValid());
     QVERIFY(!attributor.takePropertyRefreshGeneration().has_value());

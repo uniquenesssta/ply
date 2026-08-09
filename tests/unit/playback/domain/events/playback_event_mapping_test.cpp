@@ -4,6 +4,8 @@
 #include "playback/infrastructure/mpv/properties/mpv_property_change.h"
 
 #include <QVariant>
+#include <QVariantList>
+#include <QVariantMap>
 #include <QtTest/QTest>
 
 #include <variant>
@@ -21,6 +23,7 @@ private slots:
     void mapsEndReasonsAndFailures();
     void mapsCommandReplies();
     void mapsCoreProperties();
+    void mapsTypedMediaStateProperties();
     void mapsUnavailableProperty();
     void rejectsUnexpectedPropertyShape();
     void ignoresNonDomainEvents();
@@ -147,6 +150,49 @@ void PlaybackEventMappingTest::mapsCoreProperties()
     QCOMPARE(*titleEvent->title, QStringLiteral("Domain title"));
 }
 
+void PlaybackEventMappingTest::mapsTypedMediaStateProperties()
+{
+    QVariantMap audioTrack;
+    audioTrack.insert(QStringLiteral("id"), QVariant::fromValue<qlonglong>(3));
+    audioTrack.insert(QStringLiteral("type"), QStringLiteral("audio"));
+    audioTrack.insert(QStringLiteral("selected"), true);
+
+    MpvEvent trackList;
+    trackList.type = MpvEventType::PropertyChange;
+    trackList.payload = MpvPropertyChange{
+        MpvPropertyId::TrackList,
+        QVariant{QVariantList{audioTrack}}};
+    const auto mappedTracks = MpvPlaybackEventMapper::map(trackList);
+    QVERIFY(mappedTracks.has_value());
+    const auto* tracks = std::get_if<TrackListChangedEvent>(&mappedTracks->payload);
+    QVERIFY(tracks != nullptr);
+    QCOMPARE(tracks->tracks.size(), qsizetype{1});
+    QCOMPARE(tracks->tracks.front().kind, TrackKind::Audio);
+
+    MpvEvent selectedAudio;
+    selectedAudio.type = MpvEventType::PropertyChange;
+    selectedAudio.payload = MpvPropertyChange{
+        MpvPropertyId::SelectedAudioTrack,
+        QVariant::fromValue<qlonglong>(3)};
+    const auto mappedSelection = MpvPlaybackEventMapper::map(selectedAudio);
+    QVERIFY(mappedSelection.has_value());
+    const auto* selection = std::get_if<SelectedAudioTrackChangedEvent>(&mappedSelection->payload);
+    QVERIFY(selection != nullptr);
+    QVERIFY(selection->trackId.has_value());
+    QCOMPARE(*selection->trackId, qint64{3});
+
+    QVariantMap audioParams;
+    audioParams.insert(QStringLiteral("samplerate"), QVariant::fromValue<qlonglong>(48000));
+    MpvEvent audioInfo;
+    audioInfo.type = MpvEventType::PropertyChange;
+    audioInfo.payload = MpvPropertyChange{
+        MpvPropertyId::AudioParams,
+        QVariant{audioParams}};
+    const auto mappedAudio = MpvPlaybackEventMapper::map(audioInfo);
+    QVERIFY(mappedAudio.has_value());
+    QVERIFY(std::holds_alternative<AudioStreamInfoChangedEvent>(mappedAudio->payload));
+}
+
 void PlaybackEventMappingTest::mapsUnavailableProperty()
 {
     MpvEvent duration;
@@ -173,6 +219,19 @@ void PlaybackEventMappingTest::rejectsUnexpectedPropertyShape()
     const auto* failure = std::get_if<PlaybackFailureEvent>(&mapped->payload);
     QVERIFY(failure != nullptr);
     QCOMPARE(failure->failure.category, PlaybackFailureCategory::Protocol);
+
+    QVariantMap malformedTrack;
+    malformedTrack.insert(QStringLiteral("type"), QStringLiteral("audio"));
+    MpvEvent malformedTrackList;
+    malformedTrackList.type = MpvEventType::PropertyChange;
+    malformedTrackList.payload = MpvPropertyChange{
+        MpvPropertyId::TrackList,
+        QVariant{QVariantList{malformedTrack}}};
+    const auto mappedMalformedTrack = MpvPlaybackEventMapper::map(malformedTrackList);
+    QVERIFY(mappedMalformedTrack.has_value());
+    const auto* trackFailure = std::get_if<PlaybackFailureEvent>(&mappedMalformedTrack->payload);
+    QVERIFY(trackFailure != nullptr);
+    QCOMPARE(trackFailure->failure.category, PlaybackFailureCategory::Protocol);
 }
 
 void PlaybackEventMappingTest::ignoresNonDomainEvents()
@@ -186,13 +245,6 @@ void PlaybackEventMappingTest::ignoresNonDomainEvents()
     unknown.type = MpvEventType::Unknown;
     unknown.payload = MpvUnknownEventData{999};
     QVERIFY(!MpvPlaybackEventMapper::map(unknown).has_value());
-
-    MpvEvent trackList;
-    trackList.type = MpvEventType::PropertyChange;
-    trackList.payload = MpvPropertyChange{
-        MpvPropertyId::TrackList,
-        QVariantList{}};
-    QVERIFY(!MpvPlaybackEventMapper::map(trackList).has_value());
 }
 
 } // namespace player::playback::mpv

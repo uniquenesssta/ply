@@ -53,6 +53,7 @@ private slots:
     void detectsFailedStateWithoutFailure();
     void detectsBufferingOutsideActiveMedia();
     void detectsSeekingConflicts();
+    void detectsSelectedTrackOutsideCurrentList();
     void detectsGenerationRegression();
 };
 
@@ -99,6 +100,13 @@ void PlaybackInvariantsTest::reducerMainPathProducesValidSnapshots()
     snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(SeekingChangedEvent{true}));
     QVERIFY(checkPlaybackSnapshotInvariants(snapshot).empty());
 
+    TrackDescriptor audio;
+    audio.id = 2;
+    audio.kind = TrackKind::Audio;
+    audio.selected = true;
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(TrackListChangedEvent{{audio}}));
+    QVERIFY(checkPlaybackSnapshotInvariants(snapshot).empty());
+
     snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(SeekingChangedEvent{false}));
     snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(BufferingChangedEvent{true}));
     QVERIFY(checkPlaybackSnapshotInvariants(snapshot).empty());
@@ -117,6 +125,10 @@ void PlaybackInvariantsTest::detectsMediaStateWithoutMedia()
     state.transport = PlaybackTransportState::Stopped;
     state.media.title = QStringLiteral("stale title");
     state.timeline.positionSeconds = 12.0;
+    TrackDescriptor audio;
+    audio.id = 3;
+    audio.kind = TrackKind::Audio;
+    state.tracks.tracks.append(audio);
 
     const PlaybackInvariantViolations violations = checkPlaybackSnapshotInvariants(
         PlaybackSnapshot{std::move(state)});
@@ -211,6 +223,23 @@ void PlaybackInvariantsTest::detectsSeekingConflicts()
     QVERIFY(containsViolation(
         notSeekableViolations,
         PlaybackInvariantViolation::SeekingWhenNotSeekable));
+}
+
+void PlaybackInvariantsTest::detectsSelectedTrackOutsideCurrentList()
+{
+    PlaybackSnapshotState state = readySnapshot().state();
+    TrackDescriptor audio;
+    audio.id = 2;
+    audio.kind = TrackKind::Audio;
+    state.tracks.tracks.append(audio);
+    state.tracks.selectedAudioId = 99;
+
+    const PlaybackInvariantViolations violations = checkPlaybackSnapshotInvariants(
+        PlaybackSnapshot{std::move(state)});
+
+    QVERIFY(containsViolation(
+        violations,
+        PlaybackInvariantViolation::SelectedTrackMissingFromCurrentMedia));
 }
 
 void PlaybackInvariantsTest::detectsGenerationRegression()

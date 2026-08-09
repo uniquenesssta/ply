@@ -24,7 +24,7 @@ namespace {
 
 using player::playback::mpv::MpvPropertyId;
 
-constexpr std::array<MpvPropertyId, 9> kMediaRefreshProperties{
+constexpr std::array<MpvPropertyId, 17> kMediaRefreshProperties{
     MpvPropertyId::Position,
     MpvPropertyId::Duration,
     MpvPropertyId::Pause,
@@ -32,8 +32,16 @@ constexpr std::array<MpvPropertyId, 9> kMediaRefreshProperties{
     MpvPropertyId::Seeking,
     MpvPropertyId::PausedForCache,
     MpvPropertyId::CacheBufferingState,
+    MpvPropertyId::DemuxerCacheState,
     MpvPropertyId::MediaTitle,
     MpvPropertyId::Path,
+    MpvPropertyId::TrackList,
+    MpvPropertyId::ChapterList,
+    MpvPropertyId::SelectedAudioTrack,
+    MpvPropertyId::SelectedSubtitleTrack,
+    MpvPropertyId::SelectedVideoTrack,
+    MpvPropertyId::VideoParams,
+    MpvPropertyId::AudioParams,
 };
 
 } // namespace

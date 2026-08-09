@@ -1,5 +1,6 @@
 #include "mpv_playback_event_mapper.h"
 
+#include "mpv_media_model_mapper.h"
 #include "playback/infrastructure/mpv/properties/mpv_property_registry.h"
 
 #include <QVariant>
@@ -42,6 +43,9 @@ PlaybackFailure makeFailure(
 
 PlaybackEvent makeProtocolFailure(QString diagnostic)
 {
+    if (diagnostic.isEmpty()) {
+        diagnostic = QStringLiteral("Playback backend property could not be mapped into a domain value.");
+    }
     return PlaybackEvent{PlaybackFailureEvent{
         makeFailure(PlaybackFailureCategory::Protocol, 0, std::move(diagnostic))}};
 }
@@ -73,6 +77,16 @@ MediaEndReason mapEndReason(MpvEndFileReason reason)
     }
 
     return MediaEndReason::Unknown;
+}
+
+std::optional<PlaybackEvent> mapComplexMediaProperty(const MpvPropertyChange& change)
+{
+    QString diagnostic;
+    auto mapped = MpvMediaModelMapper::map(change, &diagnostic);
+    if (mapped.has_value()) {
+        return mapped;
+    }
+    return makeProtocolFailure(std::move(diagnostic));
 }
 
 std::optional<PlaybackEvent> mapProperty(const MpvPropertyChange& change)
@@ -174,7 +188,7 @@ std::optional<PlaybackEvent> mapProperty(const MpvPropertyChange& change)
     case MpvPropertyId::SelectedVideoTrack:
     case MpvPropertyId::VideoParams:
     case MpvPropertyId::AudioParams:
-        return std::nullopt;
+        return mapComplexMediaProperty(change);
     }
 
     return std::nullopt;

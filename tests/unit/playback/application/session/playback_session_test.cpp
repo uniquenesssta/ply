@@ -13,6 +13,7 @@
 #include <QTemporaryDir>
 #include <QThread>
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -24,6 +25,25 @@ using namespace player::playback::domain;
 PlaybackCommand makeCommand(quint64 requestId, PlaybackCommandPayload payload)
 {
     return PlaybackCommand{player::ids::RequestId{requestId}, std::move(payload)};
+}
+
+bool hasResolvedAudioState(const PlaybackSnapshot& snapshot)
+{
+    if (!snapshot.capabilities().hasAudioTrack
+        || !snapshot.tracks().selectedAudioId.has_value()
+        || !snapshot.streams().audio.has_value()
+        || !snapshot.streams().audio->sampleRate.has_value()
+        || *snapshot.streams().audio->sampleRate <= 0) {
+        return false;
+    }
+
+    const qint64 selectedId = *snapshot.tracks().selectedAudioId;
+    return std::any_of(
+        snapshot.tracks().tracks.cbegin(),
+        snapshot.tracks().tracks.cend(),
+        [selectedId](const TrackDescriptor& track) {
+            return track.id == selectedId && track.kind == TrackKind::Audio;
+        });
 }
 
 } // namespace
@@ -68,7 +88,8 @@ void PlaybackSessionTest::realMediaMainPathRunsOnPlaybackThread()
             return snapshot.lifecycle() == PlaybackLifecycleState::Ready
                 && snapshot.generation().value() == 1
                 && snapshot.media().source.has_value()
-                && *snapshot.media().source == mediaPath;
+                && *snapshot.media().source == mediaPath
+                && hasResolvedAudioState(snapshot);
         },
         7000));
 
@@ -140,7 +161,11 @@ void PlaybackSessionTest::realMediaMainPathRunsOnPlaybackThread()
             return snapshot.lifecycle() == PlaybackLifecycleState::Empty
                 && snapshot.transport() == PlaybackTransportState::Stopped
                 && snapshot.generation().value() == 1
-                && !snapshot.media().source.has_value();
+                && !snapshot.media().source.has_value()
+                && snapshot.tracks().tracks.isEmpty()
+                && snapshot.chapters().chapters.isEmpty()
+                && !snapshot.streams().audio.has_value()
+                && !snapshot.capabilities().hasAudioTrack;
         },
         5000));
 
@@ -185,7 +210,8 @@ void PlaybackSessionTest::rapidReplacementKeepsLatestGeneration()
                 && snapshot.media().path.has_value()
                 && snapshot.media().path->endsWith(QStringLiteral("rapid-b.wav"))
                 && snapshot.timeline().durationSeconds.has_value()
-                && std::abs(*snapshot.timeline().durationSeconds - 5.0) < 0.25;
+                && std::abs(*snapshot.timeline().durationSeconds - 5.0) < 0.25
+                && hasResolvedAudioState(snapshot);
         },
         7000));
 
@@ -199,6 +225,7 @@ void PlaybackSessionTest::rapidReplacementKeepsLatestGeneration()
     QVERIFY(latest.media().path->endsWith(QStringLiteral("rapid-b.wav")));
     QVERIFY(latest.timeline().durationSeconds.has_value());
     QVERIFY(std::abs(*latest.timeline().durationSeconds - 5.0) < 0.25);
+    QVERIFY(hasResolvedAudioState(latest));
     QCOMPARE(harness.invariantViolations(), 0);
 
     QVERIFY2(harness.stop(&error), qPrintable(error));

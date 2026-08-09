@@ -114,9 +114,14 @@ bool StatePublisher::equalExceptPosition(
         && left.timeline().seeking == right.timeline().seeking
         && left.buffering().active == right.buffering().active
         && left.buffering().progressPercent == right.buffering().progressPercent
+        && left.buffering().cache == right.buffering().cache
         && left.controls().volumePercent == right.controls().volumePercent
         && left.controls().muted == right.controls().muted
         && left.controls().speed == right.controls().speed
+        && left.capabilities() == right.capabilities()
+        && left.streams() == right.streams()
+        && left.tracks() == right.tracks()
+        && left.chapters() == right.chapters()
         && failuresEqual(left.failure(), right.failure());
 }
 

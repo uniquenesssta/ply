@@ -2,6 +2,7 @@ target_sources(
     player_playback_domain
     PUBLIC
         buffering_event.h
+        chapter_event.h
         command_event.h
         failure_event.h
         lifecycle_event.h
@@ -9,4 +10,6 @@ target_sources(
         playback_event.h
         position_event.h
         property_event.h
+        stream_event.h
+        track_event.h
 )

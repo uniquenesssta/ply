@@ -18,6 +18,7 @@ enum class PlaybackInvariantViolation : quint8
     BufferingOutsideActiveMedia,
     SeekingOutsideReadyMedia,
     SeekingWhenNotSeekable,
+    SelectedTrackMissingFromCurrentMedia,
     GenerationRegressed,
 };
 

@@ -1,11 +1,14 @@
 #include "media_generation_gate.h"
 
 #include "playback/domain/events/buffering_event.h"
+#include "playback/domain/events/chapter_event.h"
 #include "playback/domain/events/failure_event.h"
 #include "playback/domain/events/lifecycle_event.h"
 #include "playback/domain/events/media_event.h"
 #include "playback/domain/events/position_event.h"
 #include "playback/domain/events/property_event.h"
+#include "playback/domain/events/stream_event.h"
+#include "playback/domain/events/track_event.h"
 
 #include <type_traits>
 #include <variant>
@@ -55,6 +58,10 @@ const MediaGenerationGateDiagnostics& MediaGenerationGate::diagnostics() const n
 
 bool MediaGenerationGate::isMediaScoped(const PlaybackEvent& event) noexcept
 {
+    if (std::holds_alternative<PlaybackFailureEvent>(event.payload)) {
+        return event.generation.isValid();
+    }
+
     return std::visit(
         [](const auto& payload) noexcept {
             using Payload = std::decay_t<decltype(payload)>;
@@ -70,9 +77,17 @@ bool MediaGenerationGate::isMediaScoped(const PlaybackEvent& event) noexcept
                 || std::is_same_v<Payload, SeekingChangedEvent>
                 || std::is_same_v<Payload, BufferingChangedEvent>
                 || std::is_same_v<Payload, BufferingProgressChangedEvent>
+                || std::is_same_v<Payload, CacheStatusChangedEvent>
                 || std::is_same_v<Payload, PauseChangedEvent>
                 || std::is_same_v<Payload, CoreIdleChangedEvent>
-                || std::is_same_v<Payload, EofReachedChangedEvent>;
+                || std::is_same_v<Payload, EofReachedChangedEvent>
+                || std::is_same_v<Payload, TrackListChangedEvent>
+                || std::is_same_v<Payload, SelectedVideoTrackChangedEvent>
+                || std::is_same_v<Payload, SelectedAudioTrackChangedEvent>
+                || std::is_same_v<Payload, SelectedSubtitleTrackChangedEvent>
+                || std::is_same_v<Payload, ChapterListChangedEvent>
+                || std::is_same_v<Payload, VideoStreamInfoChangedEvent>
+                || std::is_same_v<Payload, AudioStreamInfoChangedEvent>;
         },
         event.payload);
 }

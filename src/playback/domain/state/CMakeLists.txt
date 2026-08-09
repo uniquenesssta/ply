@@ -7,12 +7,16 @@ target_sources(
     PUBLIC
         media_generation.h
         playback_buffering_state.h
+        playback_capabilities_state.h
+        playback_chapter_state.h
         playback_controls_state.h
         playback_invariants.h
         playback_lifecycle_state.h
         playback_media_state.h
         playback_reducer.h
         playback_snapshot.h
+        playback_stream_state.h
         playback_timeline_state.h
+        playback_track_state.h
         playback_transport_state.h
 )

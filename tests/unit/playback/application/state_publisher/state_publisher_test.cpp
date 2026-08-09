@@ -76,6 +76,22 @@ PlaybackSnapshot withFailure(const PlaybackSnapshot& snapshot)
     return PlaybackSnapshot{std::move(state)};
 }
 
+PlaybackSnapshot withAudioTrack(
+    const PlaybackSnapshot& snapshot,
+    double positionSeconds)
+{
+    PlaybackSnapshotState state = snapshot.state();
+    state.timeline.positionSeconds = positionSeconds;
+    TrackDescriptor audio;
+    audio.id = 2;
+    audio.kind = TrackKind::Audio;
+    audio.selected = true;
+    state.tracks.tracks = {audio};
+    state.tracks.selectedAudioId = 2;
+    state.capabilities.hasAudioTrack = true;
+    return PlaybackSnapshot{std::move(state)};
+}
+
 PlaybackSnapshot spySnapshot(const QSignalSpy& spy, qsizetype index)
 {
     return qvariant_cast<PlaybackSnapshot>(spy.at(index).at(0));
@@ -93,6 +109,7 @@ private slots:
     void positionBurstIsCoalesced();
     void transportChangeBypassesPositionThrottle();
     void failureChangeBypassesPositionThrottle();
+    void mediaAxisChangeBypassesPositionThrottle();
     void queuedProducerPublishesOnConsumerThread();
 };
 
@@ -171,6 +188,27 @@ void StatePublisherTest::failureChangeBypassesPositionThrottle()
     const PlaybackSnapshot published = spySnapshot(spy, 1);
     QVERIFY(published.failure().has_value());
     QCOMPARE(published.failure()->diagnostic, QStringLiteral("publisher-test-failure"));
+
+    QTest::qWait(StatePublisher::positionPublishIntervalMilliseconds() * 2);
+    QCOMPARE(spy.count(), 2);
+}
+
+void StatePublisherTest::mediaAxisChangeBypassesPositionThrottle()
+{
+    StatePublisher publisher;
+    QSignalSpy spy(&publisher, &StatePublisher::snapshotPublished);
+    const PlaybackSnapshot initial = readySnapshot(0.0);
+
+    publisher.acceptSnapshot(initial);
+    publisher.acceptSnapshot(withPosition(initial, 0.1));
+    publisher.acceptSnapshot(withAudioTrack(initial, 0.2));
+
+    QCOMPARE(spy.count(), 2);
+    const PlaybackSnapshot published = spySnapshot(spy, 1);
+    QVERIFY(published.capabilities().hasAudioTrack);
+    QCOMPARE(published.tracks().tracks.size(), qsizetype{1});
+    QCOMPARE(*published.tracks().selectedAudioId, qint64{2});
+    QCOMPARE(*published.timeline().positionSeconds, 0.2);
 
     QTest::qWait(StatePublisher::positionPublishIntervalMilliseconds() * 2);
     QCOMPARE(spy.count(), 2);

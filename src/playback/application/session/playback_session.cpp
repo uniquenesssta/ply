@@ -62,7 +62,8 @@ bool shouldApplyBackendEvent(
     }
 
     if (std::holds_alternative<BufferingChangedEvent>(payload)
-        || std::holds_alternative<BufferingProgressChangedEvent>(payload)) {
+        || std::holds_alternative<BufferingProgressChangedEvent>(payload)
+        || std::holds_alternative<CacheStatusChangedEvent>(payload)) {
         return lifecycle == PlaybackLifecycleState::Opening
             || lifecycle == PlaybackLifecycleState::Ready;
     }
@@ -71,7 +72,14 @@ bool shouldApplyBackendEvent(
         || std::holds_alternative<DurationChangedEvent>(payload)
         || std::holds_alternative<SeekableChangedEvent>(payload)
         || std::holds_alternative<MediaTitleChangedEvent>(payload)
-        || std::holds_alternative<MediaPathChangedEvent>(payload)) {
+        || std::holds_alternative<MediaPathChangedEvent>(payload)
+        || std::holds_alternative<TrackListChangedEvent>(payload)
+        || std::holds_alternative<SelectedVideoTrackChangedEvent>(payload)
+        || std::holds_alternative<SelectedAudioTrackChangedEvent>(payload)
+        || std::holds_alternative<SelectedSubtitleTrackChangedEvent>(payload)
+        || std::holds_alternative<ChapterListChangedEvent>(payload)
+        || std::holds_alternative<VideoStreamInfoChangedEvent>(payload)
+        || std::holds_alternative<AudioStreamInfoChangedEvent>(payload)) {
         return isMediaPropertyLifecycle(lifecycle);
     }
 

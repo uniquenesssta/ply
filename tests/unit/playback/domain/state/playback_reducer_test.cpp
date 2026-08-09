@@ -24,9 +24,31 @@ PlaybackSnapshot populatedSnapshot()
     state.timeline.seeking = true;
     state.buffering.active = true;
     state.buffering.progressPercent = 63.0;
+    CacheStatus cache;
+    cache.durationSeconds = 3.0;
+    state.buffering.cache = cache;
     state.controls.volumePercent = 72.0;
     state.controls.muted = false;
     state.controls.speed = 1.25;
+
+    TrackDescriptor audioTrack;
+    audioTrack.id = 2;
+    audioTrack.kind = TrackKind::Audio;
+    audioTrack.selected = true;
+    state.tracks.tracks.append(audioTrack);
+    state.tracks.selectedAudioId = 2;
+    state.capabilities.hasAudioTrack = true;
+
+    ChapterDescriptor chapter;
+    chapter.index = 0;
+    chapter.startSeconds = 10.0;
+    state.chapters.chapters.append(chapter);
+    state.capabilities.hasChapters = true;
+
+    AudioStreamInfo audioInfo;
+    audioInfo.sampleRate = 48000;
+    state.streams.audio = audioInfo;
+
     state.failure = PlaybackFailure{
         PlaybackFailureCategory::Protocol,
         -1,
@@ -50,6 +72,7 @@ private slots:
     void fileLoadedMarksMediaReady();
     void pauseAndBufferingStayIndependent();
     void propertyEventsUpdateTheirOwnAxes();
+    void mediaAxesUpdateIndependently();
     void unavailablePauseAndBufferingDoNotInventState();
     void eofMarksEndedWithoutDiscardingMediaIdentity();
     void stopClearsMediaScopedStateButPreservesControls();
@@ -78,6 +101,12 @@ void PlaybackReducerTest::loadStartedClearsMediaScopedState()
     QVERIFY(!next.timeline().seeking.has_value());
     QVERIFY(!next.buffering().active);
     QVERIFY(!next.buffering().progressPercent.has_value());
+    QVERIFY(!next.buffering().cache.has_value());
+    QVERIFY(next.tracks().tracks.isEmpty());
+    QVERIFY(next.chapters().chapters.isEmpty());
+    QVERIFY(!next.streams().audio.has_value());
+    QVERIFY(!next.capabilities().hasAudioTrack);
+    QVERIFY(!next.capabilities().hasChapters);
     QCOMPARE(*next.controls().volumePercent, 72.0);
     QCOMPARE(*next.controls().speed, 1.25);
     QVERIFY(!next.failure().has_value());
@@ -120,6 +149,7 @@ void PlaybackReducerTest::pauseAndBufferingStayIndependent()
     QVERIFY(snapshot.transport() == PlaybackTransportState::Paused);
     QVERIFY(!snapshot.buffering().active);
     QVERIFY(!snapshot.buffering().progressPercent.has_value());
+    QVERIFY(snapshot.buffering().cache.has_value());
 }
 
 void PlaybackReducerTest::propertyEventsUpdateTheirOwnAxes()
@@ -151,6 +181,75 @@ void PlaybackReducerTest::propertyEventsUpdateTheirOwnAxes()
     QVERIFY(snapshot.transport() == PlaybackTransportState::Playing);
 }
 
+void PlaybackReducerTest::mediaAxesUpdateIndependently()
+{
+    PlaybackSnapshot snapshot = PlaybackSnapshot::opening(
+        MediaGeneration{8},
+        QStringLiteral("sample.mkv"));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(MediaLoadedEvent{}));
+
+    TrackDescriptor videoTrack;
+    videoTrack.id = 1;
+    videoTrack.kind = TrackKind::Video;
+    videoTrack.selected = true;
+    TrackDescriptor audioTrack;
+    audioTrack.id = 2;
+    audioTrack.kind = TrackKind::Audio;
+    audioTrack.selected = true;
+    TrackDescriptor subtitleTrack;
+    subtitleTrack.id = 3;
+    subtitleTrack.kind = TrackKind::Subtitle;
+
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(TrackListChangedEvent{{videoTrack, audioTrack, subtitleTrack}}));
+    QVERIFY(snapshot.capabilities().hasVideoTrack);
+    QVERIFY(snapshot.capabilities().hasAudioTrack);
+    QVERIFY(snapshot.capabilities().hasSubtitleTrack);
+    QCOMPARE(*snapshot.tracks().selectedVideoId, qint64{1});
+    QCOMPARE(*snapshot.tracks().selectedAudioId, qint64{2});
+    QVERIFY(!snapshot.tracks().selectedSubtitleId.has_value());
+
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(SelectedSubtitleTrackChangedEvent{qint64{3}}));
+    QCOMPARE(*snapshot.tracks().selectedSubtitleId, qint64{3});
+
+    ChapterDescriptor chapter;
+    chapter.index = 0;
+    chapter.startSeconds = 15.0;
+    chapter.title = QStringLiteral("Scene");
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(ChapterListChangedEvent{{chapter}}));
+    QVERIFY(snapshot.capabilities().hasChapters);
+    QCOMPARE(snapshot.chapters().chapters.size(), qsizetype{1});
+
+    VideoStreamInfo videoInfo;
+    videoInfo.width = 1920;
+    videoInfo.height = 1080;
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(VideoStreamInfoChangedEvent{videoInfo}));
+    AudioStreamInfo audioInfo;
+    audioInfo.sampleRate = 48000;
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(AudioStreamInfoChangedEvent{audioInfo}));
+    QVERIFY(snapshot.streams().video.has_value());
+    QVERIFY(snapshot.streams().audio.has_value());
+    QCOMPARE(*snapshot.streams().video->width, qint64{1920});
+    QCOMPARE(*snapshot.streams().audio->sampleRate, qint64{48000});
+
+    CacheStatus cache;
+    cache.durationSeconds = 5.5;
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(CacheStatusChangedEvent{cache}));
+    QVERIFY(snapshot.buffering().cache.has_value());
+    QCOMPARE(*snapshot.buffering().cache->durationSeconds, 5.5);
+}
+
 void PlaybackReducerTest::unavailablePauseAndBufferingDoNotInventState()
 {
     PlaybackSnapshot snapshot = reducePlaybackSnapshot(
@@ -179,6 +278,10 @@ void PlaybackReducerTest::eofMarksEndedWithoutDiscardingMediaIdentity()
     QVERIFY(next.timeline().seeking.has_value());
     QVERIFY(!*next.timeline().seeking);
     QVERIFY(!next.buffering().active);
+    QVERIFY(!next.buffering().cache.has_value());
+    QCOMPARE(next.tracks().tracks.size(), qsizetype{1});
+    QCOMPARE(next.chapters().chapters.size(), qsizetype{1});
+    QVERIFY(next.streams().audio.has_value());
     QVERIFY(!next.failure().has_value());
 }
 
@@ -196,6 +299,10 @@ void PlaybackReducerTest::stopClearsMediaScopedStateButPreservesControls()
     QVERIFY(!next.media().path.has_value());
     QVERIFY(!next.timeline().durationSeconds.has_value());
     QVERIFY(!next.buffering().active);
+    QVERIFY(!next.buffering().cache.has_value());
+    QVERIFY(next.tracks().tracks.isEmpty());
+    QVERIFY(next.chapters().chapters.isEmpty());
+    QVERIFY(!next.streams().audio.has_value());
     QCOMPARE(*next.controls().volumePercent, 72.0);
     QVERIFY(!*next.controls().muted);
     QCOMPARE(*next.controls().speed, 1.25);
@@ -214,6 +321,8 @@ void PlaybackReducerTest::redirectReopensAndDropsOldMediaDetails()
     QVERIFY(!next.media().title.has_value());
     QVERIFY(!next.media().path.has_value());
     QVERIFY(!next.timeline().positionSeconds.has_value());
+    QVERIFY(next.tracks().tracks.isEmpty());
+    QVERIFY(next.chapters().chapters.isEmpty());
     QVERIFY(!next.failure().has_value());
 }
 
@@ -235,6 +344,10 @@ void PlaybackReducerTest::mediaFailureClearsStaleMediaStateAndKeepsSource()
     QVERIFY(!next.timeline().positionSeconds.has_value());
     QVERIFY(!next.timeline().durationSeconds.has_value());
     QVERIFY(!next.buffering().active);
+    QVERIFY(!next.buffering().cache.has_value());
+    QVERIFY(next.tracks().tracks.isEmpty());
+    QVERIFY(next.chapters().chapters.isEmpty());
+    QVERIFY(!next.streams().audio.has_value());
     QVERIFY(next.failure().has_value());
     QVERIFY(next.failure()->category == PlaybackFailureCategory::Media);
     QCOMPARE(next.failure()->backendCode, -13);
@@ -254,6 +367,7 @@ void PlaybackReducerTest::backendShutdownMarksClosing()
     QVERIFY(next.timeline().seeking.has_value());
     QVERIFY(!*next.timeline().seeking);
     QVERIFY(!next.buffering().active);
+    QVERIFY(!next.buffering().cache.has_value());
 }
 
 void PlaybackReducerTest::requestAndObservationEventsDoNotOwnSnapshotState()

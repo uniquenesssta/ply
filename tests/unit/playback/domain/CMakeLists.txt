@@ -46,6 +46,30 @@ add_test(
 )
 
 add_executable(
+    playback_media_state_mapping_tests
+    events/mpv_media_model_mapper_test.cpp
+)
+
+player_apply_compiler_options(playback_media_state_mapping_tests)
+player_enable_compiler_warnings(playback_media_state_mapping_tests)
+player_enable_sanitizers(playback_media_state_mapping_tests)
+player_enable_static_analysis(playback_media_state_mapping_tests)
+
+target_link_libraries(
+    playback_media_state_mapping_tests
+    PRIVATE
+        player_playback_domain
+        player_mpv_infrastructure
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME playback_media_state_mapping
+    COMMAND playback_media_state_mapping_tests
+)
+
+add_executable(
     playback_snapshot_domain_tests
     state/playback_snapshot_test.cpp
 )

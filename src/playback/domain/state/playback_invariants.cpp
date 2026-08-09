@@ -15,7 +15,19 @@ bool hasMediaScopedState(const PlaybackSnapshotState& state)
         || state.timeline.seekable.has_value()
         || state.timeline.seeking.has_value()
         || state.buffering.active
-        || state.buffering.progressPercent.has_value();
+        || state.buffering.progressPercent.has_value()
+        || state.buffering.cache.has_value()
+        || state.capabilities.hasVideoTrack
+        || state.capabilities.hasAudioTrack
+        || state.capabilities.hasSubtitleTrack
+        || state.capabilities.hasChapters
+        || state.streams.video.has_value()
+        || state.streams.audio.has_value()
+        || !state.tracks.tracks.isEmpty()
+        || state.tracks.selectedVideoId.has_value()
+        || state.tracks.selectedAudioId.has_value()
+        || state.tracks.selectedSubtitleId.has_value()
+        || !state.chapters.chapters.isEmpty();
 }
 
 bool lifecycleRequiresMediaIdentity(PlaybackLifecycleState lifecycle)
@@ -55,6 +67,23 @@ bool transportMatchesLifecycle(
     }
 
     return false;
+}
+
+bool selectionExists(
+    const PlaybackTrackState& state,
+    const std::optional<qint64>& selectedId,
+    TrackKind expectedKind)
+{
+    if (!selectedId.has_value()) {
+        return true;
+    }
+
+    return std::any_of(
+        state.tracks.cbegin(),
+        state.tracks.cend(),
+        [selectedId, expectedKind](const TrackDescriptor& track) {
+            return track.id == *selectedId && track.kind == expectedKind;
+        });
 }
 
 void addViolation(
@@ -108,6 +137,12 @@ PlaybackInvariantViolations checkPlaybackSnapshotInvariants(
         if (state.timeline.seekable.has_value() && !*state.timeline.seekable) {
             addViolation(violations, PlaybackInvariantViolation::SeekingWhenNotSeekable);
         }
+    }
+
+    if (!selectionExists(state.tracks, state.tracks.selectedVideoId, TrackKind::Video)
+        || !selectionExists(state.tracks, state.tracks.selectedAudioId, TrackKind::Audio)
+        || !selectionExists(state.tracks, state.tracks.selectedSubtitleId, TrackKind::Subtitle)) {
+        addViolation(violations, PlaybackInvariantViolation::SelectedTrackMissingFromCurrentMedia);
     }
 
     return violations;
