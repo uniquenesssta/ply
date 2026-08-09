@@ -1315,3 +1315,78 @@ R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事
 - Added independent `mpv_render_context` CTest coverage for repeated lifecycle use, context mismatch protection and unknown render API rejection without adding production dependencies or QML/render-callback behavior.
 - Recorded that the connected environment cannot run the real Windows Qt/MSVC/libmpv gate; R4-02 remains implemented but unaccepted until the reconfigured 30-test suite is run successfully.
 - Kept R4-03 callback bridge, R4-04 QML video item, R4-05 FBO renderer and R4-08 shutdown-race coordination outside R4-02.
+
+## R4-02 Windows verification and acceptance — current
+
+> 本节取代上一个 `R4-02 implementation status — current` 的待验证状态；实现说明继续保留为历史事实。
+
+用户在 `agent/r4-stage` 提交 `d29cb68d63427754fdadb2ec87e65cd31cf0ac9e` 上 fast-forward 后显式执行 `scripts/configure.ps1`。Configure 成功，新增 `mpv_render_context` 已进入标准 30 项 CTest 门禁；工具链与固定 libmpv 0.41.0 依赖链检查全部通过，development runtime marker 校验成功。libmpv runtime SHA-256 保持 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc`，import SHA-256 保持 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`。
+
+用户执行 `scripts/build.ps1 > build-r4.log 2>&1`，该重定向日志正文未在对话中提供，因此本 README 不声明已单独审计其中的 warning 文本；随后 `scripts/test.ps1` 报告 Ninja 已无待构建工作并完成完整回归。
+
+实际结果：
+
+```text
+graphics_backend ................. Passed    0.47 sec
+opengl_proc_resolver ............. Passed    0.63 sec
+mpv_render_context ............... Passed    0.69 sec
+playback_session ................. Passed    1.11 sec
+playback_shutdown ................ Passed    6.88 sec
+playback_media_generation ........ Passed    0.17 sec
+100% tests passed, 0 tests failed out of 30
+Total Test time (real) = 14.23 sec
+```
+
+因此 R4-02 正式 Complete。`MpvRenderContext` 的独占 create/update/render/free 生命周期、错误 current OpenGL context fail-closed、恢复正确 context 后释放以及未知 Render API type 负向契约已经在实际 Windows Qt 6.8.3 / MSVC / libmpv 0.41.0 环境通过；其余 29 项既有回归同时保持全绿。
+
+R2-01 的仓库根 `player.log` 落盘缺口仍作为已知非阻塞诊断事项保留，没有因本次验收伪装为已解决。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。下一 Atomic Task：R4-03 Render update bridge。**
+
+### 2026-08-09 — R4-02 acceptance addendum
+
+- Accepted R4-02 from the user's explicitly reconfigured Windows tree: `mpv_render_context` passed in 0.69 seconds and all 30 CTests passed with 0 failures in 14.23 seconds total.
+- Confirmed `graphics_backend` 0.47 seconds, `opengl_proc_resolver` 0.63 seconds, `playback_session` 1.11 seconds, `playback_shutdown` 6.88 seconds and `playback_media_generation` 0.17 seconds remained green.
+- Recorded that `build-r4.log` was redirected and not supplied for separate warning-text audit.
+
+## R4-03 implementation status — current
+
+R4-03 已实现 `MpvRenderUpdateBridge` 的 callback→Qt 通知边界，当前状态为 **Implemented; Windows verification pending**。
+
+- 新增 `src/playback/infrastructure/mpv/render/mpv_render_update_bridge.*`，职责仅为把 `mpv_render_context_set_update_callback()` 的 redraw 通知安全转成 Bridge 所属 Qt 线程上的 `updateRequested()`；Bridge 不执行 `mpv_render_context_update()`、不调用 `render()`、不访问 QML，也不保存播放真值。
+- `MpvRenderContext` 新增 owner-thread 串行的 `setUpdateCallback()` 封装。该 setter 不要求 OpenGL context current，因为 libmpv Render API 明确该操作不访问 OpenGL；既有 `update()`、`render()`、`close()` 仍保持 R4-02 的“创建线程 + 精确 current GL context”门禁。
+- libmpv callback 本身只增加/减少 in-flight 计数、读取 alive/activation epoch 并通过 `QMetaObject::invokeMethod(..., Qt::QueuedConnection)` 投递通知；callback 内不调用任何 mpv API、不直接 emit 外部信号、不执行用户 slot，从而不把上层代码带入 libmpv callback 栈。
+- queued delivery 到达 Bridge 所属 Qt 线程后再次检查 active + activation epoch；deactivate→reactivate 之间旧一轮已经排队的 request 因 epoch 不匹配而自动失效，不会在新一轮“复活”。
+- `deactivate()` 的顺序为：先令 Bridge inactive 并失效当前 epoch → 通过 RenderContext 注销 libmpv update callback → 清除关联 → 等待已经进入 callback 的短路径退出。注销失败时保留关联以允许安全重试；析构若仍无法注销则 fail-fast，避免 callback 指向已销毁 QObject。
+- 当前仍要求 Bridge 在 `MpvRenderContext::close()` 之前完成 deactivate；完整的 callback/render/free/core-destroy 协调器仍按任务书保留给 R4-08，不在 R4-03 提前实现。
+- 测试侧提取 `render_test_fixture.h`，复用 R4-02 离屏 GL/core 初始化，避免两个 Render 单测复制同一 fixture。新增独立 CTest `mpv_render_update_bridge`：覆盖 immediate callback 被 queued 到 Bridge Qt thread、deactivate 抑制已排队通知、10 次 activate/deactivate 生命周期，以及运行时生成 16×16/30fps Y4M 视频后持续产生至少 3 个 frame update；真实连续播放测试在 test harness 中用 R4-02 默认 FBO render 消费 frame，但生产 Bridge 本身仍不渲染。
+- 测试媒体在临时目录运行时生成，不提交第三方媒体文件，也不把已跳过的 R0-06 完整 fixture 合法性闭环伪装为完成。
+- 本任务没有新增生产依赖、配置、PlaybackSession、QQuickFramebufferObject、QML 或用户可观察的视频输出；R4-04 `MpvVideoItem` 与 R4-05 `MpvVideoRenderer` 仍未实施。
+
+当前连接环境不能执行项目 Windows Qt/MSVC/libmpv 门禁，因此 R4-03 尚不能标记 Complete。由于新增 CTest，Windows 验收需要重新 configure；标准套件应从 R4-02 的 30 项增加到 **31 项**：
+
+```powershell
+git pull --ff-only origin agent/r4-stage
+powershell -ExecutionPolicy Bypass -File scripts\configure.ps1
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r4.log 2>&1
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1
+```
+
+重点要求新增：
+
+```text
+mpv_render_update_bridge ......... Passed
+100% tests passed, 0 tests failed out of 31
+```
+
+若生成 Y4M 的真实连续播放路径在固定 libmpv/FFmpeg 包上失败，应以实际输出继续定位，不降低 callback 生命周期或连续 update 的验证强度。
+
+R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Implemented，Windows verification pending。**
+
+### 2026-08-09 — R4-03 implementation addendum
+
+- Implemented a signal-only libmpv render update bridge with owner-thread callback registration, queued Qt delivery, in-flight callback draining and activation-epoch invalidation of stale queued requests.
+- Added independent `mpv_render_update_bridge` coverage including a generated-video continuous redraw path while keeping production rendering, QML video items and full shutdown coordination outside R4-03.
+- Windows configure/build/CTest remains pending before R4-03 acceptance; the expected reconfigured suite size is 31 tests.

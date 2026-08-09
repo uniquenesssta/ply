@@ -1,15 +1,12 @@
-#include "playback/infrastructure/mpv/client/mpv_handle.h"
-#include "playback/infrastructure/mpv/initialization/mpv_initializer.h"
 #include "playback/infrastructure/mpv/render/mpv_render_context.h"
+#include "render_test_fixture.h"
 
 #include <mpv/client.h>
 #include <mpv/render.h>
 #include <mpv/render_gl.h>
 
 #include <QGuiApplication>
-#include <QOffscreenSurface>
 #include <QOpenGLContext>
-#include <QSurfaceFormat>
 #include <QtTest>
 
 #include <cstdint>
@@ -19,83 +16,8 @@ namespace {
 
 using player::playback::infrastructure::mpv::render::MpvRenderContext;
 using player::playback::mpv::MpvHandle;
-using player::playback::mpv::MpvInitializer;
-
-class OffscreenContext final {
-public:
-    bool initialize(QString* errorMessage)
-    {
-        if (errorMessage != nullptr) {
-            errorMessage->clear();
-        }
-
-        context_.setFormat(QSurfaceFormat::defaultFormat());
-        if (!context_.create()) {
-            assignError(errorMessage, QStringLiteral("Unable to create the OpenGL test context."));
-            return false;
-        }
-
-        surface_.setFormat(context_.format());
-        surface_.create();
-        if (!surface_.isValid()) {
-            assignError(errorMessage, QStringLiteral("Unable to create the offscreen OpenGL test surface."));
-            return false;
-        }
-
-        return makeCurrent(errorMessage);
-    }
-
-    bool makeCurrent(QString* errorMessage = nullptr)
-    {
-        if (errorMessage != nullptr) {
-            errorMessage->clear();
-        }
-
-        if (!context_.makeCurrent(&surface_)) {
-            assignError(errorMessage, QStringLiteral("Unable to make the OpenGL test context current."));
-            return false;
-        }
-
-        return true;
-    }
-
-    void doneCurrent() noexcept
-    {
-        if (QOpenGLContext::currentContext() == &context_) {
-            context_.doneCurrent();
-        }
-    }
-
-    ~OffscreenContext()
-    {
-        doneCurrent();
-    }
-
-private:
-    static void assignError(QString* errorMessage, const QString& message)
-    {
-        if (errorMessage != nullptr) {
-            *errorMessage = message;
-        }
-    }
-
-    QOpenGLContext context_;
-    QOffscreenSurface surface_;
-};
-
-std::unique_ptr<MpvHandle> createInitializedCore(QString* errorMessage)
-{
-    std::unique_ptr<MpvHandle> handle = MpvHandle::create(errorMessage);
-    if (!handle) {
-        return {};
-    }
-
-    if (!MpvInitializer::initializeProduct(*handle, errorMessage)) {
-        return {};
-    }
-
-    return handle;
-}
+using player::test::render::OffscreenOpenGlContext;
+using player::test::render::createInitializedCore;
 
 class MpvRenderContextTest final : public QObject {
     Q_OBJECT
@@ -125,7 +47,7 @@ void MpvRenderContextTest::rejectsMissingCurrentContext()
 
 void MpvRenderContextTest::createUpdateRenderFreeLoop()
 {
-    OffscreenContext fixture;
+    OffscreenOpenGlContext fixture;
     QString fixtureError;
     QVERIFY2(fixture.initialize(&fixtureError), fixtureError.toLocal8Bit().constData());
 
@@ -165,7 +87,7 @@ void MpvRenderContextTest::createUpdateRenderFreeLoop()
 
 void MpvRenderContextTest::rejectsWrongCurrentContext()
 {
-    OffscreenContext ownerContext;
+    OffscreenOpenGlContext ownerContext;
     QString fixtureError;
     QVERIFY2(ownerContext.initialize(&fixtureError), fixtureError.toLocal8Bit().constData());
 
@@ -180,7 +102,7 @@ void MpvRenderContextTest::rejectsWrongCurrentContext()
 
     ownerContext.doneCurrent();
 
-    OffscreenContext otherContext;
+    OffscreenOpenGlContext otherContext;
     QVERIFY2(otherContext.initialize(&fixtureError), fixtureError.toLocal8Bit().constData());
 
     std::uint64_t updateFlags = 0;
@@ -199,7 +121,7 @@ void MpvRenderContextTest::rejectsWrongCurrentContext()
 
 void MpvRenderContextTest::libmpvRejectsUnknownApiType()
 {
-    OffscreenContext fixture;
+    OffscreenOpenGlContext fixture;
     QString fixtureError;
     QVERIFY2(fixture.initialize(&fixtureError), fixtureError.toLocal8Bit().constData());
 

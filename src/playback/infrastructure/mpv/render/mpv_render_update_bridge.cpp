@@ -1,0 +1,202 @@
+#include "mpv_render_update_bridge.h"
+
+#include "mpv_render_context.h"
+
+#include <QDebug>
+#include <QMetaObject>
+#include <QString>
+
+#include <exception>
+#include <utility>
+
+namespace player::playback::infrastructure::mpv::render {
+namespace {
+
+void assignError(QString* errorMessage, QString message)
+{
+    if (errorMessage != nullptr) {
+        *errorMessage = std::move(message);
+    }
+}
+
+} // namespace
+
+MpvRenderUpdateBridge::MpvRenderUpdateBridge(QObject* parent)
+    : QObject(parent)
+{
+}
+
+MpvRenderUpdateBridge::~MpvRenderUpdateBridge()
+{
+    QString errorMessage;
+    if (!deactivate(&errorMessage)) {
+        qCritical().noquote()
+            << QStringLiteral("MpvRenderUpdateBridge could not safely unregister its libmpv callback: %1")
+                   .arg(errorMessage);
+        std::terminate();
+    }
+}
+
+bool MpvRenderUpdateBridge::activate(
+    MpvRenderContext& renderContext,
+    QString* errorMessage)
+{
+    if (errorMessage != nullptr) {
+        errorMessage->clear();
+    }
+
+    {
+        std::scoped_lock lock(stateMutex_);
+        if (renderContext_ != nullptr) {
+            if (active_ && renderContext_ == &renderContext) {
+                return true;
+            }
+
+            assignError(
+                errorMessage,
+                QStringLiteral("MpvRenderUpdateBridge is already associated with a render context."));
+            return false;
+        }
+
+        ++activationEpoch_;
+        renderContext_ = &renderContext;
+        active_ = true;
+    }
+
+    QString callbackError;
+    if (!renderContext.setUpdateCallback(
+            &MpvRenderUpdateBridge::onRenderUpdate,
+            this,
+            &callbackError)) {
+        {
+            std::scoped_lock lock(stateMutex_);
+            ++activationEpoch_;
+            active_ = false;
+            renderContext_ = nullptr;
+            callbackInstalled_ = false;
+        }
+
+        assignError(
+            errorMessage,
+            QStringLiteral("Cannot install the mpv render update callback: %1").arg(callbackError));
+        return false;
+    }
+
+    {
+        std::scoped_lock lock(stateMutex_);
+        callbackInstalled_ = true;
+    }
+
+    return true;
+}
+
+bool MpvRenderUpdateBridge::deactivate(QString* errorMessage)
+{
+    if (errorMessage != nullptr) {
+        errorMessage->clear();
+    }
+
+    MpvRenderContext* renderContext = nullptr;
+    bool callbackInstalled = false;
+    {
+        std::scoped_lock lock(stateMutex_);
+        if (active_ || renderContext_ != nullptr) {
+            ++activationEpoch_;
+        }
+        active_ = false;
+        renderContext = renderContext_;
+        callbackInstalled = callbackInstalled_;
+    }
+
+    if (renderContext == nullptr) {
+        waitForCallbacksToDrain();
+        return true;
+    }
+
+    if (callbackInstalled) {
+        QString callbackError;
+        if (!renderContext->setUpdateCallback(nullptr, nullptr, &callbackError)) {
+            assignError(
+                errorMessage,
+                QStringLiteral("Cannot unregister the mpv render update callback: %1")
+                    .arg(callbackError));
+            return false;
+        }
+    }
+
+    {
+        std::scoped_lock lock(stateMutex_);
+        if (renderContext_ == renderContext) {
+            callbackInstalled_ = false;
+            renderContext_ = nullptr;
+        }
+    }
+
+    waitForCallbacksToDrain();
+    return true;
+}
+
+bool MpvRenderUpdateBridge::isActive() const noexcept
+{
+    std::scoped_lock lock(stateMutex_);
+    return active_;
+}
+
+void MpvRenderUpdateBridge::onRenderUpdate(void* context) noexcept
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    static_cast<MpvRenderUpdateBridge*>(context)->dispatchRenderUpdate();
+}
+
+void MpvRenderUpdateBridge::dispatchRenderUpdate() noexcept
+{
+    callbacksInFlight_.fetch_add(1, std::memory_order_acq_rel);
+
+    bool shouldQueue = false;
+    std::uint64_t activationEpoch = 0;
+    {
+        std::scoped_lock lock(stateMutex_);
+        shouldQueue = active_;
+        activationEpoch = activationEpoch_;
+    }
+
+    if (shouldQueue) {
+        QMetaObject::invokeMethod(
+            this,
+            [this, activationEpoch] {
+                deliverUpdateRequest(activationEpoch);
+            },
+            Qt::QueuedConnection);
+    }
+
+    if (callbacksInFlight_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        std::scoped_lock lock(callbackMutex_);
+        callbackCondition_.notify_all();
+    }
+}
+
+void MpvRenderUpdateBridge::deliverUpdateRequest(std::uint64_t activationEpoch)
+{
+    bool shouldEmit = false;
+    {
+        std::scoped_lock lock(stateMutex_);
+        shouldEmit = active_ && activationEpoch_ == activationEpoch;
+    }
+
+    if (shouldEmit) {
+        emit updateRequested();
+    }
+}
+
+void MpvRenderUpdateBridge::waitForCallbacksToDrain() noexcept
+{
+    std::unique_lock lock(callbackMutex_);
+    callbackCondition_.wait(lock, [this] {
+        return callbacksInFlight_.load(std::memory_order_acquire) == 0;
+    });
+}
+
+} // namespace player::playback::infrastructure::mpv::render

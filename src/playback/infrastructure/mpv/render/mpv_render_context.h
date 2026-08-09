@@ -14,6 +14,8 @@ struct mpv_render_param;
 
 namespace player::playback::infrastructure::mpv::render {
 
+using MpvRenderUpdateCallback = void (*)(void*);
+
 class MpvRenderContext final {
 public:
     static std::unique_ptr<MpvRenderContext> create(
@@ -30,6 +32,11 @@ public:
     [[nodiscard]] bool isOpen() const noexcept;
     [[nodiscard]] bool close(QString* errorMessage = nullptr);
 
+    [[nodiscard]] bool setUpdateCallback(
+        MpvRenderUpdateCallback callback,
+        void* callbackContext,
+        QString* errorMessage = nullptr);
+
     [[nodiscard]] bool update(
         std::uint64_t* updateFlags,
         QString* errorMessage = nullptr);
@@ -44,6 +51,7 @@ private:
         QOpenGLContext* openGlContext,
         std::thread::id ownerThreadId);
 
+    [[nodiscard]] bool validateOwnerThread(QString* errorMessage) const;
     [[nodiscard]] bool validateRenderAccess(QString* errorMessage) const;
 
     mpv_render_context* context_ = nullptr;

@@ -144,6 +144,23 @@ bool MpvRenderContext::close(QString* errorMessage)
     return true;
 }
 
+bool MpvRenderContext::setUpdateCallback(
+    MpvRenderUpdateCallback callback,
+    void* callbackContext,
+    QString* errorMessage)
+{
+    if (errorMessage != nullptr) {
+        errorMessage->clear();
+    }
+
+    if (!validateOwnerThread(errorMessage)) {
+        return false;
+    }
+
+    mpv_render_context_set_update_callback(context_, callback, callbackContext);
+    return true;
+}
+
 bool MpvRenderContext::update(
     std::uint64_t* updateFlags,
     QString* errorMessage)
@@ -193,7 +210,7 @@ bool MpvRenderContext::render(
     return true;
 }
 
-bool MpvRenderContext::validateRenderAccess(QString* errorMessage) const
+bool MpvRenderContext::validateOwnerThread(QString* errorMessage) const
 {
     if (context_ == nullptr) {
         assignError(errorMessage, QStringLiteral("The mpv render context is closed."));
@@ -204,6 +221,15 @@ bool MpvRenderContext::validateRenderAccess(QString* errorMessage) const
         assignError(
             errorMessage,
             QStringLiteral("The mpv render context can only be used on its owner render thread."));
+        return false;
+    }
+
+    return true;
+}
+
+bool MpvRenderContext::validateRenderAccess(QString* errorMessage) const
+{
+    if (!validateOwnerThread(errorMessage)) {
         return false;
     }
 
