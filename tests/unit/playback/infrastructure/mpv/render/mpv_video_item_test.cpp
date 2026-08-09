@@ -1,9 +1,11 @@
 #include "playback/infrastructure/mpv/render/mpv_video_item.h"
 #include "playback/infrastructure/mpv/render/mpv_video_renderer.h"
 
+#include <QGuiApplication>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickWindow>
+#include <QSGRendererInterface>
 #include <QtQml/qqml.h>
 #include <QtTest>
 
@@ -89,5 +91,13 @@ void MpvVideoItemTest::qmlCanInstantiateVideoItem()
 
 } // namespace player::playback::infrastructure::mpv::render
 
-QTEST_MAIN(player::playback::infrastructure::mpv::render::MpvVideoItemTest)
+int main(int argc, char* argv[])
+{
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+
+    QGuiApplication application(argc, argv);
+    player::playback::infrastructure::mpv::render::MpvVideoItemTest test;
+    return QTest::qExec(&test, argc, argv);
+}
+
 #include "mpv_video_item_test.moc"
