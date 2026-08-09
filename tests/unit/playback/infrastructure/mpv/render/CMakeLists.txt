@@ -81,6 +81,32 @@ add_test(
     COMMAND mpv_render_update_bridge_tests
 )
 
+add_executable(
+    mpv_video_item_tests
+    mpv_video_item_test.cpp
+)
+
+player_apply_compiler_options(mpv_video_item_tests)
+player_enable_compiler_warnings(mpv_video_item_tests)
+player_enable_sanitizers(mpv_video_item_tests)
+player_enable_static_analysis(mpv_video_item_tests)
+
+target_link_libraries(
+    mpv_video_item_tests
+    PRIVATE
+        player_mpv_infrastructure
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(
+    NAME mpv_video_item
+    COMMAND mpv_video_item_tests
+)
+
 set_tests_properties(
     mpv_render_update_bridge
     PROPERTIES
