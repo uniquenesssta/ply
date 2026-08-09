@@ -68,6 +68,7 @@ class MediaGenerationTest final : public QObject
 private slots:
     void gateRejectsStaleAndUnattributedMediaEvents();
     void attributorSeparatesOverlappingAAndBEvents();
+    void replacementEndBeforeStartKeepsOldPropertyFence();
     void cancelledLoadDoesNotPoisonNextStartFile();
     void redirectEntriesKeepTheSameGeneration();
 };
@@ -144,6 +145,39 @@ void MediaGenerationTest::attributorSeparatesOverlappingAAndBEvents()
     QVERIFY(!gate.accepts(mediaEvent(MediaTitleChangedEvent{QStringLiteral("A")}, lateTrackA)));
     QVERIFY(!gate.accepts(mediaEvent(MediaPathChangedEvent{QStringLiteral("A")}, lateChapterA)));
     QVERIFY(gate.accepts(mediaEvent(MediaLoadedEvent{}, fileLoadedB)));
+}
+
+void MediaGenerationTest::replacementEndBeforeStartKeepsOldPropertyFence()
+{
+    MpvMediaGenerationAttributor attributor;
+    const MediaGeneration generationA{71};
+    const MediaGeneration generationB{72};
+
+    attributor.noteLoadSubmission(player::ids::RequestId{4001}, generationA);
+    attributor.noteLoadSubmission(player::ids::RequestId{4002}, generationB);
+
+    QCOMPARE(attributor.attribute(startFile(901)).value(), generationA.value());
+    QCOMPARE(attributor.attribute(fileLoaded()).value(), generationA.value());
+    QCOMPARE(
+        attributor.attribute(propertyChange(MpvPropertyId::Position)).value(),
+        generationA.value());
+
+    // B is already accepted by Session, but libmpv may end A before emitting StartFile for B.
+    // Keep A as the property attribution fence until B itself reaches FileLoaded.
+    QCOMPARE(attributor.attribute(endFile(901)).value(), generationA.value());
+    QCOMPARE(
+        attributor.attribute(propertyChange(MpvPropertyId::MediaTitle)).value(),
+        generationA.value());
+
+    QCOMPARE(attributor.attribute(startFile(902)).value(), generationB.value());
+    QCOMPARE(
+        attributor.attribute(propertyChange(MpvPropertyId::Position)).value(),
+        generationA.value());
+
+    QCOMPARE(attributor.attribute(fileLoaded()).value(), generationB.value());
+    QCOMPARE(
+        attributor.attribute(propertyChange(MpvPropertyId::Position)).value(),
+        generationB.value());
 }
 
 void MediaGenerationTest::cancelledLoadDoesNotPoisonNextStartFile()
