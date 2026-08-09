@@ -1073,3 +1073,52 @@ Total Test time (real) = 12.36 sec
 - Accepted R3-09 from the user's Windows rerun: `mpv_property_reader` 0.14 seconds, `playback_session` 1.10 seconds, `playback_shutdown` 6.93 seconds, `playback_media_generation` 0.16 seconds, and all 25 CTests passed with 0 failures in 12.36 seconds total.
 - Confirmed the original immediate A→B replacement hard regression now passes without weakening the `path + duration≈5s` acceptance condition.
 - Kept R3-10~R3-12 outside the R3-09 acceptance scope; the existing R2-01 `player.log` diagnostic gap remains open.
+
+## R3-10 implementation status — current
+
+R3-10 已实现 PlaybackSnapshot 多轴媒体状态扩展，当前状态为 **Implemented; Windows verification pending**。
+
+- 新增 `domain/models/` 纯值模型：`TrackDescriptor`、`ChapterDescriptor`、`VideoStreamInfo`、`AudioStreamInfo`、`CacheStatus`。这些类型不包含 QObject、mpv property 字符串、QML 状态或后端指针。
+- Snapshot 新增独立 `PlaybackTrackState`、`PlaybackChapterState`、`PlaybackStreamState`、`PlaybackCapabilitiesState`；`PlaybackBufferingState` 在原 buffering 职责内增加 typed cache status。现有 media identity/generation、lifecycle、transport、timeline、controls、failure 均保持独立，不把 scrub/hover/HUD 等 Presentation 临时状态带入播放真值。
+- 新增 typed `TrackListChangedEvent`、aid/sid/vid selection event、`ChapterListChangedEvent`、video/audio stream-info event 与 `CacheStatusChangedEvent`；R2 已统一观察的 `track-list/chapter-list/aid/sid/vid/video-params/audio-params/demuxer-cache-state` 不再被 Domain mapper 丢弃。
+- complex MPV_FORMAT_NODE 映射按职责拆到 `infrastructure/mpv/events/media_model_mapping/`：Track、Chapter、StreamInfo、CacheStatus 各自独立 mapper，共享 value reader 只负责 QVariant/native shape 校验；顶层 `MpvMediaModelMapper` 只做 property-id dispatch，避免把所有媒体解析堆进一个文件。
+- Track 的 `id/type`、Chapter 的 `time` 等 required identity 字段畸形时生成 Protocol failure；optional 字段缺失或 MPV_FORMAT_NONE 使用 typed unavailable/empty 语义，未知额外 map 字段忽略以保留前向兼容。
+- Reducer 在 TrackList 整表替换时同时根据 `selected` 标记重建 video/audio/subtitle selected IDs 和 track capabilities；aid/sid/vid 的具体 ID 只有在当前同类型 TrackDescriptor 已存在时才应用，`no`/unavailable 可立即清空，避免异步顺序制造 selected-id 指向旧/不存在轨道的中间 Snapshot。
+- 新 invariant `SelectedTrackMissingFromCurrentMedia` 保证 selected ID 必须引用当前同类型 track；Empty media-scoped 检查同时覆盖 cache/capabilities/streams/tracks/selections/chapters。
+- R3-09 MediaGenerationGate 扩展到 track/chapter/stream/cache 事件；由媒体 property 产生且带 generation 的 Protocol failure 同样受 generation gate 保护，旧 A 的畸形媒体属性不能污染 B。
+- R3-09 FileLoaded property refresh 从 9 项扩到 17 项，加入 demuxer cache、track/chapter、aid/sid/vid、video/audio params，确保 A→B replacement fence 后当前 B 的新状态轴能够重新建立。
+- `StatePublisher` 的 position-only 比较加入 cache/capabilities/streams/tracks/chapters；这些关键媒体状态变化全部绕过 position 20 Hz 节流立即发布。
+- 新增独立 CTest `playback_media_state_mapping`，覆盖 synthetic Track/Chapter/Stream/Cache Node→Domain 映射、unavailable 与 malformed shape；已有 `playback_events`、`playback_snapshot`、`playback_reducer`、`playback_invariants`、`playback_state_publisher`、`playback_media_generation` 同步扩展。
+- 真实 `playback_session` 使用生成 WAV 要求 Ready Snapshot 同时建立 audio capability、matching Audio TrackDescriptor、selectedAudioId 和正 sampleRate 的 AudioStreamInfo；rapid A→B 仍保留 R3-09 `path + duration≈5s` 硬断言，并要求 B 的 audio state 同样恢复。
+- 本任务没有实现 R3-11 reducer cleanup matrix 的完整场景矩阵，也没有实现 R3-12 request supersession；没有新增生产依赖、QML、Render 或 Playlist 行为。
+
+当前连接环境未执行 Windows Qt/MSVC build/test。新增一个独立 CTest 后，标准门禁预计由 25 项增加到 **26/26**；这是待验证目标，不是已通过事实：
+
+```powershell
+git pull --ff-only origin agent/r3-stage
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 > build-r3.log 2>&1
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1
+```
+
+重点预期：
+
+```text
+playback_media_state_mapping ..... Passed
+playback_events .................. Passed
+playback_snapshot ................ Passed
+playback_reducer ................. Passed
+playback_invariants .............. Passed
+playback_state_publisher ......... Passed
+playback_session ................. Passed
+playback_media_generation ........ Passed
+100% tests passed, 0 tests failed out of 26
+```
+
+当前准确状态：**Stage R3：In Progress；R3-01~R3-09：Complete；R3-10：Implemented，Windows verification pending。R3-11~R3-12 尚未实施。** R2-01 的仓库根 `player.log` 缺口继续作为已知非阻塞诊断事项保留。
+
+### 2026-08-09 — R3-10 implementation addendum
+
+- Implemented typed multi-axis media state for tracks, chapters, stream info, capabilities and cache without exposing mpv Node/QVariant containers to PlaybackSnapshot.
+- Split complex mpv media-model mapping into responsibility-specific modules and extended R3-09 generation fencing/FileLoaded refresh to the new axes.
+- Added `playback_media_state_mapping` plus strengthened existing Domain/Application/real Session regressions; Windows build/test remains pending before acceptance.
+- Kept R3-11 cleanup matrix and R3-12 supersession outside the R3-10 scope.
