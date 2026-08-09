@@ -3,6 +3,8 @@ add_executable(
     playback_session_test.cpp
     fixtures/session_test_media.cpp
     fixtures/session_test_media.h
+    support/playback_session_test_harness.cpp
+    support/playback_session_test_harness.h
 )
 
 player_apply_compiler_options(playback_session_application_tests)
