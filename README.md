@@ -90,7 +90,8 @@ src/playback/domain/errors/
   event 模块不再拥有错误值类型本身。
 
 src/playback/domain/events/
-  按 lifecycle / media / position / buffering / property / failure / command-reply 分模块，unavailable property 使用 optional 表达；
+  按 lifecycle / media / position / buffering / property / failure / command-reply 拆分产品语义事件；
+  unavailable property 使用 optional 表达，不使用 mpv 字符串或 generic string property container；
   当前只覆盖 R3-01 所需核心事件，track/chapter/video/audio domain model 留给后续对应任务。
 
 src/playback/domain/state/
@@ -568,49 +569,49 @@ R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage
 - Added all eight required R2-11 real libmpv scenarios: transport sequence, paused seek, consecutive seek, immediate A->B replacement, EOF/stop distinction, load error, shutdown during loading and shutdown during playback.
 - Kept shutdown scenarios on queued teardown so the runtime is never destroyed from inside the synchronous `MpvEventLoop` drain signal stack.
 - Registered `playback_probe --matrix` as the 14th CTest `playback_probe_matrix`; Windows regression gate is 14/14.
-- Kept generated WAV files temporary and probe-local；R0-06 remains skipped and no distributable external fixture policy is falsely claimed complete。
-- Recorded the first R2-11 Windows build failure before CTest：MSVC C1083 could not resolve probe-root `fixtures/...` and AutoMOC `runtime/...` includes because the target had no module include root。
-- Fixed that single build-system root cause by adding `${CMAKE_CURRENT_SOURCE_DIR}` as a PRIVATE include directory of `playback_probe`; no scenario logic or production interface changed。
-- Accepted R2-09 after the user confirmed the real Windows environment passed all 12 CTests, including `mpv_event_semantics`, in 2.31 seconds total。
-- Implemented R2-10 Property Baseline expansion from 11 to 22 centralized registry entries while preserving the original observation IDs and all existing observer lifecycle behavior。
-- Added centralized seeking/cache/media identity/current track/video/audio property entries; flexible native values remain Node-backed and raw property strings do not escape `infrastructure/mpv`。
-- Added STRING property decoding into a Qt-owned `QString` value and explicit null-string unavailable handling。
-- Added the independent `mpv_property_baseline` CTest for the R2-10 registry/format/deep-copy contract。
-- Kept R2-10 inside infrastructure only: no PlaybackSnapshot, ViewModel property lookup, Playlist state, new production dependency, configuration change or user-visible playback behavior was introduced。
-- Implemented R2-09 event-semantics hardening: `MpvEndFileData` now preserves the raw libmpv end-file reason alongside the stable typed reason, error and playlist boundary metadata。
-- Added a separate `mpv_event_semantics` CTest instead of further growing the existing decoder/integration test; it covers all known end reasons plus unknown raw reason retention, null/none property semantics, command success/error identity, unknown/malformed events and null log strings。
-- Kept R2-09 strictly inside the mpv infrastructure boundary: no PlaybackSession, MediaGeneration, auto-advance decision, new production dependency, configuration change or user-visible playback behavior was introduced。
-- Accepted R2-07 after the user confirmed the real Windows environment passed all 11 CTests, including `mpv_event_decoder`, in 2.18 seconds total。
-- Implemented R2-08 modular console playback probe with separate CLI, orchestration state machine and mpv runtime-lifecycle ownership。
-- Added the real headless control sequence `load -> pause -> play -> relative seek -> stop -> end-file -> close`, per-step diagnostics and 15-second timeouts without adding PlaybackSession or product playback state。
-- Deferred probe runtime teardown through Qt queued finalization so an `eventDecoded` callback never destroys `MpvEventLoop` while its drain stack is still active。
-- Added a probe-only `config=no + vo=null + ao=null` profile and direct Qt6 Core/libmpv runtime staging so the console probe does not depend on a QML window, user mpv.conf or physical audio output。
-- Accepted R2-08 after the user confirmed all 11 CTests still passed in 1.47 seconds, a real local media probe completed the full headless control chain with PASS, and a missing-media probe produced `end-file(reason=error)` with `loading failed` and a non-zero failure exit path。
-- Corrected the documented playback probe output path to `build/windows-msvc-debug/cmake/playback_probe.exe`; no source, public-interface, dependency or runtime behavior change was required for this correction。
-- Corrected the premature R2 closure: the mandatory mature-player behavior supplement adds R2-09 through R2-11, so Stage R2 remained open until those tasks were verified。
-- Kept the accepted R2-08 Windows results unchanged; this correction changed documentation/status only and did not modify source, dependencies, interfaces or runtime behavior。
-- Accepted R2-06 after the user confirmed the real Windows build and all ten CTests passed, including `mpv_properties`, in 1.88 seconds total。
-- Implemented R2-07 typed event boundary: raw `mpv_event` is decoded inside `infrastructure/mpv` into Qt-owned `MpvEvent` before the next `mpv_wait_event` call。
-- Added `errors/MpvErrorMapper` with known/unknown libmpv error mapping and preserved raw diagnostics。
-- Added recursive Node deep-copy for track/chapter payloads, eliminating libmpv node-pointer lifetime from the outward event contract。
-- Migrated the R2-04 event loop and R2-05 command-reply tests from raw metadata signals to typed `MpvEvent` delivery。
-- Added the eleventh `mpv_event_decoder` CTest with synthetic event/error/Node cases plus a runtime-generated silent PCM WAV for a real short-media typed event sequence。
-- Kept the generated WAV strictly test-local; R0-06 remains skipped and no complete external media-fixture policy is claimed。
-- Accepted R2-05 after the user confirmed all nine CTests passed, including `mpv_commands`, in 1.63 seconds total。
-- Implemented R2-06 centralized property registry/observer with owner-thread lifecycle, rollback, None/null safety and typed FLAG/DOUBLE decoding。
-- Accepted R2-04 after the user confirmed all eight CTests passed, including `mpv_event_loop`, in 1.63 seconds total。
-- Implemented R2-05 typed async command request/encoder/executor boundaries。
-- Accepted R2-03 after the user confirmed all seven CTests passed, including `mpv_initialization`。
-- Implemented R2-04 wakeup bridge/event-loop ownership and shutdown protection。
-- Accepted R2-02 after the user confirmed six CTests passed, including the `MpvHandle` lifecycle/100-cycle regression。
-- Implemented R2-03 initialization profile with centralized `config=no`, pre-initialize option application, validation and failure cleanup。
-- Recorded the unresolved R2-01 repository-root `player.log` as a non-blocking validation gap by explicit user direction。
-- Completed the controlled libmpv source-build/package verification chain and explicit Qt runtime deployment path described above。
+- Kept generated WAV files temporary and probe-local；R0-06 remains skipped and no distributable external fixture policy is falsely claimed complete.
+- Recorded the first R2-11 Windows build failure before CTest：MSVC C1083 could not resolve probe-root `fixtures/...` and AutoMOC `runtime/...` includes because the target had no module include root.
+- Fixed that single build-system root cause by adding `${CMAKE_CURRENT_SOURCE_DIR}` as a PRIVATE include directory of `playback_probe`; no scenario logic or production interface changed.
+- Accepted R2-09 after the user confirmed the real Windows environment passed all 12 CTests, including `mpv_event_semantics`, in 2.31 seconds total.
+- Implemented R2-10 Property Baseline expansion from 11 to 22 centralized registry entries while preserving the original observation IDs and all existing observer lifecycle behavior.
+- Added centralized seeking/cache/media identity/current track/video/audio property entries; flexible native values remain Node-backed and raw property strings do not escape `infrastructure/mpv`.
+- Added STRING property decoding into a Qt-owned `QString` value and explicit null-string unavailable handling.
+- Added the independent `mpv_property_baseline` CTest for the R2-10 registry/format/deep-copy contract.
+- Kept R2-10 inside infrastructure only: no PlaybackSnapshot, ViewModel property lookup, Playlist state, new production dependency, configuration change or user-visible playback behavior was introduced.
+- Implemented R2-09 event-semantics hardening: `MpvEndFileData` now preserves the raw libmpv end-file reason alongside the stable typed reason, error and playlist boundary metadata.
+- Added a separate `mpv_event_semantics` CTest instead of further growing the existing decoder/integration test; it covers all known end reasons plus unknown raw reason retention, null/none property semantics, command success/error identity, unknown/malformed events and null log strings.
+- Kept R2-09 strictly inside the mpv infrastructure boundary: no PlaybackSession, MediaGeneration, auto-advance decision, new production dependency, configuration change or user-visible playback behavior was introduced.
+- Accepted R2-07 after the user confirmed the real Windows environment passed all 11 CTests, including `mpv_event_decoder`, in 2.18 seconds total.
+- Implemented R2-08 modular console playback probe with separate CLI, orchestration state machine and mpv runtime-lifecycle ownership.
+- Added the real headless control sequence `load -> pause -> play -> relative seek -> stop -> end-file -> close`, per-step diagnostics and 15-second timeouts without adding PlaybackSession or product playback state.
+- Deferred probe runtime teardown through Qt queued finalization so an `eventDecoded` callback never destroys `MpvEventLoop` while its drain stack is still active.
+- Added a probe-only `config=no + vo=null + ao=null` profile and direct Qt6 Core/libmpv runtime staging so the console probe does not depend on a QML window, user mpv.conf or physical audio output.
+- Accepted R2-08 after the user confirmed all 11 CTests still passed in 1.47 seconds, a real local media probe completed the full headless control chain with PASS, and a missing-media probe produced `end-file(reason=error)` with `loading failed` and a non-zero failure exit path.
+- Corrected the documented playback probe output path to `build/windows-msvc-debug/cmake/playback_probe.exe`; no source, public-interface, dependency or runtime behavior change was required for this correction.
+- Corrected the premature R2 closure: the mandatory mature-player behavior supplement adds R2-09 through R2-11, so Stage R2 remained open until those tasks were verified.
+- Kept the accepted R2-08 Windows results unchanged; this correction changed documentation/status only and did not modify source, dependencies, interfaces or runtime behavior.
+- Accepted R2-06 after the user confirmed the real Windows build and all ten CTests passed, including `mpv_properties`, in 1.88 seconds total.
+- Implemented R2-07 typed event boundary: raw `mpv_event` is decoded inside `infrastructure/mpv` into Qt-owned `MpvEvent` before the next `mpv_wait_event` call.
+- Added `errors/MpvErrorMapper` with known/unknown libmpv error mapping and preserved raw diagnostics.
+- Added recursive Node deep-copy for track/chapter payloads, eliminating libmpv node-pointer lifetime from the outward event contract.
+- Migrated the R2-04 event loop and R2-05 command-reply tests from raw metadata signals to typed `MpvEvent` delivery.
+- Added the eleventh `mpv_event_decoder` CTest with synthetic event/error/Node cases plus a runtime-generated silent PCM WAV for a real short-media typed event sequence.
+- Kept the generated WAV strictly test-local; R0-06 remains skipped and no complete external media-fixture policy is claimed.
+- Accepted R2-05 after the user confirmed all nine CTests passed, including `mpv_commands`, in 1.63 seconds total.
+- Implemented R2-06 centralized property registry/observer with owner-thread lifecycle, rollback, None/null safety and typed FLAG/DOUBLE decoding.
+- Accepted R2-04 after the user confirmed all eight CTests passed, including `mpv_event_loop`, in 1.63 seconds total.
+- Implemented R2-05 typed async command request/encoder/executor boundaries.
+- Accepted R2-03 after the user confirmed all seven CTests passed, including `mpv_initialization`.
+- Implemented R2-04 wakeup bridge/event-loop ownership and shutdown protection.
+- Accepted R2-02 after the user confirmed six CTests passed, including the `MpvHandle` lifecycle/100-cycle regression.
+- Implemented R2-03 initialization profile with centralized `config=no`, pre-initialize option application, validation and failure cleanup.
+- Recorded the unresolved R2-01 repository-root `player.log` as a non-blocking validation gap by explicit user direction.
+- Completed the controlled libmpv source-build/package verification chain and explicit Qt runtime deployment path described above.
 
 ### 2026-08-07
 
-- Started Stage R2 after accepted R1-06。
-- Added the project-controlled MSYS2 CLANG64 libmpv source-build pipeline and fixed source/archive acquisition boundaries。
+- Started Stage R2 after accepted R1-06.
+- Added the project-controlled MSYS2 CLANG64 libmpv source-build pipeline and fixed source/archive acquisition boundaries.
 - Kept all third-party binaries/build trees outside Git and preserved repository-parent-relative dependency paths。
 
 ## R2 final Windows verification
@@ -764,16 +765,16 @@ R2-01 的仓库根 `player.log` 落盘缺口仍是明确的非阻塞诊断事项
 
 ## R3-06 implementation status — current
 
-R3-06 已实现 generation-aware `RequestTracker` 基础并接入 `PlaybackSession`，当前状态为 **Implemented; Windows verification pending**。
+R3-06 已实现 generation-aware `RequestTracker` 并接入 `PlaybackSession`，当前状态为 **Implemented; Windows verification pending**。
 
-- 新增 `src/playback/application/requests/`，由 `playback_request.h` 负责 request type/state/cancellation reason/record/resolution/diagnostic 数据契约，`request_tracker.*` 单独负责 RequestId 唯一性、pending/completed/cancelled 生命周期、提交时间、generation 绑定和 reply resolve。
-- Load/play/pause/stop/seek 作为 media-scoped request 绑定提交时的 `MediaGeneration`；volume/mute/speed 作为 session-scoped control request 不因媒体替换取消，保持 R3-03 已冻结的 controls 跨媒体语义。
+- 新增 `src/playback/application/requests/`：`playback_request.h` 只定义 request type/state/cancellation reason/record/resolution/diagnostics；`request_tracker.*` 是 RequestId、pending/completed/cancelled、submittedAt、generation 与 reply resolve 的唯一 owner；`request_timeout_monitor.*` 只负责 Playback Thread 上的超时调度，不把 QTimer 责任塞回 Session。
+- Load/play/pause/stop/seek 始终作为 media-scoped request 记录提交时的 `MediaGeneration`，包括 generation=0 的“当前无媒体”上下文；因此无媒体阶段的 pending 也会在下一次 Load 建立新 generation 时失效。volume/mute/speed 作为 session-scoped control request 不因媒体替换取消，保持 R3-03 已冻结的 controls 跨媒体语义。
 - 新 Load B 先登记 B，再取消非 B generation 的 media-scoped pending，因此 A 的 late reply 只得到 Cancelled/StaleGeneration disposition，不进入 Reducer；B reply 仍可正常完成。
 - duplicate RequestId、unknown reply、duplicate reply、cancelled reply、stale-generation reply 均不产生新的播放状态副作用；有效失败 reply 才进入错误路径，其中 Load failure 映射到 `MediaFailedEvent`，其他命令 failure 记录为 command failure。
 - backend 同步提交失败会把已登记 request 标记为 `SubmissionFailed` cancellation，避免遗留 Pending；Session shutdown 会把剩余 pending 标记为 Shutdown cancellation。
-- RequestTracker 提供 30 秒 timeout cancellation；PlaybackSession 在 Playback Thread 以 1 秒 coarse timer 扫描 expired pending。timeout/unknown/duplicate/cancelled/stale reply 诊断计数保留在 tracker 内，不引入新的日志依赖。
+- RequestTracker 提供 30 秒 timeout cancellation；`RequestTimeoutMonitor` 在 Playback Thread 以 1 秒 coarse timer 调用 expired scan。timeout/unknown/duplicate/cancelled/stale reply 诊断计数保留在 tracker 内，不引入新的日志依赖。
 - R3-06 只解决 async reply identity/cancellation，不给 start-file/file-loaded/property/end-file 等媒体事件打 generation；完整 stale-event gate 仍归 R3-09。连续 seek/track selection 等同类请求 supersession 仍归 R3-12。
-- 新增独立 CTest `playback_request_tracker`，覆盖 request type/generation/submittedAt、duplicate/lifecycle rejection、A→B cancellation、session-scoped control 保留、reply exactly-once、stale/cancelled/unknown reply、timeout 与 shutdown cancel-all；现有真实 `playback_session` CTest 继续作为接入后的 libmpv 主链回归。
+- 新增独立 CTest `playback_request_tracker`，覆盖 request type/generation/submittedAt、duplicate/lifecycle rejection、无媒体 generation、A→B cancellation、session-scoped control 保留、reply exactly-once、stale/cancelled/unknown reply、timeout 与 shutdown cancel-all；现有真实 `playback_session` CTest 继续作为接入后的 libmpv 主链回归。
 
 当前连接环境没有执行 Windows Qt/MSVC 构建。标准门禁预计从 20 项增加到 **21/21**：
 
@@ -794,4 +795,5 @@ playback_request_tracker
 ### 2026-08-09 — R3-06 implementation addendum
 
 - Implemented generation-aware RequestTracker ownership for async command replies, cancellation, timeout, unknown/duplicate handling and shutdown cleanup without moving playback truth out of PlaybackSession.
-- Added `playback_request_tracker` CTest and kept full stale media-event filtering and supersession outside R3-06.
+- Extracted request timeout scheduling into `RequestTimeoutMonitor`, kept media requests generation-bound even before a media is active, and added the independent `playback_request_tracker` CTest.
+- Kept full stale media-event filtering and same-kind request supersession outside R3-06.
