@@ -485,7 +485,7 @@ R3-03 新增纯 `reducePlaybackSnapshot(current, event)`，只负责 Domain 状�
 - position/duration/seekable/seeking、title/path、volume/mute/speed 各自只更新所属状态轴；不可用的 pause/buffering 不猜测新真值；
 - buffering 结束只关闭 buffering 并清 progress，不改变 transport，因此 Paused + Buffering 的成熟播放器语义保持成立；
 - EOF/Unknown end 进入 Ended + Stopped 并保留媒体 identity/timeline；显式 Stop/Shutdown end 清空媒体级状态但保留会话 controls；Redirect 回到 Opening 并丢弃旧媒体详细状态；
-- `MediaFailedEvent` 进入 Failed + Stopped，保留 source 供错误展示，清除旧 title/path/timeline/buffering 并保存 typed failure；
+- `MediaFailedEvent` 进入 Failed + Stopped，保留 source 供错误展示，清除旧 title/path/timeline/buffering并保存 typed failure；
 - backend shutdown 进入 Closing + Stopped；Protocol `PlaybackFailureEvent` 记录诊断但不伪造 MediaFailed 生命周期；
 - CoreIdle/EofReached/CommandReply 在 R3-03 不直接改变 Snapshot，避免 reducer 抢占 Session/RequestTracker 的后续职责；
 - 不实现 generation stale event gate、request supersession、invariant 修复或 Session 副作用。
@@ -1122,3 +1122,39 @@ playback_media_generation ........ Passed
 - Split complex mpv media-model mapping into responsibility-specific modules and extended R3-09 generation fencing/FileLoaded refresh to the new axes.
 - Added `playback_media_state_mapping` plus strengthened existing Domain/Application/real Session regressions; Windows build/test remains pending before acceptance.
 - Kept R3-11 cleanup matrix and R3-12 supersession outside the R3-10 scope.
+
+## R3-10 Windows verification and acceptance — current
+
+> 本节取代上一个 `R3-10 implementation status — current` 中的待验证状态；实现说明继续保留为历史事实。
+
+用户在提交 `a0ecc7ef8b077d74cbcc4064d77c5a1d355e2adf` 上先确认工作区无未提交修改并 fast-forward 到该提交。此前一次只出现 25 项的测试运行使用了旧 CMake 测试清单，因此未作为 R3-10 验收；随后显式执行 `scripts/configure.ps1` 重新生成构建树，配置成功并确认 R3-10 新增测试进入标准门禁。
+
+标准 Windows 验收实际结果：
+
+```text
+playback_events .................. Passed    0.13 sec
+playback_media_state_mapping ..... Passed    0.13 sec
+playback_snapshot ................ Passed    0.11 sec
+playback_reducer ................. Passed    0.12 sec
+playback_invariants .............. Passed    0.12 sec
+playback_state_publisher ......... Passed    0.77 sec
+playback_session ................. Passed    1.12 sec
+playback_shutdown ................ Passed    6.95 sec
+playback_media_generation ........ Passed    0.18 sec
+100% tests passed, 0 tests failed out of 26
+Total Test time (real) = 13.07 sec
+```
+
+配置与测试前检查确认 CMake 3.30.5、Ninja 1.12.1、Qt 6.8.3、VS 2022 17.14、MSVC 19.44/v143 14.44、Windows SDK 10.0.26100.0、Windows 10.0.19045.0 与固定 libmpv 0.41.0 依赖链可用；libmpv runtime SHA-256 为 `e4edeadd3daf7ca36c2da31a06534a273c61ad4a0f05bb2e9c3c851dfd482acc`，import SHA-256 为 `6c5e98ad4f5b53dbb847c522f3aaa2fc4dd8d1df1b4153af85fd2db4fa65296b`，开发 runtime marker `build/windows-msvc-debug/.player-development-root` 校验通过。
+
+R3-10 的 typed Track/Chapter/Stream/Cache Node 映射、Snapshot 多轴状态、Reducer/Invariant、StatePublisher 关键状态发布、真实 Session audio state 和 R3-09 generation replacement 回归因此与其余既有测试共同保持全绿。R3-10 正式验收完成。
+
+本次验收只更新 README，不修改生产源码、公共接口、配置或依赖；R3-11 Reducer 清理矩阵与 R3-12 Supersession/Cancellation 继续独立实施。R2-01 的仓库根 `player.log` 落盘缺口仍作为已知非阻塞诊断事项保留。
+
+**Stage R2：Complete。Stage R3：In Progress。R3-01~R3-10：Complete。下一 Atomic Task：R3-11 Reducer 清理矩阵。**
+
+### 2026-08-09 — R3-10 acceptance addendum
+
+- Accepted R3-10 from the user's explicitly reconfigured Windows build/test tree: `playback_media_state_mapping` passed in 0.13 seconds and all 26 CTests passed with 0 failures in 13.07 seconds total.
+- Confirmed `playback_session` 1.12 seconds, `playback_shutdown` 6.95 seconds and `playback_media_generation` 0.18 seconds remained green with the new multi-axis media state.
+- Kept R3-11 cleanup-matrix and R3-12 supersession work outside the R3-10 acceptance scope; the existing R2-01 `player.log` diagnostic gap remains open.
