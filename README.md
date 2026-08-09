@@ -598,7 +598,7 @@ R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage
 - Migrated the R2-04 event loop and R2-05 command-reply tests from raw metadata signals to typed `MpvEvent` delivery.
 - Added the eleventh `mpv_event_decoder` CTest with synthetic event/error/Node cases plus a runtime-generated silent PCM WAV for a real short-media typed event sequence.
 - Kept the generated WAV strictly test-local；R0-06 remains skipped and no complete external media-fixture policy is claimed.
-- Accepted R2-05 after the user confirmed all nine CTests passed, including the `mpv_commands`, in 1.63 seconds total.
+- Accepted R2-05 after the user confirmed all nine CTests passed, including `mpv_commands`, in 1.63 seconds total.
 - Implemented R2-06 centralized property registry/observer with owner-thread lifecycle, rollback, None/null safety and typed FLAG/DOUBLE decoding.
 - Accepted R2-04 after the user confirmed all eight CTests passed, including `mpv_event_loop`, in 1.63 seconds total.
 - Implemented R2-05 typed async command request/encoder/executor boundaries.
