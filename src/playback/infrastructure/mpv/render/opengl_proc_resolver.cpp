@@ -3,6 +3,8 @@
 #include <QOpenGLContext>
 #include <QSurfaceFormat>
 
+#include <utility>
+
 namespace player::playback::infrastructure::mpv::render {
 namespace {
 
