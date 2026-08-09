@@ -16,8 +16,15 @@ set_source_files_properties(
 )
 
 qt_wrap_cpp(
-    player_mpv_infrastructure
+    mpv_render_update_bridge_moc_sources
     mpv_render_update_bridge.h
+    TARGET player_mpv_infrastructure
+)
+
+target_sources(
+    player_mpv_infrastructure
+    PRIVATE
+        ${mpv_render_update_bridge_moc_sources}
 )
 
 target_link_libraries(
