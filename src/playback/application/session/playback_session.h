@@ -11,13 +11,12 @@
 
 #include <memory>
 
-class QTimer;
-
 namespace player::playback::application {
 
 class PlaybackCommandBus;
 class PlaybackSessionBackend;
 class PlaybackSessionThread;
+class RequestTimeoutMonitor;
 
 class PlaybackSession final : public QObject
 {
@@ -55,14 +54,13 @@ private:
         const player::playback::domain::PlaybackCommand& command,
         QString diagnostic);
     void commitTrackingFailure(RequestTrackStatus status);
-    void ensureRequestTimeoutTimer();
 
     [[nodiscard]] bool isOnOwningThread() const noexcept;
     [[nodiscard]] player::playback::domain::MediaGeneration allocateMediaGeneration() noexcept;
 
     std::unique_ptr<PlaybackSessionBackend> backend_;
     RequestTracker requestTracker_;
-    QTimer* requestTimeoutTimer_ = nullptr;
+    RequestTimeoutMonitor* requestTimeoutMonitor_ = nullptr;
     player::playback::domain::PlaybackSnapshot snapshot_;
     quint64 nextGenerationValue_ = 1;
     bool initialized_ = false;

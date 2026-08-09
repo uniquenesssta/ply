@@ -37,7 +37,7 @@ RequestTrackStatus RequestTracker::track(
     record.requestId = requestId;
     record.type = *type;
     record.submittedAt = submittedAt;
-    if (isMediaScoped(*type) && generation.isValid()) {
+    if (isMediaScoped(*type)) {
         record.generation = generation;
     }
 
@@ -65,8 +65,7 @@ RequestReplyResolution RequestTracker::resolve(
         return RequestReplyResolution{RequestReplyDisposition::Cancelled, record};
     }
 
-    if (record.generation.has_value()
-        && (!currentGeneration.isValid() || *record.generation != currentGeneration)) {
+    if (record.generation.has_value() && *record.generation != currentGeneration) {
         markCancelled(record, PlaybackRequestCancellationReason::GenerationChanged);
         ++diagnostics_.staleGenerationReplyCount;
         return RequestReplyResolution{RequestReplyDisposition::StaleGeneration, record};
@@ -100,7 +99,7 @@ std::size_t RequestTracker::cancelMediaRequestsForGenerationChange(
         if (record.state != PlaybackRequestState::Pending || !record.generation.has_value()) {
             continue;
         }
-        if (nextGeneration.isValid() && *record.generation == nextGeneration) {
+        if (*record.generation == nextGeneration) {
             continue;
         }
 

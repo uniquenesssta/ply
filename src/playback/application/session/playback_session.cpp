@@ -1,14 +1,13 @@
 #include "playback_session.h"
 
 #include "backend/playback_session_backend.h"
+#include "playback/application/requests/request_timeout_monitor.h"
 #include "playback/domain/errors/playback_failure.h"
 #include "playback/domain/state/playback_invariants.h"
 #include "playback/domain/state/playback_reducer.h"
 
 #include <QThread>
-#include <QTimer>
 
-#include <chrono>
 #include <limits>
 #include <utility>
 #include <variant>
@@ -17,9 +16,6 @@ namespace player::playback::application {
 namespace {
 
 using namespace player::playback::domain;
-
-constexpr std::chrono::milliseconds kRequestTimeout{30000};
-constexpr int kRequestTimeoutPollMilliseconds = 1000;
 
 PlaybackFailure makeFailure(PlaybackFailureCategory category, QString diagnostic)
 {
@@ -85,6 +81,7 @@ bool shouldApplyBackendEvent(
 PlaybackSession::PlaybackSession(QObject* parent)
     : QObject(parent)
     , backend_(std::make_unique<PlaybackSessionBackend>())
+    , requestTimeoutMonitor_(new RequestTimeoutMonitor(requestTracker_, this))
 {
 }
 
@@ -116,8 +113,7 @@ void PlaybackSession::initialize()
         return;
     }
 
-    ensureRequestTimeoutTimer();
-    requestTimeoutTimer_->start();
+    requestTimeoutMonitor_->start();
     initialized_ = true;
     emit ready();
 }
@@ -132,9 +128,7 @@ void PlaybackSession::shutdown()
     }
 
     stopping_ = true;
-    if (requestTimeoutTimer_ != nullptr) {
-        requestTimeoutTimer_->stop();
-    }
+    requestTimeoutMonitor_->stop();
     (void)requestTracker_.cancelAll(PlaybackRequestCancellationReason::Shutdown);
     backend_->setEventHandler({});
     backend_->shutdown();
@@ -338,26 +332,6 @@ void PlaybackSession::commitTrackingFailure(RequestTrackStatus status)
         PlaybackEvent{PlaybackFailureEvent{makeFailure(
             PlaybackFailureCategory::Protocol,
             requestTrackDiagnostic(status))}}));
-}
-
-void PlaybackSession::ensureRequestTimeoutTimer()
-{
-    if (requestTimeoutTimer_ != nullptr) {
-        return;
-    }
-
-    requestTimeoutTimer_ = new QTimer(this);
-    requestTimeoutTimer_->setInterval(kRequestTimeoutPollMilliseconds);
-    requestTimeoutTimer_->setTimerType(Qt::CoarseTimer);
-    QObject::connect(
-        requestTimeoutTimer_,
-        &QTimer::timeout,
-        this,
-        [this]() {
-            (void)requestTracker_.cancelExpired(
-                PlaybackRequestClock::now(),
-                kRequestTimeout);
-        });
 }
 
 bool PlaybackSession::isOnOwningThread() const noexcept

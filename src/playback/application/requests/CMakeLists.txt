@@ -1,8 +1,10 @@
 target_sources(
     player_playback_application
     PRIVATE
+        request_timeout_monitor.cpp
         request_tracker.cpp
     PUBLIC
         playback_request.h
+        request_timeout_monitor.h
         request_tracker.h
 )

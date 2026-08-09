@@ -104,6 +104,15 @@ void RequestTrackerTest::generationChangeCancelsOnlyOldMediaRequests()
     const MediaGeneration generation2{12};
 
     QVERIFY(tracker.track(
+                makeCommand(9, TransportCommand{TransportAction::Play}),
+                MediaGeneration{})
+        == RequestTrackStatus::Tracked);
+    const auto noMediaRecord = tracker.record(player::ids::RequestId{9});
+    QVERIFY(noMediaRecord.has_value());
+    QVERIFY(noMediaRecord->generation.has_value());
+    QVERIFY(!noMediaRecord->generation->isValid());
+
+    QVERIFY(tracker.track(
                 makeCommand(10, LoadMediaCommand{QStringLiteral("A.wav")}),
                 generation1)
         == RequestTrackStatus::Tracked);
@@ -124,10 +133,10 @@ void RequestTrackerTest::generationChangeCancelsOnlyOldMediaRequests()
                 generation2)
         == RequestTrackStatus::Tracked);
 
-    QCOMPARE(tracker.cancelMediaRequestsForGenerationChange(generation2), std::size_t{3});
+    QCOMPARE(tracker.cancelMediaRequestsForGenerationChange(generation2), std::size_t{4});
     QCOMPARE(tracker.pendingCount(), std::size_t{2});
 
-    for (const quint64 id : {quint64{10}, quint64{11}, quint64{12}}) {
+    for (const quint64 id : {quint64{9}, quint64{10}, quint64{11}, quint64{12}}) {
         const auto record = tracker.record(player::ids::RequestId{id});
         QVERIFY(record.has_value());
         QVERIFY(record->state == PlaybackRequestState::Cancelled);
