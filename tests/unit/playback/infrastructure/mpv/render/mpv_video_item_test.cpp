@@ -24,10 +24,12 @@ private slots:
 void MpvVideoItemTest::rendererBoundaryIsCreated()
 {
     MpvVideoItem item;
-    std::unique_ptr<QQuickFramebufferObject::Renderer> renderer(item.createRenderer());
+    QQuickFramebufferObject::Renderer* renderer = item.createRenderer();
 
     QVERIFY(renderer != nullptr);
-    QVERIFY(dynamic_cast<MpvVideoRenderer*>(renderer.get()) != nullptr);
+    auto* videoRenderer = dynamic_cast<MpvVideoRenderer*>(renderer);
+    QVERIFY(videoRenderer != nullptr);
+    delete videoRenderer;
 }
 
 void MpvVideoItemTest::synchronizeCopiesResizeDprAndVisibility()
@@ -43,7 +45,7 @@ void MpvVideoItemTest::synchronizeCopiesResizeDprAndVisibility()
 
     MpvVideoPresentationState state = renderer.presentationState();
     QCOMPARE(state.logicalSize, QSizeF(640.0, 360.0));
-    QCOMPARE(state.devicePixelRatio, window.devicePixelRatio());
+    QCOMPARE(state.devicePixelRatio, window.effectiveDevicePixelRatio());
     QVERIFY(state.visible);
 
     item.setWidth(1280.0);
@@ -53,7 +55,7 @@ void MpvVideoItemTest::synchronizeCopiesResizeDprAndVisibility()
 
     state = renderer.presentationState();
     QCOMPARE(state.logicalSize, QSizeF(1280.0, 720.0));
-    QCOMPARE(state.devicePixelRatio, window.devicePixelRatio());
+    QCOMPARE(state.devicePixelRatio, window.effectiveDevicePixelRatio());
     QVERIFY(!state.visible);
 }
 
