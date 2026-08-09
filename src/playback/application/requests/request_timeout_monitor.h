@@ -18,7 +18,6 @@ public:
 
     void start();
     void stop();
-    [[nodiscard]] bool isRunning() const noexcept;
 
 private:
     RequestTracker& tracker_;

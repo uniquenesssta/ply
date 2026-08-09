@@ -42,9 +42,4 @@ void RequestTimeoutMonitor::stop()
     timer_->stop();
 }
 
-bool RequestTimeoutMonitor::isRunning() const noexcept
-{
-    return timer_->isActive();
-}
-
 } // namespace player::playback::application
