@@ -271,6 +271,7 @@ void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
         return;
     }
 
+    (void)requestTracker_.supersedePendingFor(command, generation);
     (void)requestTracker_.cancelMediaRequestsForGenerationChange(generation);
     mediaGenerationGate_.activate(generation);
 
@@ -294,16 +295,19 @@ void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
 
 void PlaybackSession::submitTrackedCommand(const PlaybackCommand& command)
 {
+    const MediaGeneration generation = snapshot_.generation();
     const RequestTrackStatus trackStatus = requestTracker_.track(
         command,
-        snapshot_.generation());
+        generation);
     if (trackStatus != RequestTrackStatus::Tracked) {
         commitTrackingFailure(trackStatus);
         return;
     }
 
+    (void)requestTracker_.supersedePendingFor(command, generation);
+
     QString error;
-    if (!backend_->submit(command, snapshot_.generation(), &error)) {
+    if (!backend_->submit(command, generation, &error)) {
         (void)requestTracker_.cancel(
             command.requestId(),
             PlaybackRequestCancellationReason::SubmissionFailed);
