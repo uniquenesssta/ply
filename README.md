@@ -7,152 +7,177 @@
 入口：
 - `docs/plans/Qt6-libmpv播放器-第三版AiryGlass-完整UI设计任务书.md`
 - `docs/plans/stages/00_INDEX.md`
-- `docs/records/`：每个已完成 Design Atomic Task 的独立事实记录
+- `docs/records/`：每个已完成 Design Atomic Task 的独立事实记录；详细实施、异常、修复与验证以这里为准。
 
 ## Current design status
 
 - 第三版核心框架：Main Player / Fullscreen / Playlist Inspector 已确认。
 - **D1：Complete — D1-01 ～ D1-06 全部关闭。**
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
-- D2 最终产物：Window Surface、Video Viewport、Floating Header、OSC / Inspector / Overlay Host Contract、Narrow / Standard / Wide Responsive Contract。
-- D2-05 Breakpoint：Narrow=`0–839`、Standard=`840–1199`、Wide=`>=1200`。
 - **D3：In Progress。**
-- D3-01：Complete — 已建立正式 `03 OSC` 与 `D3-01 / OSC Surface & Internal Grid`（`90:3`）；OSC width=`min(host-52,880)`，Narrow=`106px`、Standard/Wide=`124px`。
-- D3-02：Complete — 已建立 `D3-02 / Timeline Basic Geometry`（`95:8`）；Timeline=`3px Track / 16px Hit / 10px Thumb / R2`。
-- D3-03：Complete — 已建立 `D3-03 / Timeline Interaction States`（`104:2`）；冻结 Preview / Scrub / Pending / Commit / Cancel / Chapter Marker 的所有权、视觉状态与 Prototype 链。
-- D3-04：Complete — 已建立 `D3-04 / Transport Cluster`（`117:2`）；Transport=`116×40 / gap6`，Previous/Next=`32px hit / 22px visual / R16`，PlayPause=`40×40 / R20`。
-- **D3-05：Complete — 已建立 `D3-05 / Volume Cluster`（`127:2`）。**
-- D3-05 State：`volume` 与 `mute` 独立；0%=`volume=0, mute=false`，Muted 保留 backend volume value 与 remembered slider position。
-- D3-05 Geometry：Wide Inline=`138×32`；Slider=`100×16 / 90×3 visual track / 10 thumb`；端点 0/100% error=`0`。
-- D3-05 Responsive：Narrow=`popover`、Standard=`popover`、Wide=`inline`；Popover=`170×52 / R20 / z60`。
-- D3-05 Feedback：本地 Slider/Mute 不叠 HUD；键盘/媒体键反馈进入 D5 HUD `z70`；Popover 打开时 D3-07 必须锁定 OSC Visible。
-- D3-05 最终审计：Visible Solid Paint=`315/315` Semantic-bound、Text Style=`133/133`、Unbound=`0`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01～04 保持。
-- **下一任务：D3-06 Utility Action Cluster。**
+- D3-01：Complete — OSC Surface & Internal Grid，Board `90:3`。
+- D3-02：Complete — Timeline Basic Geometry，Board `95:8`。
+- D3-03：Complete — Timeline Interaction States，Board `104:2`。
+- D3-04：Complete — Transport Cluster，Board `117:2`。
+- D3-05：Complete — Volume Cluster，Board `127:2`。
+- **D3-06：Complete — Utility Action Cluster，Board `134:2`。**
+- **下一任务：D3-07 OSC 显隐生命周期。**
 
-## Completed design tasks
+## Stage D1 — Foundations · Complete
 
-### D1 Foundations
+- D1-01：建立浅雾 Primitive Color。
+- D1-02：建立 Semantic Color，并回刷核心框架；框架 Visible Solid Paint=`142/142` Semantic-bound。
+- D1-03：建立 Typography System；框架文本=`43/43` 正式 Text Style。
+- D1-04：建立 Spacing / Size / Radius Geometry；核心框架 Geometry target=`55/55`。
+- D1-05：建立 Glass / Blur / Shadow；核心框架 Effect target=`25/25`。
+- D1-06：建立 Motion / Opacity / Z-order 与 Reduce Motion；Stage D1 关闭。
 
-- D1-01：建立浅雾基础色谱。
-- D1-02：建立 Semantic Color，并回刷三张核心框架。
-- D1-03：建立 Typography System，框架文本 `43/43` 使用正式 Text Style。
-- D1-04：建立 Spacing / Size / Radius Geometry System。
-- D1-05：建立 Glass / Blur / Shadow Material System。
-- D1-06：建立 Motion / Opacity / Z-order；Stage D1 关闭。
+## Stage D2 — Player Window System · Complete
 
-### D2 Player Window System
+- D2-01：Player Window Shell；Standard=`1320×700 / R32 / border70% / clipping`，Maximized=`R0 / no elevation`。
+- D2-02：Video Viewport；冻结 `Fit + preserve aspect + centered + no stretch + no crop`，覆盖 16:9 / 21:9 / 4:3 / 9:16 / Audio / Empty。
+- D2-03：Floating Header；采用 `Media Info Pod + Window Actions Pod`，Playback State 不进入 Header。
+- D2-04：Host Spatial Contract；冻结 Overlay z35 / OSC z40 / Inspector z50，以及 Header/OSC/Inspector 的硬间隔与碰撞规则。
+- D2-05：Responsive Window Skeleton；Breakpoint：Narrow=`0–839`、Standard=`840–1199`、Wide=`>=1200`；冻结 Inspector overlay/dock、OSC compact/standard、Volume 与 Utility 的降级策略。
 
-- D2-01：定义 Player Window 外壳；Standard=`1320×700 / R32 / border70% / clipping`，Maximized=`R0 / no elevation`。
-- D2-02：定义 Video Viewport；冻结 `Fit + preserve aspect + centered + no stretch + no crop`，覆盖 16:9 / 21:9 / 4:3 / 9:16 / Audio / Empty。
-- D2-03：建立 Floating Header；采用 `Media Info Pod + Window Actions Pod`，Playback State 不进入 Header。
-- D2-04：建立 Host 空间契约；冻结 Overlay z35 / OSC z40 / Inspector z50 及 12px / 26px 硬间隔。
-- D2-05：建立响应式窗口骨架；冻结 Narrow / Standard / Wide breakpoint 与 Inspector overlay/dock、OSC compact/standard、Utility/Volume 降级策略。
+## Stage D3 — OSC System · In Progress
 
-### D3 OSC System
+### D3-01 OSC Surface & Internal Grid · Complete
 
-- D3-01：建立 OSC Surface 与内部网格；冻结 Max Width、两层 Vertical Grid 与 Narrow / Standard / Wide 响应式几何。
-- D3-02：建立 Timeline 基础几何；冻结 3px Track、16px Hit Target、10px Thumb、Buffer/Progress/Disabled 语义与端点公式。
-- D3-03：建立 Timeline 交互状态；冻结 Preview / Scrub / Pending / Commit / Cancel / Chapter Marker 的所有权、视觉状态与 Prototype 链。
-- D3-04：建立 Transport Cluster；冻结 Previous / PlayPause / Next 的层级、32/40px 命中几何、Playing/Paused 与 Hover/Pressed/Focus/Disabled 状态，以及光学中心规则。
-- D3-05：建立 Volume Cluster；冻结 volume/mute 独立所有权、0/Low/Medium/High/Muted、100px Slider、Responsive Popover 与 D5 HUD 反馈入口。
+- OSC width=`min(hostWidth - 52, 880)`。
+- Narrow=`106px`，Standard/Wide=`124px`。
+- 固定 `Timeline Lane → Control Lane` 两层内部网格。
 
-## Change Log
+记录：`docs/records/D3-01_OSCSurface与内部网格.md`。
 
-### 2026-08-09 — D3-05 Volume Cluster
+### D3-02 Timeline Basic Geometry · Complete
 
-- Figma：新增 `D3-05 / Volume Cluster`（`127:2`），覆盖 Wide Inline Anatomy、0/Low/Medium/High/Muted、Narrow/Standard Popover、Feedback Routing、Responsive Stress、Window Mode Continuity 与 Interaction Contract。
-- State：正式冻结 `numeric volume ≠ mute flag`；0%=`volume=0, mute=false`；Muted 保留 numeric volume，并以 38% remembered progress/thumb 表达恢复位置。
-- Threshold：0=`Zero`、1–33=`Low`、34–66=`Medium`、67–100=`High`、`mute=true` 覆盖为 Muted glyph。
-- Geometry：Inline Volume=`138×32`；Trigger=`32×32`；Slider=`100×16`；Visual Track=`90×3`；Thumb=`10×10`；0/100% endpoint error=`0`。
-- Responsive：Narrow/Standard 仅保留 32px Trigger + z60 Popover；Wide 使用 Inline；Popover=`170×52 / R20 / Fill52% / Border48% / V3 Glass Popover`。
-- Feedback：直接 Slider/Mute 仅使用本地反馈；键盘/媒体键变化发送 D5 HUD payload 到 `z70`；Popover 打开期间 D3-07 必须进入 LockedVisible，关闭后释放。
-- Token/Style：新增 `size/volume/hit-height=16`、`size/volume/thumb=10`、`radius/surface/popover=20`、`alpha/glass/popover-fill=52%` 与 `V3 / Glass / Popover`；复用现有 Track/Progress/Thumb/Control Color。
-- Motion：Popover Open/Close=`160/120ms`、HUD Show/Hide=`160/120ms`；Reduce Motion 全部=`0ms`。
-- 修复：第一次 Board 创建因不存在 `createRoundedRectangle()` 被回滚；完整 Board 创建后 Semantic Paint binding 又把多类 opacity 写回 100%，已恢复 92 个节点目标透明度而保留 Color/Geometry/Text/Effect/Responsive binding。
-- 验证：D3-05 Visible Solid Paint=`315/315`、Text Style=`133/133`、Unbound=`0`；Popover/HUD Effect Style、Muted 38% remembered state、Responsive 与端点公式全部通过；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01～04 保持。
-- 记录：`docs/records/D3-05_VolumeCluster.md`。
-- 下一任务：`D3-06 Utility Action Cluster`。
+- Visual Track=`3px`。
+- Hit Target=`16px`。
+- Thumb=`10px`。
+- `0 / 50 / 100% / Unknown / Non-seekable` 与不同宽度均验证。
 
-### 2026-08-09 — D3-04 Transport Cluster
+记录：`docs/records/D3-02_Timeline基础几何.md`。
 
-- Figma：新增 `D3-04 / Transport Cluster`（`117:2`），覆盖 Anatomy、Primary Play/Pause State、Previous/Next State、Narrow/Standard/Wide Context Stress、Optical Center QA 与 Interaction Contract。
-- Geometry：Transport Cluster=`116×40 / gap6`；Previous/Next=`32×32 hit / 22×22 visual / R16`；PlayPause=`40×40 / R20`；Narrow/Standard/Wide 均不缩 Transport。
-- Primary：Paused→Play、Playing→Pause，仅替换 glyph；Rest/Playing=`48%`、Hover=`52%`、Pressed=`42%`、Focus=`48% + 82% ring`、Disabled node=`38%`；全部使用 `V3 / Glass / Control`。
-- Secondary：Rest=`72%`、Hover=`100%`、Pressed=`84%`、Focus=`100% + 82% ring`、Disabled=`38%`；Rest/Hover/Pressed 不增加圆形玻璃 Surface。
-- Optical：冻结 Previous≈`+0.9px`、Play≈`+0.6px`、Next≈`-0.9px` 的光学补偿，hit target 几何中心保持统一。
-- Token：新增 `radius/16`、`radius/control/transport-secondary`、`alpha/transport/primary/rest|hover|pressed` 与 `motion/control/state-duration|press-duration|state-easing`；复用既有 `32 / 22 / 40 / R20 / gap6 / alpha42|48|52`。
-- Motion：Control Hover/Focus=`120ms Ease Out`，Press=`0ms`；Reduce Motion 下全部 duration=`0ms`。
-- 修复：Semantic Paint Binding 再次把 Primary/Card/Focus Ring opacity 写回 100%，已独立恢复 54 个节点目标透明度而保留 Color/Geometry/Effect binding。
-- 验证：D3-04 Visible Solid Paint=`255/255` Semantic-bound、Unbound=`0`；4 个 Cluster 均=`116×40 / gap6`；Primary/Secondary 状态值与 Glass Control Effect 全部通过；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01～03 保持。
-- 记录：`docs/records/D3-04_TransportCluster.md`。
-- 下一任务：`D3-05 Volume Cluster`。
+### D3-03 Timeline Interaction States · Complete
 
-### 2026-08-09 — D3-03 Timeline 交互状态
+- 冻结 Rest / Hover Preview / Scrubbing / Pending Seek / Commit / Cancel / Chapter Hover。
+- PlaybackSnapshot 保持 confirmed position 唯一真值；Preview/Scrub/Pending 不提前改写真实位置。
+- Reduce Motion 下 Timeline interaction duration 全部解析到 0ms。
 
-- Figma：新增 `D3-03 / Timeline Interaction States`（`104:2`），覆盖 Rest / Hover Preview / Scrubbing / Pending Seek / Committed / Chapter Hover。
-- Ownership：PlaybackSnapshot 仍是 confirmed position 唯一真值；Preview / Scrub / Pending 均不得提前改写真实 playback position。
-- Geometry：新增 Preview Marker=`6×6`、Chapter Marker=`1×7`、Seek Preview Bubble=`64×28 / R14`；D3-02 的 3px Track / 16px Hit / 10px Thumb 保持不变。
-- Visual：Hover 使用 Cyan Preview；Scrub 保留 weak committed marker；Pending 使用 Soft Pending Range + Hollow Target；Chapter Marker Idle=`34%`、Hover=`90%`。
-- Motion：Preview show/hide=`120ms`、Scrub update=`0ms`、Pending/Commit=`160ms`、Cancel=`120ms`；Reduce Motion 下全部 duration=`0ms`。
-- Prototype：新增 6 个 Page 顶层 Smoke Frame；6 条主链 Smart Animate；`105:53` 提供 ESC Cancel → Rest 独立路径。
-- 修复：初次 Board 文本只有 Text Style、未绑定 Semantic Color，已全量回刷；交互低透明度被 Variable Binding 写回 100%，已恢复；`Chapter Marker Contract` 曾被过宽名称匹配误绑成 `1×7`，已恢复 `1696×250 / glass36% / border48%` 并收紧匹配规则。
-- 验证：D3-03 Visible Solid Paint=`302/302` Semantic-bound、Unbound=`0`；Chapter/Preview/Pending opacity 与 Geometry binding 全部通过；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01/02 保持。
-- 记录：`docs/records/D3-03_Timeline交互状态.md`。
+记录：`docs/records/D3-03_Timeline交互状态.md`。
 
-### 2026-08-09 — D3-02 Timeline 基础几何
+### D3-04 Transport Cluster · Complete
 
-- Figma：新增 `D3-02 / Timeline Basic Geometry`（`95:8`），覆盖 Anatomy、0/50/100%、Unknown、Non-seekable 与 560/728/828 Width Stress。
-- Geometry：Visual Track=`3px`、Hit Target=`16px`、Thumb=`10px`、Track Radius=`2px`；`trackX=5`、`trackWidth=W-10`、`thumbX=ratio×trackWidth`。
-- Endpoint QA：252px Timeline 的 0/50/100% Thumb left=`0/121/242`，100% Thumb right=`252`，右端误差=`0`。
-- Responsive：`timeline/control-offset` 为 Narrow=`10`、Standard/Wide=`12`；Track/Thumb/Hit Target 尺寸不因 Narrow 缩小。
-- Color：新增 `control/buffered` 与 `control/thumb-border`；Thumb 使用 1px / 28% 柔紫 inside stroke，解决亮色视频背景可读性。
-- 状态：Unknown 与 Non-seekable 保持同一 3px Base Track，不创建第二套几何；Progress/Buffer/Thumb 按状态移除或禁用。
-- 修复：第一轮 Hit Target 工程辅助层过强，已改为 Anatomy 极淡 outline、其余产品态完全隐藏；Thumb Border 变量绑定后 Stroke opacity 被写回 100%，已恢复全部 7 个 Thumb 到 28%。
-- 验证：D3-02 Visible Solid Paint=`144/144` Semantic-bound、Unbound=`0`；9 个 Timeline 样本 Hit Target=`16`、Track=`3`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05 与 D3-01 保持。
-- 记录：`docs/records/D3-02_Timeline基础几何.md`。
+- Transport=`116×40 / gap6`。
+- Previous/Next=`32×32 hit / 22×22 visual / R16`。
+- PlayPause=`40×40 / R20 / V3 Glass Control`。
+- Primary Rest/Hover/Pressed=`48/52/42%`；Focus ring=`82%`；Disabled=`38%`。
+- Previous≈`+0.9px`、Play≈`+0.6px`、Next≈`-0.9px` 光学补偿。
 
-### 2026-08-09 — D3-01 OSC Surface 与内部网格
+记录：`docs/records/D3-04_TransportCluster.md`。
 
-- Figma：新增 Page `03 OSC`（`90:2`）与 `D3-01 / OSC Surface & Internal Grid`（`90:3`）。
-- Width：冻结 `surface=min(hostWidth-2×26,880)`；720/960/1280/1600 分别得到 `616/856/780/880`，全部 width error=`0`。
-- Grid：正式结构固定为 `Timeline Lane → Control Lane`；Narrow=`106px`，Standard/Wide=`124px`，Primary Playback 40px 不因 Narrow 缩小。
-- Geometry：新增 `size/26`、`size/28`、`size/880` 以及 11 个 OSC Geometry Semantic；当前 Geometry Semantic=`73`。
-- Responsive：新增 `osc/inset / radius / timeline-lane-height / control-lane-height / section-gap / padding-top / padding-bottom`，Responsive Semantic=`23`。
-- Material：Narrow OSC=`32% fill / 48% stroke / R32 / V3 Glass OSC Compact`；Standard/Wide=`34% / 48% / R34 / V3 Glass OSC`。
-- Ownership：D3-01 只冻结 Surface + Grid Slots；Timeline 细节留 D3-02/03，Transport/Volume/Utility 留 D3-04/05/06，Visibility 留 D3-07。
-- 修复：第一次 Board 创建因 Rectangle 不能 append Label 被 Figma 原子回滚；第二轮创建后又发现 Semantic Paint Binding 把 OSC/Guide/Inspector alpha 写回 100%，已恢复 55 个节点目标透明度，并将 Inspector Context 改为 outline-only。
-- 验证：D3-01 Visible Solid Paint=`141/141` Semantic-bound、Unbound=`0`；四档 Surface width/vertical sum 全部精确；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05 全部存在且未修改。
-- 记录：`docs/records/D3-01_OSCSurface与内部网格.md`。
+### D3-05 Volume Cluster · Complete
 
-### 2026-08-09 — D2-05 响应式窗口骨架；Stage D2 关闭
+- `volume` 与 `mute` 独立；0% 不等于 Muted。
+- Wide Inline=`138×32 = 32 trigger + 6 gap + 100 slider`。
+- Slider=`100×16 / 90×3 visual track / 10 thumb`；0/100% endpoint error=`0`。
+- Narrow/Standard=`Popover`，Wide=`Inline`。
+- Popover=`170×52 / R20 / z60 / V3 Glass Popover`。
+- 本地 Slider/Mute 不叠 HUD；键盘/媒体键反馈进入 D5 HUD z70。
 
-- Figma：新增 `D2-05 / Responsive Window Skeleton`（`79:2`），真实建立 `720 / 960 / 1280 / 1600` 四个 700px 高 Window 骨架。
-- Responsive：新增 `V3 / Responsive Primitive` 3 个 breakpoint 与 `V3 / Responsive Semantic` 16 个 Variable，Mode=`Narrow / Standard / Wide`。
-- Mode：Narrow=`0–839`、Standard=`840–1199`、Wide=`>=1200`；Inspector 分别采用 `320 overlay / 368 overlay / 368 dock`。
-- Controls：Desktop utility/window action hit-min 最终定为 `32`；Primary Playback 保持 `40`；Narrow 只降低视觉密度，不缩点击目标。
-- Binding：Header Info Width/Height、Window Actions Height、OSC Height、Inspector Width、12 个 Window Action hit target 均接入 Responsive Variable。
-- Boundary QA：`839 / 840 / 1199 / 1200` 均无 Header / Inspector / OSC / Overlay 碰撞；关键间隔保持 `12 / 26 / 26`。
-- 修复：BOOLEAN / STRING Variable 不支持强写 scopes，首次 mutation 原子回滚；Semantic Paint opacity 再次被写成 100%，已恢复 Host/Header/Window 材质透明度；删除与 Host label 重叠的 Policy Chip。
-- 验证：D2-05 Visible Solid Paint=`118/118` Semantic-bound、Unbound=`0`；D1 回归 Color=`142/142`、Typography=`43/43`、Geometry=`55/55`、Effect=`25/25`；D2-01～D2-04 全部保持。
-- 记录：`docs/records/D2-05_响应式窗口骨架.md`。
-- 结论：Stage D2 关闭；下一任务 `D3-01 OSC Surface 与内部网格`。
+记录：`docs/records/D3-05_VolumeCluster.md`。
 
-### 2026-08-09 — D2-04 Host 空间契约
+### D3-06 Utility Action Cluster · Complete
 
-- 建立 `D2-04 / Host Spatial Contract`（`70:2`），冻结 OSC / Inspector / Overlay 安全区、碰撞和 z-order；记录见 `docs/records/D2-04_建立Host空间契约.md`。
+Figma：`D3-06 / Utility Action Cluster`（`134:2`）。
 
-### 2026-08-09 — D2-03 Floating Header
+正式入口所有权：
 
-- 建立 `D2-03 / Floating Header Contract`（`65:2`），冻结 Split Pod、长标题、无标题、Compact Header 和局部 Contrast Support；记录见 `docs/records/D2-03_建立FloatingHeader.md`。
+```text
+Subtitles    → Inspector / Subtitles    → z50
+Audio Tracks → Inspector / Audio Tracks → z50
+Chapters     → Inspector / Chapters     → z50
+Playlist     → Inspector / Playlist     → z50
+More         → Popover / More            → z60
+Fullscreen   → Window Mode Toggle        → Enter / Exit Fullscreen
+```
 
-### 2026-08-09 — D2-02 Video Viewport
+四类 Inspector Action 共享同一个 D4 Inspector Shell；同一时间只有一个 Inspector destination active。More 只拥有 overflow popover，不创建第二个 Inspector。Fullscreen 只切换 Window Mode，不消费 Panel Open selection。
 
-- 建立 `D2-02 / Video Viewport Contract`（`57:2`），冻结媒体 Fit、Letterbox、Audio/Empty 与 Contrast Support；记录见 `docs/records/D2-02_定义VideoViewport.md`。
+Geometry：
 
-### 2026-08-09 — D2-01 Player Window 外壳
+```text
+Utility Hit Target = 32×32 / R16
+Standard/Wide Icon = 22×22
+Narrow Icon        = 21×21
+Gap                = 6
 
-- 建立 `D2-01 / Player Window Shell Contract`（`50:2`），冻结 Window Surface、Maximized、Safe Area 和 clipping；记录见 `docs/records/D2-01_定义PlayerWindow外壳.md`。
+Narrow Cluster     = 108×32
+Standard Cluster   = 146×32
+Wide Cluster       = 222×32
+```
 
-### 2026-08-09 — D1 Foundations
+Responsive：
 
-- D1-01 ～ D1-06 全部完成并关闭；各 Atomic Task 事实记录位于 `docs/records/`。
+```text
+Narrow / essential+more
+Subtitles · More · Fullscreen
+More → Audio Tracks / Chapters / Playlist
+
+Standard / mixed+more
+Subtitles · Playlist · More · Fullscreen
+More → Audio Tracks / Chapters
+
+Wide / full
+Subtitles · Audio Tracks · Chapters · Playlist · More · Fullscreen
+```
+
+State：
+
+```text
+Rest       72%
+Hover      100%
+Pressed    84%
+Focus      82% focus ring
+Disabled   38%
+Panel Open 66% selection fill / 28% border / icon primary 100%
+```
+
+More Popover：
+
+```text
+250×176 / R20
+Fill 52% / Border 48%
+V3 / Glass / Popover
+z60
+```
+
+Token：D3-06 没有新增 Color / Geometry / Material / Motion Token，完全复用 D1～D3 已冻结系统。
+
+实施问题与修复：Semantic Paint Binding 再次把 Focus / Panel Open / More Popover 及文档辅助材质 opacity 写回 100%；已独立恢复 50 个节点目标透明度，不改变 Semantic Color、Geometry、Route Metadata 或 Effect Style。
+
+最终验证：
+
+```text
+Visible Solid Paint 396 / 396 Semantic-bound
+Text Style          155 / 155
+Unbound             0
+
+D1 Regression
+Color       142 / 142
+Typography   43 / 43
+Geometry     55 / 55
+Effect       25 / 25
+
+D2-01 ～ D2-05 保持
+D3-01 ～ D3-05 保持
+```
+
+记录：`docs/records/D3-06_UtilityActionCluster.md`。
+
+## Next
+
+**D3-07 — OSC 显隐生命周期**
+
+下一任务需要建立 `Hidden / Rest / Active / LockedVisible` 的唯一可交付生命周期，统一 hover、scrub、Volume Popover、More Popover、Inspector、paused、error、keyboard action 与 Fullscreen 下的 OSC 显隐 ownership。D3-07 完成后执行 Stage D3 关闭检查。
