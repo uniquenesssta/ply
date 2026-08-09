@@ -1,6 +1,6 @@
 # Modular Qt 6 + libmpv Player
 
-Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。Stage R2：无 UI libmpv 播放核心已经完成；当前进入 Stage R3：领域状态与 PlaybackSession。R3-01 Command/Event 与 R3-02 PlaybackSnapshot 已完成；R3-03 已建立纯 PlaybackReducer 状态迁移，等待 Windows build/CTest 验收。
+Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。Stage R2：无 UI libmpv 播放核心已经完成；当前进入 Stage R3：领域状态与 PlaybackSession。R3-01 Command/Event、R3-02 PlaybackSnapshot 与 R3-03 Reducer 已完成；R3-04 已建立集中式 PlaybackSnapshot invariants，等待 Windows build/CTest 验收。
 
 ## Current baseline
 
@@ -26,15 +26,17 @@ Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器工程。Stage R
 - R3-01 `domain/commands + domain/events`：新增强类型 `RequestId`、封闭 PlaybackCommand variant、命令范围校验、PlaybackEvent variant，以及 `MpvPlaybackEventMapper` 后端适配边界；
 - R3-02 `domain/state`：新增只读 `PlaybackSnapshot`、`MediaGeneration` 值类型以及 lifecycle/transport/media/timeline/buffering/controls 独立状态轴；共享 `PlaybackFailure` 已从 event payload 中提取到 `domain/errors`；
 - R3-03 `domain/state/playback_reducer.*`：新增纯 `Snapshot + Event -> Snapshot` 状态迁移，覆盖媒体加载/结束/失败、transport、timeline、buffering、controls 与 backend shutdown；
+- R3-04 `domain/state/playback_invariants.*`：新增无副作用 Snapshot/transition invariant checker，集中检测媒体状态残留、identity 缺失、lifecycle/transport 冲突、失败状态缺失错误、buffering/seeking 非法组合与 generation 回退；
 - Windows 构建后显式 `windeployqt` 与 `.player-development-root` 开发标记；
 - R2-08 已由用户 Windows 环境完成最终验收：11/11 CTest 全绿（1.47 秒），真实媒体主链 PASS，非法媒体错误路径返回明确加载失败诊断；
 - R2-09 已由用户 Windows 环境完成最终验收：12/12 CTest 全绿（2.31 秒），新增 `mpv_event_semantics` 通过；
 - R2-10 已由用户 Windows 环境完成最终验收：13/13 CTest 全绿（2.40 秒），`mpv_properties` 与新增 `mpv_property_baseline` 均通过；
 - R2-11 已由用户 Windows 环境完成最终验收：14/14 CTest 全绿（2.22 秒），新增 `playback_probe_matrix` 通过（0.62 秒）；
 - R3-01 已由用户 Windows 环境完成最终验收：16/16 CTest 全绿（3.31 秒），新增 `playback_commands`（0.11 秒）与 `playback_events`（0.12 秒）均通过；
-- R3-02 已由用户在本轮确认验收成功；本轮未提供该次 CTest 的逐项输出或总耗时，因此 README 不补写未提供的数值。
+- R3-02 已由用户确认验收成功；该次对话未提供逐项 CTest 输出或总耗时，因此 README 不补写未提供的数值；
+- R3-03 已由用户 Windows 环境完成最终验收：18/18 CTest 全绿（3.40 秒），`playback_reducer` 0.11 秒通过；首次构建因测试 helper `event(...)` 被 `QObject::event(QEvent*)` 名字隐藏而出现 C2664，重命名为 `makePlaybackEvent(...)` 后构建和完整回归通过。
 
-R2-02~R2-11 均已完成并通过对应阶段验收；R2-01 的仓库根 `player.log` 落盘问题继续作为用户明确允许延期的非阻塞诊断缺口保留。当前 **Stage R3：In Progress**；**R3-01：Complete**；**R3-02：Complete**；**R3-03：Implemented，Windows verification pending**。R3-04 Invariants、PlaybackSession、Generation stale gate 和 RequestTracker 仍按后续 Atomic Task 引入；R3-03 不做 generation 过滤、不处理请求 supersession。
+R2-02~R2-11 均已完成并通过对应阶段验收；R2-01 的仓库根 `player.log` 落盘问题继续作为用户明确允许延期的非阻塞诊断缺口保留。当前 **Stage R3：In Progress**；**R3-01：Complete**；**R3-02：Complete**；**R3-03：Complete**；**R3-04：Implemented，Windows verification pending**。PlaybackSession、RequestTracker、Generation stale gate 和 supersession 仍按后续 Atomic Task 引入；R3-04 只报告 invariant violation，不自动修复状态、不丢弃事件。
 
 ## Product scope
 
@@ -92,7 +94,7 @@ src/playback/domain/events/
   当前只覆盖 R3-01 所需核心事件，track/chapter/video/audio domain model 留给后续对应任务。
 
 src/playback/domain/state/
-  MediaGeneration 只定义不可复用媒体代际的强类型值语义，0 为 invalid；R3-02/R3-03 不负责 generation 分配或 stale event gate；
+  MediaGeneration 只定义不可复用媒体代际的强类型值语义，0 为 invalid；R3-02~R3-04 不负责 generation 分配或 stale event gate；
   PlaybackLifecycleState 独立表达 Empty/Opening/Ready/Ended/Failed/Closing；
   PlaybackTransportState 独立表达 Idle/Playing/Paused/Stopped，禁止用 buffering 覆盖用户暂停意图；
   PlaybackMediaState 持有 source/title/path 媒体 identity，后续 typed tracks/chapters 在该媒体状态边界扩展，不引入 generic QVariant 列表；
@@ -100,7 +102,9 @@ src/playback/domain/state/
   PlaybackSnapshot 私有拥有上述状态并只暴露 const 访问器；`PlaybackSnapshotState` 作为生成新值的复制载体；
   `reducePlaybackSnapshot()` 是纯 Domain reducer：复制当前 SnapshotState，按 PlaybackEvent 更新拥有的状态轴，再生成新 PlaybackSnapshot；不调用 libmpv、不访问线程/IO、不持有请求表；
   MediaLoadStarted 清旧 title/path/timeline/buffering/failure 但保留当前 source/generation 与会话级 controls；EOF 进入 Ended 并保留媒体 identity/timeline；显式 Stop/Shutdown 清媒体级状态但保留 controls；MediaFailed 保留 source 供错误展示并清旧媒体详细状态；
-  Pause 与 Buffering 独立更新，buffering 结束不会把 Paused 猜回 Playing；CoreIdle/EofReached/CommandReply 不在 R3-03 抢 Snapshot 所有权，后续由 Session/RequestTracker 策略消费。
+  Pause 与 Buffering 独立更新，buffering 结束不会把 Paused 猜回 Playing；CoreIdle/EofReached/CommandReply 不在 R3-03 抢 Snapshot 所有权，后续由 Session/RequestTracker 策略消费；
+  `checkPlaybackSnapshotInvariants()` 只检查单个 Snapshot 的高价值结构一致性；`checkPlaybackTransitionInvariants()` 只检查跨快照时间不变量；两者返回 typed violation 列表，不修改 Snapshot、不抛业务决策；
+  当前 invariants 覆盖 Empty 不得残留 media/timeline/buffering、Opening/Ready/Ended/Failed 必须有有效 generation/source、lifecycle/transport 组合、Failed 必须有 failure、buffering 只能处于 Opening/Ready、seeking 只能处于 Ready 且不能与明确 `seekable=false` 冲突，以及有效 generation 不能回退或重新变 invalid。
 
 src/playback/infrastructure/mpv/runtime/
   libmpv manifest 与真实已加载 DLL/client API 身份探测。
@@ -165,6 +169,8 @@ R3-01 建立的 Domain 契约不直接复用 `MpvCommandRequest` 或 `MpvEvent` 
 R3-02 只建立状态载体，不建立状态迁移副作用。Snapshot 将媒体生命周期、transport、buffering 分成独立轴；`Ready + Paused + buffering=true` 可合法表达，避免缓冲覆盖用户暂停。position/duration/seekable/seeking 与 volume/mute/speed 的未观测值使用 optional，不假定后端尚未确认的真值。MediaGeneration 已作为 Snapshot 字段建立比较和值语义，为后续 invariant/gate 提供类型边界，但本任务没有 generation allocator、RequestTracker、late event filter 或 reducer 分支。
 
 R3-03 只负责纯状态转换。Reducer 不接收 mpv 类型、不执行命令、不决定自动下一项，也不消费 RequestId 副作用；同一个输入 Snapshot/Event 始终产生新的 Snapshot 值。媒体切换和 Stop 清理只清媒体级状态，volume/mute/speed 继续作为会话级控制真值保留。Protocol failure 可记录到 Snapshot failure，但不会伪造 MediaFailed 生命周期；真正的生命周期失败由 MediaFailedEvent 驱动。Generation 仍不参与事件接受/拒绝，避免提前实现 R3-09 stale gate。
+
+R3-04 只负责发现非法状态组合，不负责修复。单 Snapshot 检查与跨 Snapshot generation 检查使用同一 typed violation 枚举，但职责分离：结构检查只看当前值，transition 检查只看 previous/next generation 是否回退。该层不访问 libmpv、不执行命令、不记录日志、不发布 Snapshot；R3-05 PlaybackSession 后续决定如何消费 violation。R3-09 仍负责真正的 stale-event/generation gate，本任务不把“检测 generation 回退”扩展成事件过滤。
 
 ## Module growth rule
 
@@ -466,9 +472,9 @@ R3-02 建立产品只读播放快照和值类型，不实现 reducer/session 副
 - track/chapter 不使用 placeholder QVariant/generic list；后续 typed descriptor 会沿 `PlaybackMediaState` 责任边界扩展；
 - 新增独立 CTest `playback_snapshot`，覆盖默认/Opening/Stopped、独立 Pause+Buffering 轴、媒体/timeline/control 字段和 typed failure。
 
-用户在本轮明确确认 R3-02 验收成功。由于本轮没有提供该次 Windows CTest 的逐项输出、总数或耗时，本 README 只记录验收结论，不补写未提供的数值。
+用户明确确认 R3-02 验收成功。由于对应回合没有提供该次 Windows CTest 的逐项输出、总数或耗时，本 README 只记录验收结论，不补写未提供的数值。
 
-### R3-03 — Implemented; Windows verification pending
+### R3-03 — Complete
 
 R3-03 新增纯 `reducePlaybackSnapshot(current, event)`，只负责 Domain 状态转换：
 
@@ -482,7 +488,25 @@ R3-03 新增纯 `reducePlaybackSnapshot(current, event)`，只负责 Domain 状�
 - CoreIdle/EofReached/CommandReply 在 R3-03 不直接改变 Snapshot，避免 reducer 抢占 Session/RequestTracker 的后续职责；
 - 不实现 generation stale event gate、request supersession、invariant 修复或 Session 副作用。
 
-新增独立 CTest `playback_reducer`，覆盖 load/file-loaded、play/pause、seek/timeline、buffering 与 pause 独立、EOF/stop/redirect/error、shutdown、unavailable property、非 Snapshot-owner event 与 protocol failure。当前连接环境未执行 Windows Qt/MSVC 构建，因此 R3-03 不声明 Complete；标准门禁预计从 R3-02 的 17 项增加到 **18/18**。
+新增独立 CTest `playback_reducer`，覆盖 load/file-loaded、play/pause、seek/timeline、buffering 与 pause 独立、EOF/stop/redirect/error、shutdown、unavailable property、非 Snapshot-owner event 与 protocol failure。
+
+首次 Windows build 在编译 `playback_reducer_test.cpp` 时失败：测试类继承 `QObject`，命名空间辅助函数也命名为 `event(...)`，MSVC 在成员函数调用处优先解析到 `QObject::event(QEvent*)`，导致 Domain event payload 全部报 C2664。修复仅将 test helper 重命名为 `makePlaybackEvent(...)`，未修改 Reducer、Domain API 或产品行为。用户随后重新执行标准 build/test，开发 runtime marker 正常，最终 **18/18 CTest 全部通过，0 failed，总测试时间 3.40 秒**，其中 `playback_reducer` **0.11 秒**。R3-03 因此正式验收完成。
+
+### R3-04 — Implemented; Windows verification pending
+
+R3-04 集中建立少量高价值 Snapshot invariants，不自动修复状态：
+
+- 新增 `PlaybackInvariantViolation` typed enum 与 `PlaybackInvariantViolations` 结果集合；
+- `checkPlaybackSnapshotInvariants(snapshot)` 检查当前 Snapshot 结构一致性；
+- Empty lifecycle 不允许残留 media identity、timeline 或 buffering；
+- Opening/Ready/Ended/Failed 必须拥有有效 `MediaGeneration` 与非空 source；
+- lifecycle 与 transport 必须落在允许组合：Empty=Idle/Stopped、Opening=Idle、Ready=Idle/Playing/Paused、Ended/Failed/Closing=Stopped；
+- Failed lifecycle 必须携带 failure；buffering active 只能位于 Opening/Ready；seeking=true 只能位于 Ready，且不能与明确 `seekable=false` 同时存在；
+- `checkPlaybackTransitionInvariants(previous, next)` 单独检测 generation 回退：一旦 previous generation 有效，next 不得变 invalid，也不得数值下降；
+- checker 只返回 violation，不修改 Snapshot、不抛业务决策、不接触 libmpv/线程/IO；真正的 stale-event filtering 仍归 R3-09；
+- 新增独立 CTest `playback_invariants`，同时验证 canonical Snapshot、Reducer 主路径输出、非法结构组合与 generation same/increase/regression。
+
+当前连接环境未执行 Windows Qt/MSVC 构建，因此 R3-04 不声明 Complete。标准 CTest 门禁预计从 18 项增加到 **19/19**。
 
 ## Validation record
 
@@ -502,22 +526,26 @@ R3-03 新增纯 `reducePlaybackSnapshot(current, event)`，只负责 Domain 状�
 - R2-10：13/13 CTest 通过，`mpv_property_baseline` 通过，总测试时间 2.40 秒；
 - R2-11：首次 Windows build 的 C1083 include-root 问题修复后，标准 build/test 成功进入 CTest，`playback_probe_matrix` 0.62 秒通过，最终 **14/14 CTest 全部通过，0 failed，总测试时间 2.22 秒**；
 - R3-01：标准 Windows build/test 通过；`playback_commands` 0.11 秒、`playback_events` 0.12 秒，最终 **16/16 CTest 全部通过，0 failed，总测试时间 3.31 秒**；
-- R3-02：用户在本轮确认验收成功；未提供该次逐项 CTest 输出/总耗时，因此不补写数值；
-- R3-03：源码、CMake 与 `playback_reducer` CTest 已提交；**Windows build 与预期 18/18 CTest 尚未执行，不声明通过**；
+- R3-02：用户确认验收成功；对应回合未提供逐项 CTest 输出/总耗时，因此不补写数值；
+- R3-03：首次 build 因 reducer test helper `event(...)` 与 `QObject::event` 名字隐藏产生 C2664；重命名 helper 后标准 build/test 通过，开发 runtime marker 正常，`playback_reducer` 0.11 秒，最终 **18/18 CTest 全部通过，0 failed，总测试时间 3.40 秒**；
+- R3-04：源码、CMake 与 `playback_invariants` CTest 已提交；**Windows build 与预期 19/19 CTest 尚未执行，不声明通过**；
 - `Player.exe` 可正常启动并保持响应；
 - `player.log` 根目录落盘问题仍为单独已知非阻塞缺口，保留到后续相关诊断、发布门禁关闭。
 
-R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage R3 当前为 In Progress，R3-01、R3-02 正式 Complete，R3-03 等待 Windows 验收。
+R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage R3 当前为 In Progress，R3-01、R3-02、R3-03 正式 Complete，R3-04 等待 Windows 验收。
 
 ## Change Log
 
 ### 2026-08-09
 
-- Accepted R3-02 from the user's explicit acceptance confirmation; the user did not provide the corresponding CTest detail/timing in this turn, so no unprovided test counts or elapsed time were added.
+- Accepted R3-03 after the user reran the standard Windows build/test flow: the development runtime marker passed, `playback_reducer` passed in 0.11 seconds, and all 18 CTests passed with 0 failures in 3.40 seconds total.
+- Recorded the first R3-03 Windows build failure accurately: reducer test helper `event(...)` was hidden by inherited `QObject::event(QEvent*)`, causing C2664 for every Domain event payload; the fix renamed only the test helper to `makePlaybackEvent(...)` and did not change product code.
+- Implemented R3-04 pure Snapshot/transition invariant checking with typed violations for stale media state, active-media identity, lifecycle/transport consistency, failure presence, buffering/seeking combinations and generation regression.
+- Added independent `playback_invariants` CTest including canonical-state checks, reducer-output cross-checks and illegal snapshot/transition cases; expected Windows suite size is now 19 tests, not yet executed for R3-04.
+- Accepted R3-02 from the user's explicit acceptance confirmation; the user did not provide the corresponding CTest detail/timing in that turn, so no unprovided test counts or elapsed time were added.
 - Implemented R3-03 pure `PlaybackSnapshot + PlaybackEvent -> PlaybackSnapshot` reducer with media lifecycle cleanup, independent transport/buffering axes, timeline/control updates and typed failure handling.
 - Preserved session-level volume/mute/speed across media replacement/stop while clearing media-scoped identity details and timeline where required.
-- Kept CommandReply/CoreIdle/EofReached outside Snapshot ownership and did not implement R3-04 invariants, R3-05 Session, generation stale filtering or request supersession early.
-- Added independent `playback_reducer` CTest state matrix; expected Windows suite size is now 18 tests, not yet executed for R3-03.
+- Kept CommandReply/CoreIdle/EofReached outside Snapshot ownership and did not implement R3-05 Session, generation stale filtering or request supersession early.
 - Implemented R3-02 immutable `PlaybackSnapshot` value model with separate lifecycle, transport, media, timeline, buffering and controls state axes; no reducer or Session side effects were introduced.
 - Added strong `MediaGeneration` value semantics to the Snapshot boundary without generation allocation or stale-event filtering; those remain later R3 tasks.
 - Promoted `PlaybackFailure` to a shared Domain error value so both events and Snapshot can use it without a state→event dependency.
@@ -629,11 +657,27 @@ Total Test time (real) = 3.31 sec
 
 ## R3-02 acceptance
 
-用户在本轮确认 R3-02 验收成功；本轮未提供该次 CTest 的逐项输出或总耗时，因此只记录验收结论。
+用户确认 R3-02 验收成功；对应回合未提供该次 CTest 的逐项输出或总耗时，因此只记录验收结论。
 
-## R3-03 local verification
+## R3-03 Windows verification
 
-R3-03 新增纯 Domain CTest，不要求额外媒体样本。当前 Windows 工作区继续使用 `agent/r3-stage`：
+R3-03 首次 build 在 CTest 前被 reducer test helper 命名冲突阻断；修复 `event(...)` → `makePlaybackEvent(...)` 后，用户重新执行标准 build/test，实际结果：
+
+```text
+playback_reducer ................. Passed    0.11 sec
+100% tests passed, 0 tests failed out of 18
+Total Test time (real) = 3.40 sec
+```
+
+测试前开发 runtime marker 校验成功：
+
+```text
+[OK] Development runtime root marker -> build/windows-msvc-debug/.player-development-root
+```
+
+## R3-04 local verification
+
+R3-04 新增纯 Domain invariant CTest，不要求额外媒体样本。当前 Windows 工作区继续使用 `agent/r3-stage`：
 
 ```powershell
 git pull --ff-only origin agent/r3-stage
@@ -644,11 +688,11 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 预期新增：
 
 ```text
-playback_reducer
+playback_invariants
 ```
 
-标准门禁预计为 **18/18 passed, 0 failed**。当前连接环境未执行该 Windows 门禁，因此这里仅记录预期结果。
+标准门禁预计为 **19/19 passed, 0 failed**。当前连接环境未执行该 Windows 门禁，因此这里仅记录预期结果。
 
 R2-01 的 `player.log` 落盘缺口继续作为非阻塞诊断事项保留。
 
-**Stage R2：Complete。Stage R3：In Progress。R3-01：Complete。R3-02：Complete。R3-03：Implemented; Windows verification pending。**
+**Stage R2：Complete。Stage R3：In Progress。R3-01：Complete。R3-02：Complete。R3-03：Complete。R3-04：Implemented; Windows verification pending。**
