@@ -18,12 +18,16 @@
 - D2-05 Breakpoint：Narrow=`0–839`、Standard=`840–1199`、Wide=`>=1200`。
 - **D3：In Progress。**
 - D3-01：Complete — 已建立正式 `03 OSC` 与 `D3-01 / OSC Surface & Internal Grid`（`90:3`）；OSC width=`min(host-52,880)`，Narrow=`106px`、Standard/Wide=`124px`。
-- **D3-02：Complete — 已建立 `D3-02 / Timeline Basic Geometry`（`95:8`）。**
-- D3-02 Timeline：Visual Track=`3px`、Hit Target=`16px`、Thumb=`10px`、Track Radius=`2px`；端点公式 `trackX=5 / trackWidth=W-10 / thumbX=ratio×trackWidth`。
-- D3-02 状态：0/50/100%、Unknown Duration、Non-seekable 已验证；560/728/828 三种实际 Lane 宽度共享同一几何。
-- D3-02 Token：新增 `size/timeline/hit-height`、Standard/Wide offset=`12`、Narrow offset=`10`、`control/buffered`、`control/thumb-border`；Thumb border=`1px / 28%`。
-- D3-02 最终审计：Visible Solid Paint=`144/144` Semantic-bound、Unbound=`0`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05 与 D3-01 保持。
-- **下一任务：D3-03 Timeline 交互状态。**
+- D3-02：Complete — 已建立 `D3-02 / Timeline Basic Geometry`（`95:8`）；Timeline=`3px Track / 16px Hit / 10px Thumb / R2`。
+- **D3-03：Complete — 已建立 `D3-03 / Timeline Interaction States`（`104:2`）。**
+- D3-03 Ownership：Preview≠Playback Position；Scrub 只拥有 temporary target；Pending Seek 在 backend confirmation 前不改写 confirmed position。
+- D3-03 States：Rest / Hover Preview / Scrubbing / Pending Seek / Committed / Chapter Hover；另有 ESC Cancel → Rest。
+- D3-03 Preview：Cyan Preview Marker=`6×6 / 92%`；Seek Preview Bubble=`64×28 / R14 / 52% glass`。
+- D3-03 Chapter：Marker=`1×7`，Idle=`34%`，Hover/Target=`90%`；不创建第二条 progress track。
+- D3-03 Motion：Preview=`120ms`、Scrub update=`0ms`、Pending/Commit=`160ms`、Cancel=`120ms`；Reduce Motion 全部=`0ms`。
+- D3-03 Prototype：6 个 Page 顶层 Smoke Frame、6 条主链 Reaction、1 条 ESC Cancel Reaction。
+- D3-03 最终审计：Visible Solid Paint=`302/302` Semantic-bound、Unbound=`0`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01/02 保持。
+- **下一任务：D3-04 Transport Cluster。**
 
 ## Completed design tasks
 
@@ -48,8 +52,22 @@
 
 - D3-01：建立 OSC Surface 与内部网格；冻结 Max Width、两层 Vertical Grid 与 Narrow / Standard / Wide 响应式几何。
 - D3-02：建立 Timeline 基础几何；冻结 3px Track、16px Hit Target、10px Thumb、Buffer/Progress/Disabled 语义与端点公式。
+- D3-03：建立 Timeline 交互状态；冻结 Preview / Scrub / Pending / Commit / Cancel / Chapter Marker 的所有权、视觉状态与 Prototype 链。
 
 ## Change Log
+
+### 2026-08-09 — D3-03 Timeline 交互状态
+
+- Figma：新增 `D3-03 / Timeline Interaction States`（`104:2`），覆盖 Rest / Hover Preview / Scrubbing / Pending Seek / Committed / Chapter Hover。
+- Ownership：PlaybackSnapshot 仍是 confirmed position 唯一真值；Preview / Scrub / Pending 均不得提前改写真实 playback position。
+- Geometry：新增 Preview Marker=`6×6`、Chapter Marker=`1×7`、Seek Preview Bubble=`64×28 / R14`；D3-02 的 3px Track / 16px Hit / 10px Thumb 保持不变。
+- Visual：Hover 使用 Cyan Preview；Scrub 保留 weak committed marker；Pending 使用 Soft Pending Range + Hollow Target；Chapter Marker Idle=`34%`、Hover=`90%`。
+- Motion：Preview show/hide=`120ms`、Scrub update=`0ms`、Pending/Commit=`160ms`、Cancel=`120ms`；Reduce Motion 下全部 duration=`0ms`。
+- Prototype：新增 6 个 Page 顶层 Smoke Frame；6 条主链 Smart Animate；`105:53` 提供 ESC Cancel → Rest 独立路径。
+- 修复：初次 Board 文本只有 Text Style、未绑定 Semantic Color，已全量回刷；交互低透明度被 Variable Binding 写回 100%，已恢复；`Chapter Marker Contract` 曾被过宽名称匹配误绑成 `1×7`，已恢复 `1696×250 / glass36% / border48%` 并收紧匹配规则。
+- 验证：D3-03 Visible Solid Paint=`302/302` Semantic-bound、Unbound=`0`；Chapter/Preview/Pending opacity 与 Geometry binding 全部通过；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05、D3-01/02 保持。
+- 记录：`docs/records/D3-03_Timeline交互状态.md`。
+- 下一任务：`D3-04 Transport Cluster`。
 
 ### 2026-08-09 — D3-02 Timeline 基础几何
 
@@ -62,7 +80,6 @@
 - 修复：第一轮 Hit Target 工程辅助层过强，已改为 Anatomy 极淡 outline、其余产品态完全隐藏；Thumb Border 变量绑定后 Stroke opacity 被写回 100%，已恢复全部 7 个 Thumb 到 28%。
 - 验证：D3-02 Visible Solid Paint=`144/144` Semantic-bound、Unbound=`0`；9 个 Timeline 样本 Hit Target=`16`、Track=`3`；D1 回归 `142/142 · 43/43 · 55/55 · 25/25`；D2-01～05 与 D3-01 保持。
 - 记录：`docs/records/D3-02_Timeline基础几何.md`。
-- 下一任务：`D3-03 Timeline 交互状态`。
 
 ### 2026-08-09 — D3-01 OSC Surface 与内部网格
 
