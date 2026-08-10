@@ -19,6 +19,7 @@ namespace {
 
 using player::playback::mpv::MpvHandle;
 using player::test::render::GeneratedY4mPattern;
+using player::test::render::QuickFramebufferGeometryFixture;
 using player::test::render::QuickVideoSurfaceFixture;
 using player::test::render::createInitializedVideoCore;
 using player::test::render::loadFileOnWorkerThread;
@@ -55,6 +56,13 @@ bool hasUndistortedSquareVideo(const QImage& image)
         && rightBar <= 32;
 }
 
+bool isBaselineScaleProcess()
+{
+    bool scaleOk = false;
+    const qreal scale = qEnvironmentVariable("QT_SCALE_FACTOR").toDouble(&scaleOk);
+    return scaleOk && qFuzzyCompare(scale, qreal{1.0});
+}
+
 class MpvVideoResizeDpiTest final : public QObject
 {
     Q_OBJECT
@@ -68,38 +76,38 @@ private slots:
 
 void MpvVideoResizeDpiTest::framebufferTracksLogicalResizeAtEffectiveDpr()
 {
-    QuickVideoSurfaceFixture fixture(QSize(160, 96));
+    QuickFramebufferGeometryFixture fixture(QSize(160, 96));
     fixture.show();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 3000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
-        5000);
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.geometryMatches(), 5000);
 
-    auto state = fixture.videoItem().presentationState();
-    QCOMPARE(state.logicalSize, QSizeF(160.0, 96.0));
-    QCOMPARE(state.devicePixelRatio, fixture.window().effectiveDevicePixelRatio());
-    QVERIFY(state.devicePixelRatio > 0.0);
+    auto snapshot = fixture.geometrySnapshot();
+    QCOMPARE(snapshot.logicalSize, QSize(160, 96));
+    QCOMPARE(snapshot.devicePixelRatio, fixture.window().effectiveDevicePixelRatio());
+    QVERIFY(snapshot.devicePixelRatio > 0.0);
 
-    const QSize initialFramebufferSize = fixture.framebufferSize();
+    const QSize initialFramebufferSize = snapshot.framebufferSize;
+    const int initialGeneration = snapshot.framebufferGeneration;
 
     fixture.resize(QSize(320, 192));
 
     QTRY_COMPARE_WITH_TIMEOUT(fixture.window().size(), QSize(320, 192), 3000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.videoItem().presentationState().logicalSize == QSizeF(320.0, 192.0),
-        3000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
-        5000);
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.geometryMatches(), 5000);
 
-    state = fixture.videoItem().presentationState();
-    QCOMPARE(state.devicePixelRatio, fixture.window().effectiveDevicePixelRatio());
-    QVERIFY(fixture.framebufferSize() != initialFramebufferSize);
+    snapshot = fixture.geometrySnapshot();
+    QCOMPARE(snapshot.logicalSize, QSize(320, 192));
+    QCOMPARE(snapshot.devicePixelRatio, fixture.window().effectiveDevicePixelRatio());
+    QVERIFY(snapshot.framebufferSize != initialFramebufferSize);
+    QVERIFY(snapshot.framebufferGeneration > initialGeneration);
 }
 
 void MpvVideoResizeDpiTest::squareVideoKeepsAspectAcrossPausedResize()
 {
+    if (!isBaselineScaleProcess()) {
+        QSKIP("Real-video pixel resize smoke runs once in the 100% scale process.");
+    }
+
     QTemporaryDir temporaryDir;
     QVERIFY(temporaryDir.isValid());
 
@@ -108,7 +116,7 @@ void MpvVideoResizeDpiTest::squareVideoKeepsAspectAcrossPausedResize()
     QVERIFY2(
         writeGeneratedY4mVideo(
             videoPath,
-            120,
+            900,
             GeneratedY4mPattern::BrightTopDarkBottom,
             &mediaError),
         mediaError.toLocal8Bit().constData());
@@ -123,21 +131,18 @@ void MpvVideoResizeDpiTest::squareVideoKeepsAspectAcrossPausedResize()
     fixture.show();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 3000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
-        5000);
+    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() >= 1, 3000);
 
     QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
     QTRY_VERIFY_WITH_TIMEOUT(hasUndistortedSquareVideo(fixture.window().grabWindow()), 6000);
 
     QCOMPARE(setPauseOnWorkerThread(core->nativeHandle(), true), 0);
 
+    const int renderCountBeforeResize = renderedSpy.count();
     fixture.resize(QSize(320, 180));
 
     QTRY_COMPARE_WITH_TIMEOUT(fixture.window().size(), QSize(320, 180), 3000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
-        5000);
+    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > renderCountBeforeResize, 5000);
     QTRY_VERIFY_WITH_TIMEOUT(hasUndistortedSquareVideo(fixture.window().grabWindow()), 6000);
 
     QCOMPARE(stopPlaybackOnWorkerThread(core->nativeHandle()), 0);
@@ -154,33 +159,24 @@ void MpvVideoResizeDpiTest::fullscreenUsesPhysicalFramebufferResolution()
         QSKIP("Fullscreen smoke runs once in the 100% scale test process.");
     }
 
-    QuickVideoSurfaceFixture fixture(QSize(320, 180));
+    QuickFramebufferGeometryFixture fixture(QSize(320, 180));
     fixture.show();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 3000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
-        5000);
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.geometryMatches(), 5000);
 
     fixture.window().showFullScreen();
     fixture.window().update();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().visibility() == QWindow::FullScreen, 5000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.videoItem().presentationState().logicalSize
-            == QSizeF(fixture.window().width(), fixture.window().height()),
-        5000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
-        8000);
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.geometryMatches(), 8000);
 
     fixture.window().showNormal();
     fixture.window().update();
+    fixture.moveOffscreen();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().visibility() != QWindow::FullScreen, 5000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
-        5000);
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.geometryMatches(), 5000);
 }
 
 void MpvVideoResizeDpiTest::differentDprScreenRecreatesPhysicalFramebufferWhenAvailable()
@@ -207,37 +203,35 @@ void MpvVideoResizeDpiTest::differentDprScreenRecreatesPhysicalFramebufferWhenAv
         QSKIP("No second screen with a different DPR is available.");
     }
 
-    QuickVideoSurfaceFixture fixture(QSize(320, 180));
+    QuickFramebufferGeometryFixture fixture(QSize(320, 180));
     fixture.window().setScreen(sourceScreen);
+    fixture.moveOffscreen();
     fixture.show();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 3000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
-        5000);
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.geometryMatches(), 5000);
 
     const qreal sourceDevicePixelRatio = fixture.window().effectiveDevicePixelRatio();
-    QCOMPARE(fixture.videoItem().presentationState().devicePixelRatio, sourceDevicePixelRatio);
+    const int sourceGeneration = fixture.geometrySnapshot().framebufferGeneration;
 
     fixture.window().setScreen(targetScreen);
+    fixture.moveOffscreen();
     fixture.window().update();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().screen() == targetScreen, 5000);
     QTRY_VERIFY_WITH_TIMEOUT(
         !qFuzzyCompare(fixture.window().effectiveDevicePixelRatio(), sourceDevicePixelRatio),
         5000);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
-        8000);
-    QCOMPARE(
-        fixture.videoItem().presentationState().devicePixelRatio,
-        fixture.window().effectiveDevicePixelRatio());
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.geometryMatches(), 8000);
+    QVERIFY(fixture.geometrySnapshot().framebufferGeneration > sourceGeneration);
 }
 
 } // namespace
 
 int main(int argc, char* argv[])
 {
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 
     QGuiApplication application(argc, argv);
