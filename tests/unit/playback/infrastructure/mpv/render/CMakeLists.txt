@@ -166,7 +166,7 @@ target_link_libraries(
 
 player_stage_libmpv_runtime(mpv_video_resize_dpi_tests)
 
-function(player_add_mpv_video_resize_dpi_test suffix scale_factor fullscreen_smoke)
+function(player_add_mpv_video_resize_dpi_test suffix scale_factor platform_smoke)
     set(test_name "mpv_video_resize_dpi_${suffix}")
 
     add_test(
@@ -177,7 +177,7 @@ function(player_add_mpv_video_resize_dpi_test suffix scale_factor fullscreen_smo
     set_tests_properties(
         "${test_name}"
         PROPERTIES
-            ENVIRONMENT "QT_SCALE_FACTOR=${scale_factor};QT_SCALE_FACTOR_ROUNDING_POLICY=PassThrough;PLAYER_R4_06_FULLSCREEN_SMOKE=${fullscreen_smoke}"
+            ENVIRONMENT "QT_SCALE_FACTOR=${scale_factor};QT_SCALE_FACTOR_ROUNDING_POLICY=PassThrough;PLAYER_R4_06_FULLSCREEN_SMOKE=${platform_smoke};PLAYER_R4_06_MULTISCREEN_SMOKE=${platform_smoke}"
             TIMEOUT 30
     )
 endfunction()

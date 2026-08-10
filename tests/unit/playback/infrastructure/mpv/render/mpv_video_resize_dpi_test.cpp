@@ -6,6 +6,7 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QSGRendererInterface>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -21,6 +22,7 @@ using player::test::render::GeneratedY4mPattern;
 using player::test::render::QuickVideoSurfaceFixture;
 using player::test::render::createInitializedVideoCore;
 using player::test::render::loadFileOnWorkerThread;
+using player::test::render::setPauseOnWorkerThread;
 using player::test::render::stopPlaybackOnWorkerThread;
 using player::test::render::writeGeneratedY4mVideo;
 
@@ -59,8 +61,9 @@ class MpvVideoResizeDpiTest final : public QObject
 
 private slots:
     void framebufferTracksLogicalResizeAtEffectiveDpr();
-    void squareVideoKeepsAspectAcrossResize();
+    void squareVideoKeepsAspectAcrossPausedResize();
     void fullscreenUsesPhysicalFramebufferResolution();
+    void differentDprScreenRecreatesPhysicalFramebufferWhenAvailable();
 };
 
 void MpvVideoResizeDpiTest::framebufferTracksLogicalResizeAtEffectiveDpr()
@@ -95,7 +98,7 @@ void MpvVideoResizeDpiTest::framebufferTracksLogicalResizeAtEffectiveDpr()
     QVERIFY(fixture.framebufferSize() != initialFramebufferSize);
 }
 
-void MpvVideoResizeDpiTest::squareVideoKeepsAspectAcrossResize()
+void MpvVideoResizeDpiTest::squareVideoKeepsAspectAcrossPausedResize()
 {
     QTemporaryDir temporaryDir;
     QVERIFY(temporaryDir.isValid());
@@ -126,6 +129,8 @@ void MpvVideoResizeDpiTest::squareVideoKeepsAspectAcrossResize()
 
     QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
     QTRY_VERIFY_WITH_TIMEOUT(hasUndistortedSquareVideo(fixture.window().grabWindow()), 6000);
+
+    QCOMPARE(setPauseOnWorkerThread(core->nativeHandle(), true), 0);
 
     fixture.resize(QSize(320, 180));
 
@@ -176,6 +181,57 @@ void MpvVideoResizeDpiTest::fullscreenUsesPhysicalFramebufferResolution()
     QTRY_VERIFY_WITH_TIMEOUT(
         fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
         5000);
+}
+
+void MpvVideoResizeDpiTest::differentDprScreenRecreatesPhysicalFramebufferWhenAvailable()
+{
+    if (qEnvironmentVariable("PLAYER_R4_06_MULTISCREEN_SMOKE") != QStringLiteral("1")) {
+        QSKIP("Multi-screen DPR smoke runs once in the 100% scale test process.");
+    }
+
+    QScreen* sourceScreen = QGuiApplication::primaryScreen();
+    if (sourceScreen == nullptr) {
+        QSKIP("No primary screen is available for the multi-screen DPR smoke.");
+    }
+
+    QScreen* targetScreen = nullptr;
+    for (QScreen* screen : QGuiApplication::screens()) {
+        if (screen != sourceScreen
+            && !qFuzzyCompare(screen->devicePixelRatio(), sourceScreen->devicePixelRatio())) {
+            targetScreen = screen;
+            break;
+        }
+    }
+
+    if (targetScreen == nullptr) {
+        QSKIP("No second screen with a different DPR is available.");
+    }
+
+    QuickVideoSurfaceFixture fixture(QSize(320, 180));
+    fixture.window().setScreen(sourceScreen);
+    fixture.show();
+
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
+        5000);
+
+    const qreal sourceDevicePixelRatio = fixture.window().effectiveDevicePixelRatio();
+    QCOMPARE(fixture.videoItem().presentationState().devicePixelRatio, sourceDevicePixelRatio);
+
+    fixture.window().setScreen(targetScreen);
+    fixture.window().update();
+
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.window().screen() == targetScreen, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        !qFuzzyCompare(fixture.window().effectiveDevicePixelRatio(), sourceDevicePixelRatio),
+        5000);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        fixture.framebufferSize() == fixture.expectedPhysicalFramebufferSize(),
+        8000);
+    QCOMPARE(
+        fixture.videoItem().presentationState().devicePixelRatio,
+        fixture.window().effectiveDevicePixelRatio());
 }
 
 } // namespace

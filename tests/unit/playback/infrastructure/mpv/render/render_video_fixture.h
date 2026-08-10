@@ -93,6 +93,19 @@ inline int loadFileOnWorkerThread(mpv_handle* handle, const QString& path)
     return result;
 }
 
+inline int setPauseOnWorkerThread(mpv_handle* handle, bool paused)
+{
+    int result = MPV_ERROR_GENERIC;
+
+    std::thread commandThread([handle, paused, &result] {
+        int pauseFlag = paused ? 1 : 0;
+        result = mpv_set_property(handle, "pause", MPV_FORMAT_FLAG, &pauseFlag);
+    });
+    commandThread.join();
+
+    return result;
+}
+
 inline int stopPlaybackOnWorkerThread(mpv_handle* handle)
 {
     int result = MPV_ERROR_GENERIC;
