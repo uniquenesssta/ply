@@ -19,7 +19,10 @@
 namespace player::test::render {
 namespace detail {
 
-inline void configureNonInteractiveWindow(QQuickWindow& window, QSize logicalSize)
+inline void configureNonInteractiveWindow(
+    QQuickWindow& window,
+    QSize logicalSize,
+    qreal opacity)
 {
     window.setColor(Qt::black);
     window.setFlags(
@@ -27,16 +30,21 @@ inline void configureNonInteractiveWindow(QQuickWindow& window, QSize logicalSiz
         | Qt::FramelessWindowHint
         | Qt::WindowDoesNotAcceptFocus
         | Qt::WindowTransparentForInput);
-    window.setOpacity(0.001);
+    window.setOpacity(opacity);
     window.setPersistentGraphics(false);
     window.setPersistentSceneGraph(false);
     window.resize(logicalSize);
 }
 
+inline void setItemSize(QQuickItem& item, QSize logicalSize)
+{
+    item.setWidth(logicalSize.width());
+    item.setHeight(logicalSize.height());
+}
+
 inline void bindItemToWindow(QQuickWindow& window, QQuickItem& item)
 {
-    item.setWidth(window.width());
-    item.setHeight(window.height());
+    setItemSize(item, window.size());
 
     QObject::connect(
         &window,
@@ -84,8 +92,12 @@ public:
     explicit QuickVideoSurfaceFixture(QSize logicalSize)
         : videoItem_(window_.contentItem())
     {
-        detail::configureNonInteractiveWindow(window_, logicalSize);
+        // Pixel-validation windows must remain fully opaque so grabWindow() observes
+        // the actual composed video. Keep them non-interactive and outside the
+        // virtual desktop instead of changing their rendered opacity.
+        detail::configureNonInteractiveWindow(window_, logicalSize, 1.0);
         detail::bindItemToWindow(window_, videoItem_);
+        detail::moveOffscreen(window_);
     }
 
     ~QuickVideoSurfaceFixture()
@@ -108,13 +120,20 @@ public:
 
     void show()
     {
+        detail::moveOffscreen(window_);
         window_.show();
+        detail::moveOffscreen(window_);
         window_.update();
     }
 
     void resize(QSize logicalSize)
     {
         window_.resize(logicalSize);
+        // QWindow native resize notification timing is platform-dependent. The
+        // fixture owns the synthetic binding, so update the test item explicitly
+        // while retaining width/height signal bindings for fullscreen/screen changes.
+        detail::setItemSize(videoItem_, logicalSize);
+        videoItem_.update();
         window_.update();
     }
 
@@ -244,7 +263,9 @@ public:
     explicit QuickFramebufferGeometryFixture(QSize logicalSize)
         : videoItem_(probe_, window_.contentItem())
     {
-        detail::configureNonInteractiveWindow(window_, logicalSize);
+        // Geometry-only tests do not inspect composed pixels, so near-transparent
+        // native windows keep fullscreen/DPI coverage unobtrusive.
+        detail::configureNonInteractiveWindow(window_, logicalSize, 0.001);
         detail::bindItemToWindow(window_, videoItem_);
     }
 
@@ -275,6 +296,8 @@ public:
     void resize(QSize logicalSize)
     {
         window_.resize(logicalSize);
+        detail::setItemSize(videoItem_, logicalSize);
+        videoItem_.update();
         window_.update();
     }
 
