@@ -18,7 +18,7 @@
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
-- **D6：In Progress — D6-01 ～ D6-03 Complete。**
+- **D6：In Progress — D6-01 ～ D6-04 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -42,8 +42,9 @@
 - D5-07：HUD / Toast / Dialog，Source `271:301` / Verification `271:302` / Prototype Navigation `278:528` / HUD `272:339` / Toast `273:318` / Dialog Action `274:317` / Dialog `274:342`。
 - **D6-01：Preferences Window Shell，Page `285:19` / Source `285:20` / Verification `285:21` / Preferences Shell `286:59`。**
 - **D6-02：Source List Navigation，Source `295:74` / Verification `295:75` / Source Icon `296:142` / Source Item `298:349` / Source List `299:313`。**
-- **D6-03：Settings Section / Row，Source `315:1847` / Verification `315:1848` / Settings Row `318:1907` / Settings Section Header `319:1853`。**
-- **下一任务：D6-04 通用设置控件。**
+- **D6-03：Settings Section / Row，Source `315:1847` / Verification `315:1848` / Settings Row `336:2293` / Settings Section Header `319:1853`。**
+- **D6-04：通用设置控件，Source `328:2160` / Verification `328:2161` / Toggle `329:2190` / Select `330:2187` / Slider `331:2190` / Segmented `332:2265` / Text Field `333:2194`。**
+- **下一任务：D6-05 填充 Playback / Video / Audio / Subtitles / Interface / Advanced。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -903,7 +904,7 @@ D5-01～D5-05 protected sections              PASS
 
 D5-01、D5-02 Verification、D5-03、D5-04、D5-05 的既有 Section 坐标和尺寸全部保持不变；唯一历史区结构变化是 D5-02 Source Section 高度 `1500 → 1660`，原因是扩展同一个 `Player Status Overlay` authority，而不是建立平行 Error Overlay。
 
-本任务只修改 Figma 设计、一个 Figma semantic token 与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+本任务只修改 Figma 设计、一个 Figma semantic token 与根 README；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
 
 **D5-06：Complete。**
 
@@ -1284,7 +1285,7 @@ Figma：
 ```text
 Source / Contract          315:1847  D6-03 / Settings Section & Row
 Verification               315:1848  D6-03 / Verification
-Settings Row               318:1907  Preferences / Settings Row
+Settings Row               336:2293  Preferences / Settings Row
 Settings Section Header    319:1853  Preferences / Settings Section Header
 Standard Density           320:1847  D6-03 / Standard Density
 Long Description Boundary  321:1956  D6-03 / Long Description Boundary
@@ -1316,8 +1317,10 @@ Total   = 6 variants
 ```
 
 - 暴露 `Title / Description / Auxiliary` TEXT properties。
-- `Control Host=180×32` 只定义后续控件的落位空间；Toggle/Select/Slider/Segmented/TextField 的内部几何和值状态归 D6-04。
-- 每个 Variant 均只有一个 Control Host 与一个底部 Divider。
+- D6-04 为建立真实模块化控件接缝，将旧 `318:1907` 无损迁移为当前唯一 authority `336:2293`；Row 几何、6 个 Variant、文字属性和所有 D6-03 Verification 内容保持不变。
+- 当前 Row 暴露 `Control` INSTANCE_SWAP property，默认使用内部不可见 `Preferences / Control Placeholder`（`336:2160`）；接口尺寸固定 `180×32`。
+- D6-04 的 Toggle/Select/Slider/Segmented/Text Field 必须通过该 `Control` property 进入 Row，不允许视觉叠加或在各分类复制控件实现。
+- 每个 Variant 均只有一个 Control instance 与一个底部 Divider。
 
 Density：
 
@@ -1338,30 +1341,37 @@ Standard
 Content Host   759
 Reading width  695
 Text width     491
-Control Host   180×32
+Control        180×32
 
 Narrow
 Content Host   629
 Reading width  573
 Text width     369
-Control Host   180×32
+Control        180×32
 
 Minimum
 Content Host   569
 Reading width  513
 Text width     309
-Control Host   180×32
+Control        180×32
 ```
 
 - Narrow 4 个 Row 分别验证 Compact / Description / RestartRequired / Disabled；最高 Row=`76px`。
 - Minimum 中普通多行 Description=`73px`；RestartRequired + 多行描述自动增长到 `90px`。
-- 最小窗口仍维持“设置概念 + 右侧 Control Host”的桌面 Preferences 结构，没有退化为网页表单式纵向控件堆叠。
+- 最小窗口仍维持“设置概念 + 右侧 Control”的桌面 Preferences 结构，没有退化为网页表单式纵向控件堆叠。
 
 Ownership / escalation：
 
-- Row 只拥有 Title、Description、Auxiliary、Divider、Control Host placement。
+- Row 只拥有 Title、Description、Auxiliary、Divider、Control placement。
 - 若设置需要多个独立字段、文件选择、校验流程、向导或破坏性确认，必须升级为独立 Component/Dialog。
-- D6-03 Verification 的 Content composition 只验证 Section/Row 密度；D6-05 才拥有各分类真实 Content，D6-04 才拥有真实设置控件。
+- D6-03 Verification 的 Content composition 只验证 Section/Row 密度；D6-05 才拥有各分类真实 Content，D6-04 拥有真实设置控件。
+
+D6-04 integration migration：
+
+- 由于已经位于 Component Set 内的 Variant 无法事后新增 `INSTANCE_SWAP` property，D6-04 没有保留旧 Row 再叠一层兼容壳。
+- 实施方式为原子无损迁移：将 6 个旧 Row Variant 转换为带 `Control INSTANCE_SWAP` 的新组件，再组合为新的唯一 Component Set。
+- 13 个既有 Standard/Narrow/Minimum/Long Description Verification Row 实例全部按同名 Variant 自动 `swapComponent`，并保留 Title/Description/Auxiliary overrides 与原实例尺寸。
+- 旧 authority `318:1907` 已删除；当前 authority 只有 `336:2293`。
 
 最终审计：
 
@@ -1370,6 +1380,7 @@ Preferences / Settings Row authorities            1
 Preferences / Settings Section Header authorities 1
 Settings Row variants                              6
 Settings Section Header variants                   2
+Settings Row Control INSTANCE_SWAP                 1 per variant / 180×32
 D6-03 Reactions                                    0
 D6-03 AFTER_TIMEOUT owners                         0
 New D6-03 Variables                                0
@@ -1385,20 +1396,212 @@ Player Status Overlay states                       Empty / Loading / Buffering /
 
 Figma Source 已写入 Section Composition / Row Ownership / Density & Status / Escalation Contract 与 9/9 Acceptance Gate。
 
-本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+本任务只修改 Figma 设计与根 README；D6-04 的 Row authority migration 仅改变 Figma 组件接缝，不改变播放器源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
 
 **D6-03：Complete。**
 
-## Next
+### D6-04 通用设置控件 · Complete
 
-**D6-04 — 通用设置控件**
-
-下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 建立 Preferences 通用控件：
+Figma：
 
 ```text
-value / state
-  → Toggle / Select / Slider / Segmented / TextField
-  → Settings Row Control Host
+Source / Contract             328:2160  D6-04 / Preferences Controls
+Verification                  328:2161  D6-04 / Verification
+Toggle                        329:2190  Preferences / Toggle
+Select                        330:2187  Preferences / Select
+Slider                        331:2190  Preferences / Slider
+Segmented                     332:2265  Preferences / Segmented
+Text Field                    333:2194  Preferences / Text Field
+Control Placeholder           336:2160  Preferences / Control Placeholder (internal)
+Settings Row                  336:2293  existing authority, migrated for Control INSTANCE_SWAP
+State Matrix                  337:2160  D6-04 / State Matrix
+True Row Integration          337:2299  D6-04 / Row Integration
+Responsive Window Verify      338:2310  D6-04 / Responsive Window Verification
+Prototype Navigation          340:2601  D6-04 / Prototype Navigation
+Acceptance Gate               341:2645  D6-04 / Acceptance Gate
 ```
 
-重点验证 hover / press / focus / disabled / error，继续复用播放器既有视觉基础但采用更阅读型尺寸；不得做成网页表单感，也不得让具体控件反向拥有 Settings Row 或 Preferences Shell 几何。
+本任务继续消费 D6-03 `setting concept → row → control` 边界：控件只负责本地 value/state 呈现与交互，不拥有 Settings Row、Preferences Shell、持久化、restart routing 或播放器状态。
+
+Toggle：
+
+```text
+Value = Off / On
+State = Default / Hover / Pressed / Focus / Disabled
+Total = 10 variants
+Outer = 48×32
+```
+
+- On 使用柔和 `selection/background`，不是高饱和网页开关。
+- Pressed 只做轻微几何压缩：track `44×26 → 42×24`，thumb `20 → 18`。
+- Focus 使用 `1.5px focus/ring`；Disabled 使用既有 `opacity/control/disabled`。
+- Toggle 不建立 Error Variant；布尔值的无效/不可用语义归 owning setting/row feedback。
+
+Select：
+
+```text
+State = Default / Hover / Pressed / Focus / Disabled / Error
+Total = 6 variants
+Size  = 180×32
+Value = TEXT property
+```
+
+- 继续使用 `V3 / Glass / Field`。
+- Error 只使用局部 warm border + `6px` marker，不使用红底/错误面板。
+- Select 只展示当前 value 和下拉 affordance；option model、popover 内容和值提交归 owning setting feature。
+
+Slider：
+
+```text
+State = Default / Hover / Pressed / Focus / Disabled
+Total = 5 variants
+Size  = 180×32
+```
+
+- 直接复用 D3-05 Slider anatomy：`16px hit target / 3px visual track / 10px resting thumb`。
+- Hover thumb=`12px`，Pressed thumb=`14px`；Focus 不修改 committed value。
+- Preferences 只扩展可用横向空间，不建立第二套 slider state/value model。
+- 示例 Value=`60%` 为 TEXT property；真实数值/progress geometry 由 setting value owner 驱动。
+
+Segmented：
+
+```text
+Selection = First / Second / Third
+State     = Default / Hover / Pressed / Focus / Disabled
+Total     = 15 variants
+Size      = 180×32
+```
+
+- `First Label / Second Label / Third Label` 均为 TEXT properties。
+- Selection 表示 committed value；Hover/Pressed 只作用于一个未选 candidate segment，同时保留当前 selection。
+- 仅用于短小的互斥值；更大 option set 使用 Select，避免 Preferences 出现大量网页式 tab/form 控件。
+
+Text Field：
+
+```text
+Content = Placeholder / Filled
+State   = Default / Hover / Pressed / Focus / Disabled / Error
+Total   = 12 variants
+Size    = 180×32
+```
+
+- 暴露 `Text / Placeholder` TEXT properties。
+- Placeholder 与 Filled 是内容呈现语义，不是业务状态；两者保持不同文本层级。
+- Focus 使用 `1.5px focus/ring` + local caret；Error 使用局部 warm border + marker。
+- Validation meaning 归 owning setting；Text Field 只负责本地输入/错误 affordance。
+
+Settings Row integration：
+
+- D6-03 `Preferences / Settings Row` 现暴露唯一 `Control#336:27` INSTANCE_SWAP property，默认内部占位组件=`336:2160`。
+- 每个 Row Variant 只有 1 个 `Control` instance，几何始终 `180×32`。
+- D6-04 Verification 已将五种控件全部通过真实 INSTANCE_SWAP 注入 Row：Toggle / Select / Slider / Segmented / Text Field；没有视觉叠加。
+- Internal `Preferences / Control Placeholder` 无 fill/stroke，仅用于 Figma property plumbing，不是第六个可见产品控件。
+
+State Matrix：
+
+- 五类控件统一验证 Default / Hover / Pressed / Focus / Disabled / Error。
+- Toggle / Slider / Segmented 的 Error 明确为 N/A，不为满足矩阵机械增加无语义 Variant。
+- Select / Text Field 的 Error 为 local validation presentation，不升级成 D5 Error Overlay。
+
+真实窗口验证：
+
+```text
+Standard
+Shell 980×680
+Rows  695 wide
+Control 180×32
+
+Narrow
+Shell 820×620
+Rows  573 wide
+Control 180×32
+
+Minimum
+Shell 760×560
+Rows  513 wide
+Control 180×32
+```
+
+- 三档都消费同一个 Preferences Shell、Settings Row 与五个 control authority。
+- Minimum 下仍保持横向“setting concept + control”阅读型结构，没有变成网页表单的上下堆叠。
+
+Prototype：
+
+```text
+Toggle Off        340:2604
+Toggle On         340:2611
+Segment First     340:2618
+Segment Second    340:2629
+Select Default    340:2640
+Select Focus      340:2648
+Text Field Focus  340:2656
+```
+
+行为：
+
+- Toggle：Click / Space 双向 Off ↔ On。
+- Segmented：Click / Right Arrow 将 First → Second；Left Arrow 将 Second → First。
+- Select：Click / Tab 从 Default → Focus。
+- Select Focus：Tab → Text Field Focus。
+- Text Field Focus：ESC → Select Focus。
+- 所有 destination 都是 Page-level Frame，使用 `SMART_ANIMATE 120ms Ease Out`。
+- D6-04 `AFTER_TIMEOUT owner=0`。
+
+Foundation / style：
+
+- 新增全局 Color / Primitive / Effect / Text / Motion Variable/Style=`0`。
+- 继续复用 `surface/glass-subtle / selection/background / border/glass / border/selection / focus/ring / feedback/error / control/track / control/progress / control/thumb / opacity/control/disabled`。
+- Effect 继续复用 `V3 / Glass / Control` 与 `V3 / Glass / Field`。
+- Slider 不可见 hit target 已从硬编码透明白收口为 semantic-bound `surface/glass + node opacity=0.001`。
+- Select SVG Chevron 外层默认白 fill 已清空；内部 Chevron Path 使用 semantic-bound stroke。
+
+最终审计：
+
+```text
+Preferences / Toggle authorities            1
+Preferences / Select authorities            1
+Preferences / Slider authorities            1
+Preferences / Segmented authorities         1
+Preferences / Text Field authorities        1
+Preferences / Settings Row authorities      1
+Preferences / Control Placeholder           1 internal
+Toggle variants                              10
+Select variants                               6
+Slider variants                               5
+Segmented variants                           15
+Text Field variants                          12
+Settings Row variants                         6
+Settings Row Control INSTANCE_SWAP            1 per variant / 180×32
+D6-04 Prototype screens                       7
+D6-04 Prototype reactions                    12
+D6-04 AFTER_TIMEOUT owners                    0
+Non-page Prototype destinations               0
+New D6-04 global Variables / Styles           0
+Generic unnamed residues                      0
+Visible unbound source/product paints         0
+Standard / Narrow / Minimum fit               PASS
+D6-01 / D6-02 / D6-03 section regression     PASS
+D6-02 Prototype screens                       11, unchanged
+Player Status Overlay states                  Empty / Loading / Buffering / Ended / Error
+```
+
+Figma Source 已写入 Value Ownership / State Responsibility / Row Integration / Slider Continuity / D6-05 Boundary / Avoid Web Form Contract；Verification 为 **12/12 Acceptance PASS**。
+
+本任务只修改 Figma 设计、D6-03 Row 的组件接缝与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D6-04：Complete。**
+
+## Next
+
+**D6-05 — 填充 Playback / Video / Audio / Subtitles / Interface / Advanced**
+
+下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 使用真实播放器设置验证整个 Preferences 系统：
+
+```text
+category
+  → Settings Section / Row
+  → D6-04 shared control
+  → validation / restart feedback
+```
+
+每类至少提供一屏真实内容，只放 MVP/明确能力；高级原始 mpv 入口必须使用高风险警告样式。继续消费唯一 `Preferences / Shell`、`Source List`、`Settings Row` 与 D6-04 controls，不允许各分类复制新的 Row/Toggle/Select/Slider/TextField 实现。
