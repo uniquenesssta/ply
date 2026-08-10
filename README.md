@@ -1564,14 +1564,30 @@ R4-08 callback/render/free/core-destroy shutdown race 尚未实施，本 Atomic 
 - Confirmed R4-05 real renderer and R4-06 resize/DPI regressions remained green after the final Scene Graph readiness fix.
 - Kept R4-08 shutdown-race coordination outside R4-07.
 
-## R4-08A Render shutdown gate — candidate
+## R4-08A Render shutdown gate — accepted
 
-R4-08A 已新增独立 `MpvRenderShutdownCoordinator`，把 render shutdown request、active render section barrier 与未来 render-context release 计数集中到单一生命周期协调模块。`beginShutdown()` 使用原子 shutdown gate，shutdown 后拒绝新的 render section；已有 active section 必须退出后，bounded `waitForRenderRelease()` 才能成功。
+R4-08A 已新增独立 `MpvRenderShutdownCoordinator`，把 render shutdown request、active render section barrier 与 render-context release 计数集中到单一生命周期协调模块。`beginShutdown()` 使用原子 shutdown gate，shutdown 后拒绝新的 render section；已有 active section 必须退出后，bounded `waitForRenderRelease()` 才能成功。
 
 `MpvRenderUpdateBridge` 保持既有 `deactivate() -> unregister callback -> wait in-flight callback` 顺序，并额外接入只读 shutdown coordinator。callback dispatch 与 queued delivery 两处都会检查 shutdown gate，因此 shutdown 前已经排队但尚未 delivery 的旧 redraw request，以及 callback 物理 unregister 前到达的 late callback，都只能 no-op，不再产生新的 Qt render update。
 
-本候选新增独立 `mpv_render_shutdown_coordinator` CTest，并扩展 `mpv_render_update_bridge` 真实生成视频测试验证 shutdown 后 update request 收敛。现有测试未删除、未跳过、未放宽；预计完整 CTest 数量从 38 增至 39。
+Windows Qt 6.8.3 / MSVC / libmpv 0.41.0 实际 configure 成功，`scripts/build.ps1` 返回 0。完整 `scripts/test.ps1` 实际结果为 **39/39 PASS，0 failed**，总耗时 **44.00 秒**；新增 `mpv_render_shutdown_coordinator` **0.14 秒 PASS**，扩展后的 `mpv_render_update_bridge` **1.40 秒 PASS**，既有 Renderer、resize/DPI、visibility 与 Playback shutdown 回归全部通过。
 
-Windows build、`mpv_render_shutdown_coordinator`、`mpv_render_update_bridge` 与完整 39 项回归尚未执行，因此 R4-08A 当前仅为候选实现，不标记 Complete。R4-08B 的 Renderer critical section、RenderContext create/free 计数、hidden/minimized cleanup 与 core-destroy barrier 尚未实施。
+### 2026-08-10 — R4-08A acceptance
 
-**Stage R4：In Progress。R4-07：Complete。R4-08：In Progress。R4-08A：Windows validation pending。R4-08B：Not Started。R4-09：Not Started。**
+- Accepted R4-08A from the user's Windows verification with configure success, build exit 0 and 39/39 CTests passing with 0 failures in 44.00 seconds.
+- Confirmed shutdown gate rejects new render sections, active sections converge through the bounded barrier, and queued/late render callbacks stop producing update requests after shutdown begins.
+- Kept Renderer critical-section wiring, actual RenderContext release accounting, hidden/minimized cleanup and core-destroy proof in R4-08B.
+
+## R4-08B Render release / core-destroy barrier — candidate
+
+R4-08B 把同一个 `MpvRenderShutdownCoordinator` 接入 `MpvVideoItem` 与 `MpvVideoRenderer`。Item 成为 GUI 侧 shutdown 发起点：`beginRenderShutdown()` 原子标记 shutdown、立即清除 borrowed raw `mpv_handle*` binding，并拒绝 shutdown 后重新绑定 core；普通 visibility/render wake 在 shutdown 后不再产生新帧。
+
+Renderer 的 `render()` 现在由 coordinator 的 active render section 包围；shutdown 已开始时不再进入新的 update/render critical section，而是在 Render Thread 和当前 OpenGL context 下执行 `updateBridge deactivate -> mpv_render_context close`。RenderContext 成功创建后 `liveRenderContexts` 增为 1，只有 callback 注销和 `mpv_render_context_free()` 都成功后才减为 0；任何释放失败都不会伪造 `renderReleased=true`。
+
+可见窗口通过一次最终 Qt Quick synchronization/render pass 观察 null core binding；hidden/minimized 窗口在最终 shutdown 时允许 Qt 释放 persistent Scene Graph/graphics resources，以触发 QQuickFramebufferObject Renderer cleanup。core owner 只能在只读 coordinator 的 `waitForRenderRelease()` 证明 `activeRenderSections == 0 && liveRenderContexts == 0` 后销毁 `MpvHandle`。
+
+新增独立 `mpv_video_shutdown` CTest，真实使用 `QQuickWindow + MpvVideoItem + libmpv Render API`，覆盖播放中关闭、连续 resize 后立即关闭、最小化后关闭，以及 12 次混合 Renderer 生命周期循环；每次都先证明 render context 已实际建立，再开始 shutdown，最后只有 barrier PASS 后才调用 `MpvHandle::close()`。现有 39 项未删除、跳过或放宽，预计完整 CTest 数量从 39 增至 40。
+
+Windows configure/build、新 `mpv_video_shutdown` 与完整 40 项回归尚未执行，因此 R4-08B 和 R4-08 当前仍为候选，不标记 Complete；R4-09 未开始。
+
+**Stage R4：In Progress。R4-07：Complete。R4-08：In Progress。R4-08A：Complete。R4-08B：Windows validation pending。R4-09：Not Started。**
