@@ -113,6 +113,7 @@ add_test(
 add_executable(
     mpv_video_renderer_tests
     mpv_video_renderer_test.cpp
+    render_quick_fixture.h
     render_test_fixture.h
     render_video_fixture.h
 )
@@ -177,7 +178,8 @@ function(player_add_mpv_video_resize_dpi_test suffix scale_factor platform_smoke
     set_tests_properties(
         "${test_name}"
         PROPERTIES
-            ENVIRONMENT "QT_SCALE_FACTOR=${scale_factor};QT_SCALE_FACTOR_ROUNDING_POLICY=PassThrough;PLAYER_R4_06_FULLSCREEN_SMOKE=${platform_smoke};PLAYER_R4_06_MULTISCREEN_SMOKE=${platform_smoke}"
+            ENVIRONMENT "QT_SCALE_FACTOR=${scale_factor};PLAYER_R4_06_FULLSCREEN_SMOKE=${platform_smoke};PLAYER_R4_06_MULTISCREEN_SMOKE=${platform_smoke}"
+            RUN_SERIAL TRUE
             TIMEOUT 30
     )
 endfunction()
@@ -191,5 +193,6 @@ set_tests_properties(
     mpv_render_update_bridge
     mpv_video_renderer
     PROPERTIES
+        RUN_SERIAL TRUE
         TIMEOUT 20
 )
