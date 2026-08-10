@@ -32,5 +32,6 @@ qt_add_qml_module(
     URI Player.Presentation
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    NO_GENERATE_QMLTYPES
     QML_FILES ${PLAYER_QML_FILES}
 )
