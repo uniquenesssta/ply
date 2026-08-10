@@ -17,7 +17,7 @@
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
-- **D5：In Progress — D5-01 ～ D5-05 Complete。**
+- **D5：In Progress — D5-01 ～ D5-06 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -36,8 +36,9 @@
 - D5-02：Empty / Loading，Source `223:2` / Verification `223:3` / Player Status Overlay `225:30`。
 - D5-03：Playing / Paused，Contract `234:66` / Verification `234:67` / Prototype Navigation `237:66`。
 - D5-04：Buffering / Seeking，Source `241:66` / Verification `241:67` / Buffering Status `242:88` / Seek Preview `243:66`。
-- **D5-05：Ended，Source `254:119` / Verification `254:120` / Ended Action `255:159` / Ended Status `256:144`。**
-- **下一任务：D5-06 Error Overlay。**
+- D5-05：Ended，Source `254:119` / Verification `254:120` / Ended Action `255:159` / Ended Status `256:144`。
+- **D5-06：Error Overlay，Source `262:186` / Verification `262:187` / Error Action `264:225` / Error Status `265:246`。**
+- **下一任务：D5-07 HUD / Toast / Dialog。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -801,16 +802,117 @@ D5-01～D5-04 protected sections            PASS
 
 **D5-05：Complete。**
 
-## Next
+### D5-06 Error Overlay · Complete
 
-**D5-06 — Error Overlay**
-
-下一步继续扩展同一个 `Player Status Overlay` authority，设计 current-media network / decode / render failure：
+Figma：
 
 ```text
-retryable current-media failure  → Error Overlay · Retry
-unknown/fatal media failure      → Error Overlay · Failure
-recovery decision required       → Dialog becomes primary; Error Overlay remains context only
+Source / Contract          262:186  D5-06 / Error Overlay
+Verification               262:187  D5-06 / Verification
+Error Action               264:225  Feedback / Error Action
+Error Status               265:246  Feedback / Error Status
+Player Status Overlay      225:30   existing authority, extended with State=Error
+Error Overlay Variant      266:201  State=Error
 ```
 
-错误层级通过 icon/title/detail/action 表达，不使用整圈红框；同一错误不得同时 Overlay + Toast + Dialog 重复轰炸，并验证可恢复 / 不可恢复 / 未知错误。
+继续消费 D5-01 与 D3-07 已冻结规则：
+
+```text
+retryable current-media failure      → Overlay · Error → Retry
+non-recoverable decode/render failure→ Overlay · Error → Open Media
+unknown current-media failure        → Overlay · Error → Retry + Open Media
+Loading / Buffering → Error          → replace previous state, never stack
+Error + decision required            → D5-07 Dialog becomes Primary
+Error OSC policy                     → D3-07 Rest · persistent
+```
+
+Error semantic token：
+
+- 新增且仅新增一个 `feedback/error` semantic color variable：`VariableID:262:185`。
+- WEB code syntax=`var(--v3-feedback-error)`；scope=`FRAME_FILL / SHAPE_FILL / TEXT_FILL / STROKE_COLOR`。
+- 初始 alias 到既有 `color/warm/400`（与 warning 当前共享 warm primitive），没有新增红色 Primitive 或第二套 Error palette。
+- Error 与 Warning 语义 owner 已分离，后续 D8 可独立调整而无需改写 Error 组件。
+
+Error Action：
+
+- `Feedback / Error Action` 定义 `Action=Retry/OpenMedia × State=Default/Hover/Focus/Pressed`，共 8 个 Variant。
+- 控件高度统一 `42px`；Focus stroke=`1.5px`，继续复用 Glass Control / Focus / Selection language。
+- Retry / Open Media 只发恢复 intent，不拥有错误分类、播放状态、文件对话框或 Dialog routing。
+- 按钮保持浅色玻璃，错误色只用于局部 icon，不创建红色实心主按钮。
+
+Error Status：
+
+- `Feedback / Error Status` 只有 `Recovery=Retryable / NonRecoverable / Unknown` 三态，均为 `360×190` Compact Contrast Glass。
+- Retryable：`无法加载媒体 / 连接或资源暂时不可用 / 检查网络后重试` → Retry。
+- NonRecoverable：`无法播放此媒体 / 当前格式、解码或渲染路径不可用 / 请尝试打开其他媒体` → Open Media。
+- Unknown：`播放出现问题 / 当前媒体无法继续播放 / 可先重试，若仍失败请打开其他媒体` → Retry + Open Media。
+- 不展示后端错误码、堆栈或内部异常字符串；产品层只表达用户能理解的失败与恢复路径。
+- Pod 本体继续使用 neutral contrast glass；warm error 只落在 `28×28` marker / title hierarchy / action icon，不使用整圈红框或大红底。
+
+Player Status Overlay：
+
+- 唯一 `Player Status Overlay` 现为 `Empty / Loading / Buffering / Ended / Error` 五态。
+- Error Variant=`266:201`，保持 `512×406`，位于第三行 `x0 / y852`；原四态位置与尺寸未改变。
+- Component Set 从 `1044×832` 扩展为 `1044×1258`。
+- 为容纳唯一 Overlay authority 的第三行，D5-02 Source Section 只做必要高度扩容：`1480×1500 → 1480×1660`；Player Status Overlay bottom=`1618`，仍完整落在该 Section 内。
+
+真实验证：
+
+```text
+Retryable Error       267:219  960×700  Overlay 908×406 @ 26,106  Recovery=Retryable      OSC 856×124
+NonRecoverable Error  267:278  960×700  Overlay 908×406 @ 26,106  Recovery=NonRecoverable OSC 856×124
+Unknown Error         267:352  960×700  Overlay 908×406 @ 26,106  Recovery=Unknown        OSC 856×124
+Narrow Error          267:431  720×700  Overlay 668×436 @ 26,102  Recovery=Retryable      OSC 616×106
+```
+
+Collision / ownership 验证：
+
+- Loading → Error：Error 替换 Loading；current-media Overlay count 保持 1。
+- Buffering → Error：Error 替换 Buffering；不叠两个 status pod。
+- Error → Decision：如果恢复需要用户选择，D5-07 Dialog 成为 Primary；Error Overlay 仅保留上下文，不能重复同一文案/动作。
+- Error + Toast：同一个媒体失败不得再触发重复 failure Toast。
+- D5-06 不创建正式 Dialog、Scrim、Escape policy、HUD 或 Toast Component。
+
+D3-07 回归：
+
+- Error 继续关闭 OSC auto-hide，使用 `Rest · persistent`。
+- D5-06 只消费该 visibility policy，不新增 lock reason、hide deadline、Reaction 或 timer owner。
+- 960 Error 验证 OSC=`856×124`；720 Narrow Error OSC=`616×106`。
+
+最终审计：
+
+```text
+Feedback / Error Action authorities         1
+Feedback / Error Status authorities         1
+Player Status Overlay authorities           1
+Player Status Overlay states                Empty / Loading / Buffering / Ended / Error
+feedback/error semantic variables           1
+D5-06 Reactions                              0
+D5-06 AFTER_TIMEOUT owners                  0
+Premature formal HUD/Toast/Dialog comps      0
+Generic unnamed residues                     0
+Visible unbound source/product paints        0
+D5-02 source section fit after extension     PASS
+D5-01～D5-05 protected sections              PASS
+```
+
+D5-01、D5-02 Verification、D5-03、D5-04、D5-05 的既有 Section 坐标和尺寸全部保持不变；唯一历史区结构变化是 D5-02 Source Section 高度 `1500 → 1660`，原因是扩展同一个 `Player Status Overlay` authority，而不是建立平行 Error Overlay。
+
+本任务只修改 Figma 设计、一个 Figma semantic token 与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D5-06：Complete。**
+
+## Next
+
+**D5-07 — HUD / Toast / Dialog**
+
+下一步正式建立三类反馈组件与消息密度/生命周期：
+
+```text
+Volume / Seek / Speed / Track → HUD · merge in place
+Non-blocking action result    → Toast · dedupe / bounded queue
+Decision required             → Dialog · primary owner
+Error → recovery decision     → Dialog primary, Error Overlay context only
+```
+
+重点验证连续 Volume、连续 Seek、Toast 去重、Resume/Error decision、Dialog 对比与 Escape/按钮 ownership；D5-07 完成后 Stage D5 才能关闭。
