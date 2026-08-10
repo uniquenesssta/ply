@@ -781,8 +781,8 @@ Player Status Overlay：
 ```text
 Ended Single Item       258:141  960×700  Overlay 1  Replay          final frame preserved
 Ended Next Available    258:175  960×700  Overlay 1  Replay + Next   final frame preserved
-Auto Handoff / Repeat   258:223  960×700   Overlay 0                  no Ended flash
-Narrow Ended            258:233  720×700   Overlay 668×436 @ 26,102   Replay
+Auto Handoff / Repeat   258:223  960×700  Overlay 0                  no Ended flash
+Narrow Ended            258:233  720×700  Overlay 668×436 @ 26,102   Replay
 ```
 
 验证中的 Ended 场景保持 OSC hidden，用于确认最小 EOF surface；D5-05 不创建新的 OSC persistent lifecycle。实际交互仍可通过 D3 既有 visibility rules 唤醒 OSC，D3 继续是唯一 OSC 生命周期 owner。
@@ -795,7 +795,7 @@ Feedback / Ended Status authorities        1
 Player Status Overlay authorities          1
 Player Status Overlay states               Empty / Loading / Buffering / Ended
 D5-05 Reactions                             0
-D5-05 AFTER_TIMEOUT owners                 0
+D5-05 AFTER_TIMEOUT owners                  0
 New D5-05 Variables                         0
 Generic unnamed residues                    0
 Visible unbound source/product paints       0
@@ -1011,7 +1011,7 @@ Player Status Overlay states                Empty / Loading / Buffering / Ended 
 - 清理 18 个 SVG 默认 `Vector` 子节点，按 HUD/Toast/Dialog 语义改名，并绑定现有 `border/glass / surface/glass / feedback/info / feedback/warning / accent/strong / feedback/error`。
 - 4 个不可见 Dialog Prototype 命中层绑定 `surface/glass`，node opacity=`0.001`，既保持不可见又不遗留硬编码 Paint。
 
-本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+本任务只修改 Figma 设计与根 README；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
 
 **D5-07：Complete。**
 
