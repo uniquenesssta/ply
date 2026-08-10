@@ -18,7 +18,7 @@
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
-- **D6：In Progress — D6-01 Complete。**
+- **D6：In Progress — D6-01 ～ D6-02 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -41,7 +41,8 @@
 - D5-06：Error Overlay，Source `262:186` / Verification `262:187` / Error Action `264:225` / Error Status `265:246`。
 - D5-07：HUD / Toast / Dialog，Source `271:301` / Verification `271:302` / Prototype Navigation `278:528` / HUD `272:339` / Toast `273:318` / Dialog Action `274:317` / Dialog `274:342`。
 - **D6-01：Preferences Window Shell，Page `285:19` / Source `285:20` / Verification `285:21` / Preferences Shell `286:59`。**
-- **下一任务：D6-02 Source List Navigation。**
+- **D6-02：Source List Navigation，Source `295:74` / Verification `295:75` / Source Icon `296:142` / Source Item `298:349` / Source List `299:313`。**
+- **下一任务：D6-03 Settings Section / Row。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -821,12 +822,12 @@ Error Overlay Variant      266:201  State=Error
 继续消费 D5-01 与 D3-07 已冻结规则：
 
 ```text
-retryable current-media failure      → Overlay · Error → Retry
-non-recoverable decode/render failure→ Overlay · Error → Open Media
-unknown current-media failure        → Overlay · Error → Retry + Open Media
-Loading / Buffering → Error          → replace previous state, never stack
-Error + decision required            → D5-07 Dialog becomes Primary
-Error OSC policy                     → D3-07 Rest · persistent
+retryable current-media failure       → Overlay · Error → Retry
+non-recoverable decode/render failure → Overlay · Error → Open Media
+unknown current-media failure         → Overlay · Error → Retry + Open Media
+Loading / Buffering → Error           → replace previous state, never stack
+Error + decision required             → D5-07 Dialog becomes Primary
+Error OSC policy                      → D3-07 Rest · persistent
 ```
 
 Error semantic token：
@@ -1112,16 +1113,179 @@ Player Status Overlay states             Empty / Loading / Buffering / Ended / E
 
 **D6-01：Complete。**
 
-## Next
+### D6-02 Source List Navigation · Complete
 
-**D6-02 — Source List Navigation**
-
-下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 建立 Preferences 分类导航：
+Figma：
 
 ```text
-category
-  → selection
-  → content
+Source / Contract       295:74   D6-02 / Source List Navigation
+Verification            295:75   D6-02 / Verification
+Source Icon             296:142  Preferences / Source Icon
+Source Item             298:349  Preferences / Source Item
+Source List             299:313  Preferences / Source List
+Preferences Shell       286:59   existing authority, integrated with nested Source List
 ```
 
-重点完成 Playback / Video / Audio / Subtitles / Interface / Advanced / Shortcuts 的快速扫读结构，以及 Default / Hover / Selected / Focus；继续消费唯一 `Preferences / Shell`，不让 Source List 重新拥有窗口几何。
+分类结构：
+
+```text
+Playback   播放
+Video      视频
+Audio      音频
+Subtitles  字幕
+Interface  界面
+Advanced   高级
+Shortcuts  快捷键
+```
+
+Source ownership：
+
+- `Preferences / Shell` 继续唯一拥有窗口尺寸、Titlebar、Source List Host 宽度与 Content Host；D6-02 没有重新定义窗口几何。
+- `Preferences / Source List` 只拥有 7 类分类顺序、列表 padding/gap 与 Standard/Compact 横向密度。
+- `Preferences / Source Item` 只拥有 Category + interaction/selection state。
+- `Preferences / Source Icon` 只拥有分类 glyph 与 Default/Selected tone。
+- Content Host 仍属于后续 D6-03+；D6-02 的 Verification 只使用轻量 content target placeholder，不提前实现 Settings Section/Row。
+
+Source Icon：
+
+- `Preferences / Source Icon` 共 `7 Category × 2 Tone = 14` Variant。
+- 每个 icon=`18×18`；Default 使用现有 `icon/secondary`，Selected 使用 `selection/indicator`。
+- Category glyph 不因选中状态改变几何，只改变语义 tone。
+
+Source Item：
+
+- `Preferences / Source Item` 共 `7 Category × 5 State = 35` Variant。
+- Row height=`42px`，icon=`18×18`，左右 inset=`12px`，icon-label gap=`10px`。
+- State contract：
+
+```text
+Default       → no wash
+Hover         → soft selection wash only
+Selected      → soft full-row wash + slim indicator
+Focus         → 1.5px focus ring only, selection unchanged
+SelectedFocus → selected wash + indicator + focus ring
+```
+
+- Focus 与 Selected 独立表达；键盘焦点可以移动而不改变当前选中分类。
+- 整行 Selection 使用既有 `selection/background / selection/indicator / focus/ring`，没有新建 Preferences 私有选中色，也没有高饱和后台式左栏。
+
+Source List：
+
+```text
+Standard  220×390   padding 16   item 188×42
+Compact   190×390   padding 12   item 166×42
+```
+
+- Compact 同时供 Narrow / Minimum Shell 使用。
+- 7 项保持快速扫读；Shortcuts 仅做轻微视觉间隔，不形成第二分组面板或第二窗口。
+- 新增 D6-02 Variable / Text Style / Effect / Motion=`0`。
+
+D6-01 集成：
+
+- Figma Plugin API 当前没有可创建的原生 Slot API，因此没有用视觉叠加假装 Slot，也没有创建平行 Preferences Shell。
+- Source List 是常驻 Preferences chrome，不是随内容切换的动态 host；因此把共享 `Preferences / Source List` 作为嵌套实例直接放入 D6-01 的 `Source List Host`。
+- 三档 Shell source 均只嵌套一个 Source List：
+
+```text
+Standard  286:2   Host 220×621  → Source List Standard 220×390  instance 302:295
+Narrow    286:21  Host 190×561  → Source List Compact  190×390  instance 302:347
+Minimum   286:40  Host 190×501  → Source List Compact  190×390  instance 302:399
+```
+
+- Shell 仍是 geometry owner；Source List 仍是 navigation owner。该集成没有改变 980/820/760 窗口尺寸、Titlebar 58 或 Source Host 220/190 真值。
+
+真实验证：
+
+```text
+Standard Playback Selected         303:658
+Standard Playback + Video Hover    304:726
+Standard Interface Focus           305:797
+Standard Advanced SelectedFocus    305:877
+Narrow Shortcuts Selected          307:937   Shell 820×620 / List 190×390
+Minimum Audio SelectedFocus        307:1028  Shell 760×560 / List 190×390
+```
+
+- Standard / Narrow / Minimum 均直接消费同一个 `Preferences / Shell` 与嵌套 `Preferences / Source List`。
+- Narrow/Minimum 的 item=`166×42`，最长分类标签“快捷键”无挤压、无裁切、无横向溢出。
+- Focus ring 在浅色窗口背景中清晰；SelectedFocus 同时保留当前选择与键盘焦点。
+
+Prototype：
+
+7 个 page-level 分类 Selected screen：
+
+```text
+Playback   308:1077
+Video      308:1162
+Audio      308:1247
+Subtitles  308:1336
+Interface  308:1422
+Advanced   308:1508
+Shortcuts  308:1597
+```
+
+- 每个 Selected screen 对其余 6 个分类均有 `ON_CLICK → NAVIGATE`，当前已选分类不创建自跳转。
+- 分类 click 使用 `SMART_ANIMATE 160ms`，只改变 Source selection 与 Content target；Preferences Window 保持打开，Shell geometry 不变。
+
+Keyboard Prototype：
+
+```text
+Playback SelectedFocus  308:1685
+Video Focus             308:1770
+Audio Focus             308:1859
+Video SelectedFocus     308:1952
+```
+
+行为冻结为：
+
+```text
+Arrow Up / Down → move Focus only
+Enter / Space   → commit focused category as Selected
+Focus move      → current Content unchanged
+Selection commit→ Content target changes
+```
+
+- `Playback SelectedFocus → ArrowDown → Video Focus`：证明焦点移动不会改选中分类。
+- Video Focus 可 ArrowUp/Down 在相邻项移动；Enter/Space 后才进入 Video SelectedFocus。
+- Audio Focus Enter/Space 进入 Audio selected category screen。
+- D6-02 `AFTER_TIMEOUT owner=0`。
+
+最终审计：
+
+```text
+Preferences / Shell authorities       1
+Preferences / Source Icon authorities 1
+Preferences / Source Item authorities 1
+Preferences / Source List authorities 1
+Shell variants                         3
+Source Icon variants                  14
+Source Item variants                  35
+Source List variants                   2
+D6-02 new navigation variables         0
+Prototype AFTER_TIMEOUT owners         0
+Generic unnamed residues               0
+Visible unbound source/product paints  0
+Standard / Narrow / Minimum fit        PASS
+D6-01 geometry regression              PASS
+D1～D5 protection regression           PASS
+Player Status Overlay states           Empty / Loading / Buffering / Ended / Error
+```
+
+已在 Figma Source 写入 Source Ownership / Selection State / Keyboard Navigation / D6-03+ Non-goal Contract，并在 Verification 建立 12 条 Acceptance Assertions，全部 PASS。
+
+本任务只修改 Figma 设计、D6-01 Shell 的嵌套组件组合与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D6-02：Complete。**
+
+## Next
+
+**D6-03 — Settings Section / Row**
+
+下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 建立 Preferences 内容基础结构：
+
+```text
+setting concept
+  → row
+  → control
+```
+
+重点完成 Settings Section title、Setting Row、description、supporting text 与 divider 规则，并验证长描述、Disabled、Restart Required；继续消费唯一 `Preferences / Shell` 与 D6-02 Source List，不提前实现 D6-04 的 Toggle / Select / Slider / Segmented / TextField。
