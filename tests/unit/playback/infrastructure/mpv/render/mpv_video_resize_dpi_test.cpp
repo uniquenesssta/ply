@@ -173,7 +173,7 @@ void MpvVideoResizeDpiTest::fullscreenUsesPhysicalFramebufferResolution()
 
     fixture.window().showNormal();
     fixture.window().update();
-    fixture.moveOffscreen();
+    fixture.moveToScreenCorner();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().visibility() != QWindow::FullScreen, 5000);
     QTRY_VERIFY_WITH_TIMEOUT(fixture.geometryMatches(), 5000);
@@ -205,7 +205,7 @@ void MpvVideoResizeDpiTest::differentDprScreenRecreatesPhysicalFramebufferWhenAv
 
     QuickFramebufferGeometryFixture fixture(QSize(320, 180));
     fixture.window().setScreen(sourceScreen);
-    fixture.moveOffscreen();
+    fixture.moveToScreenCorner();
     fixture.show();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 3000);
@@ -215,7 +215,7 @@ void MpvVideoResizeDpiTest::differentDprScreenRecreatesPhysicalFramebufferWhenAv
     const int sourceGeneration = fixture.geometrySnapshot().framebufferGeneration;
 
     fixture.window().setScreen(targetScreen);
-    fixture.moveOffscreen();
+    fixture.moveToScreenCorner();
     fixture.window().update();
 
     QTRY_VERIFY_WITH_TIMEOUT(fixture.window().screen() == targetScreen, 5000);
