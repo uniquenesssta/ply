@@ -1,1 +1,2 @@
 add_subdirectory(playback_probe)
+add_subdirectory(render_probe)
