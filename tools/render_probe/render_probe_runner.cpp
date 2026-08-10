@@ -63,6 +63,7 @@ RenderProbeRunner::RenderProbeRunner(RenderProbeOptions options, QObject* parent
         &QQuickWindow::afterRendering,
         &window_,
         [this] {
+            renderedFrameCount_.fetch_add(1, std::memory_order_release);
             frameTiming_.noteFrame();
         },
         Qt::DirectConnection);
@@ -153,7 +154,7 @@ void RenderProbeRunner::pollStage()
         }
 
         if (stageElapsed_.elapsed() > kStartupTimeoutMs) {
-            fail(QStringLiteral("Timed out waiting for decoded video and an active mpv render context."));
+            fail(QStringLiteral("Timed out waiting for decoded video, an active mpv render context, and real Qt render frames."));
         }
         return;
     }
@@ -201,6 +202,8 @@ void RenderProbeRunner::loadMedia()
         fail(QStringLiteral("Cannot load media because the mpv core is unavailable."));
         return;
     }
+
+    minimumRenderedFrameCountForMediaReady_ = -1;
 
     const QByteArray source = options_.mediaSource.toUtf8();
     const char* command[] = {
@@ -379,20 +382,35 @@ bool RenderProbeRunner::windowReady() const noexcept
         && visibilityPolicy->snapshot().updatesAllowed;
 }
 
-bool RenderProbeRunner::mediaReady() const noexcept
+bool RenderProbeRunner::mediaReady() noexcept
 {
     if (core_ == nullptr || !core_->isOpen()) {
+        minimumRenderedFrameCountForMediaReady_ = -1;
         return false;
     }
 
     const RenderProbeMpvSnapshot snapshot = captureRenderProbeMpvSnapshot(core_->nativeHandle());
     const auto coordinator = videoItem_.renderShutdownCoordinator();
-    return snapshot.videoWidth.has_value()
+    const bool pipelineReady = snapshot.videoWidth.has_value()
         && *snapshot.videoWidth > 0
         && snapshot.videoHeight.has_value()
         && *snapshot.videoHeight > 0
         && coordinator != nullptr
         && coordinator->snapshot().liveRenderContexts > 0;
+
+    if (!pipelineReady) {
+        minimumRenderedFrameCountForMediaReady_ = -1;
+        return false;
+    }
+
+    const int renderedFrameCount = renderedFrameCount_.load(std::memory_order_acquire);
+    if (minimumRenderedFrameCountForMediaReady_ < 0) {
+        minimumRenderedFrameCountForMediaReady_ =
+            renderedFrameCount + kRequiredRenderedFramesAfterPipelineReady;
+        return false;
+    }
+
+    return renderedFrameCount >= minimumRenderedFrameCountForMediaReady_;
 }
 
 bool RenderProbeRunner::fullscreenReady() const noexcept

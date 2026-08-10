@@ -48,7 +48,7 @@ MpvVideoRenderer::~MpvVideoRenderer()
 
 void MpvVideoRenderer::synchronize(QQuickFramebufferObject* item)
 {
-    const auto* videoItem = qobject_cast<MpvVideoItem*>(item);
+    auto* videoItem = qobject_cast<MpvVideoItem*>(item);
     if (videoItem == nullptr) {
         presentationState_ = {};
         synchronizedCoreHandle_ = nullptr;
@@ -66,6 +66,48 @@ void MpvVideoRenderer::synchronize(QQuickFramebufferObject* item)
         visibilityPolicy_ = std::move(visibilityPolicy);
         visibilityRevision_ = 0;
         framebufferNeedsRender_ = true;
+    }
+
+    if (updateBridge_ == nullptr) {
+        updateBridge_ = std::make_unique<MpvRenderUpdateBridge>(
+            visibilityPolicy_,
+            shutdownCoordinator_,
+            nullptr);
+
+        const std::shared_ptr<const MpvRenderUpdateDeliveryGate> deliveryGate =
+            updateBridge_->deliveryGate();
+        const std::shared_ptr<const MpvRenderVisibilityPolicy> wakeVisibilityPolicy =
+            visibilityPolicy_;
+        const std::shared_ptr<MpvRenderShutdownCoordinator> wakeShutdownCoordinator =
+            shutdownCoordinator_;
+
+        QObject::connect(
+            updateBridge_.get(),
+            &MpvRenderUpdateBridge::updateRequested,
+            videoItem,
+            [videoItem,
+             deliveryGate,
+             wakeVisibilityPolicy,
+             wakeShutdownCoordinator](quint64 activationEpoch) {
+                if (deliveryGate == nullptr || !deliveryGate->allows(activationEpoch)) {
+                    return;
+                }
+                if (wakeShutdownCoordinator != nullptr
+                    && wakeShutdownCoordinator->isShutdownRequested()) {
+                    return;
+                }
+                if (wakeVisibilityPolicy != nullptr
+                    && !wakeVisibilityPolicy->snapshot().updatesAllowed) {
+                    return;
+                }
+
+                // libmpv may invoke its redraw callback from a non-GUI thread.
+                // The queued receiver is the QQuickFramebufferObject item, so the
+                // scene graph is woken from the GUI side instead of depending on
+                // the render thread's own event queue to wake itself.
+                videoItem->update();
+            },
+            Qt::QueuedConnection);
     }
 }
 
@@ -218,6 +260,11 @@ bool MpvVideoRenderer::ensureRenderContext()
         return false;
     }
 
+    if (updateBridge_ == nullptr) {
+        qWarning("Unable to create the mpv video render context because the GUI wake bridge is unavailable.");
+        return false;
+    }
+
     renderContextCreationAttempted_ = true;
 
     QString errorMessage;
@@ -234,19 +281,7 @@ bool MpvVideoRenderer::ensureRenderContext()
         shutdownCoordinator_->noteRenderContextCreated();
     }
 
-    auto updateBridge = std::make_unique<MpvRenderUpdateBridge>(
-        visibilityPolicy_,
-        shutdownCoordinator_,
-        nullptr);
-    QObject::connect(
-        updateBridge.get(),
-        &MpvRenderUpdateBridge::updateRequested,
-        updateBridge.get(),
-        [this] {
-            update();
-        });
-
-    if (!updateBridge->activate(*renderContext, &errorMessage)) {
+    if (!updateBridge_->activate(*renderContext, &errorMessage)) {
         qWarning().noquote()
             << QStringLiteral("Unable to activate the mpv video update bridge: %1")
                    .arg(errorMessage);
@@ -266,7 +301,6 @@ bool MpvVideoRenderer::ensureRenderContext()
     }
 
     renderContext_ = std::move(renderContext);
-    updateBridge_ = std::move(updateBridge);
     return true;
 }
 
@@ -280,7 +314,6 @@ bool MpvVideoRenderer::releaseRenderContext()
                        .arg(errorMessage);
             return false;
         }
-        updateBridge_.reset();
     }
 
     if (renderContext_ != nullptr) {

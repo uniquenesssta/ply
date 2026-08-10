@@ -11,6 +11,7 @@
 #include <QQuickWindow>
 #include <QTimer>
 
+#include <atomic>
 #include <memory>
 
 namespace player::playback::mpv {
@@ -62,7 +63,7 @@ private:
     void updateVideoItemSize();
 
     [[nodiscard]] bool windowReady() const noexcept;
-    [[nodiscard]] bool mediaReady() const noexcept;
+    [[nodiscard]] bool mediaReady() noexcept;
     [[nodiscard]] bool fullscreenReady() const noexcept;
     [[nodiscard]] RenderProbePhaseResult makePhaseResult(
         const QString& mode,
@@ -74,6 +75,7 @@ private:
     static constexpr int kStartupTimeoutMs = 10'000;
     static constexpr int kModeSettleMs = 1'500;
     static constexpr int kShutdownTimeoutMs = 10'000;
+    static constexpr int kRequiredRenderedFramesAfterPipelineReady = 3;
 
     RenderProbeOptions options_;
     RenderProbeEnvironment environment_;
@@ -88,6 +90,8 @@ private:
     RenderProbeFrameTimingCollector frameTiming_;
     RenderProbeMpvSnapshot phaseBefore_;
     QVector<RenderProbePhaseResult> phases_;
+    std::atomic_int renderedFrameCount_{0};
+    int minimumRenderedFrameCountForMediaReady_ = -1;
 };
 
 } // namespace player::tools::render_probe

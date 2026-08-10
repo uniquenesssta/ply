@@ -10,7 +10,6 @@
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QGuiApplication>
-#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QtTest>
@@ -36,14 +35,14 @@ class MpvRenderUpdateBridgeTest final : public QObject {
     Q_OBJECT
 
 private slots:
-    void callbackIsQueuedOntoBridgeThread();
+    void callbackRequestQueuesOntoReceiverThread();
     void deactivateSuppressesQueuedRequests();
     void repeatedActivationIsStable();
     void generatedVideoProducesRepeatedUpdateRequests();
     void shutdownCoordinatorSuppressesLateRequests();
 };
 
-void MpvRenderUpdateBridgeTest::callbackIsQueuedOntoBridgeThread()
+void MpvRenderUpdateBridgeTest::callbackRequestQueuesOntoReceiverThread()
 {
     OffscreenOpenGlContext fixture;
     QString fixtureError;
@@ -59,21 +58,28 @@ void MpvRenderUpdateBridgeTest::callbackIsQueuedOntoBridgeThread()
     QVERIFY2(renderContext != nullptr, errorMessage.toLocal8Bit().constData());
 
     MpvRenderUpdateBridge bridge;
-    QSignalSpy updateSpy(&bridge, &MpvRenderUpdateBridge::updateRequested);
+    const auto deliveryGate = bridge.deliveryGate();
+    QObject receiver;
+    int deliveredCount = 0;
     QThread* deliveryThread = nullptr;
     connect(
         &bridge,
         &MpvRenderUpdateBridge::updateRequested,
-        &bridge,
-        [&deliveryThread] {
+        &receiver,
+        [&](quint64 activationEpoch) {
+            if (!deliveryGate->allows(activationEpoch)) {
+                return;
+            }
+            ++deliveredCount;
             deliveryThread = QThread::currentThread();
-        });
+        },
+        Qt::QueuedConnection);
 
     fixture.doneCurrent();
     QVERIFY2(bridge.activate(*renderContext, &errorMessage), errorMessage.toLocal8Bit().constData());
     QVERIFY(bridge.isActive());
 
-    QTRY_VERIFY_WITH_TIMEOUT(updateSpy.count() >= 1, 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(deliveredCount >= 1, 2000);
     QCOMPARE(deliveryThread, QThread::currentThread());
 
     QVERIFY2(bridge.deactivate(&errorMessage), errorMessage.toLocal8Bit().constData());
@@ -99,7 +105,19 @@ void MpvRenderUpdateBridgeTest::deactivateSuppressesQueuedRequests()
     QVERIFY2(renderContext != nullptr, errorMessage.toLocal8Bit().constData());
 
     MpvRenderUpdateBridge bridge;
-    QSignalSpy updateSpy(&bridge, &MpvRenderUpdateBridge::updateRequested);
+    const auto deliveryGate = bridge.deliveryGate();
+    QObject receiver;
+    int deliveredCount = 0;
+    connect(
+        &bridge,
+        &MpvRenderUpdateBridge::updateRequested,
+        &receiver,
+        [&](quint64 activationEpoch) {
+            if (deliveryGate->allows(activationEpoch)) {
+                ++deliveredCount;
+            }
+        },
+        Qt::QueuedConnection);
 
     QVERIFY2(bridge.activate(*renderContext, &errorMessage), errorMessage.toLocal8Bit().constData());
     QVERIFY2(bridge.deactivate(&errorMessage), errorMessage.toLocal8Bit().constData());
@@ -107,7 +125,7 @@ void MpvRenderUpdateBridgeTest::deactivateSuppressesQueuedRequests()
     QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
     QTest::qWait(25);
     QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-    QCOMPARE(updateSpy.count(), 0);
+    QCOMPARE(deliveredCount, 0);
 
     QVERIFY2(renderContext->close(&errorMessage), errorMessage.toLocal8Bit().constData());
 }
@@ -128,13 +146,25 @@ void MpvRenderUpdateBridgeTest::repeatedActivationIsStable()
     QVERIFY2(renderContext != nullptr, errorMessage.toLocal8Bit().constData());
 
     MpvRenderUpdateBridge bridge;
-    QSignalSpy updateSpy(&bridge, &MpvRenderUpdateBridge::updateRequested);
+    const auto deliveryGate = bridge.deliveryGate();
+    QObject receiver;
+    int deliveredCount = 0;
+    connect(
+        &bridge,
+        &MpvRenderUpdateBridge::updateRequested,
+        &receiver,
+        [&](quint64 activationEpoch) {
+            if (deliveryGate->allows(activationEpoch)) {
+                ++deliveredCount;
+            }
+        },
+        Qt::QueuedConnection);
 
     for (int iteration = 0; iteration < 10; ++iteration) {
-        const int countBeforeActivation = updateSpy.count();
+        const int countBeforeActivation = deliveredCount;
 
         QVERIFY2(bridge.activate(*renderContext, &errorMessage), errorMessage.toLocal8Bit().constData());
-        QTRY_VERIFY_WITH_TIMEOUT(updateSpy.count() > countBeforeActivation, 2000);
+        QTRY_VERIFY_WITH_TIMEOUT(deliveredCount > countBeforeActivation, 2000);
         QVERIFY2(bridge.deactivate(&errorMessage), errorMessage.toLocal8Bit().constData());
         QVERIFY(!bridge.isActive());
     }
@@ -171,6 +201,7 @@ void MpvRenderUpdateBridgeTest::generatedVideoProducesRepeatedUpdateRequests()
     QVERIFY2(renderContext != nullptr, errorMessage.toLocal8Bit().constData());
 
     MpvRenderUpdateBridge bridge;
+    const auto deliveryGate = bridge.deliveryGate();
     int updateRequestCount = 0;
     int frameUpdateCount = 0;
     QString updateError;
@@ -187,7 +218,11 @@ void MpvRenderUpdateBridgeTest::generatedVideoProducesRepeatedUpdateRequests()
         &bridge,
         &MpvRenderUpdateBridge::updateRequested,
         &bridge,
-        [&] {
+        [&](quint64 activationEpoch) {
+            if (!deliveryGate->allows(activationEpoch)) {
+                return;
+            }
+
             ++updateRequestCount;
 
             std::uint64_t updateFlags = 0;
@@ -204,7 +239,8 @@ void MpvRenderUpdateBridgeTest::generatedVideoProducesRepeatedUpdateRequests()
                 }
                 ++frameUpdateCount;
             }
-        });
+        },
+        Qt::QueuedConnection);
 
     QVERIFY2(bridge.activate(*renderContext, &errorMessage), errorMessage.toLocal8Bit().constData());
     QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
@@ -249,7 +285,8 @@ void MpvRenderUpdateBridgeTest::shutdownCoordinatorSuppressesLateRequests()
 
     auto shutdownCoordinator = std::make_shared<MpvRenderShutdownCoordinator>();
     MpvRenderUpdateBridge bridge({}, shutdownCoordinator, nullptr);
-    QSignalSpy updateSpy(&bridge, &MpvRenderUpdateBridge::updateRequested);
+    const auto deliveryGate = bridge.deliveryGate();
+    int deliveredCount = 0;
     int frameUpdateCount = 0;
     QString updateError;
 
@@ -265,7 +302,13 @@ void MpvRenderUpdateBridgeTest::shutdownCoordinatorSuppressesLateRequests()
         &bridge,
         &MpvRenderUpdateBridge::updateRequested,
         &bridge,
-        [&] {
+        [&](quint64 activationEpoch) {
+            if (!deliveryGate->allows(activationEpoch)) {
+                return;
+            }
+
+            ++deliveredCount;
+
             std::uint64_t updateFlags = 0;
             QString localError;
             if (!renderContext->update(&updateFlags, &localError)) {
@@ -280,7 +323,8 @@ void MpvRenderUpdateBridgeTest::shutdownCoordinatorSuppressesLateRequests()
                 }
                 ++frameUpdateCount;
             }
-        });
+        },
+        Qt::QueuedConnection);
 
     QVERIFY2(bridge.activate(*renderContext, &errorMessage), errorMessage.toLocal8Bit().constData());
     QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
@@ -289,12 +333,12 @@ void MpvRenderUpdateBridgeTest::shutdownCoordinatorSuppressesLateRequests()
 
     QVERIFY(shutdownCoordinator->beginShutdown());
     QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-    const int countAfterShutdown = updateSpy.count();
+    const int countAfterShutdown = deliveredCount;
 
     QCOMPARE(stopPlaybackOnWorkerThread(core->nativeHandle()), 0);
     QTest::qWait(150);
     QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-    QCOMPARE(updateSpy.count(), countAfterShutdown);
+    QCOMPARE(deliveredCount, countAfterShutdown);
 
     QVERIFY2(bridge.deactivate(&errorMessage), errorMessage.toLocal8Bit().constData());
     QVERIFY(!bridge.isActive());

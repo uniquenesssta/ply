@@ -54,6 +54,7 @@ class MpvVideoRendererTest final : public QObject
 private slots:
     void renderParametersDescribeQtFramebuffer();
     void generatedVideoRendersIntoQuickFramebufferUpright();
+    void generatedVideoContinuesRenderingWithoutExternalWindowWake();
 };
 
 void MpvVideoRendererTest::renderParametersDescribeQtFramebuffer()
@@ -130,6 +131,65 @@ void MpvVideoRendererTest::generatedVideoRendersIntoQuickFramebufferUpright()
 
     QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
     QTRY_VERIFY_WITH_TIMEOUT(hasExpectedVerticalOrientation(window.grabWindow()), 6000);
+
+    QCOMPARE(stopPlaybackOnWorkerThread(core->nativeHandle()), 0);
+
+    videoItem.setRenderCoreHandle(nullptr);
+    const int renderCountBeforeDetach = renderedSpy.count();
+    videoItem.update();
+    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > renderCountBeforeDetach, 3000);
+
+    window.hide();
+    window.releaseResources();
+    QCoreApplication::processEvents();
+}
+
+void MpvVideoRendererTest::generatedVideoContinuesRenderingWithoutExternalWindowWake()
+{
+    QTemporaryDir temporaryDir;
+    QVERIFY(temporaryDir.isValid());
+
+    const QString videoPath = temporaryDir.filePath(QStringLiteral("video-renderer-continuous-wake.y4m"));
+    QString mediaError;
+    QVERIFY2(
+        writeGeneratedY4mVideo(
+            videoPath,
+            300,
+            GeneratedY4mPattern::AnimatedGray,
+            &mediaError),
+        mediaError.toLocal8Bit().constData());
+
+    QString coreError;
+    std::unique_ptr<MpvHandle> core = createInitializedVideoCore(&coreError);
+    QVERIFY2(core != nullptr, coreError.toLocal8Bit().constData());
+
+    QQuickWindow window;
+    window.setColor(Qt::black);
+    window.resize(128, 72);
+
+    MpvVideoItem videoItem(window.contentItem());
+    videoItem.setWidth(128.0);
+    videoItem.setHeight(72.0);
+    videoItem.setRenderCoreHandle(core->nativeHandle());
+
+    QSignalSpy renderedSpy(&window, &QQuickWindow::afterRendering);
+    window.show();
+    window.update();
+
+    QTRY_VERIFY_WITH_TIMEOUT(window.isExposed(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() >= 1, 3000);
+
+    const int renderCountBeforeLoad = renderedSpy.count();
+    QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
+
+    // No window.update(), resize, grabWindow(), visibility transition or fullscreen
+    // transition is allowed here. libmpv redraw notifications alone must wake the
+    // GUI-side QQuickFramebufferObject and keep the Scene Graph producing frames.
+    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() >= renderCountBeforeLoad + 6, 5000);
+
+    const int renderCountAfterStartup = renderedSpy.count();
+    QTest::qWait(350);
+    QVERIFY(renderedSpy.count() >= renderCountAfterStartup + 3);
 
     QCOMPARE(stopPlaybackOnWorkerThread(core->nativeHandle()), 0);
 

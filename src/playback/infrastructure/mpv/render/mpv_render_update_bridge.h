@@ -17,6 +17,17 @@ class MpvRenderContext;
 class MpvRenderShutdownCoordinator;
 class MpvRenderVisibilityPolicy;
 
+class MpvRenderUpdateDeliveryGate final
+{
+public:
+    [[nodiscard]] bool allows(quint64 activationEpoch) const noexcept;
+
+private:
+    friend class MpvRenderUpdateBridge;
+
+    std::atomic_uint64_t activeEpoch_{0};
+};
+
 class MpvRenderUpdateBridge final : public QObject
 {
     Q_OBJECT
@@ -41,14 +52,15 @@ public:
     [[nodiscard]] bool deactivate(QString* errorMessage = nullptr);
 
     [[nodiscard]] bool isActive() const noexcept;
+    [[nodiscard]] std::shared_ptr<const MpvRenderUpdateDeliveryGate>
+    deliveryGate() const noexcept;
 
 signals:
-    void updateRequested();
+    void updateRequested(quint64 activationEpoch);
 
 private:
     static void onRenderUpdate(void* context) noexcept;
     void dispatchRenderUpdate() noexcept;
-    void deliverUpdateRequest(std::uint64_t activationEpoch);
     void waitForCallbacksToDrain() noexcept;
     [[nodiscard]] bool visibilityAllowsUpdateDelivery() const noexcept;
     [[nodiscard]] bool shutdownAllowsUpdateDelivery() const noexcept;
@@ -60,7 +72,8 @@ private:
     MpvRenderContext* renderContext_ = nullptr;
     std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy_;
     std::shared_ptr<const MpvRenderShutdownCoordinator> shutdownCoordinator_;
-    std::uint64_t activationEpoch_ = 0;
+    std::shared_ptr<MpvRenderUpdateDeliveryGate> deliveryGate_;
+    quint64 activationEpoch_ = 0;
     bool callbackInstalled_ = false;
     bool active_ = false;
 };

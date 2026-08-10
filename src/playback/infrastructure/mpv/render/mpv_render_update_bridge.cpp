@@ -5,7 +5,6 @@
 #include "mpv_render_visibility_policy.h"
 
 #include <QDebug>
-#include <QMetaObject>
 #include <QString>
 
 #include <exception>
@@ -23,8 +22,14 @@ void assignError(QString* errorMessage, QString message)
 
 } // namespace
 
+bool MpvRenderUpdateDeliveryGate::allows(quint64 activationEpoch) const noexcept
+{
+    return activationEpoch != 0
+        && activeEpoch_.load(std::memory_order_acquire) == activationEpoch;
+}
+
 MpvRenderUpdateBridge::MpvRenderUpdateBridge(QObject* parent)
-    : QObject(parent)
+    : MpvRenderUpdateBridge({}, {}, parent)
 {
 }
 
@@ -42,6 +47,7 @@ MpvRenderUpdateBridge::MpvRenderUpdateBridge(
     : QObject(parent)
     , visibilityPolicy_(std::move(visibilityPolicy))
     , shutdownCoordinator_(std::move(shutdownCoordinator))
+    , deliveryGate_(std::make_shared<MpvRenderUpdateDeliveryGate>())
 {
 }
 
@@ -78,8 +84,12 @@ bool MpvRenderUpdateBridge::activate(
         }
 
         ++activationEpoch_;
+        if (activationEpoch_ == 0) {
+            ++activationEpoch_;
+        }
         renderContext_ = &renderContext;
         active_ = true;
+        deliveryGate_->activeEpoch_.store(activationEpoch_, std::memory_order_release);
     }
 
     QString callbackError;
@@ -93,6 +103,7 @@ bool MpvRenderUpdateBridge::activate(
             active_ = false;
             renderContext_ = nullptr;
             callbackInstalled_ = false;
+            deliveryGate_->activeEpoch_.store(0, std::memory_order_release);
         }
 
         assignError(
@@ -123,6 +134,7 @@ bool MpvRenderUpdateBridge::deactivate(QString* errorMessage)
             ++activationEpoch_;
         }
         active_ = false;
+        deliveryGate_->activeEpoch_.store(0, std::memory_order_release);
         renderContext = renderContext_;
         callbackInstalled = callbackInstalled_;
     }
@@ -161,6 +173,12 @@ bool MpvRenderUpdateBridge::isActive() const noexcept
     return active_;
 }
 
+std::shared_ptr<const MpvRenderUpdateDeliveryGate>
+MpvRenderUpdateBridge::deliveryGate() const noexcept
+{
+    return deliveryGate_;
+}
+
 void MpvRenderUpdateBridge::onRenderUpdate(void* context) noexcept
 {
     if (context == nullptr) {
@@ -174,43 +192,24 @@ void MpvRenderUpdateBridge::dispatchRenderUpdate() noexcept
 {
     callbacksInFlight_.fetch_add(1, std::memory_order_acq_rel);
 
-    bool shouldQueue = false;
-    std::uint64_t activationEpoch = 0;
+    quint64 activationEpoch = 0;
     {
         std::scoped_lock lock(stateMutex_);
-        shouldQueue = active_;
-        activationEpoch = activationEpoch_;
+        if (active_) {
+            activationEpoch = activationEpoch_;
+        }
     }
 
-    if (shouldQueue
+    if (activationEpoch != 0
+        && deliveryGate_->allows(activationEpoch)
         && shutdownAllowsUpdateDelivery()
         && visibilityAllowsUpdateDelivery()) {
-        QMetaObject::invokeMethod(
-            this,
-            [this, activationEpoch] {
-                deliverUpdateRequest(activationEpoch);
-            },
-            Qt::QueuedConnection);
+        emit updateRequested(activationEpoch);
     }
 
     if (callbacksInFlight_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         std::scoped_lock lock(callbackMutex_);
         callbackCondition_.notify_all();
-    }
-}
-
-void MpvRenderUpdateBridge::deliverUpdateRequest(std::uint64_t activationEpoch)
-{
-    bool shouldEmit = false;
-    {
-        std::scoped_lock lock(stateMutex_);
-        shouldEmit = active_ && activationEpoch_ == activationEpoch;
-    }
-
-    if (shouldEmit
-        && shutdownAllowsUpdateDelivery()
-        && visibilityAllowsUpdateDelivery()) {
-        emit updateRequested();
     }
 }
 
