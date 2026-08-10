@@ -20,6 +20,7 @@ class MpvVideoItemTest final : public QObject
 private slots:
     void rendererBoundaryIsCreated();
     void synchronizeCopiesResizeDprAndVisibility();
+    void visibilityPolicyTracksItemAndWindowVisibility();
     void qmlCanInstantiateVideoItem();
 };
 
@@ -49,6 +50,8 @@ void MpvVideoItemTest::synchronizeCopiesResizeDprAndVisibility()
     QCOMPARE(state.logicalSize, QSizeF(640.0, 360.0));
     QCOMPARE(state.devicePixelRatio, window.effectiveDevicePixelRatio());
     QVERIFY(state.visible);
+    QVERIFY(!state.windowVisible);
+    QVERIFY(!state.windowMinimized);
 
     item.setWidth(1280.0);
     item.setHeight(720.0);
@@ -59,6 +62,45 @@ void MpvVideoItemTest::synchronizeCopiesResizeDprAndVisibility()
     QCOMPARE(state.logicalSize, QSizeF(1280.0, 720.0));
     QCOMPARE(state.devicePixelRatio, window.effectiveDevicePixelRatio());
     QVERIFY(!state.visible);
+    QVERIFY(!state.windowVisible);
+    QVERIFY(!state.windowMinimized);
+}
+
+void MpvVideoItemTest::visibilityPolicyTracksItemAndWindowVisibility()
+{
+    QQuickWindow window;
+    window.resize(96, 96);
+
+    MpvVideoItem item(window.contentItem());
+    item.setWidth(96.0);
+    item.setHeight(96.0);
+    item.setVisible(true);
+
+    const std::shared_ptr<const MpvRenderVisibilityPolicy> policy =
+        item.renderVisibilityPolicy();
+    QVERIFY(policy != nullptr);
+    QVERIFY(!policy->snapshot().updatesAllowed);
+
+    window.show();
+    window.update();
+
+    QTRY_VERIFY_WITH_TIMEOUT(window.isExposed(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(policy->snapshot().updatesAllowed, 3000);
+    const std::uint64_t shownRevision = policy->snapshot().revision;
+    QVERIFY(shownRevision > 0);
+
+    item.setVisible(false);
+    QTRY_VERIFY_WITH_TIMEOUT(!policy->snapshot().updatesAllowed, 1000);
+    QVERIFY(policy->snapshot().revision > shownRevision);
+
+    item.setVisible(true);
+    QTRY_VERIFY_WITH_TIMEOUT(policy->snapshot().updatesAllowed, 1000);
+
+    window.hide();
+    QTRY_VERIFY_WITH_TIMEOUT(!policy->snapshot().updatesAllowed, 1000);
+
+    window.releaseResources();
+    QCoreApplication::processEvents();
 }
 
 void MpvVideoItemTest::qmlCanInstantiateVideoItem()

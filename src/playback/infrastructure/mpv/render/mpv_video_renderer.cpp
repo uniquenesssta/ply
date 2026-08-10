@@ -45,11 +45,21 @@ void MpvVideoRenderer::synchronize(QQuickFramebufferObject* item)
     if (videoItem == nullptr) {
         presentationState_ = {};
         synchronizedCoreHandle_ = nullptr;
+        visibilityPolicy_.reset();
+        visibilityRevision_ = 0;
         return;
     }
 
     presentationState_ = videoItem->presentationState();
     synchronizedCoreHandle_ = videoItem->renderCoreHandle();
+
+    std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy =
+        videoItem->renderVisibilityPolicy();
+    if (visibilityPolicy_ != visibilityPolicy) {
+        visibilityPolicy_ = std::move(visibilityPolicy);
+        visibilityRevision_ = 0;
+        framebufferNeedsRender_ = true;
+    }
 }
 
 QOpenGLFramebufferObject* MpvVideoRenderer::createFramebufferObject(const QSize& size)
@@ -63,6 +73,10 @@ void MpvVideoRenderer::render()
     [[maybe_unused]] OpenGlStateReset stateReset;
 
     if (!applySynchronizedCoreBinding()) {
+        return;
+    }
+
+    if (!renderUpdatesAllowed()) {
         return;
     }
 
@@ -144,6 +158,26 @@ bool MpvVideoRenderer::applySynchronizedCoreBinding()
     return true;
 }
 
+bool MpvVideoRenderer::renderUpdatesAllowed()
+{
+    if (visibilityPolicy_ == nullptr) {
+        return presentationState_.visible;
+    }
+
+    const MpvRenderVisibilitySnapshot snapshot = visibilityPolicy_->snapshot();
+    if (snapshot.revision != visibilityRevision_) {
+        visibilityRevision_ = snapshot.revision;
+        if (snapshot.updatesAllowed) {
+            // A restore must repaint even when playback is paused and mpv has no
+            // new frame flag. Qt may also have invalidated/recreated the FBO while
+            // the window was hidden or minimized.
+            framebufferNeedsRender_ = true;
+        }
+    }
+
+    return snapshot.updatesAllowed;
+}
+
 bool MpvVideoRenderer::ensureRenderContext()
 {
     if (renderContext_ != nullptr) {
@@ -166,7 +200,7 @@ bool MpvVideoRenderer::ensureRenderContext()
         return false;
     }
 
-    auto updateBridge = std::make_unique<MpvRenderUpdateBridge>();
+    auto updateBridge = std::make_unique<MpvRenderUpdateBridge>(visibilityPolicy_, nullptr);
     QObject::connect(
         updateBridge.get(),
         &MpvRenderUpdateBridge::updateRequested,

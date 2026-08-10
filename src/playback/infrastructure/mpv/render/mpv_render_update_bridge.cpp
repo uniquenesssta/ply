@@ -1,6 +1,7 @@
 #include "mpv_render_update_bridge.h"
 
 #include "mpv_render_context.h"
+#include "mpv_render_visibility_policy.h"
 
 #include <QDebug>
 #include <QMetaObject>
@@ -23,6 +24,14 @@ void assignError(QString* errorMessage, QString message)
 
 MpvRenderUpdateBridge::MpvRenderUpdateBridge(QObject* parent)
     : QObject(parent)
+{
+}
+
+MpvRenderUpdateBridge::MpvRenderUpdateBridge(
+    std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy,
+    QObject* parent)
+    : QObject(parent)
+    , visibilityPolicy_(std::move(visibilityPolicy))
 {
 }
 
@@ -163,7 +172,7 @@ void MpvRenderUpdateBridge::dispatchRenderUpdate() noexcept
         activationEpoch = activationEpoch_;
     }
 
-    if (shouldQueue) {
+    if (shouldQueue && visibilityAllowsUpdateDelivery()) {
         QMetaObject::invokeMethod(
             this,
             [this, activationEpoch] {
@@ -186,7 +195,7 @@ void MpvRenderUpdateBridge::deliverUpdateRequest(std::uint64_t activationEpoch)
         shouldEmit = active_ && activationEpoch_ == activationEpoch;
     }
 
-    if (shouldEmit) {
+    if (shouldEmit && visibilityAllowsUpdateDelivery()) {
         emit updateRequested();
     }
 }
@@ -197,6 +206,11 @@ void MpvRenderUpdateBridge::waitForCallbacksToDrain() noexcept
     callbackCondition_.wait(lock, [this] {
         return callbacksInFlight_.load(std::memory_order_acquire) == 0;
     });
+}
+
+bool MpvRenderUpdateBridge::visibilityAllowsUpdateDelivery() const noexcept
+{
+    return visibilityPolicy_ == nullptr || visibilityPolicy_->snapshot().updatesAllowed;
 }
 
 } // namespace player::playback::infrastructure::mpv::render

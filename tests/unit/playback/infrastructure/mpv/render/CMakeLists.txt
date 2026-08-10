@@ -189,10 +189,48 @@ player_add_mpv_video_resize_dpi_test(125 1.25 0)
 player_add_mpv_video_resize_dpi_test(150 1.5 0)
 player_add_mpv_video_resize_dpi_test(200 2.0 0)
 
+add_executable(
+    mpv_video_visibility_tests
+    mpv_video_visibility_test.cpp
+    render_pixel_capture_fixture.h
+    render_test_fixture.h
+    render_video_fixture.h
+)
+
+player_apply_compiler_options(mpv_video_visibility_tests)
+player_enable_compiler_warnings(mpv_video_visibility_tests)
+player_enable_sanitizers(mpv_video_visibility_tests)
+player_enable_static_analysis(mpv_video_visibility_tests)
+
+target_link_libraries(
+    mpv_video_visibility_tests
+    PRIVATE
+        player_mpv_infrastructure
+        LibMpv::LibMpv
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
+        Qt6::Test
+)
+
+player_stage_libmpv_runtime(mpv_video_visibility_tests)
+
+add_test(
+    NAME mpv_video_visibility
+    COMMAND mpv_video_visibility_tests
+)
+
 set_tests_properties(
     mpv_render_update_bridge
     mpv_video_renderer
     PROPERTIES
         RUN_SERIAL TRUE
         TIMEOUT 20
+)
+
+set_tests_properties(
+    mpv_video_visibility
+    PROPERTIES
+        RUN_SERIAL TRUE
+        TIMEOUT 45
 )

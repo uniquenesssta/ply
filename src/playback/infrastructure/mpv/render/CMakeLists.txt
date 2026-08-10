@@ -7,6 +7,8 @@ target_sources(
         mpv_render_parameters.h
         mpv_render_update_bridge.cpp
         mpv_render_update_bridge.h
+        mpv_render_visibility_policy.cpp
+        mpv_render_visibility_policy.h
         mpv_video_item.cpp
         mpv_video_item.h
         mpv_video_renderer.cpp
