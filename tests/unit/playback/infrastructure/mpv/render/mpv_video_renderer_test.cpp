@@ -1,5 +1,5 @@
 #include "playback/infrastructure/mpv/render/mpv_render_parameters.h"
-#include "render_quick_fixture.h"
+#include "render_pixel_capture_fixture.h"
 #include "render_test_fixture.h"
 #include "render_video_fixture.h"
 
@@ -23,7 +23,7 @@ using player::playback::infrastructure::mpv::render::MpvOpenGlRenderTarget;
 using player::playback::infrastructure::mpv::render::MpvRenderParameters;
 using player::playback::mpv::MpvHandle;
 using player::test::render::GeneratedY4mPattern;
-using player::test::render::QuickVideoSurfaceFixture;
+using player::test::render::QuickVideoPixelCaptureFixture;
 using player::test::render::createInitializedVideoCore;
 using player::test::render::loadFileOnWorkerThread;
 using player::test::render::stopPlaybackOnWorkerThread;
@@ -111,23 +111,25 @@ void MpvVideoRendererTest::generatedVideoRendersIntoQuickFramebufferUpright()
     std::unique_ptr<MpvHandle> core = createInitializedVideoCore(&coreError);
     QVERIFY2(core != nullptr, coreError.toLocal8Bit().constData());
 
-    QuickVideoSurfaceFixture fixture(QSize(96, 96));
+    QuickVideoPixelCaptureFixture fixture(QSize(96, 96));
     fixture.videoItem().setRenderCoreHandle(core->nativeHandle());
 
     QSignalSpy renderedSpy(&fixture.window(), &QQuickWindow::afterRendering);
-    fixture.show();
+    fixture.create();
 
-    QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 3000);
+    const QImage initialFrame = fixture.grabWindow();
+    QVERIFY(!initialFrame.isNull());
     QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() >= 1, 3000);
 
     QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
-    QTRY_VERIFY_WITH_TIMEOUT(hasExpectedVerticalOrientation(fixture.window().grabWindow()), 6000);
+    QTRY_VERIFY_WITH_TIMEOUT(hasExpectedVerticalOrientation(fixture.grabWindow()), 6000);
 
     QCOMPARE(stopPlaybackOnWorkerThread(core->nativeHandle()), 0);
 
     fixture.videoItem().setRenderCoreHandle(nullptr);
     const int renderCountBeforeDetach = renderedSpy.count();
     fixture.videoItem().update();
+    QVERIFY(!fixture.grabWindow().isNull());
     QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > renderCountBeforeDetach, 3000);
 }
 
