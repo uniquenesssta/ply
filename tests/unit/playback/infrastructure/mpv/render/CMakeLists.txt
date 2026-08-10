@@ -243,6 +243,37 @@ add_test(
     COMMAND mpv_video_visibility_tests
 )
 
+add_executable(
+    mpv_video_shutdown_tests
+    mpv_video_shutdown_test.cpp
+    render_pixel_capture_fixture.h
+    render_test_fixture.h
+    render_video_fixture.h
+)
+
+player_apply_compiler_options(mpv_video_shutdown_tests)
+player_enable_compiler_warnings(mpv_video_shutdown_tests)
+player_enable_sanitizers(mpv_video_shutdown_tests)
+player_enable_static_analysis(mpv_video_shutdown_tests)
+
+target_link_libraries(
+    mpv_video_shutdown_tests
+    PRIVATE
+        player_mpv_infrastructure
+        LibMpv::LibMpv
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
+        Qt6::Test
+)
+
+player_stage_libmpv_runtime(mpv_video_shutdown_tests)
+
+add_test(
+    NAME mpv_video_shutdown
+    COMMAND mpv_video_shutdown_tests
+)
+
 set_tests_properties(
     mpv_render_update_bridge
     mpv_video_renderer
@@ -256,4 +287,11 @@ set_tests_properties(
     PROPERTIES
         RUN_SERIAL TRUE
         TIMEOUT 60
+)
+
+set_tests_properties(
+    mpv_video_shutdown
+    PROPERTIES
+        RUN_SERIAL TRUE
+        TIMEOUT 90
 )

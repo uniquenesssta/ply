@@ -1,3 +1,4 @@
+#include "playback/infrastructure/mpv/render/mpv_render_shutdown_coordinator.h"
 #include "playback/infrastructure/mpv/render/mpv_video_item.h"
 #include "playback/infrastructure/mpv/render/mpv_video_renderer.h"
 
@@ -9,6 +10,7 @@
 #include <QtQml/qqml.h>
 #include <QtTest>
 
+#include <cstddef>
 #include <memory>
 
 namespace player::playback::infrastructure::mpv::render {
@@ -21,6 +23,7 @@ private slots:
     void rendererBoundaryIsCreated();
     void synchronizeCopiesResizeDprAndVisibility();
     void visibilityPolicyTracksItemAndWindowVisibility();
+    void shutdownDetachesCoreAndRejectsRebinding();
     void qmlCanInstantiateVideoItem();
 };
 
@@ -101,6 +104,31 @@ void MpvVideoItemTest::visibilityPolicyTracksItemAndWindowVisibility()
 
     window.releaseResources();
     QCoreApplication::processEvents();
+}
+
+void MpvVideoItemTest::shutdownDetachesCoreAndRejectsRebinding()
+{
+    MpvVideoItem item;
+    std::byte token{};
+    auto* fakeCore = reinterpret_cast<mpv_handle*>(&token);
+
+    const auto shutdownCoordinator = item.renderShutdownCoordinator();
+    QVERIFY(shutdownCoordinator != nullptr);
+    QVERIFY(!shutdownCoordinator->isShutdownRequested());
+
+    item.setRenderCoreHandle(fakeCore);
+    QCOMPARE(item.renderCoreHandle(), fakeCore);
+
+    item.beginRenderShutdown();
+    QVERIFY(shutdownCoordinator->isShutdownRequested());
+    QVERIFY(item.renderCoreHandle() == nullptr);
+    QVERIFY(shutdownCoordinator->snapshot().renderReleased);
+
+    item.setRenderCoreHandle(fakeCore);
+    QVERIFY(item.renderCoreHandle() == nullptr);
+
+    item.beginRenderShutdown();
+    QVERIFY(shutdownCoordinator->isShutdownRequested());
 }
 
 void MpvVideoItemTest::qmlCanInstantiateVideoItem()

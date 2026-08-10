@@ -2,6 +2,7 @@
 
 #include "mpv_render_context.h"
 #include "mpv_render_parameters.h"
+#include "mpv_render_shutdown_coordinator.h"
 #include "mpv_render_update_bridge.h"
 
 #include <mpv/render.h>
@@ -31,6 +32,12 @@ public:
 } // namespace
 
 MpvVideoRenderer::MpvVideoRenderer() = default;
+
+MpvVideoRenderer::MpvVideoRenderer(
+    std::shared_ptr<MpvRenderShutdownCoordinator> shutdownCoordinator)
+    : shutdownCoordinator_(std::move(shutdownCoordinator))
+{
+}
 
 MpvVideoRenderer::~MpvVideoRenderer()
 {
@@ -71,6 +78,21 @@ QOpenGLFramebufferObject* MpvVideoRenderer::createFramebufferObject(const QSize&
 void MpvVideoRenderer::render()
 {
     [[maybe_unused]] OpenGlStateReset stateReset;
+
+    if (shutdownCoordinator_ != nullptr
+        && shutdownCoordinator_->isShutdownRequested()) {
+        (void)releaseRenderContext();
+        return;
+    }
+
+    MpvRenderShutdownCoordinator::RenderSection renderSection;
+    if (shutdownCoordinator_ != nullptr) {
+        renderSection = shutdownCoordinator_->tryEnterRenderSection();
+        if (!renderSection) {
+            (void)releaseRenderContext();
+            return;
+        }
+    }
 
     if (!applySynchronizedCoreBinding()) {
         return;
@@ -191,6 +213,11 @@ bool MpvVideoRenderer::ensureRenderContext()
         return false;
     }
 
+    if (shutdownCoordinator_ != nullptr
+        && shutdownCoordinator_->isShutdownRequested()) {
+        return false;
+    }
+
     renderContextCreationAttempted_ = true;
 
     QString errorMessage;
@@ -203,7 +230,14 @@ bool MpvVideoRenderer::ensureRenderContext()
         return false;
     }
 
-    auto updateBridge = std::make_unique<MpvRenderUpdateBridge>(visibilityPolicy_, nullptr);
+    if (shutdownCoordinator_ != nullptr) {
+        shutdownCoordinator_->noteRenderContextCreated();
+    }
+
+    auto updateBridge = std::make_unique<MpvRenderUpdateBridge>(
+        visibilityPolicy_,
+        shutdownCoordinator_,
+        nullptr);
     QObject::connect(
         updateBridge.get(),
         &MpvRenderUpdateBridge::updateRequested,
@@ -222,6 +256,11 @@ bool MpvVideoRenderer::ensureRenderContext()
             qCritical().noquote()
                 << QStringLiteral("Unable to release the failed mpv video render context: %1")
                        .arg(closeError);
+            return false;
+        }
+
+        if (shutdownCoordinator_ != nullptr) {
+            shutdownCoordinator_->noteRenderContextReleased();
         }
         return false;
     }
@@ -253,6 +292,10 @@ bool MpvVideoRenderer::releaseRenderContext()
             return false;
         }
         renderContext_.reset();
+
+        if (shutdownCoordinator_ != nullptr) {
+            shutdownCoordinator_->noteRenderContextReleased();
+        }
     }
 
     boundCoreHandle_ = nullptr;

@@ -70,7 +70,7 @@ MpvRenderShutdownCoordinator::tryEnterRenderSection() noexcept
 }
 
 bool MpvRenderShutdownCoordinator::waitForRenderRelease(
-    std::chrono::milliseconds timeout) noexcept
+    std::chrono::milliseconds timeout) const noexcept
 {
     std::unique_lock lock(stateMutex_);
     return stateCondition_.wait_for(lock, timeout, [this] {

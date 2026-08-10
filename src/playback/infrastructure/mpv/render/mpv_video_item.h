@@ -13,6 +13,8 @@ struct mpv_handle;
 
 namespace player::playback::infrastructure::mpv::render {
 
+class MpvRenderShutdownCoordinator;
+
 struct MpvVideoPresentationState final
 {
     QSizeF logicalSize;
@@ -38,13 +40,19 @@ public:
     [[nodiscard]] mpv_handle* renderCoreHandle() const noexcept;
     [[nodiscard]] std::shared_ptr<const MpvRenderVisibilityPolicy> renderVisibilityPolicy() const noexcept;
 
+    void beginRenderShutdown() noexcept;
+    [[nodiscard]] std::shared_ptr<const MpvRenderShutdownCoordinator>
+    renderShutdownCoordinator() const noexcept;
+
 private:
     void observeWindow(QQuickWindow* quickWindow);
     void refreshRenderVisibilityPolicy() noexcept;
     void scheduleRenderWake();
+    void requestRenderShutdownCleanup() noexcept;
 
     mpv_handle* renderCoreHandle_ = nullptr;
     std::shared_ptr<MpvRenderVisibilityPolicy> renderVisibilityPolicy_;
+    std::shared_ptr<MpvRenderShutdownCoordinator> renderShutdownCoordinator_;
     QMetaObject::Connection windowVisibleConnection_;
     QMetaObject::Connection windowVisibilityConnection_;
     QMetaObject::Connection windowSceneGraphInitializedConnection_;

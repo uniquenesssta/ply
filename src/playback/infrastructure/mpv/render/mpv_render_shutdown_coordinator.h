@@ -46,7 +46,7 @@ public:
     [[nodiscard]] bool beginShutdown() noexcept;
     [[nodiscard]] bool isShutdownRequested() const noexcept;
     [[nodiscard]] RenderSection tryEnterRenderSection() noexcept;
-    [[nodiscard]] bool waitForRenderRelease(std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] bool waitForRenderRelease(std::chrono::milliseconds timeout) const noexcept;
     [[nodiscard]] MpvRenderShutdownSnapshot snapshot() const noexcept;
 
 private:
@@ -58,7 +58,7 @@ private:
 
     std::atomic_bool shutdownRequested_{false};
     mutable std::mutex stateMutex_;
-    std::condition_variable stateCondition_;
+    mutable std::condition_variable stateCondition_;
     std::size_t activeRenderSections_ = 0;
     std::size_t liveRenderContexts_ = 0;
 };

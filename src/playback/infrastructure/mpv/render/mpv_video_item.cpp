@@ -1,5 +1,6 @@
 #include "mpv_video_item.h"
 
+#include "mpv_render_shutdown_coordinator.h"
 #include "mpv_video_renderer.h"
 
 #include <QQuickWindow>
@@ -10,6 +11,7 @@ namespace player::playback::infrastructure::mpv::render {
 MpvVideoItem::MpvVideoItem(QQuickItem* parent)
     : QQuickFramebufferObject(parent)
     , renderVisibilityPolicy_(std::make_shared<MpvRenderVisibilityPolicy>())
+    , renderShutdownCoordinator_(std::make_shared<MpvRenderShutdownCoordinator>())
 {
     connect(
         this,
@@ -38,7 +40,7 @@ MpvVideoItem::MpvVideoItem(QQuickItem* parent)
 
 QQuickFramebufferObject::Renderer* MpvVideoItem::createRenderer() const
 {
-    return new MpvVideoRenderer();
+    return new MpvVideoRenderer(renderShutdownCoordinator_);
 }
 
 MpvVideoPresentationState MpvVideoItem::presentationState() const noexcept
@@ -62,6 +64,10 @@ MpvVideoPresentationState MpvVideoItem::presentationState() const noexcept
 
 void MpvVideoItem::setRenderCoreHandle(mpv_handle* coreHandle) noexcept
 {
+    if (coreHandle != nullptr && renderShutdownCoordinator_->isShutdownRequested()) {
+        return;
+    }
+
     if (renderCoreHandle_ == coreHandle) {
         return;
     }
@@ -78,6 +84,19 @@ mpv_handle* MpvVideoItem::renderCoreHandle() const noexcept
 std::shared_ptr<const MpvRenderVisibilityPolicy> MpvVideoItem::renderVisibilityPolicy() const noexcept
 {
     return renderVisibilityPolicy_;
+}
+
+void MpvVideoItem::beginRenderShutdown() noexcept
+{
+    (void)renderShutdownCoordinator_->beginShutdown();
+    renderCoreHandle_ = nullptr;
+    requestRenderShutdownCleanup();
+}
+
+std::shared_ptr<const MpvRenderShutdownCoordinator>
+MpvVideoItem::renderShutdownCoordinator() const noexcept
+{
+    return renderShutdownCoordinator_;
 }
 
 void MpvVideoItem::observeWindow(QQuickWindow* quickWindow)
@@ -130,6 +149,7 @@ void MpvVideoItem::refreshRenderVisibilityPolicy() noexcept
 void MpvVideoItem::scheduleRenderWake()
 {
     if (renderWakeQueued_
+        || renderShutdownCoordinator_->isShutdownRequested()
         || !renderVisibilityPolicy_->snapshot().updatesAllowed) {
         return;
     }
@@ -142,6 +162,7 @@ void MpvVideoItem::scheduleRenderWake()
 
             QQuickWindow* quickWindow = window();
             if (quickWindow == nullptr
+                || renderShutdownCoordinator_->isShutdownRequested()
                 || !quickWindow->isSceneGraphInitialized()
                 || !renderVisibilityPolicy_->snapshot().updatesAllowed) {
                 return;
@@ -150,6 +171,31 @@ void MpvVideoItem::scheduleRenderWake()
             update();
         },
         Qt::QueuedConnection);
+}
+
+void MpvVideoItem::requestRenderShutdownCleanup() noexcept
+{
+    QQuickWindow* quickWindow = window();
+    if (quickWindow == nullptr || !quickWindow->isSceneGraphInitialized()) {
+        return;
+    }
+
+    // Visible/exposed windows can run one final synchronization/render pass that
+    // observes the null core binding and releases libmpv on the render thread.
+    update();
+    quickWindow->update();
+
+    // A hidden/minimized QQuickWindow may not render another frame at all. During
+    // final shutdown it is safe to allow Qt to tear down the scene graph so the
+    // QQuickFramebufferObject renderer destructor runs on the render lifecycle
+    // instead of leaving a live mpv_render_context behind the raw core handle.
+    if (!quickWindow->isVisible()
+        || !quickWindow->isExposed()
+        || quickWindow->visibility() == QWindow::Minimized) {
+        quickWindow->setPersistentSceneGraph(false);
+        quickWindow->setPersistentGraphics(false);
+        quickWindow->releaseResources();
+    }
 }
 
 } // namespace player::playback::infrastructure::mpv::render

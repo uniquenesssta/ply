@@ -14,12 +14,15 @@ struct mpv_handle;
 namespace player::playback::infrastructure::mpv::render {
 
 class MpvRenderContext;
+class MpvRenderShutdownCoordinator;
 class MpvRenderUpdateBridge;
 
 class MpvVideoRenderer final : public QQuickFramebufferObject::Renderer
 {
 public:
     MpvVideoRenderer();
+    explicit MpvVideoRenderer(
+        std::shared_ptr<MpvRenderShutdownCoordinator> shutdownCoordinator);
     ~MpvVideoRenderer() override;
 
     void synchronize(QQuickFramebufferObject* item) override;
@@ -40,6 +43,7 @@ private:
     mpv_handle* synchronizedCoreHandle_ = nullptr;
     mpv_handle* boundCoreHandle_ = nullptr;
     std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy_;
+    std::shared_ptr<MpvRenderShutdownCoordinator> shutdownCoordinator_;
     std::uint64_t visibilityRevision_ = 0;
     std::unique_ptr<MpvRenderContext> renderContext_;
     std::unique_ptr<MpvRenderUpdateBridge> updateBridge_;
