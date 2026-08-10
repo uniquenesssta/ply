@@ -14,7 +14,7 @@ struct MpvVideoPresentationState final
     bool operator==(const MpvVideoPresentationState&) const = default;
 };
 
-class MpvVideoItem final : public QQuickFramebufferObject
+class MpvVideoItem : public QQuickFramebufferObject
 {
     Q_OBJECT
 
