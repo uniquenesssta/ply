@@ -1,6 +1,7 @@
 #include "app/bootstrap/qml_bootstrap.h"
 
 #include "foundation/logging/log_categories.h"
+#include "presentation/qml/types/presentation_type_registration.h"
 
 #include <QList>
 #include <QLoggingCategory>
@@ -29,6 +30,11 @@ bool QmlBootstrap::load()
 {
     warningMessages_.clear();
     lastError_.clear();
+
+    if (!player::presentation::qml::registerPresentationQmlTypes()) {
+        lastError_ = QStringLiteral("Failed to register Player.Presentation C++ QML types.");
+        return false;
+    }
 
     engine_.loadFromModule("Player.Presentation", "App");
 
