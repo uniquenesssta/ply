@@ -5,7 +5,7 @@
 namespace player::playback::mpv {
 namespace {
 
-QList<MpvOption> environmentIsolationOptions()
+QList<MpvOption> productOptions()
 {
     return {
         {QByteArrayLiteral("config"), QByteArrayLiteral("no")},
@@ -22,7 +22,7 @@ MpvOptionProfile::MpvOptionProfile(QList<MpvOption> options)
 
 MpvOptionProfile MpvOptionProfile::productDefaults()
 {
-    return MpvOptionProfile(environmentIsolationOptions());
+    return MpvOptionProfile(productOptions());
 }
 
 const QList<MpvOption>& MpvOptionProfile::options() const noexcept

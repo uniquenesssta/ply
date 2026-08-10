@@ -13,7 +13,7 @@ struct MpvOpenGlRenderTarget final
     int width = 0;
     int height = 0;
     int internalFormat = 0;
-    bool flipY = true;
+    bool flipY = false;
 };
 
 class MpvRenderParameters final

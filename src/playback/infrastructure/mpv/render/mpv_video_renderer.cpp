@@ -55,9 +55,7 @@ void MpvVideoRenderer::synchronize(QQuickFramebufferObject* item)
 QOpenGLFramebufferObject* MpvVideoRenderer::createFramebufferObject(const QSize& size)
 {
     framebufferNeedsRender_ = true;
-    return new QOpenGLFramebufferObject(
-        size,
-        QOpenGLFramebufferObject::CombinedDepthStencil);
+    return new QOpenGLFramebufferObject(size);
 }
 
 void MpvVideoRenderer::render()
