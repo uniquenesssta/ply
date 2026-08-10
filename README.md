@@ -17,7 +17,7 @@
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
-- **D5：In Progress — D5-01 ～ D5-02 Complete。**
+- **D5：In Progress — D5-01 ～ D5-03 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -33,8 +33,9 @@
 - D4-06：Chapters Content，唯一 Content Component Set `200:2168`。
 - D4-07：Inspector Responsive & Dismissal Contract，Contract `207:2497` / Verification `209:2497` / Prototype Navigation `216:3436`。
 - D5-01：Feedback Priority Matrix，Page `219:2` / Contract `220:2` / Verification `221:2`。
-- **D5-02：Empty / Loading，Source `223:2` / Verification `223:3` / Player Status Overlay `225:30`。**
-- **下一任务：D5-03 Playing / Paused。**
+- D5-02：Empty / Loading，Source `223:2` / Verification `223:3` / Player Status Overlay `225:30`。
+- **D5-03：Playing / Paused，Contract `234:66` / Verification `234:67` / Prototype Navigation `237:66`。**
+- **下一任务：D5-04 Buffering / Seeking。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -535,15 +536,100 @@ Generic unnamed residues      0
 
 **D5-02：Complete。**
 
-## Next
+### D5-03 Playing / Paused · Complete
 
-**D5-03 — Playing / Paused**
-
-下一步继续消费 D5-01 已冻结规则：
+Figma：
 
 ```text
-Playing → no transient feedback
-Paused  → Player State + D3 OSC persistent
+Contract              234:66   D5-03 / Playing & Paused Contract
+Verification          234:67   D5-03 / Verification
+Prototype Navigation  237:66   D5-03 / Prototype Navigation
+Prototype / Playing   237:69
+Prototype / Paused    237:99
 ```
 
-保持同一 Player Window 几何；Playing 默认最少 UI，Paused 提高 OSC 可见性，但不创建中央巨大暂停图标或第二套播放器页面。
+继续消费 D5-01 与 D3-07 已冻结状态规则：
+
+```text
+Playing → Player State · no transient feedback
+Paused  → Player State · OSC persistent
+```
+
+Playing：
+
+- Transport 使用 Pause glyph；播放状态本身不创建 Overlay/HUD/Toast。
+- OSC 处于 `Rest · countdown`；由 D3-07 唯一 Visibility Controller 持有 `hideDeadline = now + 2200ms`，到期后进入 Hidden。
+- Header / Video Viewport 几何与内容 ownership 不因 Playing 改变。
+
+Paused：
+
+- Transport 使用 Play glyph；PlayPause 几何继续保持 `40×40 / R20 / V3 Glass Control`。
+- OSC 处于 `Rest · persistent`；`autoHideAllowed=false`，`hideDeadline=none`。
+- 若 Pause 发生时 OSC 已 Hidden，先按既有 `160ms Show` 恢复 OSC，再保持 persistent。
+- 不创建中央巨大暂停 glyph、Paused Overlay 或 Paused HUD。
+
+Playing / Paused 共享不变项：
+
+```text
+Player Window / Video Viewport geometry unchanged
+Floating Header geometry unchanged
+OSC visible material = 32% fill / 48% border / V3 Glass OSC
+D5-02 Player Status Overlay remains Empty / Loading only
+No second transport / OSC / visibility timer owner
+```
+
+真实验证：
+
+```text
+Playing Visible      236:69   960×700   OSC 856×124 @ 52,538   Pause glyph
+Playing Hidden       236:100  960×700   OSC absent
+Pause from Hidden    236:110  960×700   OSC 856×124 @ 52,538   Play glyph
+Paused Persistent    236:140  960×700   OSC 856×124 @ 52,538   Play glyph
+Resume Playing       236:170  960×700   OSC 856×124 @ 52,538   Pause glyph
+Narrow Paused        236:201  720×700   OSC 616×106 @ 52,564   Play glyph
+```
+
+快速切换 Prototype：
+
+- `237:69 Playing ↔ 237:99 Paused`。
+- PlayPause click 与 Space 键均双向切换。
+- 切换使用 `SMART_ANIMATE 120ms Ease Out`；只验证 transport state，不创建 D5-03 timer。
+- D5-03 `AFTER_TIMEOUT owner = 0`；2200ms 自动隐藏仍只属于 D3-07。
+
+实施中发现并修复：
+
+- Paused 首轮 Play polygon 因 Figma rotation 基准产生肉眼可见的光学偏移；已替换为居中的 `16×18` SVG Play glyph，并保持 40×40 PlayPause 几何不变。
+- Prototype hit 区 semantic-bound 后 Paint alpha 被 Figma 归一化；通过绑定 `surface/glass` + node opacity=`0.001` 保持不可见命中区。
+- 清理 SVG 默认 `Vector` 命名和 Figma Section 默认未绑定 outline stroke。
+
+最终审计：
+
+```text
+D5-03 new Product Components   0
+D5-03 new Variables            0
+D5-03 AFTER_TIMEOUT owners     0
+Generic unnamed residues       0
+Visible unbound UI paints      0
+Player Status Overlay states   Empty / Loading only
+```
+
+D5-01 Contract / Verification 与 D5-02 Source / Verification 坐标、尺寸全部保持不变。
+
+本任务只修改 Figma 设计与根 README；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D5-03：Complete。**
+
+## Next
+
+**D5-04 — Buffering / Seeking**
+
+下一步继续消费 D5-01 已冻结路由，并严格保持网络缓冲与用户 Seek 两套语义：
+
+```text
+Buffering while Playing       → Overlay · Buffering
+Buffering while user Paused   → Inline · secondary only
+Timeline Scrub                → Seek Preview · Scrub
+Released Seek Pending         → Seek Preview · Pending
+```
+
+Buffering 不得覆盖用户 Pause 意图；Scrub/Pending 不得伪装成 Buffering，也不得提前改写 confirmed playback position。
