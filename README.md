@@ -1507,3 +1507,21 @@ R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事
 - Accepted R4-04 from the user's Windows verification: development marker passed, `mpv_video_item` passed in 0.49 seconds, and all 32 CTests passed with 0 failures in 19.35 seconds total.
 - Confirmed the production `Player.exe` QML smoke: the window opens normally and the `Player.Presentation -> VideoSurface -> MpvVideoItem` registration/load path has no observed type/module error.
 - Kept actual libmpv FBO rendering and R4-06~R4-08 hardening outside R4-04; R4-05 remains the next Atomic Task.
+
+## R4-05 Windows verification and acceptance — current
+
+R4-05 已把 `MpvVideoRenderer` 从占位 `render()` 推进为真实 Qt Quick OpenGL FBO 渲染链：`MpvVideoItem -> synchronize -> MpvVideoRenderer -> MpvRenderContext -> mpv_render_context_render()`。新增 `mpv_render_parameters.*` 独立拥有 FBO id、实际 FBO 像素尺寸和 `MPV_RENDER_PARAM_FLIP_Y` 参数构造；产品 mpv option profile 显式设置 `vo=libmpv`，避免依赖默认 VO；`VideoSurface.qml` 的背景层退到视频 Item 后方，不再遮挡真实视频输出。
+
+Windows Qt 6.8.3 / MSVC 实际 configure 与 build 均成功，development runtime marker 正常。完整 CTest 实际结果为 **33/33 PASS，0 failed**，总耗时 **16.43 秒**；新增 `mpv_video_renderer` 测试 **0.91 秒 PASS**。既有 `mpv_initialization`、`mpv_render_context`、`mpv_render_update_bridge`、`mpv_video_item`、`playback_session`、`playback_shutdown`、`playback_media_generation` 等回归均通过。
+
+`mpv_video_renderer` 集成测试不使用 mock 视频输出：测试运行时生成顶部亮、底部暗的 Y4M 媒体，创建真实 `QQuickWindow + MpvVideoItem`，通过 libmpv Render API 渲染到 Qt Quick FBO，再以 `QQuickWindow::grabWindow()` 读取合成结果并验证顶部亮度显著高于底部，证明视频帧真实进入 Qt Quick 且垂直方向正确。
+
+当前产品 `ApplicationBootstrap` 尚未启动 `PlaybackSessionThread`，也没有本地媒体打开入口，因此 R4-05 不伪造 `Player.exe` 手工打开视频 smoke。该限制不否定 Renderer/FBO 主链验收；产品级媒体打开与控制入口仍按后续阶段接入。R4-06 的 resize/DPI 矩阵、R4-07 hidden/minimized 策略和 R4-08 shutdown race hardening 均未提前实现。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Complete。R4-05：Complete。下一 Atomic Task：R4-06 Resize 和 DPI。**
+
+### 2026-08-10 — R4-05 acceptance
+
+- Accepted the real libmpv OpenGL FBO renderer path on Windows with 33/33 CTests passing and 0 failures in 16.43 seconds total.
+- `mpv_video_renderer` passed in 0.91 seconds using a generated Y4M pattern, real `QQuickWindow` composition, and pixel-level vertical-orientation verification.
+- Kept R4-06 resize/DPI, R4-07 visibility policy, and R4-08 shutdown hardening outside this Atomic Task.
