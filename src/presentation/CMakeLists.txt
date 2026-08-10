@@ -7,8 +7,11 @@ set(PLAYER_QML_FILES
     qml/theme/Theme.qml
 )
 
-set(PLAYER_QML_CPP_SOURCES
-    qml/types/mpv_video_item_qml.h
+target_sources(
+    player_app
+    PRIVATE
+        qml/types/presentation_type_registration.cpp
+        qml/types/presentation_type_registration.h
 )
 
 foreach(qml_file IN LISTS PLAYER_QML_FILES)
@@ -29,6 +32,5 @@ qt_add_qml_module(
     URI Player.Presentation
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
-    SOURCES ${PLAYER_QML_CPP_SOURCES}
     QML_FILES ${PLAYER_QML_FILES}
 )
