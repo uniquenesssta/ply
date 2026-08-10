@@ -18,6 +18,7 @@
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
+- **D6：In Progress — D6-01 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -38,8 +39,9 @@
 - D5-04：Buffering / Seeking，Source `241:66` / Verification `241:67` / Buffering Status `242:88` / Seek Preview `243:66`。
 - D5-05：Ended，Source `254:119` / Verification `254:120` / Ended Action `255:159` / Ended Status `256:144`。
 - D5-06：Error Overlay，Source `262:186` / Verification `262:187` / Error Action `264:225` / Error Status `265:246`。
-- **D5-07：HUD / Toast / Dialog，Source `271:301` / Verification `271:302` / Prototype Navigation `278:528` / HUD `272:339` / Toast `273:318` / Dialog Action `274:317` / Dialog `274:342`。**
-- **下一任务：D6-01 Preferences Window Shell。**
+- D5-07：HUD / Toast / Dialog，Source `271:301` / Verification `271:302` / Prototype Navigation `278:528` / HUD `272:339` / Toast `273:318` / Dialog Action `274:317` / Dialog `274:342`。
+- **D6-01：Preferences Window Shell，Page `285:19` / Source `285:20` / Verification `285:21` / Preferences Shell `286:59`。**
+- **下一任务：D6-02 Source List Navigation。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -1015,15 +1017,111 @@ Player Status Overlay states                Empty / Loading / Buffering / Ended 
 
 **Stage D5：Complete。**
 
-## Next
+## Stage D6 — Preferences & Shortcuts · In Progress
 
-**D6-01 — Preferences Window Shell**
+### D6-01 Preferences Window Shell · Complete
 
-下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 建立独立 Preferences Window Shell：
+Figma：
 
 ```text
-window
-  → source list + content
+Page                    285:19  06 Preferences
+Source / Contract       285:20  D6-01 / Preferences Window Shell
+Verification            285:21  D6-01 / Verification
+Preferences Shell       286:59  Preferences / Shell
+Standard Variant        286:2   Size=Standard
+Narrow Variant          286:21  Size=Narrow
+Minimum Variant         286:40  Size=Minimum
 ```
 
-先冻结设置窗口材质、标题、标准尺寸与最小宽高，并完成 Standard / Narrow / High-DPI 视觉验证。Preferences 应比主播放器更平静、更阅读型，继续使用浅雾 Airy Glass 与柔和边界，但必须一眼看出它是独立设置窗口而不是 Player Overlay。
+D6-01 只建立独立 Preferences Window 的几何与窗口材质 owner，不提前创建 Source List Item、Settings Row、Toggle/Select/Slider/TextField 或 Shortcuts 内容。
+
+唯一 `Preferences / Shell` 定义三档逻辑尺寸：
+
+```text
+Standard  980×680   Source Host 220   Content Host 759   Titlebar 58
+Narrow    820×620   Source Host 190   Content Host 629   Titlebar 58
+Minimum   760×560   Source Host 190   Content Host 569   Titlebar 58
+```
+
+Shell ownership：
+
+- Window Surface。
+- Titlebar / `偏好设置`。
+- Window Actions Host；当前只作为 Shell 私有 chrome，不把播放器 Window Actions 复制成第二套业务组件。
+- Source List Host。
+- Content Host。
+- Source / Content 单一 divider。
+- Minimum size 与 resize contract。
+
+D6-02+ 只能向 Source List Host / Content Host 填入各自内容，不得反向拥有或重新定义窗口尺寸、Titlebar 或两个 Host 的几何。
+
+Foundation / Token：
+
+- 新增 8 个 Size Primitive：`size/980 / 680 / 820 / 620 / 760 / 560 / 220 / 190`。
+- 新增 9 个 Preferences Semantic Geometry：
+  - `size/preferences/window-width-standard`
+  - `size/preferences/window-height-standard`
+  - `size/preferences/window-width-narrow`
+  - `size/preferences/window-height-narrow`
+  - `size/preferences/window-min-width`
+  - `size/preferences/window-min-height`
+  - `size/preferences/titlebar-height`
+  - `size/preferences/source-width-standard`
+  - `size/preferences/source-width-compact`
+- 所有 semantic geometry 均在既有 Geometry Semantic collection，scope=`WIDTH_HEIGHT`，并设置 WEB code syntax。
+- 新增 Color / Effect / Typography / Radius / Motion Token=`0`；材质继续复用 `surface/glass / surface/glass-subtle / surface/canvas / border/glass / V3 Elevation Window`。
+
+High-DPI contract：
+
+- High-DPI 不创建第四个 Variant，也不改变逻辑尺寸。
+- Verification 使用 Standard Variant 的 `2×` render：实例 `289:116 = 1960×1360`，仅验证边界、字体、图标、阴影在 2× 下的视觉清晰度。
+
+真实验证：
+
+```text
+Standard  289:4    stage 1060×770   instance 289:8    980×680
+Narrow    289:28   stage 900×710    instance 289:32   820×620
+Minimum   289:70   stage 840×650    instance 289:74   760×560
+High DPI  289:112  stage 2040×1450  instance 289:116  1960×1360 (2× Standard)
+```
+
+四个 Verification 实例全部直接消费 `Preferences / Shell`（`286:59`）；没有复制第二套 Window、Player Overlay、OSC 或 Inspector Shell。
+
+实施收口：
+
+- 首次 Component 创建脚本因 async 函数声明遗漏而语法失败；该调用没有成功提交产品组件，修正执行结构后重新创建。
+- 第一轮 Source 视觉复核发现 Component Set Variant 重叠与 Close glyph 旋转基准偏斜；已将 Variant 按两行组织，并将 Close 改为居中 SVG X，子路径职责化命名并绑定 `feedback/neutral`。
+
+最终审计：
+
+```text
+Preferences / Shell authorities          1
+Preferences Shell variants               3
+Preferences semantic geometry variables  9
+New primitive size variables             8
+New Color / Effect / Text / Motion       0
+Generic unnamed residues                 0
+Visible unbound source/product paints    0
+Standard / Narrow / Minimum instances    PASS
+High-DPI 2× visual                       PASS
+D1～D5 page structure regression         PASS
+Player Status Overlay states             Empty / Loading / Buffering / Ended / Error
+```
+
+本任务只修改 Figma 设计、Figma geometry variables 与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D6-01：Complete。**
+
+## Next
+
+**D6-02 — Source List Navigation**
+
+下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 建立 Preferences 分类导航：
+
+```text
+category
+  → selection
+  → content
+```
+
+重点完成 Playback / Video / Audio / Subtitles / Interface / Advanced / Shortcuts 的快速扫读结构，以及 Default / Hover / Selected / Focus；继续消费唯一 `Preferences / Shell`，不让 Source List 重新拥有窗口几何。
