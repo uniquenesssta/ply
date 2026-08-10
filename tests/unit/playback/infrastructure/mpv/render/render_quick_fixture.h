@@ -27,15 +27,10 @@ inline void configureNonInteractiveWindow(QQuickWindow& window, QSize logicalSiz
         | Qt::FramelessWindowHint
         | Qt::WindowDoesNotAcceptFocus
         | Qt::WindowTransparentForInput);
-    window.setOpacity(0.02);
+    window.setOpacity(0.001);
     window.setPersistentGraphics(false);
     window.setPersistentSceneGraph(false);
     window.resize(logicalSize);
-
-    if (QScreen* screen = QGuiApplication::primaryScreen(); screen != nullptr) {
-        const QRect virtualGeometry = screen->virtualGeometry();
-        window.setPosition(virtualGeometry.bottomRight() + QPoint(512, 512));
-    }
 }
 
 inline void bindItemToWindow(QQuickWindow& window, QQuickItem& item)
