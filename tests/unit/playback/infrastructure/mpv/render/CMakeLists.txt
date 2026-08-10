@@ -140,6 +140,52 @@ add_test(
     COMMAND mpv_video_renderer_tests
 )
 
+add_executable(
+    mpv_video_resize_dpi_tests
+    mpv_video_resize_dpi_test.cpp
+    render_test_fixture.h
+    render_video_fixture.h
+)
+
+player_apply_compiler_options(mpv_video_resize_dpi_tests)
+player_enable_compiler_warnings(mpv_video_resize_dpi_tests)
+player_enable_sanitizers(mpv_video_resize_dpi_tests)
+player_enable_static_analysis(mpv_video_resize_dpi_tests)
+
+target_link_libraries(
+    mpv_video_resize_dpi_tests
+    PRIVATE
+        player_mpv_infrastructure
+        LibMpv::LibMpv
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
+        Qt6::Test
+)
+
+player_stage_libmpv_runtime(mpv_video_resize_dpi_tests)
+
+function(player_add_mpv_video_resize_dpi_test suffix scale_factor fullscreen_smoke)
+    set(test_name "mpv_video_resize_dpi_${suffix}")
+
+    add_test(
+        NAME "${test_name}"
+        COMMAND mpv_video_resize_dpi_tests
+    )
+
+    set_tests_properties(
+        "${test_name}"
+        PROPERTIES
+            ENVIRONMENT "QT_SCALE_FACTOR=${scale_factor};QT_SCALE_FACTOR_ROUNDING_POLICY=PassThrough;PLAYER_R4_06_FULLSCREEN_SMOKE=${fullscreen_smoke}"
+            TIMEOUT 30
+    )
+endfunction()
+
+player_add_mpv_video_resize_dpi_test(100 1.0 1)
+player_add_mpv_video_resize_dpi_test(125 1.25 0)
+player_add_mpv_video_resize_dpi_test(150 1.5 0)
+player_add_mpv_video_resize_dpi_test(200 2.0 0)
+
 set_tests_properties(
     mpv_render_update_bridge
     mpv_video_renderer
