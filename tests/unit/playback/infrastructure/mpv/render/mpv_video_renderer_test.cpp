@@ -1,5 +1,5 @@
 #include "playback/infrastructure/mpv/render/mpv_render_parameters.h"
-#include "playback/infrastructure/mpv/render/mpv_video_item.h"
+#include "render_quick_fixture.h"
 #include "render_test_fixture.h"
 #include "render_video_fixture.h"
 
@@ -7,7 +7,6 @@
 #include <mpv/render_gl.h>
 
 #include <QColor>
-#include <QCoreApplication>
 #include <QGuiApplication>
 #include <QImage>
 #include <QQuickWindow>
@@ -22,9 +21,9 @@ namespace {
 
 using player::playback::infrastructure::mpv::render::MpvOpenGlRenderTarget;
 using player::playback::infrastructure::mpv::render::MpvRenderParameters;
-using player::playback::infrastructure::mpv::render::MpvVideoItem;
 using player::playback::mpv::MpvHandle;
 using player::test::render::GeneratedY4mPattern;
+using player::test::render::QuickVideoSurfaceFixture;
 using player::test::render::createInitializedVideoCore;
 using player::test::render::loadFileOnWorkerThread;
 using player::test::render::stopPlaybackOnWorkerThread;
@@ -103,7 +102,7 @@ void MpvVideoRendererTest::generatedVideoRendersIntoQuickFramebufferUpright()
     QVERIFY2(
         writeGeneratedY4mVideo(
             videoPath,
-            120,
+            900,
             GeneratedY4mPattern::BrightTopDarkBottom,
             &mediaError),
         mediaError.toLocal8Bit().constData());
@@ -112,35 +111,24 @@ void MpvVideoRendererTest::generatedVideoRendersIntoQuickFramebufferUpright()
     std::unique_ptr<MpvHandle> core = createInitializedVideoCore(&coreError);
     QVERIFY2(core != nullptr, coreError.toLocal8Bit().constData());
 
-    QQuickWindow window;
-    window.setColor(Qt::black);
-    window.resize(96, 96);
+    QuickVideoSurfaceFixture fixture(QSize(96, 96));
+    fixture.videoItem().setRenderCoreHandle(core->nativeHandle());
 
-    MpvVideoItem videoItem(window.contentItem());
-    videoItem.setWidth(96.0);
-    videoItem.setHeight(96.0);
-    videoItem.setRenderCoreHandle(core->nativeHandle());
+    QSignalSpy renderedSpy(&fixture.window(), &QQuickWindow::afterRendering);
+    fixture.show();
 
-    QSignalSpy renderedSpy(&window, &QQuickWindow::afterRendering);
-    window.show();
-    window.update();
-
-    QTRY_VERIFY_WITH_TIMEOUT(window.isExposed(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 3000);
     QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() >= 1, 3000);
 
     QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
-    QTRY_VERIFY_WITH_TIMEOUT(hasExpectedVerticalOrientation(window.grabWindow()), 6000);
+    QTRY_VERIFY_WITH_TIMEOUT(hasExpectedVerticalOrientation(fixture.window().grabWindow()), 6000);
 
     QCOMPARE(stopPlaybackOnWorkerThread(core->nativeHandle()), 0);
 
-    videoItem.setRenderCoreHandle(nullptr);
+    fixture.videoItem().setRenderCoreHandle(nullptr);
     const int renderCountBeforeDetach = renderedSpy.count();
-    videoItem.update();
+    fixture.videoItem().update();
     QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > renderCountBeforeDetach, 3000);
-
-    window.hide();
-    window.releaseResources();
-    QCoreApplication::processEvents();
 }
 
 } // namespace
