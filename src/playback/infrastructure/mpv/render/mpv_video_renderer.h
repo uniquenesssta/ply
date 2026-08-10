@@ -30,7 +30,7 @@ public:
 
 private:
     [[nodiscard]] bool applySynchronizedCoreBinding();
-    [[nodiscard]] bool renderUpdatesAllowed();
+    void refreshVisibilityState();
     [[nodiscard]] bool ensureRenderContext();
     [[nodiscard]] bool releaseRenderContext();
     void clearFramebuffer() noexcept;

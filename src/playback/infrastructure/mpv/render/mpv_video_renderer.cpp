@@ -76,9 +76,11 @@ void MpvVideoRenderer::render()
         return;
     }
 
-    if (!renderUpdatesAllowed()) {
-        return;
-    }
+    // Qt owns the decision to execute a render pass. Visibility policy only
+    // suppresses libmpv-driven update scheduling in MpvRenderUpdateBridge.
+    // Refusing an already scheduled Qt render here would create a second gate
+    // and can delay initial render-context creation during show/layout races.
+    refreshVisibilityState();
 
     QOpenGLFramebufferObject* framebuffer = framebufferObject();
     if (framebuffer == nullptr || !framebuffer->isValid()) {
@@ -158,24 +160,24 @@ bool MpvVideoRenderer::applySynchronizedCoreBinding()
     return true;
 }
 
-bool MpvVideoRenderer::renderUpdatesAllowed()
+void MpvVideoRenderer::refreshVisibilityState()
 {
     if (visibilityPolicy_ == nullptr) {
-        return presentationState_.visible;
+        return;
     }
 
     const MpvRenderVisibilitySnapshot snapshot = visibilityPolicy_->snapshot();
-    if (snapshot.revision != visibilityRevision_) {
-        visibilityRevision_ = snapshot.revision;
-        if (snapshot.updatesAllowed) {
-            // A restore must repaint even when playback is paused and mpv has no
-            // new frame flag. Qt may also have invalidated/recreated the FBO while
-            // the window was hidden or minimized.
-            framebufferNeedsRender_ = true;
-        }
+    if (snapshot.revision == visibilityRevision_) {
+        return;
     }
 
-    return snapshot.updatesAllowed;
+    visibilityRevision_ = snapshot.revision;
+    if (snapshot.updatesAllowed) {
+        // Restore must repaint even when playback is paused and mpv has no new
+        // frame flag. Qt may also have invalidated/recreated the FBO while the
+        // window was hidden or minimized.
+        framebufferNeedsRender_ = true;
+    }
 }
 
 bool MpvVideoRenderer::ensureRenderContext()
