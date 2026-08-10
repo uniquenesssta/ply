@@ -26,8 +26,13 @@ MpvVideoItem::MpvVideoItem(QQuickItem* parent)
         this,
         [this](QQuickWindow* quickWindow) {
             observeWindow(quickWindow);
+            update();
         });
 
+    // Establish the initial observer/policy state without scheduling a render
+    // from inside construction. QML/fixtures may attach the item to a window
+    // before the final window/item geometry is known; rendering that transient
+    // pre-layout state can create an invalid or stale first FBO lifecycle.
     observeWindow(window());
 }
 
@@ -100,7 +105,6 @@ void MpvVideoItem::observeWindow(QQuickWindow* quickWindow)
     }
 
     refreshRenderVisibilityPolicy();
-    update();
 }
 
 void MpvVideoItem::refreshRenderVisibilityPolicy() noexcept
