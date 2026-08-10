@@ -393,7 +393,7 @@ CMake 新增顶层 `tools/` 构建入口；`playback_probe` 链接 `player_mpv_i
 R2-09 只补强 `src/playback/infrastructure/mpv/events/` 的产品无关事件语义，不引入 PlaybackSession、MediaGeneration、自动下一项或其他 R3 业务状态：
 
 - `MpvEndFileData` 新增 `rawReason`，在 typed `MpvEndFileReason` 之外保留 libmpv 原始 end-file reason；未来 libmpv 出现当前代码未知的 reason 时，仍映射为 `Unknown`，但原始整数不会丢失；
-- EOF、Stop、Quit、Error、Redirect 继续维持稳定 typed mapping；`endFile->error` 继续独立映射到内部 `MpvError`，playlist entry/insert 元数据保持不变；
+- EOF、Stop、Quit、Error、Redirect 继续维持稳定 typed mapping；`endFile->error` 继续独立映射到内部 MpvError，playlist entry/insert 元数据保持不变；
 - `start-file.playlist_entry_id`、`file-loaded`、`shutdown`、`command-reply.reply_userdata/error`、`property-change` 的既有 typed 信息保持不变；
 - null/none property 继续收敛成 `std::monostate`，raw Node 继续在 infrastructure 内深拷贝并结束生命周期；
 - decoder 不持有当前媒体真值，也不根据 end-file reason 产生自动下一项等业务决策。
@@ -564,49 +564,7 @@ R2-09~R2-11 跨阶段补强任务均已完成；Stage R2 正式 Complete。Stage
 - Accepted R2-11 after the user reran the standard Windows build/test flow: the development runtime marker recovered, `playback_probe_matrix` passed in 0.62 seconds, and all 14 CTests passed with 0 failures in 2.22 seconds total.
 - Closed Stage R2 after R2-09~R2-11 mature-player behavior supplements were all implemented and verified；the previously recorded repository-root `player.log` issue remains an explicit non-blocking diagnostic gap for a later gate.
 - Accepted R2-10 after the user confirmed the real Windows environment passed all 13 CTests, including `mpv_property_baseline`, in 2.40 seconds total.
-- Implemented R2-11 as a modular scripted `playback_probe --matrix` path while preserving the accepted R2-08 `playback_probe <source>` behavior.
-- Added separate generated-media fixture, scenario catalog/executor, matrix orchestration and bounded typed trace responsibilities instead of extending the existing R2-08 runner into a multi-purpose state machine.
-- Added all eight required R2-11 real libmpv scenarios: transport sequence, paused seek, consecutive seek, immediate A->B replacement, EOF/stop distinction, load error, shutdown during loading and shutdown during playback.
-- Kept shutdown scenarios on queued teardown so the runtime is never destroyed from inside the synchronous `MpvEventLoop` drain signal stack.
-- Registered `playback_probe --matrix` as the 14th CTest `playback_probe_matrix`；Windows regression gate is 14/14.
-- Kept generated WAV files temporary and probe-local；R0-06 remains skipped and no distributable external fixture policy is falsely claimed complete.
-- Recorded the first R2-11 Windows build failure before CTest：MSVC C1083 could not resolve probe-root `fixtures/...` and AutoMOC `runtime/...` includes because the target had no module include root.
-- Fixed that single build-system root cause by adding `${CMAKE_CURRENT_SOURCE_DIR}` as a PRIVATE include directory of `playback_probe`；no scenario logic or production interface changed.
-- Accepted R2-09 after the user confirmed the real Windows environment passed all 12 CTests, including `mpv_event_semantics`, in 2.31 seconds total.
-- Implemented R2-10 Property Baseline expansion from 11 to 22 centralized registry entries while preserving the original observation IDs and all existing observer lifecycle behavior.
-- Added centralized seeking/cache/media identity/current track/video/audio property entries；flexible native values remain Node-backed and raw property strings do not escape `infrastructure/mpv`.
-- Added STRING property decoding into a Qt-owned `QString` value and explicit null-string unavailable handling.
-- Added the independent `mpv_property_baseline` CTest for the R2-10 registry/format/deep-copy contract.
-- Kept R2-10 inside infrastructure only: no PlaybackSnapshot, ViewModel property lookup, Playlist state, new production dependency, configuration change or user-visible playback behavior was introduced.
-- Implemented R2-09 event-semantics hardening: `MpvEndFileData` now preserves the raw libmpv end-file reason alongside the stable typed reason, error and playlist boundary metadata.
-- Added a separate `mpv_event_semantics` CTest instead of further growing the existing decoder/integration test；it covers all known end reasons plus unknown raw reason retention, null/none property semantics, command success/error identity, unknown/malformed event and null log strings.
-- Kept R2-09 strictly inside the mpv infrastructure boundary: no PlaybackSession, MediaGeneration, auto-advance decision, new production dependency, configuration change or user-visible playback behavior was introduced.
-- Accepted R2-07 after the user confirmed the real Windows environment passed all 11 CTests, including `mpv_event_decoder`, in 2.18 seconds total.
-- Implemented R2-08 modular console playback probe with separate CLI, orchestration state machine and mpv runtime-lifecycle ownership.
-- Added the real headless control sequence `load -> pause -> play -> relative seek -> stop -> end-file -> close`, per-step diagnostics and 15-second timeouts without adding PlaybackSession or product playback state.
-- Deferred probe runtime teardown through Qt queued finalization so an `eventDecoded` callback never destroys `MpvEventLoop` while its drain stack is still active.
-- Added a probe-only `config=no + vo=null + ao=null` profile and direct Qt6 Core/libmpv runtime staging so the console probe does not depend on a QML window, user mpv.conf or physical audio output.
-- Accepted R2-08 after the user confirmed all 11 CTests still passed in 1.47 seconds, a real local media probe completed the full headless control chain with PASS, and a missing-media probe produced `end-file(reason=error)` with `loading failed` and a non-zero failure exit path.
-- Corrected the documented playback probe output path to `build/windows-msvc-debug/cmake/playback_probe.exe`；no source, public-interface, dependency or runtime behavior change was required for this correction.
-- Corrected the premature R2 closure: the mandatory mature-player behavior supplement adds R2-09 through R2-11, so Stage R2 remained open until those tasks were verified.
-- Kept the accepted R2-08 Windows results unchanged；this correction changed documentation/status only and did not modify source, dependencies, interfaces or runtime behavior.
-- Accepted R2-06 after the user confirmed the real Windows build and all ten CTests passed, including `mpv_properties`, in 1.88 seconds total.
-- Implemented R2-07 typed event boundary: raw `mpv_event` is decoded inside `infrastructure/mpv` into Qt-owned `MpvEvent` before the next `mpv_wait_event` call.
-- Added `errors/MpvErrorMapper` with known/unknown libmpv error mapping and preserved raw diagnostics.
-- Added recursive Node deep-copy for track/chapter payloads, eliminating libmpv node-pointer lifetime from the outward event contract.
-- Migrated the R2-04 event loop and R2-05 command-reply tests from raw metadata signals to typed `MpvEvent` delivery.
-- Added the eleventh `mpv_event_decoder` CTest with synthetic event/error/Node cases plus a runtime-generated silent PCM WAV for a real short-media typed event sequence.
-- Kept the generated WAV strictly test-local；R0-06 remains skipped and no complete external media-fixture policy is claimed.
-- Accepted R2-05 after the user confirmed all nine CTests passed, including `mpv_commands`, in 1.63 seconds total.
-- Implemented R2-06 centralized property registry/observer with owner-thread lifecycle, rollback, None/null safety and typed FLAG/DOUBLE decoding.
-- Accepted R2-04 after the user confirmed all eight CTests passed, including `mpv_event_loop`, in 1.63 seconds total.
-- Implemented R2-05 typed async command request/encoder/executor boundaries.
-- Accepted R2-03 after the user confirmed all seven CTests passed, including `mpv_initialization`.
-- Implemented R2-04 wakeup bridge/event-loop ownership and shutdown protection.
-- Accepted R2-02 after the user confirmed six CTests passed, including the `MpvHandle` lifecycle/100-cycle regression.
-- Implemented R2-03 initialization profile with centralized `config=no`, pre-initialize option application, validation and failure cleanup.
-- Recorded the unresolved R2-01 repository-root `player.log` as a non-blocking validation gap by explicit user direction.
-- Completed the controlled libmpv source-build/package verification chain and explicit Qt runtime deployment path described above.
+- Implemented R2-11 as a modular scripted `playback_probe --matrix` path while preserving the accepted R2-08 `playback_probe <source>` behavior。
 
 ### 2026-08-07
 
@@ -1459,3 +1417,52 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 重新 configure 后预期标准套件为 32 项，其中新增 `mpv_video_item`；`32/32` 仅为待验证目标，不是已通过事实。验收还必须确认 `Player.exe` 能正常加载 `Player.Presentation` / `VideoSurface`，不存在 `MpvVideoItem` QML type registration 错误。R2-01 的仓库根 `player.log` 缺口继续作为已知非阻塞诊断事项保留。
 
 **Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Implemented，Windows verification pending。**
+
+## R4-04 Windows verification and acceptance — current
+
+> 本节取代上一个 `R4-04 implementation status — current` 的待验证状态，并纠正其中已经过时的 `QML_FOREIGN + QML_NAMED_ELEMENT` 注册描述；实现边界说明继续保留为历史事实。
+
+R4-04 的最终生产注册链采用显式 presentation type registration：`presentation_type_registration.*` 通过 `qmlRegisterType<MpvVideoItem>("Player.Presentation", 1, 0, "MpvVideoItem")` 注册类型，`ApplicationBootstrap` 在生产 `QmlBootstrap::load()` 之前调用该注册入口；`QmlBootstrap` 自身只负责 QQmlEngine/load/warning，不拥有 Presentation 类型注册职责。`qt_add_qml_module()` 使用 `NO_GENERATE_QMLTYPES`，避免对同一类型再建立第二套自动 qmltyperegistrar 注册 owner。
+
+本次 Windows 验收前实际经历并修复了以下硬阻断，均未通过删除测试或绕过构建门禁处理：
+
+- 首次 build 在 `Automatic QML type registration for target player_app` 阶段失败，`qmltyperegistrar` 读取 `qt6player_app_debug_metatypes.json` 时报告 `Failed to parse JSON: 5 illegal value`；移除生产 `QML_FOREIGN` wrapper 后，干净 build 仍复现自动注册链，因此最终以 `NO_GENERATE_QMLTYPES` 关闭重复 qmltyperegistrar owner，同时保留显式 `qmlRegisterType()` 生产注册。
+- 类型注册一度放在 `QmlBootstrap` 内，导致 `application_container_tests` 因未链接 `presentation_type_registration.cpp` 出现未解析符号；修复将注册编排上移到真实应用启动层 `ApplicationBootstrap`，恢复 QmlBootstrap 的单一职责，而不是扩大容器测试的 Render/Presentation 依赖。
+- 随后 MSVC C3246 明确指出 Qt 6.8 的 `QQmlPrivate::QQmlElement<MpvVideoItem>` 无法继承被声明为 `final` 的 `MpvVideoItem`；仅移除该 QML element 类型的 `final`，纯值 `MpvVideoPresentationState` 等其他边界保持不变。
+- 在代码编译完成后，`build.ps1` 曾因根输出目录不存在 `build/windows-msvc-debug/Player.exe` 而拒绝创建 development marker；Ninja 同时报告 `no work to do`。根因是 `player_app` 只设置 `OUTPUT_NAME` 而未显式冻结 runtime 输出目录。`cmake/AppTargets.cmake` 增加 `RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"`，恢复既有 `build/<preset>/Player.exe` 契约，使 marker 与 `windeployqt` 后处理链重新一致。
+
+最终用户在修正版 `agent/r4-stage` 上完成标准 Windows build/test。development runtime marker 实际通过：
+
+```text
+[OK] Development runtime root marker -> build/windows-msvc-debug/cmake/.player-development-root
+ninja: no work to do.
+```
+
+完整 CTest 实际结果：
+
+```text
+mpv_video_item ................... Passed    0.49 sec
+mpv_render_update_bridge ......... Passed    0.99 sec
+mpv_render_context ............... Passed    0.62 sec
+opengl_proc_resolver ............. Passed    0.56 sec
+playback_session ................. Passed    1.12 sec
+playback_shutdown ................ Passed    6.94 sec
+playback_media_generation ........ Passed    0.17 sec
+100% tests passed, 0 tests failed out of 32
+Total Test time (real) = 19.35 sec
+```
+
+随后用户直接启动 `build/windows-msvc-debug/Player.exe`，确认播放器窗口正常出现并保持运行，没有立即退出或崩溃，也没有报告 `MpvVideoItem is not a type`、`module "Player.Presentation" is not installed`、`VideoSurface is not a type` 等生产 QML 注册/加载错误。因此生产链 `Player.Presentation -> VideoSurface -> MpvVideoItem` 的实际启动 smoke 通过。
+
+R4-04 因此正式 Complete：QML 可放置视频 Item、renderer 创建边界、尺寸/DPR/visible 同步、测试 QML 实例化和生产 `Player.Presentation` 启动均已在实际 Windows Qt 6.8.3/MSVC 环境验证。`MpvVideoRenderer::render()` 仍按任务边界保持 no-op；真实 FBO -> `mpv_render_context_render()` 视频画面输出仍属于 R4-05，没有提前实现。R4-06 DPI hardening、R4-07 visibility policy、R4-08 shutdown race 也保持后续独立任务。
+
+R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留，没有因 R4-04 验收伪装为已解决。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Complete。下一 Atomic Task：R4-05 MpvVideoRenderer。**
+
+### 2026-08-10 — R4-04 acceptance addendum
+
+- Accepted R4-04 from the user's Windows verification: development marker passed, `mpv_video_item` passed in 0.49 seconds, and all 32 CTests passed with 0 failures in 19.35 seconds total.
+- Confirmed the production `Player.exe` QML smoke: the window opens normally and the `Player.Presentation -> VideoSurface -> MpvVideoItem` registration/load path has no observed type/module error.
+- Recorded the complete observed build-gate repair chain: automatic qmltyperegistrar JSON failure -> explicit presentation registration plus `NO_GENERATE_QMLTYPES` -> registration ownership moved from QmlBootstrap to ApplicationBootstrap -> QML element `final` removed -> application runtime output restored to `${CMAKE_BINARY_DIR}`.
+- Kept actual libmpv FBO rendering and all R4-06~R4-08 hardening outside R4-04; R4-05 is the next Atomic Task.
