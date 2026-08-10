@@ -1544,3 +1544,22 @@ R4-07 hidden/minimized 策略与 R4-08 shutdown race hardening 均未提前实�
 - Confirmed 100% / 125% / 150% / 200% resize-DPI coverage, fullscreen round-trip, FBO recreation, and real paused-video resize composition without introducing a second production size/DPR owner.
 - Recorded the different-DPR multi-screen hardware case as not executed on this machine because no second screen with a different DPR was available; the test reported an explicit environment skip.
 - Kept R4-07 visibility/minimize policy and R4-08 shutdown-race hardening outside R4-06.
+
+## R4-07 Hidden / Minimized Windows verification and acceptance — current
+
+R4-07 已完成 Qt Quick / libmpv Render API 的不可见与最小化更新抑制和恢复链。`MpvRenderVisibilityPolicy` 负责 render-update eligibility；`MpvRenderUpdateBridge` 在 Item invisible、Window hidden/minimized 时抑制 libmpv redraw callback 持续投递 Qt update；`MpvVideoItem` 结合 visibility 与 Qt Quick Scene Graph readiness 以 queued render wake 恢复渲染，避免首次 show/layout 与 render-context 初始化竞态；`MpvVideoRenderer` 在恢复后可重新绘制 paused/static 当前帧。
+
+Windows Qt 6.8.3 / MSVC / libmpv 0.41.0 实际 build 成功，`scripts/build.ps1` 返回 0。关闭 QSG 诊断环境变量后，针对性 `mpv_video_renderer`、`mpv_video_resize_dpi_100`、`mpv_video_visibility` 为 **3/3 PASS**，总耗时 **25.47 秒**；随后标准 `scripts/test.ps1` 完整回归为 **38/38 PASS，0 failed**，总耗时 **43.48 秒**。其中 `mpv_video_renderer` 0.95 秒、`mpv_video_resize_dpi_100` 1.13 秒、`mpv_video_visibility` 22.91 秒。
+
+`mpv_video_visibility` 使用真实 `QQuickWindow + MpvVideoItem + libmpv Render API`，覆盖 Item hide/show、Window hide/show、暂停视频最小化约 20 秒后恢复、不可见阶段 render count 收敛以及恢复后当前暂停帧重新正确合成。R4-05 真实视频像素 smoke 与 R4-06 100% / 125% / 150% / 200% resize-DPI 回归同时保持通过。
+
+R4-08 callback/render/free/core-destroy shutdown race 尚未实施，本 Atomic Task 未提前改变最终关闭顺序。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Complete。R4-05：Complete。R4-06：Complete。R4-07：Complete。下一 Atomic Task：R4-08 Render shutdown race。**
+
+### 2026-08-10 — R4-07 acceptance
+
+- Accepted R4-07 from the user's Windows verification after targeted 3/3 Render regression followed by the full 38/38 CTest suite with 0 failures in 43.48 seconds.
+- Confirmed real Item hide/show, Window hide/show and approximately 20-second minimize/restore without sustained render storm, with the paused frame restored after visibility returns.
+- Confirmed R4-05 real renderer and R4-06 resize/DPI regressions remained green after the final Scene Graph readiness fix.
+- Kept R4-08 shutdown-race coordination outside R4-07.
