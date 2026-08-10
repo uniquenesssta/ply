@@ -1459,3 +1459,38 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 重新 configure 后预期标准套件为 32 项，其中新增 `mpv_video_item`；`32/32` 仅为待验证目标，不是已通过事实。验收还必须确认 `Player.exe` 能正常加载 `Player.Presentation` / `VideoSurface`，不存在 `MpvVideoItem` QML type registration 错误。R2-01 的仓库根 `player.log` 缺口继续作为已知非阻塞诊断事项保留。
 
 **Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Implemented，Windows verification pending。**
+
+## R4-04 Windows verification and acceptance — current
+
+> 本节取代上一个 `R4-04 implementation status — current` 的待验证状态，并纠正其中已过时的 `QML_FOREIGN + QML_NAMED_ELEMENT` 注册描述。
+
+R4-04 最终生产注册链采用显式 presentation type registration：`presentation_type_registration.*` 通过 `qmlRegisterType<MpvVideoItem>("Player.Presentation", 1, 0, "MpvVideoItem")` 注册类型，`ApplicationBootstrap` 在 `QmlBootstrap::load()` 前执行注册；`QmlBootstrap` 继续只负责 QQmlEngine/load/warning。`qt_add_qml_module()` 使用 `NO_GENERATE_QMLTYPES`，避免重复 qmltyperegistrar owner。
+
+Windows 构建门禁期间确认并修复了四个实际问题：
+
+- 自动 QML type registration 读取 `qt6player_app_debug_metatypes.json` 时出现 `Failed to parse JSON: 5 illegal value`；最终移除生产 `QML_FOREIGN` wrapper，改为显式 `qmlRegisterType()` 并关闭重复自动 qmltyperegistrar 生成链。
+- 注册调用最初位于 `QmlBootstrap`，导致 `application_container_tests` 产生 `registerPresentationQmlTypes()` 未解析符号；注册编排随后上移到真实应用启动 owner `ApplicationBootstrap`，没有扩大容器测试的 Presentation/Render 依赖。
+- Qt 6.8 的 `QQmlPrivate::QQmlElement<MpvVideoItem>` 需要继承 QML element；MSVC C3246 证明 `MpvVideoItem final` 与 `qmlRegisterType()` 不兼容，因此仅移除 `MpvVideoItem` 的 `final`，其他 Render 生命周期边界保持不变。
+- clean build 暴露 `Player.exe` 输出目录漂移：Ninja 已完成但 marker 脚本在 `build/windows-msvc-debug/Player.exe` 找不到产物。`cmake/AppTargets.cmake` 增加 `RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"`，恢复既有 Player/marker/windeployqt 输出契约。
+
+最终用户在修正版 `agent/r4-stage` 完成标准 Windows build/test，development runtime marker 通过：
+
+```text
+[OK] Development runtime root marker -> build/windows-msvc-debug/cmake/.player-development-root
+ninja: no work to do.
+```
+
+完整 CTest 实际结果：
+
+```text
+mpv_video_item ................... Passed    0.49 sec
+mpv_render_update_bridge ......... Passed    0.99 sec
+mpv_render_context ............... Passed    0.62 sec
+opengl_proc_resolver ............. Passed    0.56 sec
+playback_session ................. Passed    1.12 sec
+playback_shutdown ................ Passed    6.94 sec
+playback_media_generation ........ Passed    0.17 sec
+100% tests passed, 0 tests failed out of 32
+Total Test time (real) = 19.35 sec
+```
+
