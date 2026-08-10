@@ -17,7 +17,7 @@
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
-- **D5：In Progress — D5-01 ～ D5-03 Complete。**
+- **D5：In Progress — D5-01 ～ D5-04 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -34,8 +34,9 @@
 - D4-07：Inspector Responsive & Dismissal Contract，Contract `207:2497` / Verification `209:2497` / Prototype Navigation `216:3436`。
 - D5-01：Feedback Priority Matrix，Page `219:2` / Contract `220:2` / Verification `221:2`。
 - D5-02：Empty / Loading，Source `223:2` / Verification `223:3` / Player Status Overlay `225:30`。
-- **D5-03：Playing / Paused，Contract `234:66` / Verification `234:67` / Prototype Navigation `237:66`。**
-- **下一任务：D5-04 Buffering / Seeking。**
+- D5-03：Playing / Paused，Contract `234:66` / Verification `234:67` / Prototype Navigation `237:66`。
+- **D5-04：Buffering / Seeking，Source `241:66` / Verification `241:67` / Buffering Status `242:88` / Seek Preview `243:66`。**
+- **下一任务：D5-05 Ended。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -619,11 +620,20 @@ D5-01 Contract / Verification 与 D5-02 Source / Verification 坐标、尺寸全
 
 **D5-03：Complete。**
 
-## Next
+### D5-04 Buffering / Seeking · Complete
 
-**D5-04 — Buffering / Seeking**
+Figma：
 
-下一步继续消费 D5-01 已冻结路由，并严格保持网络缓冲与用户 Seek 两套语义：
+```text
+Source / Contract          241:66   D5-04 / Buffering & Seeking
+Verification               241:67   D5-04 / Verification
+Buffering Status           242:88   Feedback / Buffering Status
+Seek Preview               243:66   Feedback / Seek Preview
+Player Status Overlay      225:30   existing authority, extended with State=Buffering
+Buffering Overlay Variant  244:66   State=Buffering
+```
+
+继续消费 D5-01 与 D3-03 已冻结路由和时间线真值：
 
 ```text
 Buffering while Playing       → Overlay · Buffering
@@ -632,4 +642,99 @@ Timeline Scrub                → Seek Preview · Scrub
 Released Seek Pending         → Seek Preview · Pending
 ```
 
-Buffering 不得覆盖用户 Pause 意图；Scrub/Pending 不得伪装成 Buffering，也不得提前改写 confirmed playback position。
+Buffering：
+
+- `Feedback / Buffering Status` 只有 `Mode=Known / Unknown` 两种语义 Variant，均为 `296×66` Compact Contrast Glass Pod。
+- Known 显示真实动态 percentage + 3px progress；源组件默认以 `10%` 作为样例。Percentage 是运行时数据，不建立 10/50/100 等离散 Variant。
+- Unknown 使用 indeterminate activity cue，不显示伪造百分比。
+- Buffering ring 只作为 activity cue，不编码百分比；真实缓冲进度由文字与 3px progress 表达。
+- Buffering 进入唯一 `Player Status Overlay`；Overlay 保持 z35，OSC 保持 z40，因此状态反馈不会吞掉控制系统。
+
+Seeking：
+
+- `Feedback / Seek Preview`=`64×28 / R14 / V3 Glass Control`，正式暴露 `Time` 文本属性。
+- Seek Preview 只拥有 target time；不拥有 Timeline Progress、Thumb、Pending Range 或 PlaybackSnapshot。
+- Scrubbing：Progress/Thumb 临时投影到 pointer target，并保留弱化 Committed Marker 作为拖动前 confirmed origin。
+- Pending Seek：confirmed Progress/Thumb 恢复/保持真实位置；请求目标使用 Pending Range + Hollow Pending Target，直到 backend position confirmation 后才 commit。
+- 不创建中央 Seeking Overlay，也不把 Pending Seek 伪装成 network Buffering。
+
+Paused + Buffering 冲突：
+
+- Paused Player State 继续为 primary，Play glyph 与 `Rest · persistent` OSC 不变。
+- Buffering 只允许 OSC 内 secondary inline cue；验证场景中的 Player Status Overlay Count=`0`。
+- 因此 backend buffering signal 不会覆盖用户明确 Pause 意图。
+
+真实验证：
+
+```text
+Buffering 10%       247:76    960×700   Overlay 1   Seek Preview 0   OSC 856×124
+Buffering 50%       247:118   960×700   Overlay 1   Seek Preview 0   OSC 856×124
+Buffering Unknown   247:161   960×700   Overlay 1   Seek Preview 0   OSC 856×124
+Paused + Buffering  248:108   960×700   Overlay 0   Inline secondary   OSC 856×124
+Seeking Scrubbing   249:108   960×700   Overlay 0   Seek Preview 1    OSC 856×124
+Seeking Pending     249:143   960×700   Overlay 0   Seek Preview 1    OSC 856×124
+```
+
+50% 验证说明：Figma Instance 允许文字 override，但不能覆盖内部 progress bar geometry；因此 50% 只在 Verification 层增加动态进度扩展，不把百分比离散化为产品 Variant。产品源仍严格只有 Known / Unknown。
+
+Seek 数值验证：
+
+```text
+Confirmed Progress            357.28
+Scrub target Progress         552.16
+Scrub Committed Marker x      379.28
+Scrub target Thumb x          569.16
+
+Pending confirmed Progress    357.28
+Pending Range x / width       379.28 / 194.88
+Confirmed Thumb x             374.28
+Hollow Pending Target x       569.16
+Seek Preview                  64×28
+```
+
+所有 Seek 真值继续归 D3-03：
+
+```text
+PlaybackSnapshot → confirmed playback position
+Pointer Drag     → temporary scrub target
+Seek Request     → pending target
+Backend confirm  → commit actual Progress / Thumb
+```
+
+D5-04 没有复制第二套 Timeline 状态机、Reaction 或 Timer；D3-03 Board/Smoke 保持原样。
+
+最终审计：
+
+```text
+Feedback / Buffering Status authorities   1
+Feedback / Seek Preview authorities       1
+Player Status Overlay authorities         1
+Player Status Overlay states              Empty / Loading / Buffering
+D5-04 Reactions                            0
+D5-04 AFTER_TIMEOUT owners                 0
+New D5-04 Variables                        0
+Generic unnamed residues                   0
+Visible unbound source/product paints      0
+D5-02 source section fit after extension   PASS
+D3-03 authority regression                 PASS
+```
+
+D5-01～D5-03 的既有 Section 坐标和尺寸全部保持不变；D5-02 的 Empty/Loading Variant 位置与 `512×406` 尺寸保持不变，扩展后的 `Player Status Overlay` 仍完整落在 D5-02 Source Section 内。
+
+本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D5-04：Complete。**
+
+## Next
+
+**D5-05 — Ended**
+
+下一步继续使用同一个 `Player Status Overlay` authority，设计 EOF 后的最小恢复/下一步入口：
+
+```text
+EOF with no next item   → Overlay · Ended → Replay
+EOF with next item      → minimal Next action / handoff
+Repeat / auto handoff   → no transient Ended flash
+```
+
+保持视频最后一帧或现有背景，动作数量保持克制，并验证单项、有下一项与 repeat 三种路径；Ended 不得伪装成 Error。
