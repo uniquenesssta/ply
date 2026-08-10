@@ -1595,6 +1595,18 @@ Windows Qt 6.8.3 / MSVC / libmpv 0.41.0 实际 configure 成功，`scripts/build
 - Accepted R4-08 from the user's Windows verification with configure success, build exit 0 and the full 40/40 CTest suite passing with 0 failures in 49.45 seconds.
 - Confirmed late/queued render callbacks are suppressed after shutdown begins, active render sections converge, `mpv_render_context_free()` completes before the core is destroyed, and hidden/minimized cleanup does not bypass the release barrier.
 - Confirmed playing-close, resize-close, minimized-close and 12-cycle renderer lifecycle shutdown coverage while preserving all R4-05~R4-07 render, DPI and visibility regressions.
-- R4-09 performance-baseline work has not started.
+- R4-09 performance-baseline work starts from this accepted R4-08 baseline; no R4-09 optimization is folded into the shutdown implementation.
 
-**Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Complete。R4-05：Complete。R4-06：Complete。R4-07：Complete。R4-08：Complete。下一 Atomic Task：R4-09 Render 性能基线。**
+## R4-09 Render performance baseline — candidate
+
+R4-09 新增独立 `tools/render_probe/`，只负责可重复的 Render 性能采样与 JSON 报告，不进入播放器领域状态、PlaybackSession 或 Renderer 业务职责。Probe 复用当前真实 `MpvVideoItem/MpvVideoRenderer` 与 libmpv Render API 主链，不修改 product mpv option profile，不启用额外 hwdec/video-sync，也不设置性能通过阈值。
+
+每次 probe 对同一媒体依次测量 windowed 与 fullscreen 两个 phase，并在模式切换后预留 1.5 秒 settling，避免把启动和 fullscreen 转场成本混入稳态数据。mpv 侧只读 `frame-drop-count`、`decoder-frame-drop-count`、`mistimed-frame-count`、`vo-delayed-frame-count`、`container-fps`、`estimated-vf-fps`、`display-fps`、`video-params/w`、`video-params/h` 与 `hwdec-current`；计数型指标记录 phase 前后差值，不可用属性写入 JSON `null`，不作为 readiness 门禁。
+
+Qt 侧在 Render Thread 的 `QQuickWindow::afterRendering` 采样实际帧间隔，记录 frame count、interval sample count、measurement elapsed、mean/p95/max frame interval；同时记录 window logical size、DPR、physical render size、screen pixel size/refresh rate。环境快照记录 OS/kernel、CPU architecture、Qt build type/version，以及独立 OpenGL context 可获取的 GPU vendor/renderer/OpenGL version。
+
+报告 schema 固定为 `player-r4-render-baseline-v1`，可同时输出 stdout 与 `--output` JSON 文件。新增 `render_probe_help` CTest 只验证 probe runtime/CLI 可启动，不把性能数值变成易波动的 CTest 门禁；现有 40 项测试未删除、跳过或放宽，重新 configure 后预计完整 CTest 数量为 41。
+
+Windows Debug configure/build、完整 41 项回归，以及 Release 构建下真实 1080p/4K 媒体的 windowed/fullscreen 两组基线尚未执行，因此 R4-09 和 Stage R4 当前都不标记 Complete。最终验收必须保留实际媒体分辨率、build type、GPU/OpenGL、窗口/全屏尺寸和 probe JSON 数据，供 R12 同条件回归比较。
+
+**Stage R4：In Progress。R4-01~R4-08：Complete。R4-09：Windows validation + 1080p/4K baseline pending。R4-10：不存在；R4-09 完成后按任务书关闭 Stage R4。**
