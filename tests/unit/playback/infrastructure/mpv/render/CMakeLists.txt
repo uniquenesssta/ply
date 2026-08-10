@@ -143,6 +143,7 @@ add_test(
 add_executable(
     mpv_video_resize_dpi_tests
     mpv_video_resize_dpi_test.cpp
+    render_quick_fixture.h
     render_test_fixture.h
     render_video_fixture.h
 )
