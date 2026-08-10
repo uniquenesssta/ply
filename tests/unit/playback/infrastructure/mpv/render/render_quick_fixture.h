@@ -3,14 +3,85 @@
 #include "playback/infrastructure/mpv/render/mpv_video_item.h"
 
 #include <QCoreApplication>
+#include <QEvent>
+#include <QEventLoop>
+#include <QGuiApplication>
+#include <QOpenGLContext>
+#include <QOpenGLFramebufferObject>
+#include <QOpenGLFunctions>
+#include <QQuickOpenGLUtils>
 #include <QQuickWindow>
-#include <QSGTexture>
-#include <QSGTextureProvider>
+#include <QScreen>
 #include <QWindow>
 
 #include <mutex>
 
 namespace player::test::render {
+namespace detail {
+
+inline void configureNonInteractiveWindow(QQuickWindow& window, QSize logicalSize)
+{
+    window.setColor(Qt::black);
+    window.setFlags(
+        Qt::Tool
+        | Qt::FramelessWindowHint
+        | Qt::WindowDoesNotAcceptFocus
+        | Qt::WindowTransparentForInput);
+    window.setOpacity(0.02);
+    window.setPersistentGraphics(false);
+    window.setPersistentSceneGraph(false);
+    window.resize(logicalSize);
+
+    if (QScreen* screen = QGuiApplication::primaryScreen(); screen != nullptr) {
+        const QRect virtualGeometry = screen->virtualGeometry();
+        window.setPosition(virtualGeometry.bottomRight() + QPoint(512, 512));
+    }
+}
+
+inline void bindItemToWindow(QQuickWindow& window, QQuickItem& item)
+{
+    item.setWidth(window.width());
+    item.setHeight(window.height());
+
+    QObject::connect(
+        &window,
+        &QWindow::widthChanged,
+        &item,
+        [&item](int width) {
+            item.setWidth(width);
+        });
+    QObject::connect(
+        &window,
+        &QWindow::heightChanged,
+        &item,
+        [&item](int height) {
+            item.setHeight(height);
+        });
+}
+
+inline void moveOffscreen(QQuickWindow& window)
+{
+    QScreen* screen = window.screen();
+    if (screen == nullptr) {
+        screen = QGuiApplication::primaryScreen();
+    }
+    if (screen == nullptr) {
+        return;
+    }
+
+    const QRect virtualGeometry = screen->virtualGeometry();
+    window.setPosition(virtualGeometry.bottomRight() + QPoint(512, 512));
+}
+
+inline void releaseQuickWindow(QQuickWindow& window)
+{
+    window.hide();
+    window.releaseResources();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+}
+
+} // namespace detail
 
 class QuickVideoSurfaceFixture final
 {
@@ -18,34 +89,8 @@ public:
     explicit QuickVideoSurfaceFixture(QSize logicalSize)
         : videoItem_(window_.contentItem())
     {
-        window_.setColor(Qt::black);
-        window_.resize(logicalSize);
-
-        videoItem_.setWidth(window_.width());
-        videoItem_.setHeight(window_.height());
-
-        QObject::connect(
-            &window_,
-            &QWindow::widthChanged,
-            &videoItem_,
-            [this](int width) {
-                videoItem_.setWidth(width);
-            });
-        QObject::connect(
-            &window_,
-            &QWindow::heightChanged,
-            &videoItem_,
-            [this](int height) {
-                videoItem_.setHeight(height);
-            });
-        QObject::connect(
-            &window_,
-            &QQuickWindow::afterRendering,
-            &videoItem_,
-            [this] {
-                sampleFramebufferSize();
-            },
-            Qt::DirectConnection);
+        detail::configureNonInteractiveWindow(window_, logicalSize);
+        detail::bindItemToWindow(window_, videoItem_);
     }
 
     ~QuickVideoSurfaceFixture()
@@ -78,18 +123,9 @@ public:
         window_.update();
     }
 
-    [[nodiscard]] QSize framebufferSize() const
+    void moveOffscreen()
     {
-        std::scoped_lock lock(framebufferMutex_);
-        return framebufferSize_;
-    }
-
-    [[nodiscard]] QSize expectedPhysicalFramebufferSize() const
-    {
-        const auto state = videoItem_.presentationState();
-        return QSize(
-            qRound(state.logicalSize.width() * state.devicePixelRatio),
-            qRound(state.logicalSize.height() * state.devicePixelRatio));
+        detail::moveOffscreen(window_);
     }
 
     void release()
@@ -98,34 +134,196 @@ public:
             return;
         }
 
-        window_.hide();
-        window_.releaseResources();
-        QCoreApplication::processEvents();
+        detail::releaseQuickWindow(window_);
         released_ = true;
     }
 
 private:
-    void sampleFramebufferSize()
-    {
-        QSGTextureProvider* provider = videoItem_.textureProvider();
-        if (provider == nullptr) {
-            return;
-        }
-
-        QSGTexture* texture = provider->texture();
-        if (texture == nullptr) {
-            return;
-        }
-
-        std::scoped_lock lock(framebufferMutex_);
-        framebufferSize_ = texture->textureSize();
-    }
-
-    mutable std::mutex framebufferMutex_;
-    QSize framebufferSize_;
     bool released_ = false;
     QQuickWindow window_;
     player::playback::infrastructure::mpv::render::MpvVideoItem videoItem_;
+};
+
+struct FramebufferGeometrySnapshot final
+{
+    QSize logicalSize;
+    qreal devicePixelRatio = 1.0;
+    QSize framebufferSize;
+    int framebufferGeneration = 0;
+};
+
+class FramebufferGeometryProbe final
+{
+public:
+    void recordPresentationState(
+        const player::playback::infrastructure::mpv::render::MpvVideoPresentationState& state)
+    {
+        std::scoped_lock lock(mutex_);
+        snapshot_.logicalSize = QSize(
+            qRound(state.logicalSize.width()),
+            qRound(state.logicalSize.height()));
+        snapshot_.devicePixelRatio = state.devicePixelRatio;
+    }
+
+    void recordFramebufferSize(QSize size)
+    {
+        std::scoped_lock lock(mutex_);
+        snapshot_.framebufferSize = size;
+        ++snapshot_.framebufferGeneration;
+    }
+
+    [[nodiscard]] FramebufferGeometrySnapshot snapshot() const
+    {
+        std::scoped_lock lock(mutex_);
+        return snapshot_;
+    }
+
+private:
+    mutable std::mutex mutex_;
+    FramebufferGeometrySnapshot snapshot_;
+};
+
+class GeometryProbeRenderer final : public QQuickFramebufferObject::Renderer
+{
+public:
+    explicit GeometryProbeRenderer(FramebufferGeometryProbe& probe) noexcept
+        : probe_(probe)
+    {
+    }
+
+    void synchronize(QQuickFramebufferObject* item) override
+    {
+        const auto* videoItem = qobject_cast<
+            player::playback::infrastructure::mpv::render::MpvVideoItem*>(item);
+        if (videoItem != nullptr) {
+            probe_.recordPresentationState(videoItem->presentationState());
+        }
+    }
+
+    [[nodiscard]] QOpenGLFramebufferObject* createFramebufferObject(const QSize& size) override
+    {
+        probe_.recordFramebufferSize(size);
+        return new QOpenGLFramebufferObject(size);
+    }
+
+    void render() override
+    {
+        QOpenGLContext* context = QOpenGLContext::currentContext();
+        if (context != nullptr) {
+            QOpenGLFunctions* functions = context->functions();
+            if (functions != nullptr) {
+                functions->glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
+                functions->glClear(GL_COLOR_BUFFER_BIT);
+            }
+        }
+
+        QQuickOpenGLUtils::resetOpenGLState();
+    }
+
+private:
+    FramebufferGeometryProbe& probe_;
+};
+
+class GeometryProbeItem final
+    : public player::playback::infrastructure::mpv::render::MpvVideoItem
+{
+public:
+    GeometryProbeItem(FramebufferGeometryProbe& probe, QQuickItem* parent)
+        : MpvVideoItem(parent)
+        , probe_(probe)
+    {
+    }
+
+    [[nodiscard]] Renderer* createRenderer() const override
+    {
+        return new GeometryProbeRenderer(probe_);
+    }
+
+private:
+    FramebufferGeometryProbe& probe_;
+};
+
+class QuickFramebufferGeometryFixture final
+{
+public:
+    explicit QuickFramebufferGeometryFixture(QSize logicalSize)
+        : videoItem_(probe_, window_.contentItem())
+    {
+        detail::configureNonInteractiveWindow(window_, logicalSize);
+        detail::bindItemToWindow(window_, videoItem_);
+    }
+
+    ~QuickFramebufferGeometryFixture()
+    {
+        release();
+    }
+
+    QuickFramebufferGeometryFixture(const QuickFramebufferGeometryFixture&) = delete;
+    QuickFramebufferGeometryFixture& operator=(const QuickFramebufferGeometryFixture&) = delete;
+
+    [[nodiscard]] QQuickWindow& window() noexcept
+    {
+        return window_;
+    }
+
+    [[nodiscard]] GeometryProbeItem& videoItem() noexcept
+    {
+        return videoItem_;
+    }
+
+    void show()
+    {
+        window_.show();
+        window_.update();
+    }
+
+    void resize(QSize logicalSize)
+    {
+        window_.resize(logicalSize);
+        window_.update();
+    }
+
+    void moveOffscreen()
+    {
+        detail::moveOffscreen(window_);
+    }
+
+    [[nodiscard]] QSize expectedPhysicalFramebufferSize() const
+    {
+        return QSize(
+            qRound(videoItem_.width() * window_.effectiveDevicePixelRatio()),
+            qRound(videoItem_.height() * window_.effectiveDevicePixelRatio()));
+    }
+
+    [[nodiscard]] FramebufferGeometrySnapshot geometrySnapshot() const
+    {
+        return probe_.snapshot();
+    }
+
+    [[nodiscard]] bool geometryMatches() const
+    {
+        const FramebufferGeometrySnapshot snapshot = probe_.snapshot();
+        const QSize logicalSize(qRound(videoItem_.width()), qRound(videoItem_.height()));
+        return snapshot.logicalSize == logicalSize
+            && snapshot.framebufferSize == expectedPhysicalFramebufferSize()
+            && qFuzzyCompare(snapshot.devicePixelRatio, window_.effectiveDevicePixelRatio());
+    }
+
+    void release()
+    {
+        if (released_) {
+            return;
+        }
+
+        detail::releaseQuickWindow(window_);
+        released_ = true;
+    }
+
+private:
+    bool released_ = false;
+    QQuickWindow window_;
+    FramebufferGeometryProbe probe_;
+    GeometryProbeItem videoItem_;
 };
 
 } // namespace player::test::render
