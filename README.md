@@ -1494,3 +1494,16 @@ playback_media_generation ........ Passed    0.17 sec
 Total Test time (real) = 19.35 sec
 ```
 
+随后用户直接启动 `build/windows-msvc-debug/Player.exe`，确认播放器窗口正常出现并保持运行，没有立即退出或崩溃，也没有观察到 `MpvVideoItem is not a type`、`module "Player.Presentation" is not installed`、`VideoSurface is not a type` 等生产 QML 注册/加载错误。因此生产链 `Player.Presentation -> VideoSurface -> MpvVideoItem` 的实际启动 smoke 通过。
+
+R4-04 因此正式 Complete：QML 可放置视频 Item、Renderer 创建边界、尺寸/DPR/visible 同步、测试 QML 实例化和生产 `Player.Presentation` 启动均已在实际 Windows Qt 6.8.3 / MSVC 环境验证。`MpvVideoRenderer::render()` 仍按任务边界保持 no-op；真实 FBO -> `mpv_render_context_render()` 视频画面输出仍属于 R4-05，没有提前实现。
+
+R2-01 的仓库根 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Complete。下一 Atomic Task：R4-05 MpvVideoRenderer。**
+
+### 2026-08-10 — R4-04 acceptance addendum
+
+- Accepted R4-04 from the user's Windows verification: development marker passed, `mpv_video_item` passed in 0.49 seconds, and all 32 CTests passed with 0 failures in 19.35 seconds total.
+- Confirmed the production `Player.exe` QML smoke: the window opens normally and the `Player.Presentation -> VideoSurface -> MpvVideoItem` registration/load path has no observed type/module error.
+- Kept actual libmpv FBO rendering and R4-06~R4-08 hardening outside R4-04; R4-05 remains the next Atomic Task.
