@@ -47,10 +47,10 @@ class MpvVideoVisibilityTest final : public QObject
     Q_OBJECT
 
 private slots:
-    void pausedVideoSurvivesItemHideAndTwentySecondMinimize();
+    void pausedVideoSurvivesItemHideWindowHideAndTwentySecondMinimize();
 };
 
-void MpvVideoVisibilityTest::pausedVideoSurvivesItemHideAndTwentySecondMinimize()
+void MpvVideoVisibilityTest::pausedVideoSurvivesItemHideWindowHideAndTwentySecondMinimize()
 {
     QTemporaryDir temporaryDir;
     QVERIFY(temporaryDir.isValid());
@@ -90,15 +90,31 @@ void MpvVideoVisibilityTest::pausedVideoSurvivesItemHideAndTwentySecondMinimize(
 
     fixture.videoItem().setVisible(false);
     QTRY_VERIFY_WITH_TIMEOUT(!visibilityPolicy->snapshot().updatesAllowed, 1000);
-    const int hiddenRenderCount = renderedSpy.count();
+    const int hiddenItemRenderCount = renderedSpy.count();
     QTest::qWait(1000);
     QVERIFY2(
-        renderedSpy.count() <= hiddenRenderCount + 4,
+        renderedSpy.count() <= hiddenItemRenderCount + 4,
         "Hidden video item continued rendering instead of settling.");
 
     fixture.videoItem().setVisible(true);
     QTRY_VERIFY_WITH_TIMEOUT(visibilityPolicy->snapshot().updatesAllowed, 1000);
-    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > hiddenRenderCount, 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > hiddenItemRenderCount, 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(hasExpectedVerticalOrientation(fixture.grabWindow()), 6000);
+
+    fixture.window().hide();
+    QTRY_VERIFY_WITH_TIMEOUT(!fixture.window().isVisible(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(!visibilityPolicy->snapshot().updatesAllowed, 3000);
+    const int hiddenWindowRenderCount = renderedSpy.count();
+    QTest::qWait(1000);
+    QVERIFY2(
+        renderedSpy.count() <= hiddenWindowRenderCount + 4,
+        "Hidden video window continued rendering instead of settling.");
+
+    fixture.window().show();
+    fixture.window().update();
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(visibilityPolicy->snapshot().updatesAllowed, 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > hiddenWindowRenderCount, 5000);
     QTRY_VERIFY_WITH_TIMEOUT(hasExpectedVerticalOrientation(fixture.grabWindow()), 6000);
 
     fixture.window().showMinimized();

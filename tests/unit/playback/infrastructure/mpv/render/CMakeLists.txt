@@ -232,5 +232,5 @@ set_tests_properties(
     mpv_video_visibility
     PROPERTIES
         RUN_SERIAL TRUE
-        TIMEOUT 45
+        TIMEOUT 60
 )
