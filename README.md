@@ -1525,3 +1525,22 @@ Windows Qt 6.8.3 / MSVC 实际 configure 与 build 均成功，development runti
 - Accepted the real libmpv OpenGL FBO renderer path on Windows with 33/33 CTests passing and 0 failures in 16.43 seconds total.
 - `mpv_video_renderer` passed in 0.91 seconds using a generated Y4M pattern, real `QQuickWindow` composition, and pixel-level vertical-orientation verification.
 - Kept R4-06 resize/DPI, R4-07 visibility policy, and R4-08 shutdown hardening outside this Atomic Task.
+
+## R4-06 Resize and DPI Windows verification and acceptance — current
+
+R4-06 已完成 Qt Quick FBO resize / DPI 验收矩阵。生产 `MpvVideoRenderer` 不新增第二套尺寸计算或 DPR owner：Qt Quick 继续负责由逻辑 Item 尺寸和 effective DPR 创建/重建物理 FBO，Renderer 始终使用实际 `framebufferObject()` 的像素宽高构造 libmpv render target。R4-06 新增独立 geometry probe 与真实视频 paused-resize smoke，用测试锁定 resize、DPI、fullscreen 和 FBO 重建行为，而不改变 R4-05 已验收的生产渲染语义。
+
+Windows Qt 6.8.3 / MSVC 实际 build 成功，`scripts/build.ps1` 返回 0；development runtime marker 与 libmpv 0.41.0 runtime 检查正常。完整 `scripts/test.ps1` 实际结果为 **37/37 PASS，0 failed**，总耗时 **17.48 秒**。其中 `mpv_video_renderer` **0.91 秒 PASS**；`mpv_video_resize_dpi_100` **1.28 秒 PASS**；`mpv_video_resize_dpi_125` **0.66 秒 PASS**；`mpv_video_resize_dpi_150` **0.68 秒 PASS**；`mpv_video_resize_dpi_200` **0.65 秒 PASS**。
+
+R4-06 验收覆盖逻辑尺寸 resize 后物理 FBO 重建、100% / 125% / 150% / 200% scale、fullscreen -> normal 往返，以及真实 libmpv 视频在暂停状态下 resize 后继续按正确比例和方向合成。当前验证机器没有第二块不同 DPR 显示器，因此真实跨屏不同-DPR 子场景按测试设计明确 `SKIP: No second screen with a different DPR is available.`；该硬件路径未被描述为已实际通过。
+
+R4-07 hidden/minimized 策略与 R4-08 shutdown race hardening 均未提前实现。产品 `ApplicationBootstrap` 仍没有本地媒体打开入口，因此本 Atomic Task 不追加不存在的产品级手工媒体播放 smoke。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Complete。R4-05：Complete。R4-06：Complete。下一 Atomic Task：R4-07 Hidden / Minimized。**
+
+### 2026-08-10 — R4-06 acceptance
+
+- Accepted R4-06 from the user's Windows verification with 37/37 CTests passing, 0 failures, and 17.48 seconds total test time.
+- Confirmed 100% / 125% / 150% / 200% resize-DPI coverage, fullscreen round-trip, FBO recreation, and real paused-video resize composition without introducing a second production size/DPR owner.
+- Recorded the different-DPR multi-screen hardware case as not executed on this machine because no second screen with a different DPR was available; the test reported an explicit environment skip.
+- Kept R4-07 visibility/minimize policy and R4-08 shutdown-race hardening outside R4-06.
