@@ -20,5 +20,6 @@ function(player_configure_application_target target)
         ${target}
         PROPERTIES
             OUTPUT_NAME "Player"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
 endfunction()
