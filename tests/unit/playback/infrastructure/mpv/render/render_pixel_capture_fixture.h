@@ -3,42 +3,10 @@
 #include "playback/infrastructure/mpv/render/mpv_video_item.h"
 
 #include <QCoreApplication>
-#include <QEvent>
-#include <QEventLoop>
-#include <QGuiApplication>
 #include <QImage>
 #include <QQuickWindow>
-#include <QScreen>
 
 namespace player::test::render {
-namespace detail {
-
-inline void movePixelWindowToScreenCorner(QQuickWindow& window)
-{
-    QScreen* screen = window.screen();
-    if (screen == nullptr) {
-        screen = QGuiApplication::primaryScreen();
-    }
-    if (screen == nullptr) {
-        return;
-    }
-
-    const QRect availableGeometry = screen->availableGeometry();
-    if (!availableGeometry.isValid()) {
-        return;
-    }
-
-    constexpr int margin = 8;
-    const int x = qMax(
-        availableGeometry.left(),
-        availableGeometry.right() - window.width() + 1 - margin);
-    const int y = qMax(
-        availableGeometry.top(),
-        availableGeometry.bottom() - window.height() + 1 - margin);
-    window.setPosition(x, y);
-}
-
-} // namespace detail
 
 class QuickVideoPixelCaptureFixture final
 {
@@ -46,9 +14,13 @@ public:
     explicit QuickVideoPixelCaptureFixture(QSize logicalSize)
         : videoItem_(window_.contentItem())
     {
+        // Keep this fixture deliberately equivalent to the R4-05 pixel smoke that
+        // passed on Windows: ordinary visible QQuickWindow, no special flags,
+        // opacity changes, off-screen moves, or pre-show update scheduling.
         window_.setColor(Qt::black);
-        resize(logicalSize);
-        detail::movePixelWindowToScreenCorner(window_);
+        window_.resize(logicalSize);
+        videoItem_.setWidth(logicalSize.width());
+        videoItem_.setHeight(logicalSize.height());
     }
 
     ~QuickVideoPixelCaptureFixture()
@@ -75,9 +47,7 @@ public:
             return;
         }
 
-        detail::movePixelWindowToScreenCorner(window_);
         window_.show();
-        detail::movePixelWindowToScreenCorner(window_);
         window_.update();
         shown_ = true;
     }
@@ -87,7 +57,6 @@ public:
         window_.resize(logicalSize);
         videoItem_.setWidth(logicalSize.width());
         videoItem_.setHeight(logicalSize.height());
-        detail::movePixelWindowToScreenCorner(window_);
         videoItem_.update();
         window_.update();
     }
@@ -105,8 +74,7 @@ public:
 
         window_.hide();
         window_.releaseResources();
-        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        QCoreApplication::processEvents();
         released_ = true;
     }
 
