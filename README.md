@@ -1563,3 +1563,15 @@ R4-08 callback/render/free/core-destroy shutdown race 尚未实施，本 Atomic 
 - Confirmed real Item hide/show, Window hide/show and approximately 20-second minimize/restore without sustained render storm, with the paused frame restored after visibility returns.
 - Confirmed R4-05 real renderer and R4-06 resize/DPI regressions remained green after the final Scene Graph readiness fix.
 - Kept R4-08 shutdown-race coordination outside R4-07.
+
+## R4-08A Render shutdown gate — candidate
+
+R4-08A 已新增独立 `MpvRenderShutdownCoordinator`，把 render shutdown request、active render section barrier 与未来 render-context release 计数集中到单一生命周期协调模块。`beginShutdown()` 使用原子 shutdown gate，shutdown 后拒绝新的 render section；已有 active section 必须退出后，bounded `waitForRenderRelease()` 才能成功。
+
+`MpvRenderUpdateBridge` 保持既有 `deactivate() -> unregister callback -> wait in-flight callback` 顺序，并额外接入只读 shutdown coordinator。callback dispatch 与 queued delivery 两处都会检查 shutdown gate，因此 shutdown 前已经排队但尚未 delivery 的旧 redraw request，以及 callback 物理 unregister 前到达的 late callback，都只能 no-op，不再产生新的 Qt render update。
+
+本候选新增独立 `mpv_render_shutdown_coordinator` CTest，并扩展 `mpv_render_update_bridge` 真实生成视频测试验证 shutdown 后 update request 收敛。现有测试未删除、未跳过、未放宽；预计完整 CTest 数量从 38 增至 39。
+
+Windows build、`mpv_render_shutdown_coordinator`、`mpv_render_update_bridge` 与完整 39 项回归尚未执行，因此 R4-08A 当前仅为候选实现，不标记 Complete。R4-08B 的 Renderer critical section、RenderContext create/free 计数、hidden/minimized cleanup 与 core-destroy barrier 尚未实施。
+
+**Stage R4：In Progress。R4-07：Complete。R4-08：In Progress。R4-08A：Windows validation pending。R4-08B：Not Started。R4-09：Not Started。**
