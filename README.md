@@ -1578,16 +1578,23 @@ Windows Qt 6.8.3 / MSVC / libmpv 0.41.0 实际 configure 成功，`scripts/build
 - Confirmed shutdown gate rejects new render sections, active sections converge through the bounded barrier, and queued/late render callbacks stop producing update requests after shutdown begins.
 - Kept Renderer critical-section wiring, actual RenderContext release accounting, hidden/minimized cleanup and core-destroy proof in R4-08B.
 
-## R4-08B Render release / core-destroy barrier — candidate
+## R4-08B Render release / core-destroy barrier — accepted
 
 R4-08B 把同一个 `MpvRenderShutdownCoordinator` 接入 `MpvVideoItem` 与 `MpvVideoRenderer`。Item 成为 GUI 侧 shutdown 发起点：`beginRenderShutdown()` 原子标记 shutdown、立即清除 borrowed raw `mpv_handle*` binding，并拒绝 shutdown 后重新绑定 core；普通 visibility/render wake 在 shutdown 后不再产生新帧。
 
-Renderer 的 `render()` 现在由 coordinator 的 active render section 包围；shutdown 已开始时不再进入新的 update/render critical section，而是在 Render Thread 和当前 OpenGL context 下执行 `updateBridge deactivate -> mpv_render_context close`。RenderContext 成功创建后 `liveRenderContexts` 增为 1，只有 callback 注销和 `mpv_render_context_free()` 都成功后才减为 0；任何释放失败都不会伪造 `renderReleased=true`。
+Renderer 的 `render()` 由 coordinator 的 active render section 包围；shutdown 已开始时不再进入新的 update/render critical section，而是在 Render Thread 和当前 OpenGL context 下执行 `updateBridge deactivate -> mpv_render_context close`。RenderContext 成功创建后 `liveRenderContexts` 增为 1，只有 callback 注销和 `mpv_render_context_free()` 都成功后才减为 0；任何释放失败都不会伪造 `renderReleased=true`。
 
-可见窗口通过一次最终 Qt Quick synchronization/render pass 观察 null core binding；hidden/minimized 窗口在最终 shutdown 时允许 Qt 释放 persistent Scene Graph/graphics resources，以触发 QQuickFramebufferObject Renderer cleanup。core owner 只能在只读 coordinator 的 `waitForRenderRelease()` 证明 `activeRenderSections == 0 && liveRenderContexts == 0` 后销毁 `MpvHandle`。
+可见窗口通过一次最终 Qt Quick synchronization/render pass 观察 null core binding；hidden/minimized 窗口在最终 shutdown 时允许 Qt 释放 persistent Scene Graph/graphics resources，以触发 QQuickFramebufferObject Renderer cleanup。core owner 只有在只读 coordinator 的 `waitForRenderRelease()` 证明 `activeRenderSections == 0 && liveRenderContexts == 0` 后才允许销毁 `MpvHandle`。
 
-新增独立 `mpv_video_shutdown` CTest，真实使用 `QQuickWindow + MpvVideoItem + libmpv Render API`，覆盖播放中关闭、连续 resize 后立即关闭、最小化后关闭，以及 12 次混合 Renderer 生命周期循环；每次都先证明 render context 已实际建立，再开始 shutdown，最后只有 barrier PASS 后才调用 `MpvHandle::close()`。现有 39 项未删除、跳过或放宽，预计完整 CTest 数量从 39 增至 40。
+Windows Qt 6.8.3 / MSVC / libmpv 0.41.0 实际 configure 成功，`scripts/build.ps1` 返回 0。标准 `scripts/test.ps1` 完整回归为 **40/40 PASS，0 failed**，总耗时 **49.45 秒**。其中 `mpv_render_shutdown_coordinator` **0.13 秒 PASS**、`mpv_render_update_bridge` **1.44 秒 PASS**、`mpv_video_item` **0.78 秒 PASS**、`mpv_video_renderer` **0.94 秒 PASS**、新增 `mpv_video_shutdown` **5.48 秒 PASS**、`mpv_video_visibility` **23.05 秒 PASS**；既有 Playback shutdown 与 100% / 125% / 150% / 200% resize-DPI 回归全部保持通过。
 
-Windows configure/build、新 `mpv_video_shutdown` 与完整 40 项回归尚未执行，因此 R4-08B 和 R4-08 当前仍为候选，不标记 Complete；R4-09 未开始。
+`mpv_video_shutdown` 使用真实 `QQuickWindow + MpvVideoItem + libmpv Render API`，实际覆盖播放中关闭、连续 resize 后立即关闭、最小化后关闭，以及 12 次混合 Renderer 生命周期循环；每个场景都先确认 render context 已建立，再发起 shutdown，并且只有 barrier 证明 RenderContext 已释放后才销毁 core。
 
-**Stage R4：In Progress。R4-07：Complete。R4-08：In Progress。R4-08A：Complete。R4-08B：Windows validation pending。R4-09：Not Started。**
+### 2026-08-10 — R4-08 acceptance
+
+- Accepted R4-08 from the user's Windows verification with configure success, build exit 0 and the full 40/40 CTest suite passing with 0 failures in 49.45 seconds.
+- Confirmed late/queued render callbacks are suppressed after shutdown begins, active render sections converge, `mpv_render_context_free()` completes before the core is destroyed, and hidden/minimized cleanup does not bypass the release barrier.
+- Confirmed playing-close, resize-close, minimized-close and 12-cycle renderer lifecycle shutdown coverage while preserving all R4-05~R4-07 render, DPI and visibility regressions.
+- R4-09 performance-baseline work has not started.
+
+**Stage R4：In Progress。R4-01：Complete。R4-02：Complete。R4-03：Complete。R4-04：Complete。R4-05：Complete。R4-06：Complete。R4-07：Complete。R4-08：Complete。下一 Atomic Task：R4-09 Render 性能基线。**
