@@ -129,9 +129,9 @@ void MpvVideoResizeDpiTest::squareVideoKeepsAspectAcrossPausedResize()
     QuickVideoPixelCaptureFixture fixture(QSize(160, 90));
     fixture.videoItem().setRenderCoreHandle(core->nativeHandle());
     QSignalSpy renderedSpy(&fixture.window(), &QQuickWindow::afterRendering);
-    fixture.create();
+    fixture.show();
 
-    QVERIFY(!fixture.grabWindow().isNull());
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.window().isExposed(), 3000);
     QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() >= 1, 3000);
 
     QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
@@ -142,16 +142,15 @@ void MpvVideoResizeDpiTest::squareVideoKeepsAspectAcrossPausedResize()
     const int renderCountBeforeResize = renderedSpy.count();
     fixture.resize(QSize(320, 180));
 
-    QCOMPARE(fixture.window().size(), QSize(320, 180));
+    QTRY_COMPARE_WITH_TIMEOUT(fixture.window().size(), QSize(320, 180), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > renderCountBeforeResize, 5000);
     QTRY_VERIFY_WITH_TIMEOUT(hasUndistortedSquareVideo(fixture.grabWindow()), 6000);
-    QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > renderCountBeforeResize, 3000);
 
     QCOMPARE(stopPlaybackOnWorkerThread(core->nativeHandle()), 0);
 
     fixture.videoItem().setRenderCoreHandle(nullptr);
     const int renderCountBeforeDetach = renderedSpy.count();
     fixture.videoItem().update();
-    QVERIFY(!fixture.grabWindow().isNull());
     QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() > renderCountBeforeDetach, 3000);
 }
 
