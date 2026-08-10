@@ -18,7 +18,7 @@
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
-- **D6：In Progress — D6-01 ～ D6-02 Complete。**
+- **D6：In Progress — D6-01 ～ D6-03 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -42,7 +42,8 @@
 - D5-07：HUD / Toast / Dialog，Source `271:301` / Verification `271:302` / Prototype Navigation `278:528` / HUD `272:339` / Toast `273:318` / Dialog Action `274:317` / Dialog `274:342`。
 - **D6-01：Preferences Window Shell，Page `285:19` / Source `285:20` / Verification `285:21` / Preferences Shell `286:59`。**
 - **D6-02：Source List Navigation，Source `295:74` / Verification `295:75` / Source Icon `296:142` / Source Item `298:349` / Source List `299:313`。**
-- **下一任务：D6-03 Settings Section / Row。**
+- **D6-03：Settings Section / Row，Source `315:1847` / Verification `315:1848` / Settings Row `318:1907` / Settings Section Header `319:1853`。**
+- **下一任务：D6-04 通用设置控件。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -1276,16 +1277,128 @@ Player Status Overlay states           Empty / Loading / Buffering / Ended / Err
 
 **D6-02：Complete。**
 
-## Next
+### D6-03 Settings Section / Row · Complete
 
-**D6-03 — Settings Section / Row**
-
-下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 建立 Preferences 内容基础结构：
+Figma：
 
 ```text
-setting concept
-  → row
-  → control
+Source / Contract          315:1847  D6-03 / Settings Section & Row
+Verification               315:1848  D6-03 / Verification
+Settings Row               318:1907  Preferences / Settings Row
+Settings Section Header    319:1853  Preferences / Settings Section Header
+Standard Density           320:1847  D6-03 / Standard Density
+Long Description Boundary  321:1956  D6-03 / Long Description Boundary
+Narrow Density             324:1963  D6-03 / Narrow Density
+Minimum Density            324:2117  D6-03 / Minimum Density
 ```
 
-重点完成 Settings Section title、Setting Row、description、supporting text 与 divider 规则，并验证长描述、Disabled、Restart Required；继续消费唯一 `Preferences / Shell` 与 D6-02 Source List，不提前实现 D6-04 的 Toggle / Select / Slider / Segmented / TextField。
+Section composition：
+
+```text
+Settings Section
+  = Settings Section Header
+  + N × Settings Row
+```
+
+- `Preferences / Settings Section Header` 只拥有 section title 与可选 supporting text，不固定 Row 数量，也不拥有真实设置内容。
+- Header Variant=`Supporting=No / Yes`，共 2 个；暴露 `Title / Supporting Text` TEXT properties。
+- Section 本体不使用卡片背景；依靠标题、留白与连续 Row divider 建立层级，避免 Preferences 变成后台卡片系统。
+
+Settings Row：
+
+- `Preferences / Settings Row` 只表示一个设置概念；复杂工作流必须升级独立组件/Dialog，不能继续向 Row 内增加无关字段。
+- Variant 轴保持正交：
+
+```text
+Body    = Compact / Description
+Status  = Normal / Disabled / RestartRequired
+Total   = 6 variants
+```
+
+- 暴露 `Title / Description / Auxiliary` TEXT properties。
+- `Control Host=180×32` 只定义后续控件的落位空间；Toggle/Select/Slider/Segmented/TextField 的内部几何和值状态归 D6-04。
+- 每个 Variant 均只有一个 Control Host 与一个底部 Divider。
+
+Density：
+
+```text
+Compact      min-height 56px
+Description  min-height 72px
+```
+
+- 长描述不是第三个 Variant；Description 使用真实 Hug Content。
+- 3+ 行边界验证中，Description 文本高度增长后 Row 从 `72 → 87px`，divider 不覆盖正文。
+- RestartRequired 使用局部 `feedback/warning` marker + `重启播放器后生效` auxiliary text；不使用黄底整行或警告卡片。
+- Disabled 使用既有 muted/disabled hierarchy，不复制第二套控件实现。
+
+真实窗口宽度验证：
+
+```text
+Standard
+Content Host   759
+Reading width  695
+Text width     491
+Control Host   180×32
+
+Narrow
+Content Host   629
+Reading width  573
+Text width     369
+Control Host   180×32
+
+Minimum
+Content Host   569
+Reading width  513
+Text width     309
+Control Host   180×32
+```
+
+- Narrow 4 个 Row 分别验证 Compact / Description / RestartRequired / Disabled；最高 Row=`76px`。
+- Minimum 中普通多行 Description=`73px`；RestartRequired + 多行描述自动增长到 `90px`。
+- 最小窗口仍维持“设置概念 + 右侧 Control Host”的桌面 Preferences 结构，没有退化为网页表单式纵向控件堆叠。
+
+Ownership / escalation：
+
+- Row 只拥有 Title、Description、Auxiliary、Divider、Control Host placement。
+- 若设置需要多个独立字段、文件选择、校验流程、向导或破坏性确认，必须升级为独立 Component/Dialog。
+- D6-03 Verification 的 Content composition 只验证 Section/Row 密度；D6-05 才拥有各分类真实 Content，D6-04 才拥有真实设置控件。
+
+最终审计：
+
+```text
+Preferences / Settings Row authorities            1
+Preferences / Settings Section Header authorities 1
+Settings Row variants                              6
+Settings Section Header variants                   2
+D6-03 Reactions                                    0
+D6-03 AFTER_TIMEOUT owners                         0
+New D6-03 Variables                                0
+New D6-03 Text Styles                              0
+Generic unnamed residues                           0
+Visible unbound source/product paints              0
+Long description Hug                               PASS (87px)
+Standard / Narrow / Minimum density                PASS
+D6-01 / D6-02 protected sections                   PASS
+D6-02 Prototype screens                            11, unchanged
+Player Status Overlay states                       Empty / Loading / Buffering / Ended / Error
+```
+
+Figma Source 已写入 Section Composition / Row Ownership / Density & Status / Escalation Contract 与 9/9 Acceptance Gate。
+
+本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D6-03：Complete。**
+
+## Next
+
+**D6-04 — 通用设置控件**
+
+下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 建立 Preferences 通用控件：
+
+```text
+value / state
+  → Toggle / Select / Slider / Segmented / TextField
+  → Settings Row Control Host
+```
+
+重点验证 hover / press / focus / disabled / error，继续复用播放器既有视觉基础但采用更阅读型尺寸；不得做成网页表单感，也不得让具体控件反向拥有 Settings Row 或 Preferences Shell 几何。
