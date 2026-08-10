@@ -18,7 +18,7 @@
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
-- **D6：In Progress — D6-01 ～ D6-04 Complete。**
+- **D6：In Progress — D6-01 ～ D6-05 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -44,7 +44,8 @@
 - **D6-02：Source List Navigation，Source `295:74` / Verification `295:75` / Source Icon `296:142` / Source Item `298:349` / Source List `299:313`。**
 - **D6-03：Settings Section / Row，Source `315:1847` / Verification `315:1848` / Settings Row `336:2293` / Settings Section Header `319:1853`。**
 - **D6-04：通用设置控件，Source `328:2160` / Verification `328:2161` / Toggle `329:2190` / Select `330:2187` / Slider `331:2190` / Segmented `332:2265` / Text Field `333:2194`。**
-- **下一任务：D6-05 填充 Playback / Video / Audio / Subtitles / Interface / Advanced。**
+- **D6-05：真实设置内容，Source `343:2625` / Verification `343:2626` / Content Header `344:2627` / Settings Action `345:2641` / Raw Mpv Warning `346:2625` / Playback `347:2626` / Video `348:2659` / Audio `349:2683` / Subtitles `350:2695` / Interface `351:2717` / Diagnostics Export `352:2741` / Advanced `353:2742` / Real Content Windows `354:2759` / Prototype Navigation `358:3747` / Contract `360:4225`。**
+- **下一任务：D6-06 Shortcuts。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -1010,7 +1011,7 @@ Player Status Overlay states                Empty / Loading / Buffering / Ended 
 - 清理 18 个 SVG 默认 `Vector` 子节点，按 HUD/Toast/Dialog 语义改名，并绑定现有 `border/glass / surface/glass / feedback/info / feedback/warning / accent/strong / feedback/error`。
 - 4 个不可见 Dialog Prototype 命中层绑定 `surface/glass`，node opacity=`0.001`，既保持不可见又不遗留硬编码 Paint。
 
-本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+本任务只修改 Figma 设计与根 README；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
 
 **D5-07：Complete。**
 
@@ -1591,17 +1592,224 @@ Figma Source 已写入 Value Ownership / State Responsibility / Row Integration 
 
 **D6-04：Complete。**
 
-## Next
+### D6-05 填充 Playback / Video / Audio / Subtitles / Interface / Advanced · Complete
 
-**D6-05 — 填充 Playback / Video / Audio / Subtitles / Interface / Advanced**
-
-下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 使用真实播放器设置验证整个 Preferences 系统：
+Figma：
 
 ```text
-category
-  → Settings Section / Row
-  → D6-04 shared control
-  → validation / restart feedback
+Source / Contract            343:2625  D6-05 / Real Settings Content
+Verification                 343:2626  D6-05 / Verification
+Content Header               344:2627  Preferences / Content Header
+Settings Action              345:2641  Preferences / Settings Action
+Raw Mpv Warning              346:2625  Preferences / Raw Mpv Warning
+Playback Content             347:2626  Preferences / Playback Content
+Video Content                348:2659  Preferences / Video Content
+Audio Content                349:2683  Preferences / Audio Content
+Subtitles Content            350:2695  Preferences / Subtitles Content
+Interface Content            351:2717  Preferences / Interface Content
+Diagnostics Export           352:2741  Preferences / Diagnostics Export
+Advanced Content             353:2742  Preferences / Advanced Content
+Real Content Windows         354:2759  D6-05 / Real Content Windows
+Prototype Navigation         358:3747  D6-05 / Prototype Navigation
+Capability / Ownership       360:4225  D6-05 / Contract
+Acceptance Gate              360:4238  D6-05 / Acceptance Gate
 ```
 
-每类至少提供一屏真实内容，只放 MVP/明确能力；高级原始 mpv 入口必须使用高风险警告样式。继续消费唯一 `Preferences / Shell`、`Source List`、`Settings Row` 与 D6-04 controls，不允许各分类复制新的 Row/Toggle/Select/Slider/TextField 实现。
+D6-05 不再使用漂亮空壳验证 Preferences，而是以任务书与项目既定模块为边界，把六个普通设置分类填入真实内容。六个分类分别拥有独立 Content authority；Content 只负责组合，不重新拥有 Shell、Source List、Settings Row 或 D6-04 control 几何。
+
+真实设置范围：
+
+```text
+Playback
+  Hardware Decode           → Select · 自动
+  Resume Playback           → Toggle · On
+  Cache                     → Select · 自动
+
+Video
+  Scaling                   → Select · 自动
+  Render Quality            → Disabled · future enhancement
+
+Audio
+  Preferred Audio Language  → Text Field · zh, en
+
+Subtitles
+  Preferred Subtitle Lang   → Text Field · zh, en
+  Subtitle Style            → Disabled · future enhancement
+
+Interface
+  Theme                     → Select · 默认
+  Control Visibility        → Select · 自动隐藏
+
+Advanced
+  Raw mpv options           → warning + action entry
+  Diagnostics export        → dedicated action workflow
+```
+
+能力边界：
+
+- Playback 只放 `Hardware Decode / Resume Playback / Cache`，不把现场播放控制塞入 Preferences。
+- Video 的 `Render Quality` 与 Subtitles 的 `Subtitle Style` 属于项目已定义的第二阶段增强能力；D6-05 用 `Disabled Row + Disabled Select` 明确保留位置，不伪装成当前已经可配置。
+- Audio 只提供首选音频语言，不复制 D3 Volume/Mute，也不复制 D4 Audio Delay。
+- Subtitles 的实时 Track selection、外挂字幕加载与 delay 继续归 D4 Inspector；Preferences 只保存首选语言/未来样式偏好。
+- Interface 的 `ThemeSetting` 在项目资料中没有冻结具体主题枚举，因此本稿只使用中性示例值 `默认`，不自行扩展 Light/Dark/System 等未确认枚举。
+- `Control Visibility` 直接消费 D3 已冻结的 OSC auto-hide 生命周期；D6-05 不创建第二个 visibility owner。
+- Shortcuts 不属于 D6-05 内容填充范围，继续留给 D6-06。
+
+共享 Content Header：
+
+- `Preferences / Content Header`=`695×53`，只拥有分类标题和一段简介。
+- 使用既有 `V3 / Title / Inspector` 与 `V3 / Body / Control`；不形成第二个窗口标题，也不拥有 Settings Section / Row。
+
+Settings Action：
+
+```text
+Tone  = Neutral / Warning
+State = Default / Hover / Pressed / Focus
+Total = 8 variants
+Size  = 116×32
+```
+
+- 只用于触发工作流，不用于编辑 setting value。
+- Neutral 用于 Diagnostics Export；Warning 用于 Raw mpv 入口。
+- Warning 保持浅玻璃控件，仅使用 warm border/text 表达风险，不使用大红底或破坏性主按钮视觉。
+
+Raw mpv：
+
+- `Preferences / Raw Mpv Warning`=`695×85`。
+- 独立承担“底层选项可能导致播放失败、渲染异常或与产品设置冲突”的风险说明。
+- Raw mpv 选项不直接以普通 Settings Row 形式铺开，也不在 D6-05 内创建原始参数编辑器。
+- Warning 组件只拥有风险 copy、局部 marker 与“打开原始选项”入口；真实 option model、validation、persistence 与 mpv command execution 仍属于实现层。
+
+Diagnostics：
+
+- `Preferences / Diagnostics Export`=`695×73`。
+- Diagnostics export 是 action workflow，不是 setting value；因此没有强塞入 D6-03 `180×32 Control` 接口。
+- 组件只拥有说明与“导出”动作组合；诊断数据生成、隐私脱敏、文件 I/O 与结果反馈不由 Figma 组件持有。
+- 导出成功/失败的非阻塞结果继续路由到 D5 Toast。
+
+Feedback / persistence ownership：
+
+```text
+Local Select/Text Field invalid → D6-04 local Error
+Restart required                → D6-03 Row Status
+Settings save failure           → D5 Toast
+Current-media playback failure  → D5 Error Overlay
+Persistence success/state       → implementation setting model
+```
+
+D6-05 Content 只展示当前 setting value 与状态，不将 Figma 控件实例当作持久化真值。
+
+真实窗口验证：
+
+```text
+Playback Standard    Shell 980×680   Content 695×353
+Video Standard       Shell 980×680   Content 695×281
+Audio Standard       Shell 980×680   Content 695×209
+Subtitles Standard   Shell 980×680   Content 695×281
+Interface Standard   Shell 980×680   Content 695×281
+Advanced Standard    Shell 980×680   Content 695×307
+
+Playback Narrow      Shell 820×620   Content 573×353
+Playback Minimum     Shell 760×560   Content 513×353
+```
+
+- 六个 Standard 分类都在原 Preferences Shell 内成立，没有改变 Titlebar / Source List / Window geometry。
+- Narrow Playback 三个 Row 均为 `573px`，Minimum 均为 `513px`；所有 Row 的 Control interface 始终为 `180×32`。
+- Minimum 仍保持桌面式“setting concept + right control”结构，没有退化成网页表单纵向堆叠。
+- Advanced 真窗口确认 raw mpv warning 与 Diagnostics 两条职责可同时存在，且不形成后台式大警告面板。
+
+D6-02 Prototype 保护与 D6-05 Prototype：
+
+- 首轮曾尝试把 D6-05 真实 Content instance 直接插入旧 D6-02 分类 Prototype Frame。
+- 结构审计显示新 Content instance 自身几何与 Verification 完全一致，但旧 D6-02 交互容器中出现大面积异常白层与内部布局漂移；该视觉 QA 失败，因此没有将其描述为通过。
+- 为避免强行兼容旧验证容器，已完整恢复 D6-02 原 7 个分类 Prototype：六个被尝试修改的 screen 均恢复 `2` 个 Content Target placeholder，每屏保留原 `6` 个 category Reaction，`realD605=0`；Shortcuts 本来就未修改。
+- D6-05 另建独立 page-level Prototype destinations，并直接复用视觉验证已经通过的 Real Content Window 组合。
+
+D6-05 Prototype：
+
+```text
+Prototype Navigation  358:3747
+Playback              358:3748
+Video                 358:3753
+Audio                 358:3758
+Subtitles             358:3763
+Interface             358:3768
+Advanced              358:3773
+Shortcuts placeholder 358:3778
+```
+
+- 7 个 destination 全部是 Page-level Frame。
+- 每个 screen 对其他 6 个分类提供 `ON_CLICK → NAVIGATE`；总计 `42` 个分类 Reaction。
+- 使用 `SMART_ANIMATE 160ms Ease Out`。
+- D6-05 `AFTER_TIMEOUT owner=0`。
+- Shortcuts screen 仍只承载 D6-06 placeholder，不提前创建搜索、Keycap、冲突或编辑状态。
+- Prototype hit target 使用 semantic-bound `surface/glass + node opacity=0.001`，没有不可见硬编码 Paint。
+
+Foundation / style：
+
+- D6-05 新增全局 Variable=`0`。
+- D6-05 新增 Text Style=`0`。
+- D6-05 新增 Effect Style=`0`。
+- D6-05 新增 Motion Token=`0`。
+- 全部继续消费既有 Airy Glass semantic colors、Typography 与 Glass Control/Field effect。
+
+最终审计：
+
+```text
+Preferences / Shell authorities                    1
+Preferences / Source List authorities              1
+Preferences / Settings Section Header authorities  1
+Preferences / Settings Row authorities              1
+Preferences / Toggle authorities                    1
+Preferences / Select authorities                    1
+Preferences / Slider authorities                    1
+Preferences / Segmented authorities                 1
+Preferences / Text Field authorities                1
+
+Preferences / Content Header authorities            1
+Preferences / Settings Action authorities           1
+Preferences / Raw Mpv Warning authorities           1
+Preferences / Diagnostics Export authorities        1
+Preferences / Playback Content authorities          1
+Preferences / Video Content authorities             1
+Preferences / Audio Content authorities             1
+Preferences / Subtitles Content authorities         1
+Preferences / Interface Content authorities         1
+Preferences / Advanced Content authorities          1
+
+Render Quality future state                         Disabled / PASS
+Subtitle Style future state                         Disabled / PASS
+Visible unbound source/product paints               0
+Generic unnamed residues                            0
+New D6-05 global Variables / Text / Effect / Motion 0
+D6-05 Prototype screens                             7
+D6-05 Prototype reactions                          42
+D6-05 AFTER_TIMEOUT owners                          0
+Non-page Prototype destinations                     0
+D6-02 protected prototypes                          PASS
+D6-01～D6-04 protected section geometry             PASS
+Player Status Overlay states                        Empty / Loading / Buffering / Ended / Error
+Acceptance Gate                                     12 / 12 PASS
+```
+
+D6-01～D6-04 Source/Verification Section 坐标和尺寸均保持不变；D5 唯一 `Player Status Overlay` 仍只有 `Empty / Loading / Buffering / Ended / Error` 五态。
+
+本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D6-05：Complete。**
+
+## Next
+
+**D6-06 — Shortcuts**
+
+下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 完成快捷键内容：
+
+```text
+actions
+  → filter / search
+  → binding / edit
+  → conflict
+  → reset / restore default
+```
+
+重点建立搜索、动作分类、命令行、Keycap、冲突、自定义与恢复默认；命令与按键必须有清晰层级，冲突不能只依赖红色。Shortcuts 继续消费唯一 `Preferences / Shell` 与 Source List，不另造第二个设置窗口。
