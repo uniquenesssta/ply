@@ -62,7 +62,7 @@ inline void bindItemToWindow(QQuickWindow& window, QQuickItem& item)
         });
 }
 
-inline void moveOffscreen(QQuickWindow& window)
+inline void moveToScreenCorner(QQuickWindow& window)
 {
     QScreen* screen = window.screen();
     if (screen == nullptr) {
@@ -72,8 +72,19 @@ inline void moveOffscreen(QQuickWindow& window)
         return;
     }
 
-    const QRect virtualGeometry = screen->virtualGeometry();
-    window.setPosition(virtualGeometry.bottomRight() + QPoint(512, 512));
+    const QRect availableGeometry = screen->availableGeometry();
+    if (!availableGeometry.isValid()) {
+        return;
+    }
+
+    constexpr int margin = 8;
+    const int x = qMax(
+        availableGeometry.left(),
+        availableGeometry.right() - window.width() + 1 - margin);
+    const int y = qMax(
+        availableGeometry.top(),
+        availableGeometry.bottom() - window.height() + 1 - margin);
+    window.setPosition(x, y);
 }
 
 inline void releaseQuickWindow(QQuickWindow& window)
@@ -92,12 +103,12 @@ public:
     explicit QuickVideoSurfaceFixture(QSize logicalSize)
         : videoItem_(window_.contentItem())
     {
-        // Pixel-validation windows must remain fully opaque so grabWindow() observes
-        // the actual composed video. Keep them non-interactive and outside the
-        // virtual desktop instead of changing their rendered opacity.
+        // Pixel-validation windows must remain fully opaque and inside a valid
+        // screen geometry so grabWindow() observes the actual composed video.
+        // Keep them non-interactive and tucked into the screen corner.
         detail::configureNonInteractiveWindow(window_, logicalSize, 1.0);
         detail::bindItemToWindow(window_, videoItem_);
-        detail::moveOffscreen(window_);
+        detail::moveToScreenCorner(window_);
     }
 
     ~QuickVideoSurfaceFixture()
@@ -120,9 +131,9 @@ public:
 
     void show()
     {
-        detail::moveOffscreen(window_);
+        detail::moveToScreenCorner(window_);
         window_.show();
-        detail::moveOffscreen(window_);
+        detail::moveToScreenCorner(window_);
         window_.update();
     }
 
@@ -133,13 +144,14 @@ public:
         // fixture owns the synthetic binding, so update the test item explicitly
         // while retaining width/height signal bindings for fullscreen/screen changes.
         detail::setItemSize(videoItem_, logicalSize);
+        detail::moveToScreenCorner(window_);
         videoItem_.update();
         window_.update();
     }
 
-    void moveOffscreen()
+    void moveToScreenCorner()
     {
-        detail::moveOffscreen(window_);
+        detail::moveToScreenCorner(window_);
     }
 
     void release()
@@ -267,6 +279,7 @@ public:
         // native windows keep fullscreen/DPI coverage unobtrusive.
         detail::configureNonInteractiveWindow(window_, logicalSize, 0.001);
         detail::bindItemToWindow(window_, videoItem_);
+        detail::moveToScreenCorner(window_);
     }
 
     ~QuickFramebufferGeometryFixture()
@@ -289,7 +302,9 @@ public:
 
     void show()
     {
+        detail::moveToScreenCorner(window_);
         window_.show();
+        detail::moveToScreenCorner(window_);
         window_.update();
     }
 
@@ -297,13 +312,14 @@ public:
     {
         window_.resize(logicalSize);
         detail::setItemSize(videoItem_, logicalSize);
+        detail::moveToScreenCorner(window_);
         videoItem_.update();
         window_.update();
     }
 
-    void moveOffscreen()
+    void moveToScreenCorner()
     {
-        detail::moveOffscreen(window_);
+        detail::moveToScreenCorner(window_);
     }
 
     [[nodiscard]] QSize expectedPhysicalFramebufferSize() const
