@@ -18,7 +18,7 @@
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
-- **D6：In Progress — D6-01 ～ D6-05 Complete。**
+- **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -45,7 +45,8 @@
 - **D6-03：Settings Section / Row，Source `315:1847` / Verification `315:1848` / Settings Row `336:2293` / Settings Section Header `319:1853`。**
 - **D6-04：通用设置控件，Source `328:2160` / Verification `328:2161` / Toggle `329:2190` / Select `330:2187` / Slider `331:2190` / Segmented `332:2265` / Text Field `333:2194`。**
 - **D6-05：真实设置内容，Source `343:2625` / Verification `343:2626` / Content Header `344:2627` / Settings Action `345:2641` / Raw Mpv Warning `346:2625` / Playback `347:2626` / Video `348:2659` / Audio `349:2683` / Subtitles `350:2695` / Interface `351:2717` / Diagnostics Export `352:2741` / Advanced `353:2742` / Real Content Windows `354:2759` / Prototype Navigation `358:3747` / Contract `360:4225`。**
-- **下一任务：D6-06 Shortcuts。**
+- **D6-06：Shortcuts，Source `363:4225` / Verification `363:4226` / Prototype Navigation `363:4227` / Shortcut Search `365:4245` / Keycap `366:4232` / Shortcut Binding `367:4277` / Shortcut Conflict `368:4239` / Shortcut Action Row `369:4292` / Shortcuts Content `370:4471` / Real Shortcuts Windows `371:4419` / Contract `375:5777`。**
+- **下一任务：D7-01 Fullscreen 构图。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -1011,7 +1012,7 @@ Player Status Overlay states                Empty / Loading / Buffering / Ended 
 - 清理 18 个 SVG 默认 `Vector` 子节点，按 HUD/Toast/Dialog 语义改名，并绑定现有 `border/glass / surface/glass / feedback/info / feedback/warning / accent/strong / feedback/error`。
 - 4 个不可见 Dialog Prototype 命中层绑定 `surface/glass`，node opacity=`0.001`，既保持不可见又不遗留硬编码 Paint。
 
-本任务只修改 Figma 设计与根 README；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
 
 **D5-07：Complete。**
 
@@ -1021,7 +1022,7 @@ Player Status Overlay states                Empty / Loading / Buffering / Ended 
 
 **Stage D5：Complete。**
 
-## Stage D6 — Preferences & Shortcuts · In Progress
+## Stage D6 — Preferences & Shortcuts · Complete
 
 ### D6-01 Preferences Window Shell · Complete
 
@@ -1676,7 +1677,7 @@ Size  = 116×32
 Raw mpv：
 
 - `Preferences / Raw Mpv Warning`=`695×85`。
-- 独立承担“底层选项可能导致播放失败、渲染异常或与产品设置冲突”的风险说明。
+- 独立承担“底层选项可能导致播放失败、渲染异常或与产品设置产生冲突”的风险说明。
 - Raw mpv 选项不直接以普通 Settings Row 形式铺开，也不在 D6-05 内创建原始参数编辑器。
 - Warning 组件只拥有风险 copy、局部 marker 与“打开原始选项”入口；真实 option model、validation、persistence 与 mpv command execution 仍属于实现层。
 
@@ -1798,18 +1799,240 @@ D6-01～D6-04 Source/Verification Section 坐标和尺寸均保持不变；D5 �
 
 **D6-05：Complete。**
 
-## Next
+### D6-06 Shortcuts · Complete
 
-**D6-06 — Shortcuts**
-
-下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 完成快捷键内容：
+Figma：
 
 ```text
-actions
-  → filter / search
-  → binding / edit
-  → conflict
-  → reset / restore default
+Source / Contract            363:4225  D6-06 / Shortcuts
+Verification                 363:4226  D6-06 / Verification
+Prototype Navigation         363:4227  D6-06 / Prototype Navigation
+Shortcut Search              365:4245  Preferences / Shortcut Search
+Keycap                       366:4232  Preferences / Keycap
+Shortcut Binding             367:4277  Preferences / Shortcut Binding
+Shortcut Conflict            368:4239  Preferences / Shortcut Conflict
+Shortcut Action Row          369:4292  Preferences / Shortcut Action Row
+Shortcuts Content            370:4471  Preferences / Shortcuts Content
+Real Shortcuts Windows       371:4419  D6-06 / Real Shortcuts Windows
+Contract                     375:5777  D6-06 / Contract
+Acceptance Gate              375:5790  D6-06 / Acceptance Gate
 ```
 
-重点建立搜索、动作分类、命令行、Keycap、冲突、自定义与恢复默认；命令与按键必须有清晰层级，冲突不能只依赖红色。Shortcuts 继续消费唯一 `Preferences / Shell` 与 Source List，不另造第二个设置窗口。
+D6-06 只建立快捷键搜索、动作列表、绑定显示/捕获、冲突和恢复默认体验，不创建第二个 Preferences Window，也不把快捷键直接定义成 mpv command 字符串。未来实现真值继续遵守 R10 的单一 Action identity：
+
+```text
+Key event
+  → Shortcut Dispatcher / focus context
+  → ActionId / Action Registry
+  → Application action / PlaybackCommand
+```
+
+当前源码仍处于 pre-R10 阶段，因此 D6-06 不把 Figma 演示按键声明为已经实现的 runtime 默认值。
+
+Shortcut Search：
+
+```text
+Content = Placeholder / Filled
+State   = Default / Focus
+Total   = 4 variants
+Size    = 320×36
+```
+
+- Search 只拥有 query presentation 与 focus。
+- Search/Text Field Focus 是受保护文本输入上下文；输入字符不得同时触发播放器普通 shortcut dispatch。
+- Search 不拥有 Action Registry、过滤实现、binding 或持久化。
+
+Keycap：
+
+```text
+Tone  = Default / Active / Conflict
+Total = 3 variants
+Height= 28
+```
+
+- 一个 Keycap 只表示一个键位 token。
+- Conflict 除 warning border 外还有独立 `!` 标记，因此即使去色仍能理解异常状态。
+- Chord、Capture、Conflict 对象与持久化均由更高层 owner 管理。
+
+Shortcut Binding：
+
+```text
+Chord = Single / Combo
+State = Default / Custom / Capturing / Conflict
+Total = 8 variants
+Size  = 180×32
+```
+
+- Single/Combo 都复用同一个 `Preferences / Keycap`。
+- Capturing 使用 focus/capture 状态，并明确 `按键中…`；此时键盘输入被解释为 candidate binding，不执行播放器 Action。
+- Conflict 同时具备 Conflict Keycap、`冲突`文字和外部 Conflict explanation，不依赖颜色。
+- Combo Variant 作为组合键能力独立存在，不为了冲突样例强行制造组合键。
+
+Shortcut Conflict：
+
+- `Preferences / Shortcut Conflict`=`360×34`。
+- 默认文案样例：`与「全屏」使用相同按键，请更换其中一个绑定。`
+- 组件只解释冲突对象与处理意图，不拥有 validation algorithm 或 persistence。
+- QA 时发现首轮 Conflict 样例为 `Ctrl+F ↔ F`，与“相同按键”文案不一致；已修正为真正的 `F ↔ F`，Combo Variant 继续独立保留。
+
+Shortcut Action Row：
+
+```text
+State = Default / Custom / Capturing / Conflict
+Total = 4 variants
+Width = responsive 695 / 573 / 513
+```
+
+- Row 只拥有动作名称、说明、一个共享 Shortcut Binding、divider 与可选 Conflict explanation。
+- 不复用普通 Settings Row 的 RestartRequired / Disabled 业务状态来伪装快捷键编辑。
+- Runtime ActionId 仍是动作身份 owner；Row 不是 Action Registry。
+
+Shortcuts Content：
+
+```text
+View = Default / Search / Capturing / Conflict / Custom
+Total = 5 variants
+Source size = 695×520
+Action List overflow = Vertical
+```
+
+Default 只用当前规划/源码能支持的核心动作做设计验证：
+
+```text
+播放 / 暂停
+后退 Seek
+前进 Seek
+全屏
+```
+
+Figma 中显示的 `Space / Left / Right / F / K` **全部只是 QA sample bindings**，用于验证 Keycap、搜索、Capture、Conflict、Custom 与 Restore Default；它们不是 D6-06 冻结的产品默认键位。真正默认值由未来 R10 Action Registry / shortcut settings implementation 决定。
+
+任务书五态验证：
+
+```text
+无搜索     → View=Default
+搜索       → View=Search · query=全屏
+冲突       → View=Conflict · F ↔ F + explicit copy
+自定义     → View=Custom · QA sample K
+恢复默认   → Custom → Default
+附加编辑态 → View=Capturing
+```
+
+冲突/提交规则：
+
+- candidate binding 必须先 validate，再 commit。
+- 同一活动上下文发生 duplicate binding 时，旧 committed binding 保持不变，新 candidate 进入 local Conflict。
+- 非法/不支持输入保持 Shortcut Editor local feedback，不升级成 D5 current-media Error Overlay。
+- Restore Default 只发送 reset intent；实际 default binding 由 settings/registry owner 提供。
+- D6-06 不扩展 macros、profiles、scripts 或第二套 Action Registry。
+
+真实 Preferences Window 验证：
+
+```text
+Standard Default     Shell 980×680   Content 695×520   Row 695   Binding 180×32
+Standard Search      Shell 980×680   Content 695×520
+Standard Capturing   Shell 980×680   Content 695×520
+Standard Conflict    Shell 980×680   Content 695×520
+Standard Custom      Shell 980×680   Content 695×520
+Narrow Default       Shell 820×620   Content 573×462   Row 573   Binding 180×32
+Minimum Default      Shell 760×560   Content 513×402   Row 513   Binding 180×32
+```
+
+- 三档窗口全部直接复用唯一 `Preferences / Shell` 与嵌套 `Preferences / Source List`。
+- Narrow/Minimum 只缩小 Content viewport；Shortcut Action List 使用 Vertical scrolling，交互目标与 Binding 高度不缩小。
+- Minimum 验证已正确将 Source selection 从 Audio SelectedFocus 切为 Shortcuts Selected，不修改 Source List authority。
+
+D6-06 Prototype：
+
+```text
+Default    373:5228
+Search     373:5366
+Capturing  373:5467
+Conflict   373:5568
+Custom     373:5685
+```
+
+交互主链：
+
+```text
+Default → Search
+Default → Capturing
+Capturing + F → Conflict
+Capturing + K → Custom
+Conflict + K → Custom
+Custom → Restore Default → Default
+Search / Capturing / Conflict + ESC → cancel/default
+```
+
+- 每个 destination 都是 Page-level Frame。
+- 分类导航继续使用既有 160ms Smart Animate；Shortcut edit/search flow 使用 120ms Smart Animate。
+- 总计 `41` 个 Prototype Reaction。
+- `AFTER_TIMEOUT owner=0`。
+- Non-page Prototype destination=`0`。
+- 不可见 hit target 继续使用 semantic-bound `surface/glass + node opacity=0.001`。
+
+D6-05 / D6-02 集成：
+
+- D6-05 的 Playback / Video / Audio / Subtitles / Interface / Advanced 六个真实分类 screen，其 Shortcuts destination 已统一切到 D6-06 Default `373:5228`；每屏原 6 个分类 Reaction 保持不变。
+- D6-05 历史 Shortcuts placeholder `358:3778` 保留为 D6-05 阶段事实，不再作为六个普通分类的真实 Shortcuts destination。
+- D6-02 七个历史分类 Prototype 完全未改：每屏仍为 6 reactions，D6-06 residue=`0`。
+
+Foundation / style：
+
+- 新增 D6-06 全局 Variable=`0`。
+- 新增 D6-06 Text Style=`0`。
+- 新增 D6-06 Effect Style=`0`。
+- 新增 D6-06 Motion Token=`0`。
+- 继续消费 `surface/glass / surface/glass-subtle / border/glass / selection/background / focus/ring / feedback/warning / text/* / V3 Glass Control / V3 Glass Field`。
+
+最终审计：
+
+```text
+Preferences / Shortcut Search authorities       1   variants 4
+Preferences / Keycap authorities                1   variants 3
+Preferences / Shortcut Binding authorities      1   variants 8
+Preferences / Shortcut Conflict authorities     1
+Preferences / Shortcut Action Row authorities   1   variants 4
+Preferences / Shortcuts Content authorities     1   variants 5
+
+Visible unbound source/product paints           0
+Generic unnamed residues                        0
+New D6-06 Variable / Text / Effect / Motion     0
+Standard / Narrow / Minimum fit                 PASS
+Conflict non-color communication                PASS
+D6-06 Prototype reactions                       41
+D6-06 AFTER_TIMEOUT owners                      0
+Non-page Prototype destinations                 0
+D6-05 category → Shortcuts retarget              6 / 6 PASS
+D6-02 protected prototypes                      PASS
+D6-01～D6-05 protected section geometry          PASS
+Existing Shell / Source List / Settings Row /
+D6-04 control authorities                       1 each
+Player Status Overlay states                    Empty / Loading / Buffering / Ended / Error
+Acceptance Gate                                 14 / 14 PASS
+```
+
+本任务只修改 Figma 设计、D6-05 Prototype 的 Shortcuts destination 与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D6-06：Complete。**
+
+## Stage D6 Closing Result
+
+Preferences Shell、Source List、Settings Section/Row、通用设置控件、六类真实设置内容以及 Shortcuts 的搜索/编辑/冲突/恢复默认已经形成完整且单一职责的设计系统。Standard/Narrow/Minimum 均保持桌面 Preferences 信息结构；快捷键没有绕过未来 Action Registry 直接绑定 mpv command，也没有为了冲突和编辑状态复制第二套窗口或普通 Settings Row。
+
+**Stage D6：Complete。**
+
+## Next
+
+**D7-01 — Fullscreen 构图**
+
+下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 推进 Fullscreen 沉浸构图：
+
+```text
+mode=fullscreen
+  → minimal header
+  → compact / lighter OSC
+  → video absolute priority
+```
+
+首轮验证固定覆盖 `16:9 / 21:9` 与亮/暗画面，并确保不会回归铺满底部的大控制栏。
