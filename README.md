@@ -1012,7 +1012,7 @@ Player Status Overlay states                Empty / Loading / Buffering / Ended 
 - 清理 18 个 SVG 默认 `Vector` 子节点，按 HUD/Toast/Dialog 语义改名，并绑定现有 `border/glass / surface/glass / feedback/info / feedback/warning / accent/strong / feedback/error`。
 - 4 个不可见 Dialog Prototype 命中层绑定 `surface/glass`，node opacity=`0.001`，既保持不可见又不遗留硬编码 Paint。
 
-本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+本任务只修改 Figma 设计与根 README；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
 
 **D5-07：Complete。**
 
@@ -1677,7 +1677,7 @@ Size  = 116×32
 Raw mpv：
 
 - `Preferences / Raw Mpv Warning`=`695×85`。
-- 独立承担“底层选项可能导致播放失败、渲染异常或与产品设置产生冲突”的风险说明。
+- 独立承担“底层选项可能导致播放失败、渲染异常或与产品设置冲突”的风险说明。
 - Raw mpv 选项不直接以普通 Settings Row 形式铺开，也不在 D6-05 内创建原始参数编辑器。
 - Warning 组件只拥有风险 copy、局部 marker 与“打开原始选项”入口；真实 option model、validation、persistence 与 mpv command execution 仍属于实现层。
 
