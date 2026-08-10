@@ -1,6 +1,7 @@
 #include "mpv_render_update_bridge.h"
 
 #include "mpv_render_context.h"
+#include "mpv_render_shutdown_coordinator.h"
 #include "mpv_render_visibility_policy.h"
 
 #include <QDebug>
@@ -30,8 +31,17 @@ MpvRenderUpdateBridge::MpvRenderUpdateBridge(QObject* parent)
 MpvRenderUpdateBridge::MpvRenderUpdateBridge(
     std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy,
     QObject* parent)
+    : MpvRenderUpdateBridge(std::move(visibilityPolicy), {}, parent)
+{
+}
+
+MpvRenderUpdateBridge::MpvRenderUpdateBridge(
+    std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy,
+    std::shared_ptr<const MpvRenderShutdownCoordinator> shutdownCoordinator,
+    QObject* parent)
     : QObject(parent)
     , visibilityPolicy_(std::move(visibilityPolicy))
+    , shutdownCoordinator_(std::move(shutdownCoordinator))
 {
 }
 
@@ -172,7 +182,9 @@ void MpvRenderUpdateBridge::dispatchRenderUpdate() noexcept
         activationEpoch = activationEpoch_;
     }
 
-    if (shouldQueue && visibilityAllowsUpdateDelivery()) {
+    if (shouldQueue
+        && shutdownAllowsUpdateDelivery()
+        && visibilityAllowsUpdateDelivery()) {
         QMetaObject::invokeMethod(
             this,
             [this, activationEpoch] {
@@ -195,7 +207,9 @@ void MpvRenderUpdateBridge::deliverUpdateRequest(std::uint64_t activationEpoch)
         shouldEmit = active_ && activationEpoch_ == activationEpoch;
     }
 
-    if (shouldEmit && visibilityAllowsUpdateDelivery()) {
+    if (shouldEmit
+        && shutdownAllowsUpdateDelivery()
+        && visibilityAllowsUpdateDelivery()) {
         emit updateRequested();
     }
 }
@@ -211,6 +225,11 @@ void MpvRenderUpdateBridge::waitForCallbacksToDrain() noexcept
 bool MpvRenderUpdateBridge::visibilityAllowsUpdateDelivery() const noexcept
 {
     return visibilityPolicy_ == nullptr || visibilityPolicy_->snapshot().updatesAllowed;
+}
+
+bool MpvRenderUpdateBridge::shutdownAllowsUpdateDelivery() const noexcept
+{
+    return shutdownCoordinator_ == nullptr || !shutdownCoordinator_->isShutdownRequested();
 }
 
 } // namespace player::playback::infrastructure::mpv::render

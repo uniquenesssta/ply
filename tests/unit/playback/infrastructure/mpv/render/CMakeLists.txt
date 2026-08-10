@@ -54,6 +54,29 @@ add_test(
 )
 
 add_executable(
+    mpv_render_shutdown_coordinator_tests
+    mpv_render_shutdown_coordinator_test.cpp
+)
+
+player_apply_compiler_options(mpv_render_shutdown_coordinator_tests)
+player_enable_compiler_warnings(mpv_render_shutdown_coordinator_tests)
+player_enable_sanitizers(mpv_render_shutdown_coordinator_tests)
+player_enable_static_analysis(mpv_render_shutdown_coordinator_tests)
+
+target_link_libraries(
+    mpv_render_shutdown_coordinator_tests
+    PRIVATE
+        player_mpv_infrastructure
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME mpv_render_shutdown_coordinator
+    COMMAND mpv_render_shutdown_coordinator_tests
+)
+
+add_executable(
     mpv_render_update_bridge_tests
     mpv_render_update_bridge_test.cpp
     render_test_fixture.h

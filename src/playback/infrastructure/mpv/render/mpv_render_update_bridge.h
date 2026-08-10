@@ -14,6 +14,7 @@ class QString;
 namespace player::playback::infrastructure::mpv::render {
 
 class MpvRenderContext;
+class MpvRenderShutdownCoordinator;
 class MpvRenderVisibilityPolicy;
 
 class MpvRenderUpdateBridge final : public QObject
@@ -24,6 +25,10 @@ public:
     explicit MpvRenderUpdateBridge(QObject* parent = nullptr);
     MpvRenderUpdateBridge(
         std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy,
+        QObject* parent);
+    MpvRenderUpdateBridge(
+        std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy,
+        std::shared_ptr<const MpvRenderShutdownCoordinator> shutdownCoordinator,
         QObject* parent);
     ~MpvRenderUpdateBridge() override;
 
@@ -46,6 +51,7 @@ private:
     void deliverUpdateRequest(std::uint64_t activationEpoch);
     void waitForCallbacksToDrain() noexcept;
     [[nodiscard]] bool visibilityAllowsUpdateDelivery() const noexcept;
+    [[nodiscard]] bool shutdownAllowsUpdateDelivery() const noexcept;
 
     mutable std::mutex stateMutex_;
     std::mutex callbackMutex_;
@@ -53,6 +59,7 @@ private:
     std::atomic_size_t callbacksInFlight_{0};
     MpvRenderContext* renderContext_ = nullptr;
     std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy_;
+    std::shared_ptr<const MpvRenderShutdownCoordinator> shutdownCoordinator_;
     std::uint64_t activationEpoch_ = 0;
     bool callbackInstalled_ = false;
     bool active_ = false;
