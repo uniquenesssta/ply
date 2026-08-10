@@ -41,11 +41,13 @@ public:
 private:
     void observeWindow(QQuickWindow* quickWindow);
     void refreshRenderVisibilityPolicy() noexcept;
+    void scheduleRenderAfterVisibilityChange();
 
     mpv_handle* renderCoreHandle_ = nullptr;
     std::shared_ptr<MpvRenderVisibilityPolicy> renderVisibilityPolicy_;
     QMetaObject::Connection windowVisibleConnection_;
     QMetaObject::Connection windowVisibilityConnection_;
+    bool visibilityRenderWakeQueued_ = false;
 };
 
 } // namespace player::playback::infrastructure::mpv::render

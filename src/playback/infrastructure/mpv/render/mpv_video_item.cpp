@@ -17,7 +17,7 @@ MpvVideoItem::MpvVideoItem(QQuickItem* parent)
         this,
         [this] {
             refreshRenderVisibilityPolicy();
-            update();
+            scheduleRenderAfterVisibilityChange();
         });
 
     connect(
@@ -26,7 +26,7 @@ MpvVideoItem::MpvVideoItem(QQuickItem* parent)
         this,
         [this](QQuickWindow* quickWindow) {
             observeWindow(quickWindow);
-            update();
+            scheduleRenderAfterVisibilityChange();
         });
 
     // Establish the initial observer/policy state without scheduling a render
@@ -92,7 +92,7 @@ void MpvVideoItem::observeWindow(QQuickWindow* quickWindow)
             this,
             [this](bool) {
                 refreshRenderVisibilityPolicy();
-                update();
+                scheduleRenderAfterVisibilityChange();
             });
         windowVisibilityConnection_ = connect(
             quickWindow,
@@ -100,7 +100,7 @@ void MpvVideoItem::observeWindow(QQuickWindow* quickWindow)
             this,
             [this](QWindow::Visibility) {
                 refreshRenderVisibilityPolicy();
-                update();
+                scheduleRenderAfterVisibilityChange();
             });
     }
 
@@ -115,6 +115,25 @@ void MpvVideoItem::refreshRenderVisibilityPolicy() noexcept
         state.windowVisible,
         state.windowMinimized,
     });
+}
+
+void MpvVideoItem::scheduleRenderAfterVisibilityChange()
+{
+    if (visibilityRenderWakeQueued_
+        || !renderVisibilityPolicy_->snapshot().updatesAllowed) {
+        return;
+    }
+
+    visibilityRenderWakeQueued_ = true;
+    QMetaObject::invokeMethod(
+        this,
+        [this] {
+            visibilityRenderWakeQueued_ = false;
+            if (renderVisibilityPolicy_->snapshot().updatesAllowed) {
+                update();
+            }
+        },
+        Qt::QueuedConnection);
 }
 
 } // namespace player::playback::infrastructure::mpv::render
