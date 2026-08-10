@@ -17,7 +17,7 @@
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
-- **D5：In Progress — D5-01 ～ D5-04 Complete。**
+- **D5：In Progress — D5-01 ～ D5-05 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -35,8 +35,9 @@
 - D5-01：Feedback Priority Matrix，Page `219:2` / Contract `220:2` / Verification `221:2`。
 - D5-02：Empty / Loading，Source `223:2` / Verification `223:3` / Player Status Overlay `225:30`。
 - D5-03：Playing / Paused，Contract `234:66` / Verification `234:67` / Prototype Navigation `237:66`。
-- **D5-04：Buffering / Seeking，Source `241:66` / Verification `241:67` / Buffering Status `242:88` / Seek Preview `243:66`。**
-- **下一任务：D5-05 Ended。**
+- D5-04：Buffering / Seeking，Source `241:66` / Verification `241:67` / Buffering Status `242:88` / Seek Preview `243:66`。
+- **D5-05：Ended，Source `254:119` / Verification `254:120` / Ended Action `255:159` / Ended Status `256:144`。**
+- **下一任务：D5-06 Error Overlay。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -725,16 +726,91 @@ D5-01～D5-03 的既有 Section 坐标和尺寸全部保持不变；D5-02 的 Em
 
 **D5-04：Complete。**
 
-## Next
+### D5-05 Ended · Complete
 
-**D5-05 — Ended**
-
-下一步继续使用同一个 `Player Status Overlay` authority，设计 EOF 后的最小恢复/下一步入口：
+Figma：
 
 ```text
-EOF with no next item   → Overlay · Ended → Replay
-EOF with next item      → minimal Next action / handoff
-Repeat / auto handoff   → no transient Ended flash
+Source / Contract          254:119  D5-05 / Ended
+Verification               254:120  D5-05 / Verification
+Ended Action               255:159  Feedback / Ended Action
+Ended Status               256:144  Feedback / Ended Status
+Player Status Overlay      225:30   existing authority, extended with State=Ended
+Ended Overlay Variant      257:131  State=Ended
 ```
 
-保持视频最后一帧或现有背景，动作数量保持克制，并验证单项、有下一项与 repeat 三种路径；Ended 不得伪装成 Error。
+继续消费 D5-01 已冻结 EOF 路由：
+
+```text
+EOF / no automatic handoff + no next  → Overlay · Ended → Replay
+EOF / manual Next available           → Overlay · Ended → Replay + Next
+Repeat active                         → Player State · no transient Ended
+Auto-next active                      → Player State · no transient Ended
+```
+
+Ended Action：
+
+- `Feedback / Ended Action` 定义 `Action=Replay/Next × State=Default/Hover/Focus/Pressed`，共 8 个 Variant；每个为 `118×42`。
+- Focus stroke=`1.5px`，继续复用既有 Glass Control / Focus / Selection Token；不使用高饱和主按钮。
+- Replay / Next 只发出 playback intent，不拥有 Playlist 顺序、repeat mode、自动 handoff 或 playback state 真值。
+- `Feedback / Open Media Action` 继续保持 Empty-only 语义，没有被误复用为 EOF 动作。
+
+Ended Status：
+
+- `Feedback / Ended Status` 只有 `Next=No / Yes` 两态，均为 `336×150` Compact Contrast Glass Pod。
+- `Next=No` 只显示 Replay；`Next=Yes` 只增加一个手动 Next，不增加第三个动作、菜单或 Dialog。
+- 文案为 `播放结束 / 已到达媒体末尾`，使用 neutral contrast glass + cyan information marker；不进入 Error / Warning 色彩路由。
+
+Player Status Overlay：
+
+- 唯一 `Player Status Overlay` 现为 `Empty / Loading / Buffering / Ended` 四态。
+- Component Set 保持 `1044×832`；原 Empty / Loading / Buffering 的 `512×406` 尺寸和位置保持不变，Ended 填入第二行右侧 `x532 / y426`。
+- 扩展后仍完整落在 D5-02 Source Section：`right=1464 / bottom=1192`，均在 `1480×1500` 内。
+- Ended 只叠加在现有媒体最后一帧/背景上，不替换 Video Viewport 或 Player Window 几何。
+
+真实验证：
+
+```text
+Ended Single Item       258:141  960×700  Overlay 1  Replay          final frame preserved
+Ended Next Available    258:175  960×700  Overlay 1  Replay + Next   final frame preserved
+Auto Handoff / Repeat   258:223  960×700  Overlay 0                  no Ended flash
+Narrow Ended            258:233  720×700  Overlay 668×436 @ 26,102   Replay
+```
+
+验证中的 Ended 场景保持 OSC hidden，用于确认最小 EOF surface；D5-05 不创建新的 OSC persistent lifecycle。实际交互仍可通过 D3 既有 visibility rules 唤醒 OSC，D3 继续是唯一 OSC 生命周期 owner。
+
+最终审计：
+
+```text
+Feedback / Ended Action authorities        1
+Feedback / Ended Status authorities        1
+Player Status Overlay authorities          1
+Player Status Overlay states               Empty / Loading / Buffering / Ended
+D5-05 Reactions                             0
+D5-05 AFTER_TIMEOUT owners                  0
+New D5-05 Variables                         0
+Generic unnamed residues                    0
+Visible unbound source/product paints       0
+D5-02 source section fit                    PASS
+D5-01～D5-04 protected sections            PASS
+```
+
+所有 8 个 EOF Action Variant 均保持 `118×42`，两种 Focus Variant 均为 `1.5px` Focus stroke；Single/Next/Auto/Narrow 四条路径已完成结构和视觉验证。
+
+本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D5-05：Complete。**
+
+## Next
+
+**D5-06 — Error Overlay**
+
+下一步继续扩展同一个 `Player Status Overlay` authority，设计 current-media network / decode / render failure：
+
+```text
+retryable current-media failure  → Error Overlay · Retry
+unknown/fatal media failure      → Error Overlay · Failure
+recovery decision required       → Dialog becomes primary; Error Overlay remains context only
+```
+
+错误层级通过 icon/title/detail/action 表达，不使用整圈红框；同一错误不得同时 Overlay + Toast + Dialog 重复轰炸，并验证可恢复 / 不可恢复 / 未知错误。
