@@ -3,6 +3,8 @@ target_sources(
     PRIVATE
         mpv_render_context.cpp
         mpv_render_context.h
+        mpv_render_parameters.cpp
+        mpv_render_parameters.h
         mpv_render_update_bridge.cpp
         mpv_render_update_bridge.h
         mpv_video_item.cpp

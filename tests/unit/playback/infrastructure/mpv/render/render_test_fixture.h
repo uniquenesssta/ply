@@ -2,24 +2,18 @@
 
 #include "playback/infrastructure/mpv/client/mpv_handle.h"
 #include "playback/infrastructure/mpv/initialization/mpv_initializer.h"
-#include "playback/infrastructure/mpv/initialization/mpv_option_profile.h"
 
-#include <QByteArray>
-#include <QList>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
 #include <QString>
 #include <QSurfaceFormat>
 
 #include <memory>
-#include <utility>
 
 namespace player::test::render {
 
 using player::playback::mpv::MpvHandle;
 using player::playback::mpv::MpvInitializer;
-using player::playback::mpv::MpvOption;
-using player::playback::mpv::MpvOptionProfile;
 
 class OffscreenOpenGlContext final
 {
@@ -100,24 +94,7 @@ inline std::unique_ptr<MpvHandle> createInitializedCore(QString* errorMessage)
 
 inline std::unique_ptr<MpvHandle> createInitializedVideoCore(QString* errorMessage)
 {
-    std::unique_ptr<MpvHandle> handle = MpvHandle::create(errorMessage);
-    if (!handle) {
-        return {};
-    }
-
-    MpvOptionProfile defaults = MpvOptionProfile::productDefaults();
-    QList<MpvOption> options = defaults.options();
-    options.append(MpvOption{
-        QByteArrayLiteral("vo"),
-        QByteArrayLiteral("libmpv"),
-    });
-
-    MpvOptionProfile profile(std::move(options));
-    if (!MpvInitializer::initialize(*handle, profile, errorMessage)) {
-        return {};
-    }
-
-    return handle;
+    return createInitializedCore(errorMessage);
 }
 
 } // namespace player::test::render

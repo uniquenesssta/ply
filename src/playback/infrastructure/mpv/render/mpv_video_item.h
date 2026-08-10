@@ -3,6 +3,8 @@
 #include <QQuickFramebufferObject>
 #include <QSizeF>
 
+struct mpv_handle;
+
 namespace player::playback::infrastructure::mpv::render {
 
 struct MpvVideoPresentationState final
@@ -23,6 +25,12 @@ public:
 
     [[nodiscard]] Renderer* createRenderer() const override;
     [[nodiscard]] MpvVideoPresentationState presentationState() const noexcept;
+
+    void setRenderCoreHandle(mpv_handle* coreHandle) noexcept;
+    [[nodiscard]] mpv_handle* renderCoreHandle() const noexcept;
+
+private:
+    mpv_handle* renderCoreHandle_ = nullptr;
 };
 
 } // namespace player::playback::infrastructure::mpv::render

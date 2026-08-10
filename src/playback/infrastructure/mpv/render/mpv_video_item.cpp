@@ -30,4 +30,19 @@ MpvVideoPresentationState MpvVideoItem::presentationState() const noexcept
     };
 }
 
+void MpvVideoItem::setRenderCoreHandle(mpv_handle* coreHandle) noexcept
+{
+    if (renderCoreHandle_ == coreHandle) {
+        return;
+    }
+
+    renderCoreHandle_ = coreHandle;
+    update();
+}
+
+mpv_handle* MpvVideoItem::renderCoreHandle() const noexcept
+{
+    return renderCoreHandle_;
+}
+
 } // namespace player::playback::infrastructure::mpv::render

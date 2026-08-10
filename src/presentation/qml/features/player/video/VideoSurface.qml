@@ -5,22 +5,14 @@ Item {
 
     clip: true
 
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.videoBackground
+    }
+
     MpvVideoItem {
         id: videoItem
         objectName: "mpvVideoItem"
         anchors.fill: parent
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        z: 1
-        color: Theme.videoBackground
-
-        Text {
-            anchors.centerIn: parent
-            text: qsTr("Video surface ready")
-            color: Theme.secondaryText
-            font.pixelSize: 15
-        }
     }
 }

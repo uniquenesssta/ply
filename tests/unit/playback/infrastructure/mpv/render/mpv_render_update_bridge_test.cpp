@@ -1,14 +1,13 @@
 #include "playback/infrastructure/mpv/render/mpv_render_context.h"
 #include "playback/infrastructure/mpv/render/mpv_render_update_bridge.h"
 #include "render_test_fixture.h"
+#include "render_video_fixture.h"
 
-#include <mpv/client.h>
 #include <mpv/render.h>
 #include <mpv/render_gl.h>
 
 #include <QCoreApplication>
 #include <QEventLoop>
-#include <QFile>
 #include <QGuiApplication>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -17,94 +16,19 @@
 
 #include <cstdint>
 #include <memory>
-#include <thread>
 
 namespace {
 
 using player::playback::infrastructure::mpv::render::MpvRenderContext;
 using player::playback::infrastructure::mpv::render::MpvRenderUpdateBridge;
 using player::playback::mpv::MpvHandle;
+using player::test::render::GeneratedY4mPattern;
 using player::test::render::OffscreenOpenGlContext;
 using player::test::render::createInitializedCore;
 using player::test::render::createInitializedVideoCore;
-
-bool writeGeneratedY4mVideo(const QString& path, int frameCount, QString* errorMessage)
-{
-    if (errorMessage != nullptr) {
-        errorMessage->clear();
-    }
-
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        if (errorMessage != nullptr) {
-            *errorMessage = file.errorString();
-        }
-        return false;
-    }
-
-    const QByteArray header = QByteArrayLiteral("YUV4MPEG2 W16 H16 F30:1 Ip A1:1 C420jpeg\n");
-    if (file.write(header) != header.size()) {
-        if (errorMessage != nullptr) {
-            *errorMessage = QStringLiteral("Unable to write the generated Y4M header.");
-        }
-        return false;
-    }
-
-    QByteArray yPlane(16 * 16, '\0');
-    const QByteArray uPlane(8 * 8, static_cast<char>(128));
-    const QByteArray vPlane(8 * 8, static_cast<char>(128));
-    const QByteArray frameHeader = QByteArrayLiteral("FRAME\n");
-
-    for (int frame = 0; frame < frameCount; ++frame) {
-        yPlane.fill(static_cast<char>(16 + ((frame * 7) % 200)));
-
-        if (file.write(frameHeader) != frameHeader.size()
-            || file.write(yPlane) != yPlane.size()
-            || file.write(uPlane) != uPlane.size()
-            || file.write(vPlane) != vPlane.size()) {
-            if (errorMessage != nullptr) {
-                *errorMessage = QStringLiteral("Unable to write generated Y4M frame %1.").arg(frame);
-            }
-            return false;
-        }
-    }
-
-    return true;
-}
-
-int runLoadFileOnCoreThread(mpv_handle* handle, const QString& path)
-{
-    int result = MPV_ERROR_GENERIC;
-    const QByteArray source = path.toUtf8();
-
-    std::thread commandThread([handle, source, &result] {
-        const char* command[] = {
-            "loadfile",
-            source.constData(),
-            nullptr,
-        };
-        result = mpv_command(handle, command);
-    });
-    commandThread.join();
-
-    return result;
-}
-
-int runStopOnCoreThread(mpv_handle* handle)
-{
-    int result = MPV_ERROR_GENERIC;
-
-    std::thread commandThread([handle, &result] {
-        const char* command[] = {
-            "stop",
-            nullptr,
-        };
-        result = mpv_command(handle, command);
-    });
-    commandThread.join();
-
-    return result;
-}
+using player::test::render::loadFileOnWorkerThread;
+using player::test::render::stopPlaybackOnWorkerThread;
+using player::test::render::writeGeneratedY4mVideo;
 
 class MpvRenderUpdateBridgeTest final : public QObject {
     Q_OBJECT
@@ -223,7 +147,11 @@ void MpvRenderUpdateBridgeTest::generatedVideoProducesRepeatedUpdateRequests()
     const QString videoPath = temporaryDir.filePath(QStringLiteral("render-update-bridge.y4m"));
     QString mediaError;
     QVERIFY2(
-        writeGeneratedY4mVideo(videoPath, 60, &mediaError),
+        writeGeneratedY4mVideo(
+            videoPath,
+            60,
+            GeneratedY4mPattern::AnimatedGray,
+            &mediaError),
         mediaError.toLocal8Bit().constData());
 
     OffscreenOpenGlContext fixture;
@@ -276,14 +204,14 @@ void MpvRenderUpdateBridgeTest::generatedVideoProducesRepeatedUpdateRequests()
         });
 
     QVERIFY2(bridge.activate(*renderContext, &errorMessage), errorMessage.toLocal8Bit().constData());
-    QCOMPARE(runLoadFileOnCoreThread(core->nativeHandle(), videoPath), 0);
+    QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
 
     QTRY_VERIFY_WITH_TIMEOUT(frameUpdateCount >= 3 || !updateError.isEmpty(), 5000);
     QVERIFY2(updateError.isEmpty(), updateError.toLocal8Bit().constData());
     QVERIFY(updateRequestCount >= 3);
     QVERIFY(frameUpdateCount >= 3);
 
-    QCOMPARE(runStopOnCoreThread(core->nativeHandle()), 0);
+    QCOMPARE(stopPlaybackOnWorkerThread(core->nativeHandle()), 0);
     QVERIFY2(bridge.deactivate(&errorMessage), errorMessage.toLocal8Bit().constData());
     QVERIFY2(renderContext->close(&errorMessage), errorMessage.toLocal8Bit().constData());
 }

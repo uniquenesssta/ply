@@ -9,6 +9,7 @@ QList<MpvOption> environmentIsolationOptions()
 {
     return {
         {QByteArrayLiteral("config"), QByteArrayLiteral("no")},
+        {QByteArrayLiteral("vo"), QByteArrayLiteral("libmpv")},
     };
 }
 
