@@ -1607,6 +1607,12 @@ Qt 侧在 Render Thread 的 `QQuickWindow::afterRendering` 采样实际帧间隔
 
 报告 schema 固定为 `player-r4-render-baseline-v1`，可同时输出 stdout 与 `--output` JSON 文件。新增 `render_probe_help` CTest 只验证 probe runtime/CLI 可启动，不把性能数值变成易波动的 CTest 门禁；现有 40 项测试未删除、跳过或放宽，重新 configure 后预计完整 CTest 数量为 41。
 
-Windows Debug configure/build、完整 41 项回归，以及 Release 构建下真实 1080p/4K 媒体的 windowed/fullscreen 两组基线尚未执行，因此 R4-09 和 Stage R4 当前都不标记 Complete。最终验收必须保留实际媒体分辨率、build type、GPU/OpenGL、窗口/全屏尺寸和 probe JSON 数据，供 R12 同条件回归比较。
+Windows Release probe 已在用户机器真实运行并发现首次窗口渲染唤醒缺陷：一份实际 1920×1080@30 样本的 windowed 10 秒阶段 `afterRendering=0`，同时 `frame-drop-count` 增加 297；切换 fullscreen 后立即恢复约 300 次 `afterRendering` / 10 秒且新增 frame drop 为 0。另一份实际 3840×2160@30 样本在正常运行时 windowed 300 次、fullscreen 299 次 `afterRendering`，两个阶段 frame/decoder/delayed drop 增量均为 0，说明当前缺陷属于首次 Scene Graph wake 时序而非 4K 稳态吞吐不足。
 
-**Stage R4：In Progress。R4-01~R4-08：Complete。R4-09：Windows validation + 1080p/4K baseline pending。R4-10：不存在；R4-09 完成后按任务书关闭 Stage R4。**
+针对该缺陷，Render update 链已改为 `libmpv redraw callback -> signal-only epoch request -> GUI-thread MpvVideoItem queued update() -> Qt Quick Scene Graph -> Render Thread`。`MpvRenderUpdateBridge` 不再把 redraw request 先排回 Render Thread 自己的 QObject event queue；activation epoch、visibility gate、shutdown gate 与 callback drain 继续保留。新增 `MpvRenderUpdateDeliveryGate` 使 deactivate/reactivate 之间的旧 queued GUI request fail-closed；Renderer 继续独占 `mpv_render_context` 与 OpenGL 操作。
+
+`mpv_video_renderer` 新增回归场景：媒体 load 后禁止额外 `window.update()`、resize、grab、visibility/fullscreen transition，必须仅靠 libmpv redraw 持续产生 Qt `afterRendering`。`render_probe` readiness 同时加强为 video params + live RenderContext 建立后还必须观察至少 3 个新的真实 Qt render frame，黑屏/stalled 状态不得进入性能计时。
+
+上述修复已提交，但当前连接环境未执行 Windows Qt/MSVC build/CTest，也尚未重新生成修复后的 1080p/4K Release JSON，因此 R4-09 和 Stage R4 都不标记 Complete。Windows 门禁仍要求完整 41/41 回归，并重新确认首次运行无需 resize/fullscreen 即可正常出画面。
+
+**Stage R4：In Progress。R4-01~R4-08：Complete。R4-09：first-frame wake fix implemented / Windows 41-test + 1080p/4K rerun pending。R4-10：不存在；R4-09 完成后按任务书关闭 Stage R4。**
