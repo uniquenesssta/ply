@@ -17,7 +17,7 @@
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
-- **D5：In Progress — D5-01 ～ D5-06 Complete。**
+- **D5：Complete — D5-01 ～ D5-07 全部关闭。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -37,8 +37,9 @@
 - D5-03：Playing / Paused，Contract `234:66` / Verification `234:67` / Prototype Navigation `237:66`。
 - D5-04：Buffering / Seeking，Source `241:66` / Verification `241:67` / Buffering Status `242:88` / Seek Preview `243:66`。
 - D5-05：Ended，Source `254:119` / Verification `254:120` / Ended Action `255:159` / Ended Status `256:144`。
-- **D5-06：Error Overlay，Source `262:186` / Verification `262:187` / Error Action `264:225` / Error Status `265:246`。**
-- **下一任务：D5-07 HUD / Toast / Dialog。**
+- D5-06：Error Overlay，Source `262:186` / Verification `262:187` / Error Action `264:225` / Error Status `265:246`。
+- **D5-07：HUD / Toast / Dialog，Source `271:301` / Verification `271:302` / Prototype Navigation `278:528` / HUD `272:339` / Toast `273:318` / Dialog Action `274:317` / Dialog `274:342`。**
+- **下一任务：D6-01 Preferences Window Shell。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -347,7 +348,7 @@ D4-07 generic unnamed residues = 0
 
 **Stage D4：Complete。**
 
-## Stage D5 — Playback States & Feedback · In Progress
+## Stage D5 — Playback States & Feedback · Complete
 
 ### D5-01 Feedback Priority Matrix · Complete
 
@@ -798,7 +799,7 @@ D5-01～D5-04 protected sections            PASS
 
 所有 8 个 EOF Action Variant 均保持 `118×42`，两种 Focus Variant 均为 `1.5px` Focus stroke；Single/Next/Auto/Narrow 四条路径已完成结构和视觉验证。
 
-本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+本任务只修改 Figma 设计与根 README；没有源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
 
 **D5-05：Complete。**
 
@@ -902,17 +903,127 @@ D5-01、D5-02 Verification、D5-03、D5-04、D5-05 的既有 Section 坐标和�
 
 **D5-06：Complete。**
 
-## Next
+### D5-07 HUD / Toast / Dialog · Complete
 
-**D5-07 — HUD / Toast / Dialog**
-
-下一步正式建立三类反馈组件与消息密度/生命周期：
+Figma：
 
 ```text
-Volume / Seek / Speed / Track → HUD · merge in place
-Non-blocking action result    → Toast · dedupe / bounded queue
-Decision required             → Dialog · primary owner
-Error → recovery decision     → Dialog primary, Error Overlay context only
+Source / Contract          271:301  D5-07 / HUD Toast Dialog
+Verification               271:302  D5-07 / Verification
+Prototype Navigation       278:528  D5-07 / Prototype Navigation
+HUD                        272:339  Feedback / HUD
+Toast                      273:318  Feedback / Toast
+Dialog Action              274:317  Feedback / Dialog Action
+Dialog                     274:342  Feedback / Dialog
 ```
 
-重点验证连续 Volume、连续 Seek、Toast 去重、Resume/Error decision、Dialog 对比与 Escape/按钮 ownership；D5-07 完成后 Stage D5 才能关闭。
+正式反馈 authority：
+
+- `Feedback / HUD`：`Kind=Volume/Seek/Speed/Track` 共 4 个 Variant，每个 `272×72`。同类事件原位更新 value/content 并重置 hide deadline；不同 Kind 直接替换当前 HUD；不建立可见历史或垂直队列。
+- Volume / Seek 使用 3px value/progress；Speed / Track 保持信息型，不强塞无意义进度。
+- `Feedback / Toast`：`Tone=Success/Failure` 两态，每个 `320×64`。Toast 只有一个 slot，新结果 replace/merge，不建立右上角垂直通知列表；current-media Error 不进入 Toast。
+- `Feedback / Dialog Action`：`Role=Primary/Secondary × State=Default/Hover/Focus/Pressed` 共 8 个 Variant，每个 `116×42`，Focus stroke=`1.5px`。
+- `Feedback / Dialog`：`Kind=Resume/ErrorRecovery` 两态，每个 `420×226`；Dialog 无自动 timeout，ESC 走 secondary/cancel path，动作只发 intent。
+
+Motion / z-order 继续完全复用 D1 既有基础：
+
+```text
+HUD    show 160ms Ease Out / hide 120ms Ease In / z70
+Toast  show 200ms Ease Out / hide 160ms Ease In / z80
+Dialog open 240ms Ease Out / close 180ms Ease In
+Scrim  18% / z90
+Dialog z100
+Reduce Motion = 0ms transitions
+```
+
+D5-07 没有新增 z-order、motion、color、radius 或 dwell timeout Variable。当前 Foundation 没有 HUD/Toast dwell token，因此 Prototype 只使用 QA 样例：HUD=`1200ms after last event`、Toast=`2800ms`；这两个数值不是 Foundation token，后续如需正式 token 化统一在 D8 收口。
+
+真实验证：
+
+```text
+HUD Volume           276:306  960×700  one HUD slot
+HUD Seek             276:365  960×700  one HUD slot
+HUD Speed            276:433  960×700  one HUD slot
+HUD Track            276:500  960×700  one HUD slot
+Toast Success        276:566  960×700  screenshot success
+Toast Failure        276:622  960×700  settings save failure
+Dialog Resume        276:686  960×700  scrim 1 / dialog 1
+Dialog ErrorRecovery 276:745  960×700  error context + scrim + dialog primary
+Narrow HUD           276:814  720×700  HUD 272px fits
+Narrow Toast         276:873  720×700  Toast 320px fits
+Narrow Dialog        276:929  720×700  Dialog 420px fits
+```
+
+ErrorRecovery ownership：
+
+- Dialog 打开后成为 primary decision owner；底层 Error Overlay 只保留上下文，经过 18% scrim 降级且底层恢复动作不可交互。
+- Dialog 不复读 Error Overlay 的同一失败文案/动作；只询问真正需要决策的下一步。
+- 同一 current-media failure 不再产生 duplicate failure Toast。
+
+Prototype：
+
+```text
+Idle                 278:529
+HUD Volume 40        278:570
+HUD Volume 50        278:611
+HUD Volume 60        278:652
+Toast Success        278:693
+Dialog Resume        278:724
+Dialog ErrorRecovery 278:756
+Error Context        279:517
+```
+
+- Idle 的 ArrowUp 进入 Volume 40；连续 ArrowUp 推进 `40 → 50 → 60`，用于验证同一 HUD slot 原位更新和 deadline 重置。
+- HUD 40/50/60 的 QA sample dwell=`1.2s`，随后按既有 Hide `120ms Ease In` 回到 Idle。
+- Toast QA sample dwell=`2.8s`，Hide=`160ms Ease In`。
+- Resume / ErrorRecovery Dialog 的 `AFTER_TIMEOUT=0`；ESC 与 Secondary 使用 close `180ms Ease In`。ErrorRecovery ESC/Secondary 返回 Error Context，Primary 完成决策。
+- Prototype destination 均为 Page-level Frame，满足 Figma `NAVIGATE` 顶层 destination 约束；`D5-07 / Prototype Navigation` 只承担视觉组织。
+
+最终审计：
+
+```text
+Feedback / HUD authorities                  1
+Feedback / Toast authorities                1
+Feedback / Dialog Action authorities        1
+Feedback / Dialog authorities               1
+HUD variants                                4
+Toast variants                              2
+Dialog Action variants                      8
+Dialog variants                             2
+Dialog AFTER_TIMEOUT owners                 0
+New D5-07 Variables                         0
+Generic unnamed residues                    0
+Visible unbound source/product paints       0
+720 Narrow HUD / Toast / Dialog fit         PASS
+D5-01～D5-06 protected sections             PASS
+Player Status Overlay states                Empty / Loading / Buffering / Ended / Error
+```
+
+实施收口：
+
+- Prototype 首轮因 Instance 文本 override 前未加载 `Noto Sans SC Medium` 被 Figma 原子拒绝；没有遗留半成品，补齐字体后重新创建并通过。
+- 清理 18 个 SVG 默认 `Vector` 子节点，按 HUD/Toast/Dialog 语义改名，并绑定现有 `border/glass / surface/glass / feedback/info / feedback/warning / accent/strong / feedback/error`。
+- 4 个不可见 Dialog Prototype 命中层绑定 `surface/glass`，node opacity=`0.001`，既保持不可见又不遗留硬编码 Paint。
+
+本任务只修改 Figma 设计与根 README；没有播放器源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D5-07：Complete。**
+
+## Stage D5 Closing Result
+
+任务书要求的 Empty / Loading / Playing / Paused / Buffering / Seeking / Ended / Error，以及 Seek Preview / HUD / Toast / Dialog 已全部形成单一职责 authority。Feedback Priority、current-media Overlay ownership、Seek 真值、OSC persistent、单槽 HUD/Toast、Dialog 决策 ownership 与复杂背景可读性均已完成验证；没有新增第五种反馈层，也没有把暂停、错误或恢复设计成第二套播放器页面。
+
+**Stage D5：Complete。**
+
+## Next
+
+**D6-01 — Preferences Window Shell**
+
+下一步按 `docs/plans/stages/D6_Preferences与快捷键窗口.md` 建立独立 Preferences Window Shell：
+
+```text
+window
+  → source list + content
+```
+
+先冻结设置窗口材质、标题、标准尺寸与最小宽高，并完成 Standard / Narrow / High-DPI 视觉验证。Preferences 应比主播放器更平静、更阅读型，继续使用浅雾 Airy Glass 与柔和边界，但必须一眼看出它是独立设置窗口而不是 Player Overlay。
