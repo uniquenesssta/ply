@@ -17,6 +17,7 @@ int main(int argc, char* argv[])
 
     QGuiApplication application(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("render_probe"));
+    application.setQuitOnLastWindowClosed(false);
 
     QString parseError;
     const auto options = RenderProbeOptionsParser::parse(
