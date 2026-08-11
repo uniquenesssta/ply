@@ -19,6 +19,7 @@
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
+- **D7：In Progress — D7-01 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -46,7 +47,8 @@
 - **D6-04：通用设置控件，Source `328:2160` / Verification `328:2161` / Toggle `329:2190` / Select `330:2187` / Slider `331:2190` / Segmented `332:2265` / Text Field `333:2194`。**
 - **D6-05：真实设置内容，Source `343:2625` / Verification `343:2626` / Content Header `344:2627` / Settings Action `345:2641` / Raw Mpv Warning `346:2625` / Playback `347:2626` / Video `348:2659` / Audio `349:2683` / Subtitles `350:2695` / Interface `351:2717` / Diagnostics Export `352:2741` / Advanced `353:2742` / Real Content Windows `354:2759` / Prototype Navigation `358:3747` / Contract `360:4225`。**
 - **D6-06：Shortcuts，Source `363:4225` / Verification `363:4226` / Prototype Navigation `363:4227` / Shortcut Search `365:4245` / Keycap `366:4232` / Shortcut Binding `367:4277` / Shortcut Conflict `368:4239` / Shortcut Action Row `369:4292` / Shortcuts Content `370:4471` / Real Shortcuts Windows `371:4419` / Contract `375:5777`。**
-- **下一任务：D7-01 Fullscreen 构图。**
+- **D7-01：Fullscreen 构图，Page `382:5777` / Source `382:5778` / Verification `382:5779` / Minimal Header `386:16` / Compact OSC Composition `386:21` / Layout Contract `386:71`。**
+- **下一任务：D7-02 Fullscreen 显隐交互。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -2022,17 +2024,141 @@ Preferences Shell、Source List、Settings Section/Row、通用设置控件、�
 
 **Stage D6：Complete。**
 
-## Next
+## Stage D7 — Window Modes & Responsive · In Progress
 
-**D7-01 — Fullscreen 构图**
+### D7-01 Fullscreen 构图 · Complete
 
-下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 推进 Fullscreen 沉浸构图：
+Figma：
 
 ```text
-mode=fullscreen
-  → minimal header
-  → compact / lighter OSC
-  → video absolute priority
+Page                       382:5777  07 Window Modes
+Source / Contract          382:5778  D7-01 / Fullscreen Composition
+Verification               382:5779  D7-01 / Verification
+Minimal Header             386:16    Fullscreen / Minimal Header
+Minimal Header Reference   386:19    D2 Ref / Minimal Header
+Compact OSC Composition    386:21    Fullscreen / Compact OSC Composition
+Compact OSC Reference      386:24    D3 Ref / Compact OSC Composition
+Layout Contract            386:71    Fullscreen / Layout Contract · 1600×900
+Acceptance Gate            386:133   D7-01 / Acceptance Gate
+Verification Assertions    387:208   D7-01 / Verification Assertions
 ```
 
-首轮验证固定覆盖 `16:9 / 21:9` 与亮/暗画面，并确保不会回归铺满底部的大控制栏。
+D7-01 只冻结 Fullscreen 的 Host composition 与 information density，不创建第二套播放状态、Timeline、Transport、Volume、Utility 或 OSC lifecycle。当前 `agent/r4-stage` 的 Qt/QML 仍是 `PlayerScreen → VideoSurface + PlayerChrome` 的早期骨架，Fullscreen 尚未形成独立 runtime owner；因此本记录只描述已完成的 Figma 设计契约，不将其描述为运行时已实现功能。
+
+Fullscreen composition ownership：
+
+```text
+Fullscreen Host
+  → Video Viewport absolute priority
+  → Minimal Header · top-center
+  → Compact Floating OSC · bottom-center
+```
+
+- Fullscreen 不保留桌面 Window Chrome；四个真实 host 中 `Window Actions count=0`。
+- 顶部只保留 title-only Minimal Header，不放 minimize / maximize / close，也不另造 top-right Exit Fullscreen。
+- Exit Fullscreen 继续属于 D3 Utility action；D7 reference 中每个 OSC 都只有一个 `Utility / exitfullscreen / rest`，旧 `Utility / fullscreen` residue=`0`。
+- Fullscreen 只改变 placement / density；播放状态、Seek 真值、Volume、Utility 入口与反馈层级继续消费 D2/D3/D5 既有 contract。
+
+Minimal Header：
+
+- Fullscreen 使用 D2 Compact Header 几何与材质：`360×50 / R25 / V3 Glass Header Compact`。
+- 只保留媒体标题；不展示 desktop metadata/action pod。
+- Source reference=`386:19`；1600×900 Layout 中为 `x620 / y26`，保持水平居中。
+
+Compact Floating OSC：
+
+- D7 source reference=`386:24`，固定 `880×106 / R32`。
+- 材质继续复用 `V3 / Glass / OSC Compact`；最终 QA 恢复并确认 `Fill=32% / Border=48%`。
+- 内部只组合 D3 已冻结的引用：Timeline Lane、Playing Transport、Compact Volume Trigger、`Subtitles + More + Exit Fullscreen` Utility。
+- Timeline 仍遵守 D3-02 的 `3px visual track / 16px hit target / 10px resting thumb`；Transport/Volume/Utility hit target 不因 Fullscreen 变小。
+- 1600×900 Layout 中 OSC=`x360 / y764 / 880×106`，底部 inset=`30`。
+- 21:9 host 只改变可用屏幕范围，OSC 仍保持 `880×106`，不会横向拉成全屏宽底栏。
+
+D3-07 lifecycle reuse：
+
+- D7-01 不创建正式 Reaction、Prototype Navigation、hide deadline、lock reason 或 timer。
+- `Hidden / Rest / Active / LockedVisible` 继续由 D3-07 唯一 resolver 解释；Fullscreen 仍使用同一个 `2200ms` hide-delay policy。
+- D3-07 Fullscreen smoke `143:95` 保持原位置与结构；D7-01 不把已有 same-policy smoke 复制成第二套生命周期。
+- 鼠标移动、键盘、Paused、Popup、Error 下 Header/OSC 的具体显隐 Prototype 留给 D7-02。
+
+真实 Fullscreen 验证：
+
+```text
+16:9 Dark    387:6    1600×900   Header 360×50 centered   OSC 880×106 centered   bottom 30
+16:9 Bright  387:56   1600×900   Header 360×50 centered   OSC 880×106 centered   bottom 30
+21:9 Dark    387:108  1680×720   Header 360×50 centered   OSC 880×106 centered   bottom 30
+21:9 Bright  387:158  1680×720   Header 360×50 centered   OSC 880×106 centered   bottom 30
+```
+
+Bright / Dark contrast：
+
+- Dark 两个 host 不增加额外 contrast-support。
+- Bright 两个 host 各只有 Top / Bottom 两个局部 `overlay/contrast-support` zone，均保持 semantic-bound，最终 alpha=`16%`。
+- contrast-support 只保护顶部标题和底部控制区可读性，不给整屏视频盖统一灰蒙层。
+- 视觉 QA 已确认亮/暗画面下 Header 与 OSC 均可读，同时视频仍是第一视觉层级。
+
+实施中发现并修复：
+
+- 第一次 Source 写入因正式 Timecode Style 使用 `Geist Mono Medium` 且未预加载字体被 Figma 原子拒绝；没有遗留半成品。随后改为从本地 Text Style 自动收集并加载实际 fontName 后重试。
+- 第二次 Source 写入仅在返回 created-ID 审计时对 TEXT 错误调用 `findAll`，再次被 Figma 原子回滚；改为从 Source Section 统一收集 descendants 后成功提交。
+- Semantic Paint binding 将新 D7 OSC 与 Bright contrast-support Paint alpha 归一到 100%；视觉 QA 捕获后显式恢复 OSC `32%/48%` 与 contrast-support `16%`，同时保留 semantic color binding。
+- 从 D3 复制的图标 SVG 带入 90 个默认 `Vector` 子路径；仅在 D7 新副本中按 Previous/Pause/Next/Volume/Subtitles/More/Exit Fullscreen 职责重命名，D3 source 不改。最终 generic residue=`0`。
+
+Foundation / style：
+
+- 新增 D7-01 Color / Geometry / Text / Effect / Motion Variable/Style=`0`。
+- 继续消费既有 Compact Header/OSC geometry、Airy Glass material、semantic colors 与 D3 control geometry。
+- D7-01 Page 正式 Component / Component Set=`0`；本阶段冻结 composition，不提前抢 D8 的 published component/library 收口职责。
+
+最终审计：
+
+```text
+Fullscreen / Minimal Header source count       1
+Fullscreen / Compact OSC Composition count     1
+Fullscreen / Layout Contract screen count      1
+
+Visible unbound D7 product paints              0
+Generic unnamed residues                       0
+New D7-01 Variable / Text / Effect / Motion    0
+D7-01 formal Components                        0
+D7-01 Reactions                                0
+D7-01 AFTER_TIMEOUT owners                     0
+Section outline residue                        0
+
+Compact OSC copies                             6
+Each OSC geometry                              880×106
+Each OSC fill / border                         32% / 48%
+Each OSC exitfullscreen                        1
+Old fullscreen action residue                  0
+
+16:9 / 21:9 × Dark / Bright                    PASS
+Header centered                                PASS
+OSC centered / bottom 30                       PASS
+Desktop Window Actions                         0
+Bright contrast support                        2 × 16% per bright host
+Dark contrast support                          0
+No full-width bottom control bar               PASS
+
+D2 / D3 source protection                      PASS
+D3-07 Fullscreen smoke protection              PASS
+D6-01～D6-06 section geometry                   PASS
+Acceptance Gate                                PASS
+```
+
+本任务只修改 Figma 设计与根 README；没有修改播放器源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D7-01：Complete。**
+
+## Next
+
+**D7-02 — Fullscreen 显隐交互**
+
+下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 定义 Fullscreen interaction states：
+
+```text
+interaction
+  → Hidden / Rest / Active / LockedVisible
+  → Header / OSC visibility policy
+```
+
+固定验证静置、鼠标移动、暂停、Popup/Menu、Error；继续复用 D3-07 语义和唯一 visibility owner，同时保持退出全屏提示克制。
