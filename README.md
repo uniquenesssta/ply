@@ -19,7 +19,7 @@
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
-- **D7：In Progress — D7-01 Complete。**
+- **D7：In Progress — D7-01 ～ D7-02 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -48,7 +48,8 @@
 - **D6-05：真实设置内容，Source `343:2625` / Verification `343:2626` / Content Header `344:2627` / Settings Action `345:2641` / Raw Mpv Warning `346:2625` / Playback `347:2626` / Video `348:2659` / Audio `349:2683` / Subtitles `350:2695` / Interface `351:2717` / Diagnostics Export `352:2741` / Advanced `353:2742` / Real Content Windows `354:2759` / Prototype Navigation `358:3747` / Contract `360:4225`。**
 - **D6-06：Shortcuts，Source `363:4225` / Verification `363:4226` / Prototype Navigation `363:4227` / Shortcut Search `365:4245` / Keycap `366:4232` / Shortcut Binding `367:4277` / Shortcut Conflict `368:4239` / Shortcut Action Row `369:4292` / Shortcuts Content `370:4471` / Real Shortcuts Windows `371:4419` / Contract `375:5777`。**
 - **D7-01：Fullscreen 构图，Page `382:5777` / Source `382:5778` / Verification `382:5779` / Minimal Header `386:16` / Compact OSC Composition `386:21` / Layout Contract `386:71`。**
-- **下一任务：D7-02 Fullscreen 显隐交互。**
+- **D7-02：Fullscreen 显隐交互，Source `393:2` / Verification `393:3` / Chrome Projection `394:16` / Interaction Scenarios `394:30` / Acceptance Gate `394:80` / Verification Assertions `395:367`。**
+- **下一任务：D7-03 Mini Player。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -1734,7 +1735,7 @@ D6-05 Prototype：
 Prototype Navigation  358:3747
 Playback              358:3748
 Video                 358:3753
-Audio                 358:3758
+Audio                  358:3758
 Subtitles             358:3763
 Interface             358:3768
 Advanced              358:3773
@@ -1775,7 +1776,7 @@ Preferences / Raw Mpv Warning authorities           1
 Preferences / Diagnostics Export authorities        1
 Preferences / Playback Content authorities          1
 Preferences / Video Content authorities             1
-Preferences / Audio Content authorities             1
+Preferences / Audio Content authorities              1
 Preferences / Subtitles Content authorities         1
 Preferences / Interface Content authorities         1
 Preferences / Advanced Content authorities          1
@@ -2149,16 +2150,114 @@ Acceptance Gate                                PASS
 
 **D7-01：Complete。**
 
-## Next
+### D7-02 Fullscreen 显隐交互 · Complete
 
-**D7-02 — Fullscreen 显隐交互**
-
-下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 定义 Fullscreen interaction states：
+Figma：
 
 ```text
-interaction
-  → Hidden / Rest / Active / LockedVisible
-  → Header / OSC visibility policy
+Source / Contract        393:2    D7-02 / Fullscreen Visibility Contract
+Verification             393:3    D7-02 / Verification
+Chrome Projection        394:16   Fullscreen / Chrome Projection
+Interaction Scenarios    394:30   Fullscreen / Interaction Scenarios
+Visibility Ownership     394:73   Fullscreen / Visibility Ownership
+Acceptance Gate          394:80   D7-02 / Acceptance Gate
+Verification Assertions  395:367  D7-02 / Verification Assertions
 ```
 
-固定验证静置、鼠标移动、暂停、Popup/Menu、Error；继续复用 D3-07 语义和唯一 visibility owner，同时保持退出全屏提示克制。
+D7-02 不创建第二套 Fullscreen 生命周期。Fullscreen Header 和 Compact OSC 只投影 D3-07 已解析的唯一可见性状态：
+
+```text
+Hidden            → Header 0 / OSC 0
+Active            → Header 1 / OSC 1
+Rest · countdown  → Header 1 / OSC 1
+Rest · persistent → Header 1 / OSC 1
+LockedVisible     → Header 1 / OSC 1
+```
+
+Timer 与 lock ownership 保持不变：
+
+- `motion/osc/hide-delay` 仍只由 D3-07 Visibility Controller 持有。
+- Standard / Reduce Motion 均为 `2200ms`。
+- D7-02 不新增 `hideDeadline`、lock reason、visibility controller、Reaction 或 timer。
+- `FocusWithinOSC / Volume Popover Open / More Popover Open / Timeline Scrubbing / Inspector Open` 继续使用 D3-07 原 lock reason；Paused / Error 继续通过 `autoHideAllowed=false` 进入 `Rest · persistent`，不伪装成 lock。
+
+键盘策略：
+
+- 普通 Seek / Volume / Media Key 默认不直接唤醒 Fullscreen Header/OSC。
+- D5 HUD 可以独立出现；验证中使用既有 `Feedback / HUD · Kind=Volume`，不复制第二套键盘反馈。
+- 如果键盘动作本身把播放状态切为 Paused，则由 playback state 自然进入 `Rest · persistent`，此时 Header/OSC 可见。
+- 真正的快捷键绑定仍归未来 Action Registry；D7-02 不把 D6 的 QA sample binding 冻结为运行时默认值。
+
+退出 Fullscreen：
+
+- 不增加第二个退出按钮。
+- 不增加专用 Fullscreen HUD、Toast 或 onboarding hint。
+- Chrome 可见时仍只有 D3 Utility 中的 `Exit Fullscreen` action；实际快捷键绑定由实现层决定。
+
+六条真实 Fullscreen 验证均为 `1600×900`：
+
+```text
+Idle Hidden           395:4    Header 0  OSC 0
+Pointer Active        395:54   Header 1  OSC 1
+Keyboard HUD No Wake  395:104  Header 0  OSC 0  HUD 1
+Paused Persistent     395:165  Header 1  OSC 1  Paused Transport 1
+Menu LockedVisible    395:227  Header 1  OSC 1  More Popover 1
+Error Persistent      395:281  Header 1  OSC 1  Error Overlay 1
+```
+
+所有可见 Chrome 场景继续严格使用 D7-01 几何：
+
+```text
+Minimal Header  360×50  @ 620,26
+Compact OSC     880×106 @ 360,764
+OSC bottom      30
+Window Actions  0
+```
+
+Menu 验证复用 D3 `More Popover`；Error 验证复用唯一 D5 `Player Status Overlay · Error`；Paused 验证复用 D3 paused transport；没有复制对应 authority。
+
+跨页回归：
+
+```text
+D3-07 Board                         142:2 unchanged
+D3-07 Fullscreen same-policy smoke 143:95 unchanged
+Single AFTER_TIMEOUT owner         143:2 REST PLAYING
+AFTER_TIMEOUT                      2.2s → 143:15 HIDDEN
+motion/osc/hide-delay              2200 / 2200ms
+D7-02 Reactions                    0
+D7-02 AFTER_TIMEOUT owners         0
+```
+
+最终审计：
+
+```text
+Required Fullscreen cases                   6 / 6
+D7-02 formal Components                     0
+New D7-02 Variable / Text / Effect / Motion 0
+Visible unbound D7 product paints           0
+Generic unnamed residues                    0
+Exit hint/onboarding surfaces               0
+Section outline residue                     0
+Source / Verification section fit           PASS
+D7-01 section geometry                      PASS
+D3-07 single lifecycle owner                PASS
+Acceptance Gate / Assertions                 8 / 8 · 10 / 10 PASS
+```
+
+当前 `agent/r4-stage` Qt/QML runtime 仍处于早期 `PlayerScreen → VideoSurface + PlayerChrome` 骨架，尚未实现 Fullscreen visibility owner；因此本任务完成的是 Figma 设计契约，不把运行时功能描述为已实现。本任务没有修改播放器源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D7-02：Complete。**
+
+## Next
+
+**D7-03 — Mini Player**
+
+下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 设计独立小窗的最小信息和控制集：
+
+```text
+mode=mini
+  → compact layout
+  → shared controls
+```
+
+保持主视频 / 标题 / 播放 / 时间轴 / 关闭或展开；不塞 Inspector 全功能。固定验证最小宽高、always-on-top 与 hover，完成判断是“小窗仍精致，不像主窗口简单缩放”。
