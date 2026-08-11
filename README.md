@@ -20,7 +20,7 @@
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
-- **D8：In Progress — D8-01 ～ D8-05 Complete；D8-06 / D8-07 待执行。**
+- **D8：In Progress — D8-01 ～ D8-06 Complete；D8-07 待执行。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -58,7 +58,8 @@
 - **D8-03：Controls，Source `450:106` / Verification `450:108` / Icon Button `451:154`。**
 - **D8-04：Surfaces，Source `470:308` / Verification `470:310` / OSC `474:308` / Inspector `476:308` / Popover `477:308` / HUD `478:308` / Toast `479:308` / Dialog `479:310`。**
 - **D8-05：Composite，Source `491:397` / Verification `491:399` / Floating Header `494:10663` / Playlist Row `168:260` / Track Row `179:716` / Settings Row `336:2293` / Source List Item `507:537`。**
-- **下一任务：D8-06 全局实例回刷与旧 authority 迁移。**
+- **D8-06：全局实例回刷，Source `529:676` / Verification `529:678`。**
+- **下一任务：D8-07 全局卫生审计与最终收口。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -2783,22 +2784,188 @@ D8-05 只修改 Figma Component/Component Set/API 与根 README；没有播放�
 
 **D8-05：Complete。**
 
+### D8-06 全局实例回刷 · Complete
+
+Figma：
+
+```text
+Source / Contract  529:676  D8-06 / Product Instance Backfill
+Verification       529:678  D8-06 / Verification
+```
+
+D8-06 将 D8-02～D8-05 已验证的正式 authority 真正回刷到 D2～D7 成品链。原则保持为：
+
+```text
+source authority
+  → product instances
+  → state/data/geometry/reaction restoration
+  → visual QA
+  → machine regression gate
+```
+
+未使用 detach，也没有为保留旧视觉建立无退出计划的兼容壳；发现 D7 响应式能力缺口时回到正式 source component 补能力后再继续实例迁移。
+
+产品回刷范围：
+
+```text
+D2 Responsive Header                4
+D4 Playlist Search                  1 source migration
+D4 Inspector Shell                 46 live instances via source material migration
+D5 Floating Header                 41
+D5 OSC root                         36
+D5 HUD / Toast / Dialog             3 business authorities → D8 Surfaces
+D6 Source List                     57 instances / 399 derived rows
+D6 Source List direct rows          14
+D6 Preferences Window Actions        9
+D7 Windowed Header                  14
+D7 product OSC                      24
+D7 Mini control compositions         6
+D7 More Popover                      4
+```
+
+D2 / D5 Header：
+
+- D2-05 的 720 / 960 / 1280 / 1600 四套 product Header 全部替换为 `Composite / Floating Header`；D2-03 三套历史 contract example 不作为 product residual 处理。
+- D5 41 套 Verification / Prototype Header 全部切到同一 `Composite / Floating Header`；旧直接 `Floating Header / Media Info + Window Actions` product Frame=`0`。
+- Title / Meta、位置、窗口 inset 与 Compact/Standard 高度均保持。
+
+D4 Search / Inspector：
+
+- Playlist Toolbar 唯一 Search 已从旧 `Playlist / Search` 切到 `Control / Search`（`365:4245`），保持 `270×42` 与 `搜索播放列表`。
+- `Inspector / Shell` `152:4` 保持原 `Title / Meta / Content Host / Footer Host` 公开 API。
+- Figma 的 Slot-inside-Slot 会改变原 Slot identity，因此 D8-06 不强行把原 Content/Footer Slot 嵌套进 Surface Slot；最终结构为 canonical `Surface / Inspector` 作为唯一 material layer，原 Header / Mode Switch / Content Host / Footer Host 继续承担业务组合 API。
+- Shell live instances=`46`；320×450、368×420、368×584、368×652 等真实 resize 与 Content/Footer overrides 均验证不变。
+
+D5 OSC / Feedback：
+
+- 36 个 product OSC root 全部使用 `Surface / OSC + Control / Timeline + Control / Playback Button + Control / Icon Button`。
+- Timeline 状态映射保持：Default、Scrubbing、PendingSeek；Paused 使用 Play，Playing 使用 Pause。
+- D5 Standard Utility 继续遵守 D3-06：`Subtitles / Playlist / More / Fullscreen`；不新增第二套路由。
+- `Feedback / HUD / Toast / Dialog` 保持原业务 Component Set 与 Variant ID，只把材质 owner 分别迁到 `Surface / HUD / Toast / Dialog`；已有业务内容、Action、marker 与 live instance 保持。
+- D5 product old Header / old Timeline-Control lane / primitive transport control residual=`0`。
+
+D6 Source List：
+
+- 迁移前严格快照 `57 × 7 = 399` 个派生 row 的 Category / State / width。
+- 14 个 Source List source row 从旧 35-Variant Source Item 迁到 `Composite / Source List Item` 后，对 57 个 Source List instance 逐行显式恢复；`399/399` 恢复，mismatch=`0`。
+- D6-02 7 个 category screen 仍各 `6` reactions；D6-05 category Prototype 总 `42`；D6-06 Shortcuts Prototype 总 `41`，全部保持。
+- Preferences Shell Standard / Narrow / Minimum 共 9 个手绘窗口动作已切 D8 Icon Button。
+
+D7 响应式 source capability fix：
+
+`Control / Timeline` 新增两个正交 BOOLEAN property：
+
+```text
+Show Current#550:0   default = true
+Show Duration#550:15 default = true
+```
+
+- 14 个 Timeline Variant 全部绑定 timecode visibility。
+- 已有 Timeline instance 默认仍为 `true / true`，D5 不回归。
+- 560 Narrow 只设置 `Show Duration=false`，继续保持 `Current only`。
+- Mini 设置 `Show Current=false / Show Duration=false`，不伪造新的 Mini Timeline variant。
+
+`Composite / Floating Header` 新增：
+
+```text
+Center Media#563:0  BOOLEAN  default = true
+```
+
+- 只控制 Balance Spacer visibility，不增加 `Size × Alignment` Variant 轴。
+- D2 / D5 / D8 已有 48 个 Header instance 默认保持 `true`。
+- D7 820/720 使用 Center；640/560 使用 Leading。14 个 Windowed Header 回刷后 Media Info / Window Actions 的绝对 x 与旧成品逐个比对为 `0` 偏差。
+
+D7 OSC / Mini / Popover：
+
+- 24 个真实 product Compact OSC 全部回刷；D7-01 的 3 个 source/layout historical fixture 保留为阶段历史，不计入 product residual。
+- Fullscreen Utility 保持 `Subtitles / More / ExitFullscreen`；Windowed Narrow 保持 `Subtitles / More / Fullscreen`；More/Open 使用 Icon Button Open state。
+- 6 套 Mini Hover / Minimum / Always-on-top / Prototype control composition 全部回刷：Expand / Close → Icon Button，PlayPause → Playback Button，Timeline → canonical Timeline。
+- Mini Timeline 通过 y `14→10` 的 canonical geometry placement 保持旧 global Hit Target y 与 Track y，逐实例偏差=`0`。
+- 4 个 D7 product More Popover 均使用 `Surface / Popover`，P1/P2/P3 业务内容保持。
+- Fullscreen `D2 Ref / Minimal Header` 共 12 个属于 title-only feature composition，没有 Window Actions，因此不强行合并为 Windowed Floating Header。
+
+Prototype / Reaction 回归：
+
+- 显式迁移 D7 OSC Fullscreen / ExitFullscreen control reaction 共 `3` 条；Mini Expand reaction `1` 条，before/after Reaction JSON 完全一致。
+- D7-05 mode transition Prototype 总 reaction 仍为 `5`。
+- D6-02 / D6-05 / D6-06 reaction 总量保持 `6×7 / 42 / 41`。
+
+旧 authority 退休：
+
+```text
+Preferences / Source Item  298:349  → retired / fresh-index absent
+Preferences / Source Icon  296:142  → retired / fresh-index absent
+Playlist / Search          167:197  → retired / fresh-index absent
+```
+
+- Source Item 删除前 product live usage=`0`。
+- Source Icon 的 35 个实例全部仅嵌在已退休的旧 Source Item source 内，external usage=`0`；Source Item 退休后归零并删除。
+- Playlist Search product live usage=`0` 后删除；Toolbar canonical Search 保持。
+- Figma Component Set 删除索引存在事务内延迟刷新，最终验收使用新事务 fresh-index 确认三个 legacy source 均已不存在。
+
+视觉 QA 实际覆盖：
+
+```text
+D4  Inspector 320×450 / 368×584
+D5  Playing / Scrubbing / Pending / Narrow Paused
+    HUD / Toast / Resume Dialog / ErrorRecovery Dialog
+D6  Source List / Advanced SelectedFocus / Narrow Shortcuts Selected
+D7  Fullscreen Active / Menu Open
+    820 centered Header
+    560 Current-only / More Open
+    Windowed Inspector Prototype
+    Mini Hover / Minimum / Prototype
+```
+
+最终 machine gate：
+
+```text
+D2  canonical Header                         4 / 4 PASS
+D4  Search main set                          365:4245 PASS
+D4  Inspector Shell live                     46 PASS
+D5  Header / OSC                            41 / 36 PASS
+D5  old product Header / lane/control        0
+D6  Source List direct canonical rows        14 PASS
+D6  Preferences Window Icon Buttons           9 PASS
+D6  Prototype reactions             6×7 / 42 / 41 PASS
+D7  Header / OSC / Mini / Popover       14 / 24 / 6 / 4 PASS
+D7  product old Header / OSC lane / Mini       0
+D7-05 Prototype reactions                       5 PASS
+Legacy authority nodes                          0
+D8-06 Source visible solids              62 / unbound 0
+D8-06 Verification visible solids        50 / unbound 0
+D8-06 Source / Verification generic residue     0
+D8-06 formal Components created                  0
+Source / Verification section fit                PASS
+Section gap                                     100px
+Foundation Variable Δ                             0
+```
+
+D8-06 没有新增 Color / Geometry / Effect / Motion Variable；仅为现有 Component 增加 3 个响应式/信息密度 BOOLEAN property。没有修改播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D8-06：Complete。**
+
 ## Stage D8 Current Result
 
-D8-01～D8-05 已完成重复结构审计、Icon language、Control、Surface 与 Composite authority 收口。D8-05 仍严格保持 product replacement=`0`；D2/D7 Floating Header copy 与 D6 legacy Source Item 的真实产品实例迁移明确留给 D8-06，D8-07 再负责全文件复制残留、变量绑定与卫生审计。
+D8-01～D8-06 已完成重复结构审计、Icon language、Control、Surface、Composite authority 收口以及成品实例回刷。D2～D7 的真实产品画面已切换到正式 authority；旧 Preferences Source Item / Source Icon / Playlist Search 已退休删除，Prototype reaction 与响应式几何经过逐链验证。
+
+D8-07 仍需执行全文件卫生审计：清理历史复制残留、generic Vector/Frame、残留硬编码颜色、alias 断裂与空 Slot 背景。D8-07 不重新设计或改写已经在 D8-06 验证通过的产品行为。
 
 **Stage D8：In Progress。**
 
 ## Next
 
-**D8-06 — 全局实例回刷与旧 authority 迁移**
+**D8-07 — 全局卫生审计与最终收口**
 
-下一步按 `docs/plans/stages/D8_组件系统与全局收口.md` 将已经通过 D8-02～D8-05 验证的 authority 真正替换回 D2–D7 成品实例，并逐项保持现有 data/state/geometry/interaction 语义：
+下一步按 `docs/plans/stages/D8_组件系统与全局收口.md` 执行最终文件级 hygiene：
 
 ```text
-canonical authority
-  → product instance replacement
-  → regression verification
+all pages
+  → generic Vector / Frame residue
+  → hardcoded color / variable binding residue
+  → broken alias
+  → empty slot background
+  → final regression verification
 ```
 
-重点包括 D2/D7 Floating Header copies、D6 legacy Source Item 35-Variant 使用路径，以及 D8-01 duplication map 中已明确具备迁移条件的重复实例；不得在回刷过程中顺带扩张为 D8-07 的全文件清理。
+重点清理无意义默认 `Vector` / `Frame`、残留硬编码颜色与变量绑定断点、alias 断裂、空 `slot` 背景及 D8-06 明确保留的历史 fixture 卫生问题；不得借卫生审计重新设计已经完成回刷的 Header / OSC / Inspector / Preferences / Window Mode 行为。
