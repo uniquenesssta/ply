@@ -19,7 +19,7 @@
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
-- **D7：In Progress — D7-01 ～ D7-02 Complete。**
+- **D7：In Progress — D7-01 ～ D7-03 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -49,7 +49,8 @@
 - **D6-06：Shortcuts，Source `363:4225` / Verification `363:4226` / Prototype Navigation `363:4227` / Shortcut Search `365:4245` / Keycap `366:4232` / Shortcut Binding `367:4277` / Shortcut Conflict `368:4239` / Shortcut Action Row `369:4292` / Shortcuts Content `370:4471` / Real Shortcuts Windows `371:4419` / Contract `375:5777`。**
 - **D7-01：Fullscreen 构图，Page `382:5777` / Source `382:5778` / Verification `382:5779` / Minimal Header `386:16` / Compact OSC Composition `386:21` / Layout Contract `386:71`。**
 - **D7-02：Fullscreen 显隐交互，Source `393:2` / Verification `393:3` / Chrome Projection `394:16` / Interaction Scenarios `394:30` / Acceptance Gate `394:80` / Verification Assertions `395:367`。**
-- **下一任务：D7-03 Mini Player。**
+- **D7-03：Mini Player，Source `401:47` / Verification `401:48` / Geometry Contract `402:61` / Rest `402:70` / Hover `402:76` / Minimum `402:100` / Acceptance Gate `402:143` / Verification Assertions `403:151`。**
+- **下一任务：D7-04 窄窗口降级。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -2248,16 +2249,79 @@ Acceptance Gate / Assertions                 8 / 8 · 10 / 10 PASS
 
 **D7-02：Complete。**
 
-## Next
+### D7-03 Mini Player · Complete
 
-**D7-03 — Mini Player**
-
-下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 设计独立小窗的最小信息和控制集：
+Figma：
 
 ```text
-mode=mini
-  → compact layout
-  → shared controls
+Source / Contract        401:47   D7-03 / Mini Player
+Verification             401:48   D7-03 / Verification
+Geometry Contract        402:61   Mini / Geometry Contract
+Rest                      402:70   Mini / Rest · 420×236
+Hover                     402:76   Mini / Hover · 420×236
+Minimum Hover             402:100  Mini / Minimum Hover · 320×180
+Hover Density Contract    402:124  Mini / Hover Density Contract
+Shared Authority          402:134  Mini / Shared Authority
+Acceptance Gate           402:143  D7-03 / Acceptance Gate
+Verification Rest         403:49
+Verification Hover        403:58
+Verification Minimum      403:85
+Always-on-top Context     403:112
+Verification Assertions   403:151
+Detailed Record           docs/records/D7-03_MiniPlayer.md
 ```
 
-保持主视频 / 标题 / 播放 / 时间轴 / 关闭或展开；不塞 Inspector 全功能。固定验证最小宽高、always-on-top 与 hover，完成判断是“小窗仍精致，不像主窗口简单缩放”。
+Mini 是同一播放器的独立 Window Mode，不是第二播放器，也不是主窗口等比缩放。默认逻辑尺寸=`420×236`，最小逻辑尺寸=`320×180`；Video 继续消费 D2 的 Fit / preserve aspect / centered 语义。
+
+信息密度冻结为：
+
+```text
+Rest  → Video only
+Hover → Title + Expand + Close + PlayPause + Timeline
+```
+
+Mini 明确不承载 Inspector / Playlist / Tracks / Subtitles / Chapters / Volume / More；完整能力需先 Expand 回 Windowed。`always-on-top` 是 Window flag，不增加 Pin/Lock 按钮或 badge。
+
+共享几何保持：PlayPause=`40×40`；Timeline=`16px hit / 3px track / 10px thumb`。不通过缩小交互目标解决密度，也不建立 Mini 私有 PlaybackSession、seek truth 或 OSC lifecycle。Mode transition、Focus 与 Popup cleanup 继续留给 D7-05。
+
+最终验证：
+
+```text
+Rest 420×236          Chrome 0
+Hover 420×236         Title 1 / Actions 1 / Controls 1
+Minimum 320×180       long title truncation / no overlap
+Always-on-top          overlap PASS / Mini above Windowed PASS
+
+Expand / Close         1 / 1
+Minimize / Pin         0 / 0
+Inspector-related      0
+Visible unbound UI     0
+Generic residues       0
+Formal Components      0
+Reactions              0
+AFTER_TIMEOUT owners   0
+New Mini Variables     0
+Section outline        0
+D7-01 / D7-02 geometry PASS
+Acceptance             9 / 9 · 10 / 10 PASS
+```
+
+一次最终只读审计因 JavaScript 局部变量误用保留字产生 SyntaxError，被 Figma 原子拒绝，没有提交任何画布变化；修正后同一审计通过。D7-03 本地复制的 Pause SVG 默认 Vector 子路径已职责化命名，D3 source 未修改。
+
+当前 `agent/r4-stage` runtime 仍只有 `PlayerScreen → VideoSurface + PlayerChrome` 早期骨架，没有 Mini Window runtime owner 或 always-on-top 实现。因此本任务完成的是 Figma 设计契约；没有修改播放器源码、配置、依赖、数据格式或运行时接口，也没有构建、单元测试或运行时测试项。
+
+**D7-03：Complete。**
+
+## Next
+
+**D7-04 — 窄窗口降级**
+
+下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 冻结多档窄宽度下的响应式降级顺序：
+
+```text
+width
+  → priority
+  → collapse
+```
+
+重点验证 Utility、时间码、音量与 Inspector 的降级规则；交互目标不缩小，低优先级动作进入 More/Popover，并保证所有断点无控件重叠。
