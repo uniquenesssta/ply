@@ -20,6 +20,7 @@
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
+- **D8：In Progress — D8-01 ～ D8-05 Complete；D8-06 / D8-07 待执行。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -52,7 +53,12 @@
 - **D7-03：Mini Player，Source `401:47` / Verification `401:48` / Geometry Contract `402:61` / Rest `402:70` / Hover `402:76` / Minimum `402:100` / Acceptance Gate `402:143` / Verification Assertions `403:151`。**
 - **D7-04：窄窗口降级，Source `407:47` / Verification `407:48` / Policy Matrix `408:61` / Pressure Ladder `408:95` / Acceptance Gate `408:129` / Geometry Audit `413:203` / Verification Assertions `413:223`。**
 - **D7-05：跨模式状态保持，Source `418:203` / Verification `419:203` / Prototype Navigation `420:381` / Transition Matrix `418:218` / Transition Topology `418:252` / Acceptance Gate `418:286` / Verification Assertions `419:1036`。**
-- **下一任务：D8-01 重复结构审计。**
+- **D8-01：重复结构审计，Page `431:559` / Source `432:2` / Verification `432:175`。**
+- **D8-02：Icon 与图标语言，Source `439:2` / Verification `439:4` / Preferences Playback Icon `442:44`。**
+- **D8-03：Controls，Source `450:106` / Verification `450:108` / Icon Button `451:154`。**
+- **D8-04：Surfaces，Source `470:308` / Verification `470:310` / OSC `474:308` / Inspector `476:308` / Popover `477:308` / HUD `478:308` / Toast `479:308` / Dialog `479:310`。**
+- **D8-05：Composite，Source `491:397` / Verification `491:399` / Floating Header `494:10663` / Playlist Row `168:260` / Track Row `179:716` / Settings Row `336:2293` / Source List Item `507:537`。**
+- **下一任务：D8-06 全局实例回刷与旧 authority 迁移。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -2588,15 +2594,211 @@ Fullscreen 构图与显隐、Mini Player、Narrow collapse，以及 Windowed ↔
 
 **Stage D7：Complete。**
 
-## Next
+## Stage D8 — Design System & Global Convergence · In Progress
 
-**D8-01 — 重复结构审计**
+### D8-01 重复结构审计 · Complete
 
-下一步按 `docs/plans/stages/D8_组件系统与全局收口.md` 从 D2–D7 的真实成品反向扫描重复结构：
+Figma：
 
 ```text
-product instances
-  → duplication map
+Page          431:559  08 Design System
+Source        432:2    D8-01 / Duplicate Structure Audit
+Verification  432:175  D8-01 / Verification
 ```
 
-重点找出同名不同实现、不同名同实现、仅尺寸不同的伪组件，并形成明确合并清单；本阶段先审计，不提前机械组件化。
+- 扫描 D2–D7 共 `19,641` 个节点、`2,091` 个 Instance、`50` 个 Component Set、`265` 个 Variant。
+- 收敛出 Window Actions、Transport、OSC Surface、Volume、Utility、Timeline、Search/Text Entry、Feedback/Settings Action、List Row Internals、Preferences Source Item、Icon Language、Radius/Binding Drift 共 12 类重复结构。
+- 明确 Playlist / Tracks / Subtitles / Chapters 不合并成万能 Row；HUD / Toast / Dialog 继续保持不同反馈 surface。
+- D8-01 只审计，不创建 Component / Component Set；D2–D7 source 行为不变。
+- D8-01 Audit/Verification semantic paint 最终无未绑定残留。
+
+**D8-01：Complete。**
+
+### D8-02 Icon 与图标语言 · Complete
+
+Figma：
+
+```text
+Source        439:2
+Verification  439:4
+Preferences Playback Icon  442:44
+```
+
+- 建立 D8 统一 icon geometry / optical box / stroke language，并将重复的 16/18/21/22/24/28 容器漂移收敛为明确图标尺寸职责。
+- Window / Preferences 等图标只拥有 geometry；颜色与交互 tone 继续由上层 Control/Composite state 持有。
+- D8-02 不提前承担 D8-03 Control 或 D8-05 Composite 业务职责。
+
+**D8-02：Complete。**
+
+### D8-03 Controls · Complete
+
+Figma：
+
+```text
+Source        450:106
+Verification  450:108
+Icon Button   451:154  Control / Icon Button
+```
+
+- 建立 D8 控件层 authority，并将图标选择与控件交互状态解耦；Icon Button 使用 D8-02 geometry icon 作为可替换输入。
+- Control 只拥有本地 interaction/value presentation，不拥有 Player/Settings backend truth，也不提前组合成 Feature。
+- D6 已存在的 Preferences Toggle / Select / Slider 等继续保留原 ownership；D8-03 不机械复制已有稳定 authority。
+
+**D8-03：Complete。**
+
+### D8-04 Surfaces · Complete
+
+Figma：
+
+```text
+Source / Contract   470:308  D8-04 / Surfaces
+Verification        470:310  D8-04 / Verification
+Surface / OSC       474:308
+Surface / Inspector 476:308
+Surface / Popover   477:308
+Surface / HUD       478:308
+Surface / Toast     479:308
+Surface / Dialog    479:310
+```
+
+六类 Surface 形成唯一材质 authority：
+
+```text
+OSC        2 variants  Compact / Standard
+Inspector  1 component
+Popover    1 component
+HUD        1 component
+Toast      1 component
+Dialog     1 component
+Total      6 authorities / 7 product components / 12 real Figma Slots
+```
+
+- Surface 只拥有材质、border/radius/effect 与可替换结构 Slot，不拥有业务文案、player command、feedback kind 或 backend truth。
+- 新增并仅新增 D5 历史硬编码收口所需的 radius/stroke/Inspector gap foundations；产品视觉值保持不变。
+- Dark/Bright 双背景、真实 Slot replacement、OSC/Inspector/Popover resize、HUD `0.46` / Toast `0.88` opacity 全部通过。
+- D4 Inspector / D5 Feedback 既有产品 Composite 未在 D8-04 被替换；product replacement=`0`。
+- Source / Verification visible solid paint unbound=`0`；generic residue=`0`。
+
+**D8-04：Complete。**
+
+### D8-05 Composite · Complete
+
+Figma：
+
+```text
+Source / Contract             491:397  D8-05 / Composite
+Verification                  491:399  D8-05 / Verification
+Floating Header               494:10663  Composite / Floating Header
+Playlist Row                  168:260    Playlist / Entry Row
+Track Row                     179:716    Track / Selection Row
+Settings Row                  336:2293   Preferences / Settings Row
+Source List Item              507:537    Composite / Source List Item
+Source Icon Helper · Default  506:10735  private
+Source Icon Helper · Selected 506:10777  private
+Acceptance Assertions         516:676
+```
+
+Authority 策略：
+
+```text
+2 new
+  Floating Header
+  Source List Item
+
+2 enhanced in place
+  Playlist Row
+  Track Row
+
+1 retained
+  Settings Row
+```
+
+Floating Header：
+
+- `Size=Compact / Standard` 两态；Compact=`668×50`，Standard source=`1268×54`，验证额外覆盖 resized Standard=`908×54`。
+- 使用 `110 spacer + centered Media Info + 110 Window Actions` 的平衡结构保持媒体信息真实居中。
+- `Title / Meta` 为数据输入；Window Actions 真实消费 D8-03 `Control / Icon Button` 和 D8-02 Minimize/Maximize/Close geometry。
+- 不拥有 playback state、OSC visibility 或窗口 command truth。
+
+Playlist / Track Row：
+
+- `Playlist / Entry Row` 原 ID `168:260` 保持，6 个真实 State 不变；新增 `Index / Title / Meta` TEXT properties。
+- `Track / Selection Row` 原 ID `179:716` 保持，`Type=Audio/Video/Subtitle × State=5` 共 15 Variant 不变；新增 `Type Label / Title / Meta` TEXT properties。
+- Playlist 与 Track 继续分开，未合并为万能 List Row。
+
+Settings Row：
+
+- `Preferences / Settings Row` `336:2293` 保留原 authority 与原 API；只补 canonical ownership 描述。
+- Verification 真实 swap 到 D6 既有正式 Control：Toggle `329:2175` / Select `330:2160` / Slider `331:2160`，nested main component ID 全部一致。
+
+Source List Item：
+
+- legacy D6 `Preferences / Source Item` `298:349` 的 `7 Category × 5 State = 35` Variant 保留到 D8-06，不在 D8-05 破坏性迁移。
+- 新 canonical `507:537` 顶层只保留 5 个 Row State；Category 移入 private helper property。
+- private helper 分成 Default / Selected 两套 tone owner，各有 7 个 Category geometry Variant，并直接消费 D8-02 Preferences icon geometry。
+- Category QA 覆盖 Playback / Video / Audio / Shortcuts；Default 使用 `icon/secondary`，Selected 使用 `selection/indicator`，geometry 与 tone 均保持正确。
+- 因此 Row 级 Variant 从 `35 → 5`，同时避免 Category swap 重置 selected tone。
+
+多实例 Verification：
+
+```text
+Floating Header  668 / 908 / 1268 widths         PASS
+Playlist         Default / Current / Invalid     PASS
+Track            Audio Selected / Video Pending /
+                 Subtitle Off                    PASS
+Settings         Toggle / Select / Slider swap   PASS
+Source Item      4 State × 4 Category samples    PASS
+```
+
+受保护产品页实例使用 `authority → variant → instance → PAGE` 的严格口径重新核验：
+
+```text
+Playlist Row      D4  = 5
+Track Row         D4  = 8
+Settings Row      D6  = 37
+legacy Source Item D6 = 14
+Protected total        = 64
+```
+
+D8-05 新建 QA/Registry 实例只存在于 `08 Design System`；Floating Header、Source List Item 和两个 private helper 在 D8 页面外实例均为 `0`。因此 D8-05 product replacement=`0`，真正全局回刷继续由 D8-06 负责。
+
+最终 machine gate：
+
+```text
+Authority API                         PASS
+Protected product-page live baseline  5 / 8 / 37 / 14 PASS
+New authority external instances      0
+Product replacement                   0
+Source visible solid paints           161 / unbound 0
+Verification visible solid paints     184 / unbound 0
+Generic residue                       0
+Foundation Δ                          0
+D2 frozen Header anchors              8 / 8 PASS
+Acceptance Assertions                 10 / 10 PASS
+Source / Verification section fit     PASS
+Section gap                           100px
+```
+
+D8-05 只修改 Figma Component/Component Set/API 与根 README；没有播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口变化，因此没有构建、单元测试或运行时测试项。
+
+**D8-05：Complete。**
+
+## Stage D8 Current Result
+
+D8-01～D8-05 已完成重复结构审计、Icon language、Control、Surface 与 Composite authority 收口。D8-05 仍严格保持 product replacement=`0`；D2/D7 Floating Header copy 与 D6 legacy Source Item 的真实产品实例迁移明确留给 D8-06，D8-07 再负责全文件复制残留、变量绑定与卫生审计。
+
+**Stage D8：In Progress。**
+
+## Next
+
+**D8-06 — 全局实例回刷与旧 authority 迁移**
+
+下一步按 `docs/plans/stages/D8_组件系统与全局收口.md` 将已经通过 D8-02～D8-05 验证的 authority 真正替换回 D2–D7 成品实例，并逐项保持现有 data/state/geometry/interaction 语义：
+
+```text
+canonical authority
+  → product instance replacement
+  → regression verification
+```
+
+重点包括 D2/D7 Floating Header copies、D6 legacy Source Item 35-Variant 使用路径，以及 D8-01 duplication map 中已明确具备迁移条件的重复实例；不得在回刷过程中顺带扩张为 D8-07 的全文件清理。
