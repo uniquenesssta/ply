@@ -305,3 +305,22 @@ render context 必须先于 mpv_handle；活动 render 未退出时不能 free�
 ## 11. 后续扩展位置
 
 未来若迁移 RHI/Metal/Vulkan，必须单独 ADR/阶段，不在 R4 悄悄加第二渲染架构。
+
+## 12. 实施与验收记录
+
+**状态：Stage R4 Complete（2026-08-11）。R4-01~R4-09 全部完成。**
+
+R4-09 最终修复的是默认 libmpv callback-driven Render 模式下的稳态停帧：Renderer 未启用 `MPV_RENDER_PARAM_ADVANCED_CONTROL`，因此不再把可选的 `mpv_render_context_update()` FRAME 标志作为强制 render gate；Qt Quick 已调度的合法 render pass 直接调用 `mpv_render_context_render()` 重绘当前帧，redraw callback 继续负责后续 Scene Graph 更新。公共接口、配置、依赖和 PlaybackSession 状态所有权未改变。
+
+Windows Debug 最终门禁：Qt 6.8.3 / MSVC 19.44 / libmpv 0.41.0，完整 CTest **41/41 PASS、0 failed、58.78 s**；加强后的 `mpv_video_renderer` 回归 **5.47 s PASS**，覆盖首次 callback-only 连续渲染以及一次 windowed settling 后无额外外部 wake 的持续渲染。
+
+Windows Release 性能基线环境：Windows 10 22H2、NVIDIA GeForce RTX 3070、OpenGL 4.6.0 NVIDIA 610.62、2560×1440@143.999 Hz，`hwdec-current=no`。两个 30 fps 本地样本结果：
+
+| 样本 | 模式 | Qt afterRendering | 测量时长 | mean interval | p95 | max | frame/decoder/delayed drop delta |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1920×1080 | windowed 1280×720 | 300 | 10000.6855 ms | 33.3372 ms | 46.8979 ms | 48.0873 ms | 0 / 0 / 0 |
+| 1920×1080 | fullscreen 2560×1440 | 300 | 10005.9636 ms | 33.3413 ms | 46.2384 ms | 48.0838 ms | 0 / 0 / 0 |
+| 3840×2160 | windowed 1280×720 | 300 | 9988.0562 ms | 33.3478 ms | 46.1942 ms | 48.1032 ms | 0 / 0 / 0 |
+| 3840×2160 | fullscreen 2560×1440 | 300 | 10011.7034 ms | 33.3633 ms | 47.0430 ms | 48.0913 ms | 0 / 0 / 0 |
+
+此前 1080p windowed `afterRendering=0` 且约 300 帧 drop 的问题已不再复现。R4-09 的目标是建立后续 R12 可比较基线，不把硬件解码、更多 GPU/驱动组合或性能极限优化提前塞入 R4；这些继续留到 R12。
