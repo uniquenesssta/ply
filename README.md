@@ -19,7 +19,7 @@
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
-- **D7：In Progress — D7-01 ～ D7-04 Complete。**
+- **D7：Complete — D7-01 ～ D7-05 全部关闭。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -51,7 +51,8 @@
 - **D7-02：Fullscreen 显隐交互，Source `393:2` / Verification `393:3` / Chrome Projection `394:16` / Interaction Scenarios `394:30` / Acceptance Gate `394:80` / Verification Assertions `395:367`。**
 - **D7-03：Mini Player，Source `401:47` / Verification `401:48` / Geometry Contract `402:61` / Rest `402:70` / Hover `402:76` / Minimum `402:100` / Acceptance Gate `402:143` / Verification Assertions `403:151`。**
 - **D7-04：窄窗口降级，Source `407:47` / Verification `407:48` / Policy Matrix `408:61` / Pressure Ladder `408:95` / Acceptance Gate `408:129` / Geometry Audit `413:203` / Verification Assertions `413:223`。**
-- **下一任务：D7-05 跨模式状态保持。**
+- **D7-05：跨模式状态保持，Source `418:203` / Verification `419:203` / Prototype Navigation `420:381` / Transition Matrix `418:218` / Transition Topology `418:252` / Acceptance Gate `418:286` / Verification Assertions `419:1036`。**
+- **下一任务：D8-01 重复结构审计。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -2027,7 +2028,7 @@ Preferences Shell、Source List、Settings Section/Row、通用设置控件、�
 
 **Stage D6：Complete。**
 
-## Stage D7 — Window Modes & Responsive · In Progress
+## Stage D7 — Window Modes & Responsive · Complete
 
 ### D7-01 Fullscreen 构图 · Complete
 
@@ -2396,7 +2397,7 @@ Timeline Lane < 480px  → Current only; Duration yields first
 
 560 Header 保持 Compact Media Info=`360×50`、Window Actions=`110×50`，只改变 placement：Title=`x26`、Actions=`x424`、gap=`38`，不缩小窗口动作 hit target。
 
-560 More 直接复用 D3-06 `More Popover`：`250×176 @ 284,360`，完整落在窗口内且位于 OSC 上方；Audio / Chapters / Playlist 均保持可达。
+560 More 直接复用 D3-06 `More Popover`：`250×176 @ 284,360`，完整落在 560 窗口内且位于 OSC 上方；Audio / Chapters / Playlist 均保持可达。
 
 560 Inspector 直接复用 D4-07 `Inspector / Shell` 实例：`320×450 @ 214,88`，bottom=`538 < OSC y564`；Inspector overlay 停在 OSC 上方，OSC 仍为 `456×106`，Video Viewport 也不因 open/close 改变。
 
@@ -2443,15 +2444,159 @@ D7-04 verification 中复制的 Utility SVG 默认 `Vector` 子路径仅在新�
 
 **D7-04：Complete。**
 
-## Next
+### D7-05 跨模式状态保持 · Complete
 
-**D7-05 — 跨模式状态保持**
-
-下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 设计 Windowed ↔ Fullscreen ↔ Mini 的状态迁移：
+Figma：
 
 ```text
-mode transition
-  → interaction state mapping
+Page                       382:5777  07 Window Modes
+Source / Contract          418:203   D7-05 / Mode Transition Contract
+Mode Transition Matrix     418:218
+Mode Transition Topology   418:252
+Inspector Suspension       418:276
+Focus Migration            418:281
+Acceptance Gate            418:286   D7-05 / Acceptance Gate
+Verification               419:203   D7-05 / Verification
+Inspector Roundtrip        419:701   Flow A
+Mini Cleanup Roundtrip     419:877   Flow B
+Transition State Audit     419:1005
+Verification Assertions    419:1036  D7-05 / Verification Assertions
+Prototype Navigation       420:381   D7-05 / Prototype Navigation
 ```
 
-重点验证播放状态持续、Inspector / OSC / Focus 的可解释迁移，以及 Popup 在进入不适合的新模式时被正确清理；完成判断是三模式往返没有残留 Popup/Focus 或“瞬移式”异常。
+D7-05 冻结的是跨 Window Mode 的状态映射与清理职责，不创建第二个 PlaybackSession、Seek 真值、OSC lifecycle 或 Inspector authority。当前产品拓扑只包含：
+
+```text
+Windowed ↔ Fullscreen
+Windowed ↔ Mini
+Fullscreen ↔ Mini  direct product edge = none
+```
+
+Windowed 是当前模式拓扑 hub。D7-03 已冻结 Mini 的 Expand 返回 Windowed；现有 Fullscreen action 也从 Windowed 进入 Fullscreen。由于当前 UI 没有冻结 Fullscreen ↔ Mini 的直接产品入口，D7-05 不凭空新增一个按钮或快捷路径。
+
+全局播放真值持续：
+
+- 同一媒体、Playing/Paused/Error、confirmed playback position、duration、volume/mute 与 committed track selection 都在 Window Mode 切换中持续。
+- Window Mode 只改变 Host composition / information density，不重建播放会话。
+- D3-03 继续唯一拥有 confirmed position；若 mode transition 打断 direct scrub / preview，先取消临时 target，不将它伪装为 commit。
+
+Inspector suspension：
+
+- Inspector visible surface 只属于 Windowed context；进入 Fullscreen 或 Mini 时立即隐藏。
+- 可以保留 `Windowed Inspector open flag + selected Inspector mode` 作为可恢复 context。
+- 返回 Windowed 时，仅当同一 player context 仍有效才恢复一个 Inspector Shell 与原 selected mode。
+- Inspector focus ring、Popover、pointer hover、scroll drag 等 transient interaction 不参与恢复。
+- 如果 current-media lifecycle 已使旧 Inspector context 失效，新的 primary state 优先，不能机械恢复陈旧 surface。
+
+Transient cleanup：
+
+```text
+More Popover        → close before mode commit
+Volume Popover      → close before mode commit
+Timeline hover      → clear
+Timeline direct drag→ cancel transient target
+Seek Preview        → clear with canceled direct interaction
+stale Focus         → clear / remap
+```
+
+Popup/hover/drag 都是 mode-local transient state，不跨模式泄漏。清理 transient 不等于改写 playback truth。
+
+Focus mapping：
+
+- Keyboard-driven Windowed Fullscreen action 与 Fullscreen Exit Fullscreen 在 destination chrome 可见时可以映射到语义 counterpart。
+- 目标模式不存在 counterpart 时，focus 回到 destination window root；Mini Expand 返回 Windowed root / 后续 Tab traversal。
+- Pointer-driven transition 不人工制造 keyboard focus ring。
+- 一个在 destination 中不存在的 node 永远不能继续持有 focus；Inspector focus 不做 suspend/restore。
+
+OSC / Chrome：
+
+- Windowed ↔ Fullscreen 的明确 mode action 使 destination chrome 从 Active presentation 开始，然后继续交给 D3-07 唯一 Visibility Controller。
+- D7-05 不创建新的 hide deadline、lock reason 或 `AFTER_TIMEOUT`。
+- Paused / Error 仍按 D3-07 `autoHideAllowed=false → Rest · persistent`，不新增模式专用 persistent state。
+- Mini 不继承 Windowed/Fullscreen 的 OSC visible/hidden 值；Mini 继续按 D7-03 自己的 Rest / Hover information-density contract 投影共享 playback truth。
+
+真实往返验证：
+
+```text
+Flow A — Inspector context
+Windowed Inspector Before      419:704
+Fullscreen Active              419:764
+Windowed Inspector Restored    419:812
+
+Flow B — transient cleanup
+Windowed More Before           419:880
+Mini Rest After Commit         419:939
+Windowed Clean Return          419:945
+```
+
+两条 flow 的 QA media 均使用 `夜间列车 · demo.mp4`；Windowed / Fullscreen 场景 confirmed time 均为 `04:12`。Flow A 验证 Inspector `1 → 0 → 1`，且返回时仍是同一个有效 Playlist context；Flow B 验证 More `1 → 0 → 0`，Mini 不携带 Inspector/More/OSC，返回 Windowed 后 More 不复活。
+
+Prototype destination 全部为同页 top-level Frame：
+
+```text
+420:386  Windowed · Inspector Context
+420:449  Fullscreen · Active
+420:499  Windowed · Restored Inspector
+420:562  Windowed · More Open
+420:624  Mini · Hover
+420:651  Windowed · Clean Return
+```
+
+Prototype reactions 共 5 条：
+
+```text
+Windowed Fullscreen Action   420:440 → 420:449  SMART_ANIMATE 160ms
+Fullscreen Exit Action       420:496 → 420:499  SMART_ANIMATE 160ms
+Restored Windowed Fullscreen 420:553 → 420:449  SMART_ANIMATE 160ms
+QA Enter Mini                420:709 → 420:624  DISSOLVE 160ms
+Mini Expand                  420:635 → 420:651  DISSOLVE 160ms
+```
+
+`QA / Enter Mini`（`420:709`）是明确标注的工程验证入口，因为 D7-03 只冻结了 Mini 内的 Expand/Close，并没有冻结 Windowed 侧的产品 Mini entry。D7-05 不把这个 QA hit target 描述成真实产品按钮，也不据此扩大 Action Registry 或运行时范围。
+
+最终审计：
+
+```text
+Source Section fit                         PASS
+Verification Section fit                   PASS
+Prototype Section fit                      PASS
+Prototype destinations page-level          6 / 6 PASS
+Visible unbound product/UI paints           0
+Intentional media-test artwork unbound     20
+Generic unnamed residues                    0
+D7-05 formal Components                     0
+New D7-05 global Variables                  0
+D7-05 Prototype reactions                   5
+D7-05 AFTER_TIMEOUT owners                  0
+Direct Fullscreen ↔ Mini product edge       0
+Acceptance Gate                            10 / 10 PASS
+Verification Assertions                    12 / 12 PASS
+D7-01 ～ D7-04 protected geometry           PASS
+```
+
+20 个 unbound paint 全部来自 Verification / Prototype 的 `Media Test` glow/artwork，用于模拟视频内容，不属于产品 UI Surface；产品 UI unbound paint=`0`。D7-05 Source / Verification / Prototype Section 均清除默认 Section fill/stroke；没有新 Component、Variable、breakpoint、PlaybackSession、seek owner 或 timer owner。
+
+实施中 Source 第一次写入因清空旧 Frame 内容后仍尝试 clone 已删除的 Text exemplar，被 Figma 原子拒绝；该调用没有提交半成品。修正 exemplar 生命周期后重新执行并完成。Prototype 的真实 NAVIGATE destination 按 Figma 约束拆成同页 top-level Frame，再在后续调用中绑定 Reaction。
+
+当前 `agent/r4-stage` 的 Qt/QML runtime 仍只有 `PlayerScreen → VideoSurface + PlayerChrome` 早期骨架，没有 Window Mode coordinator、Fullscreen/Mini window owner、Inspector suspension 或 transient cleanup runtime 实现。因此 D7-05 完成的是 Figma 设计契约；没有修改播放器源码、配置、依赖、数据格式或运行时接口，也没有构建、单元测试或运行时测试项。
+
+**D7-05：Complete。**
+
+## Stage D7 Closing Result
+
+Fullscreen 构图与显隐、Mini Player、Narrow collapse，以及 Windowed ↔ Fullscreen ↔ Mini 的状态迁移契约已经形成完整窗口模式系统。共享 Playback/Seek/OSC/Inspector authority 保持唯一；模式切换只改变 Host 与 information density，并清理不适配的 transient Popup/Focus/drag，不复制第二播放器，也不通过缩小交互目标解决响应式问题。
+
+**Stage D7：Complete。**
+
+## Next
+
+**D8-01 — 重复结构审计**
+
+下一步按 `docs/plans/stages/D8_组件系统与全局收口.md` 从 D2–D7 的真实成品反向扫描重复结构：
+
+```text
+product instances
+  → duplication map
+```
+
+重点找出同名不同实现、不同名同实现、仅尺寸不同的伪组件，并形成明确合并清单；本阶段先审计，不提前机械组件化。
