@@ -4,7 +4,6 @@
 
 #include <QQuickFramebufferObject>
 
-#include <cstdint>
 #include <memory>
 
 class QOpenGLFramebufferObject;
@@ -33,7 +32,7 @@ public:
 
 private:
     [[nodiscard]] bool applySynchronizedCoreBinding();
-    [[nodiscard]] bool renderUpdatesAllowed();
+    [[nodiscard]] bool renderUpdatesAllowed() const noexcept;
     [[nodiscard]] bool ensureRenderContext();
     [[nodiscard]] bool releaseRenderContext();
     void clearFramebuffer() noexcept;
@@ -44,12 +43,9 @@ private:
     mpv_handle* boundCoreHandle_ = nullptr;
     std::shared_ptr<const MpvRenderVisibilityPolicy> visibilityPolicy_;
     std::shared_ptr<MpvRenderShutdownCoordinator> shutdownCoordinator_;
-    std::uint64_t visibilityRevision_ = 0;
     std::unique_ptr<MpvRenderContext> renderContext_;
     std::unique_ptr<MpvRenderUpdateBridge> updateBridge_;
     bool renderContextCreationAttempted_ = false;
-    bool framebufferNeedsRender_ = true;
-    bool updateFailureReported_ = false;
     bool renderFailureReported_ = false;
 };
 

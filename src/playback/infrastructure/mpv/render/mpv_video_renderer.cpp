@@ -5,8 +5,6 @@
 #include "mpv_render_shutdown_coordinator.h"
 #include "mpv_render_update_bridge.h"
 
-#include <mpv/render.h>
-
 #include <QDebug>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
@@ -14,7 +12,6 @@
 #include <QQuickOpenGLUtils>
 #include <QString>
 
-#include <cstdint>
 #include <utility>
 
 namespace player::playback::infrastructure::mpv::render {
@@ -53,7 +50,6 @@ void MpvVideoRenderer::synchronize(QQuickFramebufferObject* item)
         presentationState_ = {};
         synchronizedCoreHandle_ = nullptr;
         visibilityPolicy_.reset();
-        visibilityRevision_ = 0;
         return;
     }
 
@@ -64,8 +60,6 @@ void MpvVideoRenderer::synchronize(QQuickFramebufferObject* item)
         videoItem->renderVisibilityPolicy();
     if (visibilityPolicy_ != visibilityPolicy) {
         visibilityPolicy_ = std::move(visibilityPolicy);
-        visibilityRevision_ = 0;
-        framebufferNeedsRender_ = true;
     }
 
     if (updateBridge_ == nullptr) {
@@ -113,7 +107,6 @@ void MpvVideoRenderer::synchronize(QQuickFramebufferObject* item)
 
 QOpenGLFramebufferObject* MpvVideoRenderer::createFramebufferObject(const QSize& size)
 {
-    framebufferNeedsRender_ = true;
     return new QOpenGLFramebufferObject(size);
 }
 
@@ -162,21 +155,11 @@ void MpvVideoRenderer::render()
         return;
     }
 
-    std::uint64_t updateFlags = 0;
-    QString errorMessage;
-    if (!renderContext_->update(&updateFlags, &errorMessage)) {
-        reportErrorOnce(
-            updateFailureReported_,
-            QStringLiteral("Unable to update the mpv video renderer: %1").arg(errorMessage));
-        return;
-    }
-    updateFailureReported_ = false;
-
-    const bool hasNewFrame = (updateFlags & MPV_RENDER_UPDATE_FRAME) != 0U;
-    if (!hasNewFrame && !framebufferNeedsRender_) {
-        return;
-    }
-
+    // This renderer uses libmpv's default callback-driven control mode. Without
+    // MPV_RENDER_PARAM_ADVANCED_CONTROL, mpv_render_context_update() is optional
+    // and its FRAME flag must not be used as a render gate. A Qt render pass can
+    // therefore always redraw the current mpv frame; libmpv redraw callbacks are
+    // responsible for scheduling future passes through MpvRenderUpdateBridge.
     MpvRenderParameters renderParameters(MpvOpenGlRenderTarget{
         framebuffer->handle(),
         framebuffer->width(),
@@ -191,6 +174,7 @@ void MpvVideoRenderer::render()
         return;
     }
 
+    QString errorMessage;
     if (!renderContext_->render(renderParameters.data(), &errorMessage)) {
         reportErrorOnce(
             renderFailureReported_,
@@ -199,7 +183,6 @@ void MpvVideoRenderer::render()
     }
 
     renderFailureReported_ = false;
-    framebufferNeedsRender_ = false;
 }
 
 const MpvVideoPresentationState& MpvVideoRenderer::presentationState() const noexcept
@@ -219,30 +202,17 @@ bool MpvVideoRenderer::applySynchronizedCoreBinding()
 
     boundCoreHandle_ = synchronizedCoreHandle_;
     renderContextCreationAttempted_ = false;
-    updateFailureReported_ = false;
     renderFailureReported_ = false;
-    framebufferNeedsRender_ = true;
     return true;
 }
 
-bool MpvVideoRenderer::renderUpdatesAllowed()
+bool MpvVideoRenderer::renderUpdatesAllowed() const noexcept
 {
     if (visibilityPolicy_ == nullptr) {
         return presentationState_.visible;
     }
 
-    const MpvRenderVisibilitySnapshot snapshot = visibilityPolicy_->snapshot();
-    if (snapshot.revision != visibilityRevision_) {
-        visibilityRevision_ = snapshot.revision;
-        if (snapshot.updatesAllowed) {
-            // A restore must repaint even when playback is paused and mpv has no
-            // new frame flag. Qt may also have invalidated/recreated the FBO while
-            // the window was hidden or minimized.
-            framebufferNeedsRender_ = true;
-        }
-    }
-
-    return snapshot.updatesAllowed;
+    return visibilityPolicy_->snapshot().updatesAllowed;
 }
 
 bool MpvVideoRenderer::ensureRenderContext()
@@ -350,7 +320,6 @@ void MpvVideoRenderer::clearFramebuffer() noexcept
 
     functions->glClearColor(0.0F, 0.0F, 0.0F, 0.0F);
     functions->glClear(GL_COLOR_BUFFER_BIT);
-    framebufferNeedsRender_ = true;
 }
 
 void MpvVideoRenderer::reportErrorOnce(bool& reported, const QString& message)

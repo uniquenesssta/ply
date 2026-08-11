@@ -154,7 +154,7 @@ void MpvVideoRendererTest::generatedVideoContinuesRenderingWithoutExternalWindow
     QVERIFY2(
         writeGeneratedY4mVideo(
             videoPath,
-            300,
+            450,
             GeneratedY4mPattern::AnimatedGray,
             &mediaError),
         mediaError.toLocal8Bit().constData());
@@ -182,14 +182,27 @@ void MpvVideoRendererTest::generatedVideoContinuesRenderingWithoutExternalWindow
     const int renderCountBeforeLoad = renderedSpy.count();
     QCOMPARE(loadFileOnWorkerThread(core->nativeHandle(), videoPath), 0);
 
-    // No window.update(), resize, grabWindow(), visibility transition or fullscreen
-    // transition is allowed here. libmpv redraw notifications alone must wake the
-    // GUI-side QQuickFramebufferObject and keep the Scene Graph producing frames.
+    // First prove that redraw notifications alone sustain the initial playback
+    // path after load. No resize/grab/visibility/fullscreen wake is allowed here.
     QTRY_VERIFY_WITH_TIMEOUT(renderedSpy.count() >= renderCountBeforeLoad + 6, 5000);
 
     const int renderCountAfterStartup = renderedSpy.count();
     QTest::qWait(350);
     QVERIFY(renderedSpy.count() >= renderCountAfterStartup + 3);
+
+    // Reproduce render_probe's one-time windowed settling operation. Once this
+    // explicit settle wake has been issued, the steady windowed phase below must
+    // keep rendering from libmpv redraw callbacks alone.
+    window.showNormal();
+    window.resize(128, 72);
+    videoItem.setWidth(128.0);
+    videoItem.setHeight(72.0);
+    window.update();
+    QTest::qWait(1500);
+
+    const int renderCountBeforeSteadyWindowed = renderedSpy.count();
+    QTest::qWait(2000);
+    QVERIFY(renderedSpy.count() >= renderCountBeforeSteadyWindowed + 10);
 
     QCOMPARE(stopPlaybackOnWorkerThread(core->nativeHandle()), 0);
 
