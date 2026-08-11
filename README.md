@@ -20,7 +20,7 @@
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
-- **D8：In Progress — D8-01 ～ D8-06 Complete；D8-07 待执行。**
+- **D8：Complete — D8-01 ～ D8-07 全部关闭。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -59,7 +59,8 @@
 - **D8-04：Surfaces，Source `470:308` / Verification `470:310` / OSC `474:308` / Inspector `476:308` / Popover `477:308` / HUD `478:308` / Toast `479:308` / Dialog `479:310`。**
 - **D8-05：Composite，Source `491:397` / Verification `491:399` / Floating Header `494:10663` / Playlist Row `168:260` / Track Row `179:716` / Settings Row `336:2293` / Source List Item `507:537`。**
 - **D8-06：全局实例回刷，Source `529:676` / Verification `529:678`。**
-- **下一任务：D8-07 全局卫生审计与最终收口。**
+- **D8-07：命名/变量/层级卫生，Source `591:676` / Verification `591:677`。**
+- **下一任务：D9-01 核心播放原型。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -2595,7 +2596,7 @@ Fullscreen 构图与显隐、Mini Player、Narrow collapse，以及 Windowed ↔
 
 **Stage D7：Complete。**
 
-## Stage D8 — Design System & Global Convergence · In Progress
+## Stage D8 — Design System & Global Convergence · Complete
 
 ### D8-01 重复结构审计 · Complete
 
@@ -2945,27 +2946,146 @@ D8-06 没有新增 Color / Geometry / Effect / Motion Variable；仅为现有 Co
 
 **D8-06：Complete。**
 
-## Stage D8 Current Result
+### D8-07 命名/变量/层级卫生 · Complete
 
-D8-01～D8-06 已完成重复结构审计、Icon language、Control、Surface、Composite authority 收口以及成品实例回刷。D2～D7 的真实产品画面已切换到正式 authority；旧 Preferences Source Item / Source Icon / Playlist Search 已退休删除，Prototype reaction 与响应式几何经过逐链验证。
+Figma：
 
-D8-07 仍需执行全文件卫生审计：清理历史复制残留、generic Vector/Frame、残留硬编码颜色、alias 断裂与空 Slot 背景。D8-07 不重新设计或改写已经在 D8-06 验证通过的产品行为。
+```text
+Source / Contract  591:676  D8-07 / Naming Variable Hierarchy Hygiene
+Verification       591:677  D8-07 / Verification
+```
 
-**Stage D8：In Progress。**
+D8-07 对 9 个 Figma Page 做最终文件级 hygiene，只处理命名、变量绑定、Alias、Slot 默认材质与 authority namespace；不重新设计 D8-06 已验证通过的 Header / OSC / Inspector / Preferences / Window Mode 行为。
+
+命名收口：
+
+- `00 Framework Preview` 39 个、D2 本地 4 个、D3 本地 229 个、D8-02 authoritative Icon source 38 个默认 `Vector/Frame` 改为职责化层名，共 `310` 个 source/local layer。
+- D8-02 source 的图标路径按 Close / Transport / Volume / Utility 等职责命名，实例派生层自动继承；optical geometry 未改变。
+- 最终 9 个 Page 的 semantically meaningless default `Vector / Frame / Rectangle / ...` residue=`0`。
+
+Section 默认材质：
+
+```text
+D4  15
+D5  11
+D6  15
+D7   6
+Total 47
+```
+
+以上只清除 Figma Section 容器自带的默认白 Fill / 10% 黑 Stroke；Section 内产品 Frame、Instance、geometry、reaction 均未修改。
+
+Semantic Paint binding：
+
+- D1 历史文档层 `214` 个未绑定 Paint 全部回到既有 semantic color variable；Primitive swatch 本身未被错误重定义。
+- D4 精确回刷 `82` 个可一一解释的产品/文档 Paint。
+- D5 精确回刷 `15` 个可一一解释的产品/文档 Paint。
+- 没有为测试视频或复杂背景创建伪产品 Token；D8-07 新增 Color / Geometry / Effect / Motion Variable=`0`。
+
+剩余 intentional QA/Test solid 共 `325`，全部有明确测试用途：
+
+```text
+D2   1    Test Background / Dark
+D4 126    Verification background / atmosphere / QA annotation
+D5  88    Synthetic Media + Network Loading contrast artwork
+D7 110    Media Test / Dark & Bright scenes
+```
+
+- D4 剩余 `126/126` 全部位于 Verification Section，`0` 个进入任何真实 Component Instance 子树，`0` 个位于 Verification 外。
+- D5 剩余 `88/88` 全部为 Synthetic Media / Network Loading 测试艺术层，`inInstances=0`、unexpected=`0`。
+- D7 剩余 `110/110` 全部位于明确命名的 `Media Test / …` 测试艺术层。
+- 因此 taskbook 口径下最终 **unexplained hardcoded product/UI solid=`0`**；保留的 325 个测试色不是产品 UI hardcode。
+
+Variable / Alias 完整性：
+
+```text
+Variables             456
+Collections            11
+Alias edges            360
+Broken Alias             0
+Bad collection refs      0
+Empty collections        0
+```
+
+11 组 `z/*` 同名项已逐项确认是合法的 `V3 / Interaction Primitive → V3 / Interaction Semantic` collection-scoped Alias；现有 API / code syntax 已使用，因此保持不改名。
+
+Hierarchy / authority hygiene：
+
+- Broken Instance main component=`0`。
+- Dirty Slot background/stroke/effect=`0`。
+- canonical namespace detached-copy suspect=`0`。
+- D5-01 Priority Matrix 中四个说明卡原 `Surface / HUD|TOAST|OVERLAY|DIALOG` 改为 `Feedback Route / …`，避免文档层冒充 D8 正式 Surface authority；只改名称，不改视觉与内容。
+- D8-06 已退休的 `Preferences / Source Item 298:349`、`Preferences / Source Icon 296:142`、`Playlist / Search 167:197` 继续保持 fresh-index absent。
+
+D8-06 产品回归：
+
+```text
+D2  Responsive Header                     4 / 4 PASS
+D4  canonical Search                      1 / 1 PASS
+D4  Inspector Shell live                     46 PASS
+D5  Header / OSC                         41 / 36 PASS
+D5  OSC inner Timeline/Playback/Icon  36 / 36 / 252 PASS
+D6  Source List direct canonical rows         14 PASS
+D6  Preferences Window Icon Buttons            9 PASS
+D6  Prototype reactions              6×7 / 42 / 41 PASS
+D7  Header / OSC / Mini / Popover        14 / 24 / 6 / 4 PASS
+D7  OSC inner Timeline/Playback/Icon 24 / 24 / 144 PASS
+D7-05 Prototype reactions                        5 PASS
+Legacy authority nodes                           0
+```
+
+视觉 QA 实际覆盖：
+
+```text
+D4  154:3    Standard Inspector
+D5  236:69   Playing / Header / OSC
+D6  303:658  Standard Playback Selected
+D7  411:261  560 More Open
+D8  D8-07 Source / Verification full-board
+```
+
+上述代表场景均通过；D7 560 仍保持 Leading Header、Current-only Timeline 与 More Popover contract。
+
+D8-07 最终 machine gate：
+
+```text
+D8-07 Source visible solids          74 / 74 semantic-bound
+D8-07 Verification visible solids   138 / 138 semantic-bound
+D8-07 Source / Verification generic residue     0
+D8-07 dirty Slot / broken Instance               0
+D8-07 formal Components / Component Sets         0
+08 Design System Page generic / unbound / dirty  0 / 0 / 0
+D8-02 authoritative Icon source generic          0
+Variables                                      456
+Foundation Variable Δ                            0
+Source / Verification section fit               PASS
+Section gap                                    100px
+```
+
+D8-07 只修改 Figma 设计卫生与根 README；没有修改播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D8-07：Complete。**
+
+## Stage D8 Closing Result
+
+D8-01～D8-07 已完成重复结构审计、Icon language、Control、Surface、Composite authority、全局成品实例回刷以及命名/变量/层级卫生收口。D2～D7 真实产品画面均消费正式 authority；旧 Source Item / Source Icon / Playlist Search 已退休，Prototype reaction 与响应式 geometry 回归保持。
+
+最终文件级 gate 为：默认无语义层名=`0`、无解释 product/UI hardcode=`0`、Broken Alias=`0`、Broken Instance=`0`、Dirty Slot=`0`、canonical detached copy=`0`。保留的 `325` 个 unbound solid 全部属于明确命名的 QA/媒体测试艺术层，不被伪装成产品 Token。D8-07 没有新增 Variable、Component 或 Component Set，也没有改写产品行为。
+
+**Stage D8：Complete。**
 
 ## Next
 
-**D8-07 — 全局卫生审计与最终收口**
+**D9-01 — 核心播放原型**
 
-下一步按 `docs/plans/stages/D8_组件系统与全局收口.md` 执行最终文件级 hygiene：
+下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 使用真实 Component Instance 建立核心播放点击链：
 
 ```text
-all pages
-  → generic Vector / Frame residue
-  → hardcoded color / variable binding residue
-  → broken alias
-  → empty slot background
-  → final regression verification
+real Component Instance
+  → play / pause
+  → OSC visibility
+  → basic media-state transitions
+  → clickable regression
 ```
 
-重点清理无意义默认 `Vector` / `Frame`、残留硬编码颜色与变量绑定断点、alias 断裂、空 `slot` 背景及 D8-06 明确保留的历史 fixture 卫生问题；不得借卫生审计重新设计已经完成回刷的 Header / OSC / Inspector / Preferences / Window Mode 行为。
+D9-01 只演示真实交互，不画静态流程图冒充原型；播放状态继续消费 D3/D5 已冻结的 state ownership，视觉与组件继续消费 D8 正式 authority。
