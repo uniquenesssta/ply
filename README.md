@@ -1608,7 +1608,7 @@ Settings Action              345:2641  Preferences / Settings Action
 Raw Mpv Warning              346:2625  Preferences / Raw Mpv Warning
 Playback Content             347:2626  Preferences / Playback Content
 Video Content                348:2659  Preferences / Video Content
-Audio Content                349:2683  Preferences / Audio Content
+Audio                 358:3758
 Subtitles Content            350:2695  Preferences / Subtitles Content
 Interface Content            351:2717  Preferences / Interface Content
 Diagnostics Export           352:2741  Preferences / Diagnostics Export
@@ -1735,7 +1735,7 @@ D6-05 Prototype：
 Prototype Navigation  358:3747
 Playback              358:3748
 Video                 358:3753
-Audio                  358:3758
+Audio                 358:3758
 Subtitles             358:3763
 Interface             358:3768
 Advanced              358:3773
@@ -1776,7 +1776,7 @@ Preferences / Raw Mpv Warning authorities           1
 Preferences / Diagnostics Export authorities        1
 Preferences / Playback Content authorities          1
 Preferences / Video Content authorities             1
-Preferences / Audio Content authorities              1
+Preferences / Audio Content authorities             1
 Preferences / Subtitles Content authorities         1
 Preferences / Interface Content authorities         1
 Preferences / Advanced Content authorities          1
