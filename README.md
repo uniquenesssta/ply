@@ -1616,3 +1616,17 @@ Windows Release probe 已在用户机器真实运行并发现首次窗口渲染�
 上述修复已提交，但当前连接环境未执行 Windows Qt/MSVC build/CTest，也尚未重新生成修复后的 1080p/4K Release JSON，因此 R4-09 和 Stage R4 都不标记 Complete。Windows 门禁仍要求完整 41/41 回归，并重新确认首次运行无需 resize/fullscreen 即可正常出画面。
 
 **Stage R4：In Progress。R4-01~R4-08：Complete。R4-09：first-frame wake fix implemented / Windows 41-test + 1080p/4K rerun pending。R4-10：不存在；R4-09 完成后按任务书关闭 Stage R4。**
+
+## R4-09 Windows verification and Stage R4 acceptance — current
+
+R4-09 的 1080p windowed 稳态停帧问题已修复。Render 链在默认 callback-driven control 模式下不再使用未启用 `MPV_RENDER_PARAM_ADVANCED_CONTROL` 时的 `mpv_render_context_update()` FRAME 标志作为 render gate；Qt Quick 已调度的合法 render pass 直接重绘当前 libmpv frame，后续帧继续由 redraw callback 驱动。
+
+用户在 Windows 10 22H2 / Qt 6.8.3 / MSVC 19.44 / libmpv 0.41.0 环境重新 configure/build/test。标准 Debug CTest 实际结果为 **41/41 PASS，0 failed，总耗时 58.78 秒**；加强后的 `mpv_video_renderer` 为 **5.47 秒 PASS**。
+
+Release 基线环境为 NVIDIA GeForce RTX 3070 / OpenGL 4.6.0，媒体均为 30 fps，`hwdec-current=no`。1920×1080 样本 windowed/fullscreen 均产生 300 次 `afterRendering` / 约 10 秒，两个阶段 frame/decoder/delayed drop 增量均为 0；此前 windowed `afterRendering=0` 且约 300 帧 drop 的故障不再复现。
+
+3840×2160 样本 windowed/fullscreen 同样均产生 300 次 `afterRendering` / 约 10 秒，frame/decoder/delayed drop 增量均为 0。R4-09 已建立可供 R12 后续比较的 1080p/4K 稳态基线，不在本阶段进行无数据依据的性能微优化。
+
+R4-01~R4-09 均已满足对应验收条件，Stage R4 正式 Complete。性能极限、更多 GPU/驱动组合和硬件解码优化继续留在 R12。
+
+**Stage R2：Complete。Stage R3：Complete。Stage R4：Complete。**
