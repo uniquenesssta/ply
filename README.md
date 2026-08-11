@@ -19,7 +19,7 @@
 - **D4：Complete — D4-01 ～ D4-07 全部关闭。**
 - **D5：Complete — D5-01 ～ D5-07 全部关闭。**
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
-- **D7：In Progress — D7-01 ～ D7-03 Complete。**
+- **D7：In Progress — D7-01 ～ D7-04 Complete。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -50,7 +50,8 @@
 - **D7-01：Fullscreen 构图，Page `382:5777` / Source `382:5778` / Verification `382:5779` / Minimal Header `386:16` / Compact OSC Composition `386:21` / Layout Contract `386:71`。**
 - **D7-02：Fullscreen 显隐交互，Source `393:2` / Verification `393:3` / Chrome Projection `394:16` / Interaction Scenarios `394:30` / Acceptance Gate `394:80` / Verification Assertions `395:367`。**
 - **D7-03：Mini Player，Source `401:47` / Verification `401:48` / Geometry Contract `402:61` / Rest `402:70` / Hover `402:76` / Minimum `402:100` / Acceptance Gate `402:143` / Verification Assertions `403:151`。**
-- **下一任务：D7-04 窄窗口降级。**
+- **D7-04：窄窗口降级，Source `407:47` / Verification `407:48` / Policy Matrix `408:61` / Pressure Ladder `408:95` / Acceptance Gate `408:129` / Geometry Audit `413:203` / Verification Assertions `413:223`。**
+- **下一任务：D7-05 跨模式状态保持。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -2312,16 +2313,145 @@ Acceptance             9 / 9 · 10 / 10 PASS
 
 **D7-03：Complete。**
 
-## Next
+### D7-04 窄窗口降级 · Complete
 
-**D7-04 — 窄窗口降级**
-
-下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 冻结多档窄宽度下的响应式降级顺序：
+Figma：
 
 ```text
-width
-  → priority
-  → collapse
+Source / Contract        407:47   D7-04 / Narrow Responsive Policy
+Verification             407:48   D7-04 / Verification
+Policy Matrix            408:61   Responsive Policy Matrix
+Pressure Ladder          408:95   Narrow Pressure Ladder
+Inspector Contract       408:119
+Overflow Contract        408:124
+Acceptance Gate          408:129  D7-04 / Acceptance Gate
+Geometry Audit           413:203  Geometry / Ownership Audit
+Verification Assertions  413:223  D7-04 / Verification Assertions
+Detailed Record           docs/records/D7-04_窄窗口降级.md
 ```
 
-重点验证 Utility、时间码、音量与 Inspector 的降级规则；交互目标不缩小，低优先级动作进入 More/Popover，并保证所有断点无控件重叠。
+D7-04 不建立第二套全局 breakpoint。D2-05 继续是唯一响应式断点 owner：
+
+```text
+Narrow     0–839
+Standard   840–1199
+Wide       >=1200
+```
+
+`820 / 720 / 640 / 560` 仅作为 Narrow 内的 QA 压力宽度，不创建第四种 Responsive Mode 或新的 breakpoint Variable。
+
+降级顺序继续消费 D3 已冻结的密度：
+
+```text
+Wide
+  Utility full 222×32
+  Volume inline 138×32
+  Current + Duration
+  Inspector dock 368
+
+Standard
+  Utility mixed 146×32
+  Volume trigger 32 + z60 Popover
+  Current + Duration
+  Inspector overlay 368
+
+Narrow
+  Utility essential+More 108×32
+  Volume trigger 32 + z60 Popover
+  Inspector overlay 320
+  Timeline information yields before geometry
+```
+
+Narrow 直接可见动作保持 `Subtitles + More + Fullscreen`；Audio Tracks / Chapters / Playlist 继续由既有 More Popover 提供，不把 Volume 塞进 More，也不建立第二个 Inspector。
+
+交互目标不随窗口变窄而缩小：
+
+```text
+Transport        116×40
+PlayPause         40×40
+Volume Trigger    32×32
+Narrow Utility   108×32
+Timeline Hit      16px
+Timeline Track     3px
+Timeline Thumb    10×10
+```
+
+时间码使用局部 lane-pressure 规则，而不是新建全局断点：
+
+```text
+Timeline Lane >= 480px → Current + Duration
+Timeline Lane < 480px  → Current only; Duration yields first
+```
+
+真实验证：
+
+```text
+820 Narrow Upper       410:49   window 820×700   OSC 716×106   lane 660   Current + Duration
+720 Narrow Reference   410:108  window 720×700   OSC 616×106   lane 560   Current + Duration
+640 Narrow Floor       410:167  window 640×700   OSC 536×106   lane 480   Current + Duration
+560 Narrow Stress      411:203  window 560×700   OSC 456×106   lane 400   Current only
+560 More Open          411:261  More 250×176 @ 284,360
+560 Inspector Open     411:323  Inspector 320×450 @ 214,88
+```
+
+560 Header 保持 Compact Media Info=`360×50`、Window Actions=`110×50`，只改变 placement：Title=`x26`、Actions=`x424`、gap=`38`，不缩小窗口动作 hit target。
+
+560 More 直接复用 D3-06 `More Popover`：`250×176 @ 284,360`，完整落在窗口内且位于 OSC 上方；Audio / Chapters / Playlist 均保持可达。
+
+560 Inspector 直接复用 D4-07 `Inspector / Shell` 实例：`320×450 @ 214,88`，bottom=`538 < OSC y564`；Inspector overlay 停在 OSC 上方，OSC 仍为 `456×106`，Video Viewport 也不因 open/close 改变。
+
+最终审计：
+
+```text
+Source Section fit                    PASS
+Verification Section fit              PASS
+Visible unbound product paints        0
+Generic unnamed residues              0
+D7-04 formal Components               0
+D7-04 Reactions                       0
+D7-04 AFTER_TIMEOUT owners            0
+New D7-04 global Variables            0
+Section outline residue               0
+
+All cases Timeline hit                16
+All cases Timeline track               3
+All cases Timeline thumb              10×10
+All cases Transport                   116×40
+All cases PlayPause                    40×40
+All cases Volume                       32×32
+All cases Narrow Utility              108×32
+
+560 More inside host                  PASS
+560 More above OSC                    PASS
+560 Inspector main                    Inspector / Shell
+560 Inspector stops above OSC         PASS
+560 Inspector above OSC z-order       PASS
+
+D2-05 authority regression            PASS
+D3-02 authority regression            PASS
+D3-05 authority regression            PASS
+D3-06 authority regression            PASS
+D4-07 authority regression            PASS
+D7-01 / D7-02 / D7-03 geometry        PASS
+Acceptance Gate                       10 / 10 PASS
+Verification Assertions               12 / 12 PASS
+```
+
+D7-04 verification 中复制的 Utility SVG 默认 `Vector` 子路径仅在新副本内职责化命名，D3 source 未修改。最终 `generic residue=0`。
+
+当前 `agent/r4-stage` 的 Qt/QML runtime 仍只有 `PlayerScreen → VideoSurface + PlayerChrome` 早期骨架，尚无 Narrow responsive runtime owner、真实 collapse resolver 或 Inspector/More 窄窗运行时布局。因此本任务完成的是 Figma 设计契约；没有修改播放器源码、配置、依赖、数据格式或运行时接口，也没有构建、单元测试或运行时测试项。
+
+**D7-04：Complete。**
+
+## Next
+
+**D7-05 — 跨模式状态保持**
+
+下一步按 `docs/plans/stages/D7_窗口模式与响应式行为.md` 设计 Windowed ↔ Fullscreen ↔ Mini 的状态迁移：
+
+```text
+mode transition
+  → interaction state mapping
+```
+
+重点验证播放状态持续、Inspector / OSC / Focus 的可解释迁移，以及 Popup 在进入不适合的新模式时被正确清理；完成判断是三模式往返没有残留 Popup/Focus 或“瞬移式”异常。
