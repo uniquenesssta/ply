@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | R5-01 QML module/import 边界已实施，Windows 验收待完成 |
+| R5 — UI 设计系统 | In Progress | R5-01 QML module/import 边界已实施；configure/build 已通过，修复 module-load 测试环境与一次 Render shutdown 回归后待复测 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,11 +100,18 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-13 — R5-01 validation fixes
+
+- Windows Qt 6.8.3 / MSVC 已确认 configure 与 build 通过；`qmltyperegistrar` Generate 阻断已消失。
+- `qml_module_boundaries` 现已给出真实错误：测试进程缺少 Qt 安装的 QML import path，导致 `QtQuick` 未安装；`scripts/test.ps1` 现显式注入并恢复 `QML_IMPORT_PATH=<Qt>/qml`。
+- 全量回归同时捕获一次 R4-08 late-update 竞态；Render delivery gate 现会在 queued signal 消费时再次检查 shutdown，关闭 shutdown 前检查通过、shutdown 后才投递的窗口；公共接口和播放状态所有权不变。
+- 当前仍需 Windows 复测；`qmllint` 对手动注册的 `MpvVideoItem` 仍有 6 条既有 tooling warning，未通过 suppress/skip 掩盖。R5-01 暂不标 Complete。
+
 ### 2026-08-12 — R5-01
 
 - 建立 `Theme/Primitives/Controls/Surfaces` 四个公开 QML URI，现有 Theme 使用点改为显式模块 import。
 - `Player.Presentation` 保留 App 公共入口，其余现有 Shell/Screen/Feature 类型收为 internal；播放接口、依赖版本和视觉 token 不变。
-- Windows configure 暴露 Qt 6.8.3 TARGET-based QML dependency 的 deferred `qmltyperegistrar` 生成失败；已改为 URI dependency 并保留显式 backing-target 链接，现等待重新验收。
+- Windows configure 暴露 Qt 6.8.3 TARGET-based QML dependency 的 deferred `qmltyperegistrar` 生成失败；已改为 URI dependency 并保留显式 backing-target 链接。
 - 新增 QML public-module 最小加载测试；R5-01 暂不标 Complete。详细记录见 R5 Stage 文档。
 
 ### 2026-08-11 — README documentation policy
