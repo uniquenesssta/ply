@@ -21,7 +21,7 @@
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
 - **D8：Complete — D8-01 ～ D8-07 全部关闭。**
-- **D9：In Progress — D9-01 ～ D9-03 Complete；D9-04 待执行。**
+- **D9：In Progress — D9-01 ～ D9-04 Complete；D9-05 待执行。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -64,7 +64,8 @@
 - **D9-01：核心播放原型，Page `599:3362` / Source `605:203` / Verification `606:203` / Empty `600:2` / Loading `600:24` / Playing Visible `600:43` / Playing Hidden `600:147` / Paused Persistent `600:166`。**
 - **D9-02：Timeline Seek 原型，Page `599:3362` / Source `617:580` / Verification `618:580` / Rest `614:203` / Hover Preview `614:298` / Scrubbing `614:414` / Pending Seek `614:530` / Confirmed Resume `614:647`。**
 - **D9-03：Inspector 原型，Page `599:3362` / Source `627:1837` / Verification `627:1891` / Standard Closed `622:939` / Playlist `622:961` / Tracks `623:1062` / Subtitles `623:1363` / Chapters `623:1611` / Narrow Overlay QA `624:3850`。**
-- **下一任务：D9-04 Window Mode 原型。**
+- **D9-04：Window Mode 原型，Page `599:3362` / Source `638:2454` / Verification `638:2508` / Windowed Clean `634:1837` / Fullscreen Active `634:1934` / Inspector Before `636:1993` / Fullscreen Suspended `636:2193` / Inspector Restored `636:2270` / More Open QA `636:2464` / Mini Hover `634:2028`。**
+- **下一任务：D9-05 Error Recovery 原型。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -3496,24 +3497,199 @@ Atomic boundary 保持：D9-03 未提前实现 D9-04 Window Mode 或 D9-05 Error
 
 **D9-03：Complete。**
 
+### D9-04 Window Mode 原型 · Complete
+
+Figma：
+
+```text
+Page                    599:3362  09 Prototype & Handoff
+Source / Contract       638:2454  D9-04 / Window Mode Prototype
+Verification            638:2508  D9-04 / Verification
+Windowed Clean          634:1837
+Fullscreen Active       634:1934
+Windowed Inspector Before 636:1993
+Fullscreen Suspended    636:2193
+Windowed Inspector Restored 636:2270
+Windowed More Open QA   636:2464
+Mini Hover              634:2028
+```
+
+D9-04 只把 D7-05 已冻结的 Window Mode topology、Inspector suspension、transient cleanup 与 focus mapping 投影到最终 D9 Presentation；不创建第二个 Window Mode coordinator、PlaybackSession、seek truth、OSC lifecycle 或产品 Mini 入口。
+
+最终拓扑仍严格为：
+
+```text
+Windowed ↔ Fullscreen
+Windowed ↔ Mini
+Fullscreen ↔ Mini  direct product edge = none
+```
+
+Clean Windowed / Fullscreen 往返：
+
+```text
+634:1837 Windowed Clean
+  → Fullscreen action click · 160ms Smart Animate
+634:1934 Fullscreen Active
+  → Exit Fullscreen click · 160ms Smart Animate
+634:1837 Windowed Clean
+```
+
+两端都保持同一媒体、Playing state 与 D9-02 confirmed position=`66%`；D9-04 只改变 Host composition / information density。
+
+Inspector suspension / restore：
+
+```text
+636:1993 Windowed Inspector Before · Playlist
+  → Fullscreen · 160ms Smart Animate
+636:2193 Fullscreen Active · Inspector Suspended
+  → Exit Fullscreen · 160ms Smart Animate
+636:2270 Windowed Inspector Restored · Playlist
+```
+
+- Inspector 数量为 `1 → 0 → 1`。
+- 返回 Windowed 后恢复同一个有效 Playlist context；Shell 仍消费 D4 唯一 `Inspector / Shell 152:4`。
+- Inspector visible surface 只在 Windowed 存在；Fullscreen 不复制第二个 Inspector。
+- `636:2270` 的 ESC 只作为 Presentation 收口，120ms Dissolve 返回 `634:1837 Windowed Clean`。
+
+Transient More cleanup / Mini QA：
+
+```text
+636:2464 Windowed More Open QA
+  → QA Enter Mini · 160ms Dissolve
+634:2028 Mini Hover
+  → Expand · 160ms Dissolve
+634:1837 Windowed Clean
+```
+
+- More Popover 数量为 `1 → 0 → 0`；进入 Mini 前清理，返回 Windowed 后不复活。
+- `QA / Enter Mini` 继续沿用 D7-05 明确的工程验证入口；它位于产品窗口外，不被描述为真实产品按钮，也不冻结 future Action Registry。
+- Mini 使用 D7 既有 `420×236` composition，只保留 Title / Expand / Close / PlayPause / Timeline；不继承 Inspector / More / Full Window OSC。
+
+confirmed position 连续性：
+
+```text
+Windowed Clean              66%
+Fullscreen Active           66%
+Inspector Before            66%
+Fullscreen Suspended        66%
+Inspector Restored          66%
+More Open QA                66%
+Mini Hover                  66%
+```
+
+七个 D9-04 Timeline 都继续使用 D8 canonical `Control / Timeline`；D9-02 confirmed-data projection 的 temporary Committed Marker 全部保持 hidden，没有新增 `Committed` Variant 或第二套 PlaybackSnapshot。
+
+Prototype reaction：
+
+```text
+D9-04 total                                      8
+Windowed Playlist → Inspector Before             1
+Windowed Fullscreen → Fullscreen                 1
+Fullscreen Exit → Windowed Clean                 1
+Inspector Before Fullscreen → Suspended          1
+Suspended Exit → Inspector Restored              1
+Inspector Restored ESC → Windowed Clean          1
+QA Enter Mini → Mini Hover                       1
+Mini Expand → Windowed Clean                     1
+AFTER_TIMEOUT                                    0
+```
+
+其中 7 条为 click、1 条为 ESC；所有 8 条 NAVIGATE destination 都是 `09 Prototype & Handoff` Page 的顶层 Frame。Non-page destination=`0`，old D7 destination=`0`，Fullscreen↔Mini direct destination=`0`。
+
+Presentation Flow Start：
+
+```text
+D9-01 Core Playback       → 600:2
+D9-02 Timeline Seek       → 614:203
+D9-03 Inspector           → 622:939
+D9-03 Narrow Overlay QA   → 624:3850
+D9-04 Window Modes        → 634:1837
+D9-04 Mini Cleanup QA     → 636:2464
+```
+
+视觉 QA 实际覆盖：
+
+```text
+634:1837  Windowed Clean
+634:1934  Fullscreen Active
+634:2028  Mini Hover
+636:1993  Inspector Before
+636:2193  Fullscreen Suspended
+636:2270  Inspector Restored
+636:2464  More Open QA
+638:2454  Source board
+638:2508  Verification board
+```
+
+最终 machine gate：
+
+```text
+D9-04 states                              7 / 7 Page-level
+D9-04 reactions                          8 / 8
+D9-04 AFTER_TIMEOUT                      0
+All seven confirmed position             66% PASS
+Committed transient marker               hidden 7 / 7 PASS
+Inspector suspension / restore           1 → 0 → 1 PASS
+More Popover cleanup                     1 → 0 → 0 PASS
+Direct Fullscreen ↔ Mini product edge    0
+Non-page destinations                    0
+Old D7 destinations                      0
+Broken instances                         0
+D9 formal Components / Component Sets    0 / 0
+New Variables                            0
+Variables total                         456
+Foundation Variable Δ                    0
+Generic default-name residue             0
+Unexplained product/UI hardcode          0
+Intentional media-test solids           21
+Source visible solids                   46 / 46 semantic-bound
+Verification visible solids             72 / 72 semantic-bound
+Source → Verification gap              100px
+D9-01 reactions                         10 unchanged
+D9-01 timeout owner                      1 · 2.2s unchanged
+D9-02 reactions                          6 unchanged
+D9-03 reactions                         28 unchanged
+```
+
+21 个 unbound solid 全部来自 Windowed / Fullscreen / Mini / Inspector context 的 Synthetic Media / Media Test 测试艺术层，不属于产品 UI Surface；More QA、Source、Verification 产品/文档 UI 均无未解释硬编码 Paint。
+
+跨页回归：
+
+```text
+D7-05 Source / Verification / Prototype  418:203 / 419:203 / 420:381 PASS
+D7-05 original Prototype reactions       5 unchanged
+D7-05 AFTER_TIMEOUT                       0
+D7-05 direct Fullscreen ↔ Mini edge       0
+D3-07 Board                             142:2 PASS
+D3-07 single AFTER_TIMEOUT owner        143:2 · 2.2s → 143:15 PASS
+```
+
+当前 `agent/r4-stage` Qt/QML runtime 仍只有 `PlayerScreen → VideoSurface + PlayerChrome` 早期骨架，没有 Window Mode coordinator、Fullscreen/Mini window owner、Inspector suspension 或 transient cleanup runtime 实现。因此 D9-04 完成的是 Figma 最终原型组合，不把运行时能力描述为已实现。
+
+Atomic boundary 保持：D9-04 未提前实现 D9-05 Error Recovery；没有修改 D3/D4/D7/D8 source、播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D9-04：Complete。**
+
 ## Stage D9 Current Result
 
-D9-01 已建立 Empty → Loading → Playing / Hidden / Paused；D9-02 已补齐 Hover Preview → Scrub → Pending → Backend Confirm；D9-03 已从 confirmed 66% Player 打开唯一 Inspector Shell，并在同一 Shell 内切换 Playlist / Tracks / Subtitles / Chapters，同时完成 Standard 与 720 Narrow overlay dismissal 验证。Playback、confirmed position、Inspector、OSC visibility authority 仍分别归既有 D3/D4/D5/D8 owner，D9 只承担最终可点击组合与演示路由。
+D9-01 已建立 Empty → Loading → Playing / Hidden / Paused；D9-02 已补齐 Hover Preview → Scrub → Pending → Backend Confirm；D9-03 已接入唯一 Inspector Shell 与四模式切换；D9-04 已完成 Windowed↔Fullscreen 与 Windowed↔Mini 往返，并验证 confirmed 66% 跨模式持续、Inspector `1→0→1` suspension/restore、More Popover `1→0→0` transient cleanup。Playback、confirmed position、Inspector、OSC visibility 与 Window Mode topology 继续归既有 D3/D4/D5/D7/D8 owner，D9 只承担最终可点击组合与演示路由。
 
 **Stage D9：In Progress。**
 
 ## Next
 
-**D9-04 — Window Mode 原型**
+**D9-05 — Error Recovery 原型**
 
-下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 在已关闭的 D9-01 / D9-02 / D9-03 最终链上接入 Window Mode：
+下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 在已关闭的 D9-01 ～ D9-04 最终链上接入错误恢复：
 
 ```text
-Windowed
-  → Fullscreen
-  → Windowed
-  → Mini
-  → Windowed
+Recoverable Error
+  → Retry
+  → recover / resume
+
+Unrecoverable Error
+  → Open Media
+  → return to media-open path
 ```
 
-D9-04 必须继续消费 D7-05 已冻结的 mode topology、Inspector suspension、transient cleanup 与 focus mapping；不得建立第二个 PlaybackSession、Window Mode coordinator、OSC lifecycle 或直接 Fullscreen ↔ Mini 产品边。
+D9-05 必须继续消费 D5-06 唯一 Error Overlay / Error Action、D5-07 Dialog recovery ownership 与 D3-07 Error persistent policy；不得创建第二套 Error Overlay、恢复状态机、播放会话或伪造 backend recovery truth。
