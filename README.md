@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | R5-01 QML module/import 边界已实施；configure/build 已通过，修复 module-load 测试环境与一次 Render shutdown 回归后待复测 |
+| R5 — UI 设计系统 | In Progress | R5-01 已有 Windows 42/42 PASS 基线；正在收口 `MpvVideoItem` qmllint 类型元数据，最终复测待执行 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,12 +100,19 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-13 — R5-01 QML type metadata
+
+- Windows 修复基线已达到 **42/42 CTest PASS**；`qml_module_boundaries` 与 Render shutdown 回归均通过。
+- `MpvVideoItem` 的 QML 暴露改为 Presentation 层 `QML_FOREIGN` metadata descriptor，并恢复 `Player.Presentation` 自动 `.qmltypes` / C++ 类型注册生成；删除重复的手写 `qmlRegisterType()` 路径。
+- Playback/libmpv、`MpvVideoItem` 渲染实现、公共播放接口与视觉 token 不变；未新增生产依赖。
+- 该 CMake/type-registration 变更仍需 Windows configure/build/qmllint/42 CTest 与 `Player.exe` 启动 smoke 复测后，R5-01 才能标 Complete。
+
 ### 2026-08-13 — R5-01 validation fixes
 
 - Windows Qt 6.8.3 / MSVC 已确认 configure 与 build 通过；`qmltyperegistrar` Generate 阻断已消失。
-- `qml_module_boundaries` 现已给出真实错误：测试进程缺少 Qt 安装的 QML import path，导致 `QtQuick` 未安装；`scripts/test.ps1` 现显式注入并恢复 `QML_IMPORT_PATH=<Qt>/qml`。
-- 全量回归同时捕获一次 R4-08 late-update 竞态；Render delivery gate 现会在 queued signal 消费时再次检查 shutdown，关闭 shutdown 前检查通过、shutdown 后才投递的窗口；公共接口和播放状态所有权不变。
-- 当前仍需 Windows 复测；`qmllint` 对手动注册的 `MpvVideoItem` 仍有 6 条既有 tooling warning，未通过 suppress/skip 掩盖。R5-01 暂不标 Complete。
+- `qml_module_boundaries` 的 `QtQuick` import path 已通过测试脚本显式注入 `<Qt>/qml` 修复，并在测试后恢复原环境。
+- 全量回归捕获的 R4-08 late-update 竞态已通过 consumer-side shutdown gate 修复；公共接口和播放状态所有权不变。
+- 修复后 Windows 全量回归已达到 **42/42 PASS**；后续仅继续治理 qmllint 的 `MpvVideoItem` tooling metadata。
 
 ### 2026-08-12 — R5-01
 
