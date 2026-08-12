@@ -21,6 +21,7 @@
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
 - **D8：Complete — D8-01 ～ D8-07 全部关闭。**
+- **D9：In Progress — D9-01 Complete；D9-02 待执行。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -60,7 +61,8 @@
 - **D8-05：Composite，Source `491:397` / Verification `491:399` / Floating Header `494:10663` / Playlist Row `168:260` / Track Row `179:716` / Settings Row `336:2293` / Source List Item `507:537`。**
 - **D8-06：全局实例回刷，Source `529:676` / Verification `529:678`。**
 - **D8-07：命名/变量/层级卫生，Source `591:676` / Verification `591:677`。**
-- **下一任务：D9-01 核心播放原型。**
+- **D9-01：核心播放原型，Page `599:3362` / Source `605:203` / Verification `606:203` / Empty `600:2` / Loading `600:24` / Playing Visible `600:43` / Playing Hidden `600:147` / Paused Persistent `600:166`。**
+- **下一任务：D9-02 Timeline Seek 原型。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -912,7 +914,7 @@ feedback/error semantic variables           1
 D5-06 Reactions                              0
 D5-06 AFTER_TIMEOUT owners                  0
 Premature formal HUD/Toast/Dialog comps      0
-Generic unnamed residues                     0
+Generic unnamed residues                    0
 Visible unbound source/product paints        0
 D5-02 source section fit after extension     PASS
 D5-01～D5-05 protected sections              PASS
@@ -1746,7 +1748,7 @@ D6-05 Prototype：
 Prototype Navigation  358:3747
 Playback              358:3748
 Video                 358:3753
-Audio                 358:3758
+Audio                  358:3758
 Subtitles             358:3763
 Interface             358:3768
 Advanced              358:3773
@@ -3074,18 +3076,149 @@ D8-01～D8-07 已完成重复结构审计、Icon language、Control、Surface、
 
 **Stage D8：Complete。**
 
-## Next
+## Stage D9 — Prototype / Handoff · In Progress
 
-**D9-01 — 核心播放原型**
+### D9-01 核心播放原型 · Complete
 
-下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 使用真实 Component Instance 建立核心播放点击链：
+Figma：
 
 ```text
-real Component Instance
-  → play / pause
-  → OSC visibility
-  → basic media-state transitions
-  → clickable regression
+Page                 599:3362  09 Prototype & Handoff
+Source / Contract    605:203   D9-01 / Core Playback Prototype
+Verification         606:203   D9-01 / Verification
+Empty                600:2
+Loading              600:24
+Playing Visible      600:43
+Playing Hidden       600:147
+Paused Persistent    600:166
+Open Media Hit       602:211
+QA Media Ready Hit   602:213
 ```
 
-D9-01 只演示真实交互，不画静态流程图冒充原型；播放状态继续消费 D3/D5 已冻结的 state ownership，视觉与组件继续消费 D8 正式 authority。
+D9-01 使用 D5/D8 已验证的真实 Component Instance 建立最终点击链，不创建新的播放器视觉 source、PlaybackSession、状态机或 visibility controller。
+
+主链：
+
+```text
+Empty
+  → Open Media click
+Loading
+  → QA / Media Ready click
+Playing Visible
+  ↔ PlayPause click / Space
+Paused Persistent
+
+Playing Visible
+  → AFTER_TIMEOUT 2.2s
+Playing Hidden
+  → Mouse Enter / click fallback
+Playing Visible
+```
+
+状态与组件 ownership：
+
+- Empty / Loading 继续消费唯一 `Player Status Overlay` 与 `Feedback / Open Media Action / Loading Indicator`。
+- Playing / Paused 继续消费 D8 `Composite / Floating Header`、`Surface / OSC`、`Control / Timeline`、`Control / Playback Button`、`Control / Icon Button`。
+- Playing 使用 Pause glyph；Paused 使用 Play glyph；D9-01 不复制 transport source。
+- D3-07 继续是 OSC inactivity policy owner；D9-01 只把已冻结的 `2.2s → Hidden / 120ms Ease In / 160ms Ease Out wake` 投影到最终 Prototype。
+- Paused 继续使用 `Rest · persistent`，没有 inactivity timeout。
+- `QA / Media Ready Hit` 只模拟 backend media-ready 事件，使 Loading 能进入 Playing；它不定义真实加载耗时，也不是产品按钮。
+
+Prototype reaction：
+
+```text
+602:211  ON_CLICK          → 600:24   160ms Ease Out
+602:213  ON_CLICK          → 600:43   160ms Ease Out
+600:43   Space             → 600:166  120ms Ease Out
+600:49   PlayPause click   → 600:166  120ms Ease Out
+600:43   AFTER_TIMEOUT 2.2 → 600:147  120ms Ease In
+600:147  MOUSE_ENTER       → 600:43   160ms Ease Out
+600:147  ON_CLICK fallback → 600:43   160ms Ease Out
+600:147  Space             → 600:166  120ms Ease Out
+600:166  Space             → 600:43   120ms Ease Out
+600:172  PlayPause click   → 600:43   120ms Ease Out
+```
+
+Presentation 默认起点：
+
+```text
+D9-01 Core Playback → 600:2 Empty
+```
+
+D9-01 共 5 个最终状态 destination，全部是 `09 Prototype & Handoff` Page 的顶层 Frame；D5 历史 Prototype destination residue=`0`，Non-page destination=`0`。
+
+不可见 Hit：
+
+- `602:211` Open Media=`144×42`。
+- `602:213` QA Media Ready=`48×48`。
+- 两者均使用 semantic-bound `surface/glass + node opacity=0.001`，没有引入不可见硬编码 Paint。
+
+视觉 QA 实际覆盖：
+
+```text
+600:2    Empty
+600:24   Loading
+600:43   Playing Visible
+600:147  Playing Hidden
+600:166  Paused Persistent
+605:203  Source board
+606:203  Verification board
+```
+
+五个产品状态均保持 D5/D8 既有视觉。Playing Hidden 只隐藏 OSC，不改写媒体背景或窗口 chrome；Playing/Paused 的 Timeline、Pause/Play glyph、Window Actions 均正常。
+
+最终 machine gate：
+
+```text
+Prototype states                         5 / 5 Page-level
+Prototype reactions                     10 / 10
+ON_CLICK                                  5
+ON_KEY_DOWN                               3
+AFTER_TIMEOUT                             1
+MOUSE_ENTER                               1
+Single timeout owner                      1 · Playing Visible · 2.2s
+Non-page destinations                     0
+Old D5 destinations                       0
+Broken instances                          0
+D9 formal Components / Component Sets     0
+New Variables                             0
+Variables total                         456
+Foundation Variable Δ                     0
+Generic default-name residue              0
+Unexplained product/UI hardcode           0
+Intentional Synthetic Media solids        6
+Source visible solids                    46 / unbound 0
+Verification visible solids              72 / unbound 0
+Source / Verification fit                PASS
+Source → Verification gap               100px
+```
+
+6 个 unbound solid 只来自 Playing Visible / Hidden / Paused 的 `Synthetic Media Glow / Accent` 测试艺术层，用于模拟视频内容，不属于产品 UI Surface。
+
+Atomic boundary 保持：D9-01 未提前实现 D9-02 Timeline Seek、D9-03 Inspector、D9-04 Window Mode 或 D9-05 Error recovery。第一次 reaction 写入按 typings 携带 `MOUSE_ENTER.deprecatedVersion` 时被当前 Figma runtime schema 原子拒绝，没有提交半成品；改为运行时实际接受的 `MOUSE_ENTER { delay: 0 }` 后成功写入并通过最终 gate。
+
+本任务只修改 Figma Prototype 设计与根 README；没有修改播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D9-01：Complete。**
+
+## Stage D9 Current Result
+
+核心播放原型已可以从 Empty 连续演示到 Loading / Playing / OSC Hidden / Paused，并可通过 PlayPause、Space、pointer wake 与唯一 2.2s inactivity policy 往返。所有视觉继续消费 D5/D8 正式 authority，D3-07 仍是唯一 OSC visibility policy owner。
+
+**Stage D9：In Progress。**
+
+## Next
+
+**D9-02 — Timeline Seek 原型**
+
+下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 在 D9-01 最终播放链上演示：
+
+```text
+pointer down
+  → scrub / hover preview
+  → release / commit
+  → pending target
+  → backend confirm / resume
+```
+
+D9-02 必须继续消费 D3-03 confirmed position / preview / scrub / pending ownership 与 D5 `Feedback / Seek Preview`，不得建立第二套 Timeline source、PlaybackSnapshot 或 seek truth。
