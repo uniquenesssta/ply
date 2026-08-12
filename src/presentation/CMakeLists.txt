@@ -10,13 +10,6 @@ set(PLAYER_QML_FILES
     qml/features/player/chrome/PlayerChrome.qml
 )
 
-target_sources(
-    player_app
-    PRIVATE
-        qml/types/presentation_type_registration.cpp
-        qml/types/presentation_type_registration.h
-)
-
 foreach(qml_file IN LISTS PLAYER_QML_FILES)
     get_filename_component(qml_name "${qml_file}" NAME)
     set_source_files_properties(
@@ -38,9 +31,10 @@ qt_add_qml_module(
     URI Player.Presentation
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
-    NO_GENERATE_QMLTYPES
     DEPENDENCIES
         Player.Presentation.Theme
+    SOURCES
+        qml/types/mpv_video_item_qml_type.h
     QML_FILES ${PLAYER_QML_FILES}
 )
 
