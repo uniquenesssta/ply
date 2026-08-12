@@ -1,0 +1,11 @@
+import QtQuick.tooling 1.2
+
+Module {
+    Component {
+        name: "MpvVideoItem"
+        accessSemantics: "reference"
+        prototype: "QQuickItem"
+        exports: ["Player.Presentation/MpvVideoItem 1.0"]
+        exportMetaObjectRevisions: [0]
+    }
+}
