@@ -6,6 +6,7 @@
 #include "app/composition/application_container.h"
 #include "foundation/logging/log_categories.h"
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
+#include "presentation/qml/types/presentation_type_registration.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -71,6 +72,12 @@ int ApplicationBootstrap::run(
         << "renderer=" << graphicsInfo.renderer
         << "version=" << graphicsInfo.version
         << "glsl=" << graphicsInfo.shadingLanguageVersion;
+
+    if (!player::presentation::qml::registerPresentationQmlTypes()) {
+        qCCritical(player::logging::appBootstrap)
+            << "Failed to register Player.Presentation C++ QML types.";
+        return EXIT_FAILURE;
+    }
 
     QmlBootstrap& qmlBootstrap = container.qmlBootstrap();
     if (!qmlBootstrap.load()) {
