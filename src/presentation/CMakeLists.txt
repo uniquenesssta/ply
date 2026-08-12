@@ -40,7 +40,7 @@ qt_add_qml_module(
     RESOURCE_PREFIX /qt/qml
     NO_GENERATE_QMLTYPES
     DEPENDENCIES
-        TARGET player_presentation_theme
+        Player.Presentation.Theme
     QML_FILES ${PLAYER_QML_FILES}
 )
 
