@@ -8,6 +8,11 @@ player_enable_compiler_warnings(qml_module_boundary_tests)
 player_enable_sanitizers(qml_module_boundary_tests)
 player_enable_static_analysis(qml_module_boundary_tests)
 
+add_dependencies(
+    qml_module_boundary_tests
+    player_qml_lint
+)
+
 target_compile_definitions(
     qml_module_boundary_tests
     PRIVATE
