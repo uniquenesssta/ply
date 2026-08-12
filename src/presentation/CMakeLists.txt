@@ -1,10 +1,13 @@
+set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
+
+add_subdirectory(qml)
+
 set(PLAYER_QML_FILES
     qml/App.qml
     qml/shell/MainWindow.qml
     qml/screens/player/PlayerScreen.qml
     qml/features/player/video/VideoSurface.qml
     qml/features/player/chrome/PlayerChrome.qml
-    qml/theme/Theme.qml
 )
 
 target_sources(
@@ -23,8 +26,11 @@ foreach(qml_file IN LISTS PLAYER_QML_FILES)
 endforeach()
 
 set_source_files_properties(
-    qml/theme/Theme.qml
-    PROPERTIES QT_QML_SINGLETON_TYPE TRUE
+    qml/shell/MainWindow.qml
+    qml/screens/player/PlayerScreen.qml
+    qml/features/player/video/VideoSurface.qml
+    qml/features/player/chrome/PlayerChrome.qml
+    PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 
 qt_add_qml_module(
@@ -33,5 +39,13 @@ qt_add_qml_module(
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
     NO_GENERATE_QMLTYPES
+    DEPENDENCIES
+        TARGET player_presentation_theme
     QML_FILES ${PLAYER_QML_FILES}
+)
+
+target_link_libraries(
+    player_app
+    PRIVATE
+        player_presentation_theme
 )

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import Player.Presentation.Theme
 
 ApplicationWindow {
     id: window

@@ -1,4 +1,5 @@
 import QtQuick
+import Player.Presentation.Theme
 
 Item {
     id: root
