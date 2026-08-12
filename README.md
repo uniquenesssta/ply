@@ -21,7 +21,7 @@
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
 - **D8：Complete — D8-01 ～ D8-07 全部关闭。**
-- **D9：In Progress — D9-01 ～ D9-04 Complete；D9-05 待执行。**
+- **D9：In Progress — D9-01 ～ D9-05 Complete；D9-06 待执行。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -65,7 +65,8 @@
 - **D9-02：Timeline Seek 原型，Page `599:3362` / Source `617:580` / Verification `618:580` / Rest `614:203` / Hover Preview `614:298` / Scrubbing `614:414` / Pending Seek `614:530` / Confirmed Resume `614:647`。**
 - **D9-03：Inspector 原型，Page `599:3362` / Source `627:1837` / Verification `627:1891` / Standard Closed `622:939` / Playlist `622:961` / Tracks `623:1062` / Subtitles `623:1363` / Chapters `623:1611` / Narrow Overlay QA `624:3850`。**
 - **D9-04：Window Mode 原型，Page `599:3362` / Source `638:2454` / Verification `638:2508` / Windowed Clean `634:1837` / Fullscreen Active `634:1934` / Inspector Before `636:1993` / Fullscreen Suspended `636:2193` / Inspector Restored `636:2270` / More Open QA `636:2464` / Mini Hover `634:2028`。**
-- **下一任务：D9-05 Error Recovery 原型。**
+- **D9-05：Error Recovery 原型，Page `599:3362` / Source `648:2769` / Verification `648:2823` / Retryable Error `641:2454` / NonRecoverable Error `641:2583` / ErrorRecovery Dialog `641:2697`。**
+- **下一任务：D9-06 Handoff 规格。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -3670,26 +3671,166 @@ Atomic boundary 保持：D9-04 未提前实现 D9-05 Error Recovery；没有修�
 
 **D9-04：Complete。**
 
+### D9-05 Error Recovery 原型 · Complete
+
+Figma：
+
+```text
+Page                      599:3362  09 Prototype & Handoff
+Source / Contract         648:2769  D9-05 / Error Recovery Prototype
+Verification              648:2823  D9-05 / Verification
+Retryable Error           641:2454
+NonRecoverable Error      641:2583
+ErrorRecovery Dialog      641:2697
+D9-01 Loading             600:24    shared recovery destination
+D9-01 Playing Visible     600:43    only after QA Media Ready
+D9-01 Empty               600:2     End Playback destination
+QA Media Ready Hit        602:213
+```
+
+D9-05 只把 D5-06 / D5-07 已冻结的 current-media Error 与 recovery decision 组合到 D9 最终 Presentation；不创建第二个 Error Overlay、Error Action、Dialog、PlaybackSession 或 recovery state machine。
+
+可恢复主链：
+
+```text
+641:2454 Retryable Error
+  → Retry click · 160ms Dissolve
+600:24 Loading
+  → QA Media Ready · existing D9-01 160ms Smart Animate
+600:43 Playing Visible
+```
+
+关键约束：Retry 只发恢复 intent，不能在点击时直接宣称恢复成功。`600:24 Loading` 继续承担等待 backend/media-ready 的视觉状态；只有既有 `602:213 QA Media Ready` 才进入 Playing。D9-05 没有为 network/libmpv 重试制造假 timeout 或假成功状态。
+
+不可恢复主链：
+
+```text
+641:2583 NonRecoverable Error
+  → Open Media click · 160ms Dissolve
+600:24 Loading
+  → QA Media Ready
+600:43 Playing Visible
+```
+
+- `Open Media` 继续是 D5-06 `Feedback / Error Action · Action=OpenMedia`。
+- Figma 不模拟平台文件选择器、用户文件选择耗时或真实 I/O；点击只表示完成 platform picker 后 handoff 到既有 media-open / Loading path。
+- NonRecoverable 场景只显示 OpenMedia，不错误保留 Retry。
+
+Error decision / close：
+
+```text
+641:2454 Retryable Error
+  → E · engineering QA · 240ms Dissolve
+641:2697 ErrorRecovery Dialog
+  → ESC / 返回 · 180ms Dissolve
+641:2454 Retryable Error
+
+641:2697 ErrorRecovery Dialog
+  → 结束播放 · 180ms Dissolve
+600:2 Empty
+```
+
+- `E` 只是沿用 D5-07 已存在的工程 QA decision entrance，不冻结为产品 shortcut，也没有新增可见“详情”按钮。
+- D5-06 本身不展示 raw backend error code / stack，因此 D9-05 不凭空新建错误详情页；真正需要用户决策时由唯一 `Feedback / Dialog · Kind=ErrorRecovery` 成为 primary owner。
+- Dialog scrim=`18%`；底层 Error Overlay 只保留上下文且降级为约 `68%` opacity，底层恢复动作不可交互。
+- ESC / Secondary “返回”恢复 Retryable Error context；Primary “结束播放”映射到既有 D9-01 Empty，不创建第二个 Idle/Empty owner。
+
+D9-05 Prototype reaction：
+
+```text
+641:2454 root E key                    → 641:2697   240ms Dissolve Ease Out
+Retry Action                          → 600:24     160ms Dissolve Ease Out
+OpenMedia Action                      → 600:24     160ms Dissolve Ease Out
+641:2697 root ESC                     → 641:2454   180ms Dissolve Ease In
+Dialog Secondary / 返回              → 641:2454   180ms Dissolve Ease In
+Dialog Primary / 结束播放             → 600:2      180ms Dissolve Ease In
+
+D9-05 total reactions                 6
+ON_CLICK                              4
+ON_KEY_DOWN                           2
+AFTER_TIMEOUT                         0
+```
+
+Presentation Flow Start 新增：
+
+```text
+D9-05 Retryable Recovery      → 641:2454
+D9-05 NonRecoverable Recovery → 641:2583
+```
+
+既有 D9-01～D9-04 Flow Start 全部保留。
+
+Authority / regression：
+
+```text
+D5-06 Player Status Overlay        225:30  5 states unchanged
+D5-06 Error Status                 265:246 Retryable / NonRecoverable / Unknown unchanged
+D5-06 Error Action                 264:225 Retry / OpenMedia × 4 interaction states unchanged
+D5-07 Dialog                       274:342 Resume / ErrorRecovery unchanged
+D5-07 Dialog Action                274:317 Primary / Secondary × 4 states unchanged
+D3-07 single AFTER_TIMEOUT owner   143:2 · 2.2s → 143:15 unchanged
+D9-01 / 02 / 03 / 04 reactions    10 / 6 / 28 / 8 unchanged
+```
+
+最终 machine gate：
+
+```text
+D9-05 new states                         3 / 3 Page-level
+D9-05 reactions                          6 / 6
+D9-05 AFTER_TIMEOUT                      0
+Retryable Recovery                       Retry only PASS
+NonRecoverable Recovery                  OpenMedia only PASS
+Retry destination                        600:24 Loading PASS
+OpenMedia destination                    600:24 Loading PASS
+Media Ready destination                  600:43 Playing PASS
+Dialog ESC / Secondary                   641:2454 PASS
+Dialog Primary                           600:2 Empty PASS
+Non-page destinations                    0
+Old D5 Prototype destinations            0
+Broken instances                         0
+D9 formal Components / Component Sets    0 / 0
+New Variables                            0
+Variables total                         456
+Foundation Variable Δ                    0
+Generic default-name residue             0
+Unexplained product/UI hardcode          0
+Intentional Synthetic Media solids       6
+Source visible solids                   46 / 46 semantic-bound
+Verification visible solids             72 / 72 semantic-bound
+Source → Verification gap              100px
+```
+
+6 个未绑定 Solid Paint 全部来自三个 Prototype screen 的 Synthetic Media 测试艺术层，每屏 2 个；产品 UI、Source Board 与 Verification Board 的 unexplained hardcode=`0`。
+
+视觉 QA 实际覆盖：Retryable Error、NonRecoverable Error、ErrorRecovery Dialog、D9-05 Source、D9-05 Verification。三块产品画面与 D5 authority 保持同构；Dialog 的 scrim、underlay 层级、动作层级均通过。
+
+当前 `agent/r4-stage` runtime 虽已有 `PlaybackFailure` / `Failed` snapshot 与 mpv error mapping，但 `PlayerScreen.qml` 仍只有 `VideoSurface + PlayerChrome` 骨架，没有 Error Overlay / recovery UI runtime 实现。因此 D9-05 完成的是 Figma 最终原型，不把 Retry/OpenMedia/Dialog 描述成 Qt 已实现能力。
+
+本任务没有修改播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D9-05：Complete。**
+
 ## Stage D9 Current Result
 
-D9-01 已建立 Empty → Loading → Playing / Hidden / Paused；D9-02 已补齐 Hover Preview → Scrub → Pending → Backend Confirm；D9-03 已接入唯一 Inspector Shell 与四模式切换；D9-04 已完成 Windowed↔Fullscreen 与 Windowed↔Mini 往返，并验证 confirmed 66% 跨模式持续、Inspector `1→0→1` suspension/restore、More Popover `1→0→0` transient cleanup。Playback、confirmed position、Inspector、OSC visibility 与 Window Mode topology 继续归既有 D3/D4/D5/D7/D8 owner，D9 只承担最终可点击组合与演示路由。
+D9-01 已建立 Empty → Loading → Playing / Hidden / Paused；D9-02 已补齐 Hover Preview → Scrub → Pending → Backend Confirm；D9-03 已接入唯一 Inspector Shell 与四模式切换；D9-04 已完成 Windowed↔Fullscreen 与 Windowed↔Mini 往返；D9-05 已完成 Retryable / NonRecoverable current-media Error → Retry / OpenMedia → 既有 Loading / Playing 的恢复闭环，并验证 ErrorRecovery Dialog 的返回/结束播放路径。Playback、confirmed position、Inspector、OSC visibility、Window Mode topology、Error Overlay/Action/Dialog authority 均继续归既有 D3/D4/D5/D7/D8 owner，D9 只承担最终可点击组合与演示路由。
 
 **Stage D9：In Progress。**
 
 ## Next
 
-**D9-05 — Error Recovery 原型**
+**D9-06 — Handoff 规格**
 
-下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 在已关闭的 D9-01 ～ D9-04 最终链上接入错误恢复：
+下一步按 `docs/plans/stages/D9_原型交付与最终验收.md`，基于已经关闭的 D9-01 ～ D9-05 final Presentation 输出可直接用于 Qt6/QML/C++ 落地的 Handoff 字段：
 
 ```text
-Recoverable Error
-  → Retry
-  → recover / resume
-
-Unrecoverable Error
-  → Open Media
-  → return to media-open path
+尺寸 / 间距
+Token / Style
+状态与 Variant
+数据来源 / owner
+动效 / transition
+键盘与焦点
+可访问性
+运行时尚未实现项
 ```
 
-D9-05 必须继续消费 D5-06 唯一 Error Overlay / Error Action、D5-07 Dialog recovery ownership 与 D3-07 Error persistent policy；不得创建第二套 Error Overlay、恢复状态机、播放会话或伪造 backend recovery truth。
+D9-06 必须把已冻结的设计映射为开发可执行规格，避免开发者反向猜设计；不得重新设计 D2～D9-05 既有组件、复制 state owner，或把 Figma QA 入口/假 backend event 描述成已经存在的 runtime API。
