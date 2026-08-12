@@ -4,6 +4,8 @@
 #include <QQmlEngine>
 #include <QQmlError>
 #include <QStringList>
+#include <QUrl>
+#include <QVariant>
 #include <QtTest>
 
 #include <memory>
