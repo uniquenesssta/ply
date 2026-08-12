@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | R5-01 已有 Windows 42/42 PASS 基线；正在收口 `MpvVideoItem` qmllint 类型元数据，最终复测待执行 |
+| R5 — UI 设计系统 | In Progress | R5-01 已有 Windows 42/42 PASS 基线；自动 QML type registration 治理构建失败后已切换为手动运行时注册 + 显式 tooling typeinfo，等待最终 Windows 复测 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -102,14 +102,14 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ### 2026-08-13 — R5-01 QML type metadata
 
-- Windows 修复基线已达到 **42/42 CTest PASS**；`qml_module_boundaries` 与 Render shutdown 回归均通过。
-- `MpvVideoItem` 的 QML 暴露改为 Presentation 层 `QML_FOREIGN` metadata descriptor，并恢复 `Player.Presentation` 自动 `.qmltypes` / C++ 类型注册生成；删除重复的手写 `qmlRegisterType()` 路径。
-- Playback/libmpv、`MpvVideoItem` 渲染实现、公共播放接口与视觉 token 不变；未新增生产依赖。
-- 该 CMake/type-registration 变更仍需 Windows configure/build/qmllint/42 CTest 与 `Player.exe` 启动 smoke 复测后，R5-01 才能标 Complete。
+- 最新 Windows 复测确认 configure **PASS**，但自动 QML type registration 在 `qmltyperegistrar` 读取 `qt6player_app_debug_metatypes.json` 时以 `Failed to parse JSON: 5 illegal value` 硬失败；随后测试缺 development marker 属于 build 未完成的连锁结果，未执行新的 CTest 验收。
+- 自动注册方案已撤销：`Player.Presentation` 恢复已验证的手动 `qmlRegisterType<MpvVideoItem>()` 运行时注册，并以 `NO_GENERATE_QMLTYPES + TYPEINFO` 提供独立 `player_presentation.qmltypes` 给 qmllint/qmlls；Qt 仍负责生成 `qmldir` 和 QML 资源。
+- `Player.Presentation` 同时声明 `QtQuick` URI dependency，匹配 `MpvVideoItem` 的 `QQuickItem` 基类 tooling 契约；未修改 `MpvVideoItem`、Renderer、Playback/libmpv、公共播放接口或视觉 token，也未新增生产依赖。
+- 该候选仍需 Windows configure/build、`player_qml_lint`、42-test CTest 与 `Player.exe` 启动 smoke 全部通过后，R5-01 才能标 Complete。
 
 ### 2026-08-13 — R5-01 validation fixes
 
-- Windows Qt 6.8.3 / MSVC 已确认 configure 与 build 通过；`qmltyperegistrar` Generate 阻断已消失。
+- Windows Qt 6.8.3 / MSVC 已确认 configure 与 build 通过；早期 `qmltyperegistrar` Generate 阻断已消失。
 - `qml_module_boundaries` 的 `QtQuick` import path 已通过测试脚本显式注入 `<Qt>/qml` 修复，并在测试后恢复原环境。
 - 全量回归捕获的 R4-08 late-update 竞态已通过 consumer-side shutdown gate 修复；公共接口和播放状态所有权不变。
 - 修复后 Windows 全量回归已达到 **42/42 PASS**；后续仅继续治理 qmllint 的 `MpvVideoItem` tooling metadata。
