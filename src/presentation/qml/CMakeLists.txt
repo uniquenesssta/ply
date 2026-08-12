@@ -1,0 +1,11 @@
+function(player_configure_presentation_qml_module target)
+    player_apply_compiler_options(${target})
+    player_enable_compiler_warnings(${target})
+    player_enable_sanitizers(${target})
+    player_enable_static_analysis(${target})
+endfunction()
+
+add_subdirectory(theme)
+add_subdirectory(primitives)
+add_subdirectory(controls)
+add_subdirectory(surfaces)
