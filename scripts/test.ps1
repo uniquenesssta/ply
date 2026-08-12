@@ -31,29 +31,34 @@ try {
     $qtBinRelative = Join-Path $qtRoot "bin"
     $qtPluginsRelative = Join-Path $qtRoot "plugins"
     $qtPlatformPluginsRelative = Join-Path $qtPluginsRelative "platforms"
+    $qtQmlImportsRelative = Join-Path $qtRoot "qml"
 
-    foreach ($runtimePath in @($qtBinRelative, $qtPluginsRelative, $qtPlatformPluginsRelative)) {
+    foreach ($runtimePath in @($qtBinRelative, $qtPluginsRelative, $qtPlatformPluginsRelative, $qtQmlImportsRelative)) {
         if (-not (Test-Path -LiteralPath $runtimePath -PathType Container)) {
             throw "Required Qt runtime directory was not found at relative path '$runtimePath'."
         }
     }
 
     # Source control keeps only repository-parent-relative paths. Windows DLL
-    # loading requires concrete process paths, so resolve them only in this
-    # PowerShell process immediately before CTest starts.
+    # loading and QML module discovery require concrete process paths, so
+    # resolve them only in this PowerShell process immediately before CTest.
     $qtBin = (Resolve-Path -LiteralPath $qtBinRelative).Path
     $qtPlugins = (Resolve-Path -LiteralPath $qtPluginsRelative).Path
     $qtPlatformPlugins = (Resolve-Path -LiteralPath $qtPlatformPluginsRelative).Path
+    $qtQmlImports = (Resolve-Path -LiteralPath $qtQmlImportsRelative).Path
 
     $originalPath = [Environment]::GetEnvironmentVariable("PATH", "Process")
     $originalQtPluginPath = [Environment]::GetEnvironmentVariable("QT_PLUGIN_PATH", "Process")
     $originalQtQpaPlatformPluginPath = [Environment]::GetEnvironmentVariable("QT_QPA_PLATFORM_PLUGIN_PATH", "Process")
+    $originalQmlImportPath = [Environment]::GetEnvironmentVariable("QML_IMPORT_PATH", "Process")
 
     try {
         $testPath = if ([string]::IsNullOrEmpty($originalPath)) { $qtBin } else { "$qtBin;$originalPath" }
+        $testQmlImportPath = if ([string]::IsNullOrEmpty($originalQmlImportPath)) { $qtQmlImports } else { "$qtQmlImports;$originalQmlImportPath" }
         [Environment]::SetEnvironmentVariable("PATH", $testPath, "Process")
         [Environment]::SetEnvironmentVariable("QT_PLUGIN_PATH", $qtPlugins, "Process")
         [Environment]::SetEnvironmentVariable("QT_QPA_PLATFORM_PLUGIN_PATH", $qtPlatformPlugins, "Process")
+        [Environment]::SetEnvironmentVariable("QML_IMPORT_PATH", $testQmlImportPath, "Process")
 
         & $cmake --build --preset $Preset
         if ($LASTEXITCODE -ne 0) {
@@ -69,6 +74,7 @@ try {
         [Environment]::SetEnvironmentVariable("PATH", $originalPath, "Process")
         [Environment]::SetEnvironmentVariable("QT_PLUGIN_PATH", $originalQtPluginPath, "Process")
         [Environment]::SetEnvironmentVariable("QT_QPA_PLATFORM_PLUGIN_PATH", $originalQtQpaPlatformPluginPath, "Process")
+        [Environment]::SetEnvironmentVariable("QML_IMPORT_PATH", $originalQmlImportPath, "Process")
     }
 }
 finally {
