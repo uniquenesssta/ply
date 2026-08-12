@@ -319,3 +319,29 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 ## 11. 后续扩展位置
 
 后续缺少的控件按真实 Feature 需求补入对应层；若只是某 Feature 专用，不强行提升为全局 Control。
+
+## 12. R5-01 实施记录（2026-08-12）
+
+状态：**Candidate — Windows 验收待执行。**
+
+### 已实施
+
+- 固定四个公开 QML URI：`Player.Presentation.Theme`、`Player.Presentation.Primitives`、`Player.Presentation.Controls`、`Player.Presentation.Surfaces`。
+- `Theme.qml` 从应用大模块拆入独立 Theme backing module；文件物理路径和现有 token 值不变。
+- `MainWindow`、`PlayerScreen`、`VideoSurface`、`PlayerChrome` 收为 `Player.Presentation` internal type；`App` 继续作为应用模块公开入口，`QmlBootstrap::loadFromModule("Player.Presentation", "App")` 不变。
+- Theme 真实使用点改为显式 `import Player.Presentation.Theme`，不再依赖应用模块内隐式同域可见性；公共设计系统不使用相对/深路径 import。
+- Design System 模块未引入 Playback/libmpv 依赖；R5-01 不提前实现 R5-02 的 Airy Glass token 改造。
+- 统一 QML tooling 输出到 `${CMAKE_BINARY_DIR}/qml`；模块 `qmldir` 继续由 Qt CMake API 生成，不维护重复手写清单。
+- 新增 `qml_module_boundaries` 最小加载测试：同时导入四个公开 URI，并实例化读取 Theme singleton。
+
+### 影响与兼容性
+
+- C++ 公共接口、PlaybackSession、libmpv、依赖版本、配置和 `Player.Presentation/App` 启动入口不变。
+- QML 内部资源归属变化：Theme 必须经公开模块导入；现有 Shell/Screen/Feature 类型不再作为公共 QML API 暴露。
+
+### 验证状态
+
+- 已完成：远端基线/HEAD、最终变更范围、模块依赖方向与 import 使用点静态复核；相对 R4 基线仅包含 R5-01 的 QML module、import 与测试文件。
+- 尚未执行：Windows Qt 6.8.3 / MSVC 环境的 configure、build、QML lint、`qml_module_boundaries`、全量 CTest 和实际 `player_app` 启动。
+- 原因：当前 GitHub 执行通道不能替代项目锁定的 Windows 本机 Qt/MSVC 运行环境。
+- R5-01 只有上述 Windows 硬验证通过后才转为 **Complete**；失败时停止进入 R5-02，并在本节记录实际故障与修复结果。
