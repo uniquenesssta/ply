@@ -21,7 +21,7 @@
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
 - **D8：Complete — D8-01 ～ D8-07 全部关闭。**
-- **D9：In Progress — D9-01 ～ D9-06 Complete；D9-07 待执行。**
+- **D9：Complete — D9-01 ～ D9-07 全部关闭；Implementation Ready。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -67,7 +67,8 @@
 - **D9-04：Window Mode 原型，Page `599:3362` / Source `638:2454` / Verification `638:2508` / Windowed Clean `634:1837` / Fullscreen Active `634:1934` / Inspector Before `636:1993` / Fullscreen Suspended `636:2193` / Inspector Restored `636:2270` / More Open QA `636:2464` / Mini Hover `634:2028`。**
 - **D9-05：Error Recovery 原型，Page `599:3362` / Source `648:2769` / Verification `648:2823` / Retryable Error `641:2454` / NonRecoverable Error `641:2583` / ErrorRecovery Dialog `641:2697`。**
 - **D9-06：Handoff 规格，Page `599:3362` / Handoff Source `660:2769` / Verification `662:2769`。**
-- **下一任务：D9-07 全局视觉 QA。**
+- **D9-07：全局视觉 QA，Page `599:3362` / Source `680:2795` / Verification `681:2795`。**
+- **第三版 UI 设计任务书 D1～D9：Complete / Implementation Ready。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -3081,7 +3082,7 @@ D8-01～D8-07 已完成重复结构审计、Icon language、Control、Surface、
 
 **Stage D8：Complete。**
 
-## Stage D9 — Prototype / Handoff · In Progress
+## Stage D9 — Prototype / Handoff · Complete
 
 ### D9-01 核心播放原型 · Complete
 
@@ -3876,24 +3877,146 @@ Final Gate                              PASS
 
 **D9-06：Complete。**
 
+### D9-07 全局视觉 QA · Complete
+
+Figma：
+
+```text
+Page                    599:3362  09 Prototype & Handoff
+Source / QA Matrix      680:2795  D9-07 / Global Visual QA
+Verification            681:2795  D9-07 / Verification
+```
+
+D9-07 按任务书对 Main / Inspector / States / Preferences / Fullscreen / Mini 做最终像素级截图审计，并额外覆盖 Narrow 与复杂视频背景。验收不是先写 PASS，而是先检查真实成品；发现的缺陷均回 owning D-stage source 或最终 data projection 修复。
+
+代表截图共 `23/23`：
+
+```text
+Main Player
+  600:2    Empty
+  600:24   Loading
+  600:43   Playing
+  600:166  Paused
+  614:530  Pending Seek
+
+Inspector
+  622:961   Standard Playlist
+  624:3850  Narrow Overlay
+
+States / Feedback
+  247:118   Buffering 50%
+  258:175   Ended Next
+  641:2454  Retryable Error
+  641:2697  ErrorRecovery Dialog
+  276:306   HUD
+  276:566   Toast
+  276:686   Resume Dialog
+
+Preferences
+  354:2760  Standard Playback
+  354:3275  Standard Advanced
+  354:3372  Narrow
+  354:3486  Minimum
+
+Fullscreen
+  634:1934  Dark
+  387:56    Bright
+
+Mini
+  634:2028  Hover 420×236
+  402:100   Minimum 320×180
+
+Narrow / More
+  636:2464  560 More
+```
+
+复杂背景覆盖 Dark / Bright / Synthetic Media；Bright Fullscreen 继续只使用局部 `overlay/contrast-support`，没有给整屏视频增加统一 dim layer。
+
+本轮实际发现并修复 4 类可见问题：
+
+1. **D9 Empty / Loading 工程 Host guide 泄漏**
+   - `600:2 / 600:24` 原先可见 Header Info Host / Window Actions Host / OSC Host，共 6 个工程 guide。
+   - D8 `Composite / Floating Header` `494:10663` 新增且仅新增 `Show Media#671:0` BOOLEAN，default=`true`；Compact `494:399` / Standard `494:420` Media Info Pod visibility 均绑定同一 property。
+   - D9 Empty / Loading 改为正式 Header instance `672:2769 / 672:2785`，`Show Media=false`；工程 guide 全部删除，OSC 在 Empty/Loading 不显示。
+   - 旧 Header instance 默认行为不变；没有新增 Variant / Variable / 第二套 Header authority。
+
+2. **媒体态 Header 空标题**
+   - D9 的 16 个 Playing / Seek / Inspector / Error Header instance 恢复 QA media title `夜间列车 · demo.mp4`。
+   - D5-03～D5-07 的 `41/41` 个 canonical Header instance 同样恢复 title；最终 D5 blank title=`0`，hidden media pod=`0`。
+   - 只修 data projection，不改变 Header geometry、state、reaction 或 runtime truth。
+
+3. **More Popover 工程英文 / “Narrow only” 文案**
+   - D3 canonical `More Popover` `134:273` 从 `Audio Tracks / Chapters / Playlist · Narrow only` 收口为 `音轨 / 章节 / 播放列表`。
+   - D7 四套 Verification/Prototype 副本共 12 个文本同步回刷；D9 `636:2477～2479` 同步回刷。
+   - 英文/工程注释 residue=`0`。
+
+4. **播放列表菜单项误显 disabled**
+   - D3 P3 `134:276` 及 D7/D9 对应副本由 `text/secondary` 调整为与 P1/P2 相同的 `text/primary`（`VariableID:10:9`）。
+   - Narrow 下 Audio / Chapters / Playlist 三项重新保持一致的 actionable hierarchy；不新增 Color Token。
+
+最终机器回归：
+
+```text
+Representative visual domains              6 / 6
+Accepted screenshot cases                 23 / 23
+Known visible defects                          0
+
+D9 Header instances                          24
+Show Media=false                               2
+Media-bearing blank title                      0
+Empty/Loading Host-guide residue               0
+
+D5 media-bearing Header                    41 / 41
+D5 blank title                                 0
+D5 hidden media pod                            0
+
+D3 / D7 / D9 More final copy                  PASS
+D3 / D7 / D9 More actionable tone             PASS
+
+D9 reactions                      10 / 6 / 28 / 8 / 6
+D9 Flow Starts                                  8
+Prototype graph Δ                               0
+
+Variables / Collections                   456 / 11
+Broken Instance                                 0
+Generic default-name residue                    0
+
+D9-07 Source semantic solids              44 / 44
+D9-07 Verification semantic solids        77 / 77
+D9-07 typography                          98 / 98
+Missing font                                    0
+D9-07 formal Components / Component Sets        0 / 0
+Source / Verification fit                      PASS
+Source → Verification gap                    100px
+
+Floating Header Show Media property             1
+Show Media default                           true
+Compact / Standard visibility binding         PASS
+
+Product Component / Component Set / Variable Δ 0
+Component API Δ                         +1 BOOLEAN
+Final Gate                                    PASS
+```
+
+D9-07 Verification 首轮因为 Matrix 文本换行导致第 8 行 `System Hygiene` 被 230px 固定高度裁切；该问题只存在于新建 QA 文档板，已将 Matrix / Content / Section 各增高 40px 后重新截图，最终 8/8 行完整可见。
+
+本任务只修改 Figma 设计、既有 Floating Header 的一个向后兼容 BOOLEAN property、D3/D5/D7/D9 的视觉文案/数据 projection，以及根 README；没有修改播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D9-07：Complete。**
+
 ## Stage D9 Current Result
 
-D9-01 已建立 Empty → Loading → Playing / Hidden / Paused；D9-02 已补齐 Hover Preview → Scrub → Pending → Backend Confirm；D9-03 已接入唯一 Inspector Shell 与四模式切换；D9-04 已完成 Windowed↔Fullscreen 与 Windowed↔Mini 往返；D9-05 已完成 Retryable / NonRecoverable current-media Error → Retry / OpenMedia → 既有 Loading / Playing 的恢复闭环，并验证 ErrorRecovery Dialog 的返回/结束播放路径；D9-06 已将最终 Product Structure / Layout / Tokens / Components / Interaction / Responsive / Accessibility / QA 反推为开发可执行 Handoff，并明确 `[VISUAL] / [INTERACTION] / [IMPLEMENTATION]` 与 runtime truth 边界。Playback、confirmed position、Inspector、OSC visibility、Window Mode topology、Error Overlay/Action/Dialog authority 均继续归既有 D3/D4/D5/D7/D8 owner，D9 只承担最终可点击组合、Handoff 与验收收口。
+D9-01～D9-05 已形成最终可点击播放/Seek/Inspector/Window Mode/Error Recovery 原型；D9-06 已把最终设计反推为可执行 Handoff；D9-07 已对 Main / Inspector / States / Preferences / Fullscreen / Mini 以及 Narrow/复杂背景完成 23/23 代表截图审计，并将 Empty/Loading Host guide、空 Header title、More 工程文案与 actionable tone 四类问题回 owning source/data projection 修复。最终 known visible defect=`0`；Variables/Collections=`456/11`；Broken Instance=`0`；D9 prototype graph 保持 `10/6/28/8/6` reactions + `8` Flow Starts。设计侧已达到 Implementation Ready；这不表示当前 Qt/QML runtime 已实现这些能力，实现层继续消费 D9-06 Handoff 与 D9-07 QA acceptance targets。
 
-**Stage D9：In Progress。**
+**Stage D9：Complete — Implementation Ready。**
 
 ## Next
 
-**D9-07 — 全局视觉 QA**
+第三版 Airy Glass UI 设计任务书 D1～D9 已全部关闭。后续进入 Qt6/QML/C++ 实现阶段时，以：
 
-下一步按 `docs/plans/stages/D9_原型交付与最终验收.md`，对 Main / Inspector / States / Preferences / Fullscreen / Mini 的代表画面做最终截图审计，重点检查：
+- D9-06 `660:2769 / 662:2769` 作为开发 Handoff；
+- D9-07 `680:2795 / 681:2795` 作为最终视觉/响应式/复杂背景 acceptance target；
+- D8 正式 Component / Surface / Composite authority 作为可复用视觉 source；
+- PlaybackSnapshot / backend / settings model / Action Registry 等实现层对象作为 runtime truth。
 
-```text
-对齐 / 光学中心
-玻璃材质与复杂视频背景可读性
-间距与信息密度
-响应式与窗口模式一致性
-最终组件实例与成品视觉一致性
-```
-
-D9-07 必须覆盖任务书要求的 100% 代表截图与复杂背景，并把发现的问题回对应 D0–D8 source 根因修复；不得在 QA Board 用文字掩盖已知肉眼小错误。
+不得把 D9 Prototype 的 QA hit、假 backend event、工程 shortcut 或测试媒体文案直接当作生产 API / 默认键位 / 数据真值。
