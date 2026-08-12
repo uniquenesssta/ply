@@ -345,3 +345,11 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - 尚未执行：Windows Qt 6.8.3 / MSVC 环境的 configure、build、QML lint、`qml_module_boundaries`、全量 CTest 和实际 `player_app` 启动。
 - 原因：当前 GitHub 执行通道不能替代项目锁定的 Windows 本机 Qt/MSVC 运行环境。
 - R5-01 只有上述 Windows 硬验证通过后才转为 **Complete**；失败时停止进入 R5-02，并在本节记录实际故障与修复结果。
+
+### Windows 验收阻断与修复记录
+
+- 2026-08-13 本机 Qt 6.8.3 / MSVC configure 两次在 Generate 阶段失败，错误均为 `$<TARGET_FILE:::qmltyperegistrar>` / `No target "::qmltyperegistrar"`；因此后续 build 的 `rules.ninja` 缺失与 test 的 development runtime marker 缺失均属于 configure 未完成后的连锁结果，不作为独立故障处理。
+- 第一轮曾把问题误判为三个空 QML 模块的 typeinfo 生成，并对 `Primitives/Controls/Surfaces` 添加 `NO_GENERATE_QMLTYPES`；第二次本机复测证明该假设无效，三个参数已全部撤销，未保留无效绕过。
+- 对照 Qt 6.8.3 `Qt6QmlMacros.cmake` 后确认真正触发点是 executable QML module `player_app` 使用 `DEPENDENCIES TARGET player_presentation_theme`：Qt 会为 TARGET-based dependency 在 `PROJECT_SOURCE_DIR` deferred finalizer 中合并 build-tree `qt.conf`，该路径依赖 `QT_CMAKE_EXPORT_NAMESPACE`；本项目 Qt package 在 `cmake/` 子目录作用域加载，defer 回项目根后该内部变量不可用，最终把工具目标展开成 `::qmltyperegistrar`。
+- 修复改用 Qt 支持的 URI 依赖 `DEPENDENCIES Player.Presentation.Theme`，保留现有 `target_link_libraries(player_app PRIVATE player_presentation_theme)` 作为真实链接关系；不移动 `find_package(Qt6)`、不改变项目 CMake 分层、不引入 Qt 内部变量补丁。
+- 当前候选修复提交：`8a4b59ef403efda8f84d1b08c51d55d711576d5c`。Windows configure/build/qmllint/module load/CTest 仍需重新执行后才能关闭 R5-01。
