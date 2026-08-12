@@ -1,8 +1,12 @@
 #include <QColor>
+#include <QDir>
+#include <QDirIterator>
+#include <QFile>
 #include <QGuiApplication>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
+#include <QRegularExpression>
 #include <QStringList>
 #include <QUrl>
 #include <QVariant>
@@ -22,6 +26,66 @@ QString componentDiagnostics(const QQmlComponent& component)
     return diagnostics.join(QLatin1Char('\n'));
 }
 
+QStringList featureImportViolations()
+{
+    QStringList violations;
+    const QString featureRoot =
+        QStringLiteral(PLAYER_SOURCE_DIR "/src/presentation/qml/features");
+    QDirIterator iterator(
+        featureRoot,
+        {QStringLiteral("*.qml")},
+        QDir::Files,
+        QDirIterator::Subdirectories);
+
+    const QRegularExpression pathImport(
+        QStringLiteral(R"(^\s*import\s+[\"'])"));
+    const QRegularExpression moduleImport(
+        QStringLiteral(R"(^\s*import\s+([A-Za-z_][A-Za-z0-9_.]*))"));
+
+    while (iterator.hasNext()) {
+        const QString filePath = iterator.next();
+        QFile file(filePath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            violations.append(QStringLiteral("cannot read %1").arg(filePath));
+            continue;
+        }
+
+        const QStringList lines =
+            QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'));
+        for (qsizetype index = 0; index < lines.size(); ++index) {
+            const QString& line = lines.at(index);
+            if (pathImport.match(line).hasMatch()) {
+                violations.append(
+                    QStringLiteral("%1:%2 uses a path import")
+                        .arg(filePath)
+                        .arg(index + 1));
+                continue;
+            }
+
+            const QRegularExpressionMatch match = moduleImport.match(line);
+            if (!match.hasMatch()) {
+                continue;
+            }
+
+            const QString module = match.captured(1);
+            if (!module.startsWith(QStringLiteral("Player.Presentation."))) {
+                continue;
+            }
+
+            if (module != QStringLiteral("Player.Presentation.Theme")
+                && module != QStringLiteral("Player.Presentation.Controls")) {
+                violations.append(
+                    QStringLiteral("%1:%2 imports non-public design module %3")
+                        .arg(filePath)
+                        .arg(index + 1)
+                        .arg(module));
+            }
+        }
+    }
+
+    return violations;
+}
+
 } // namespace
 
 class QmlModuleBoundaryTest final : public QObject
@@ -30,6 +94,7 @@ class QmlModuleBoundaryTest final : public QObject
 
 private slots:
     void publicDesignSystemModulesLoad();
+    void featureImportsUsePublicDesignModulesOnly();
 };
 
 void QmlModuleBoundaryTest::publicDesignSystemModulesLoad()
@@ -63,6 +128,14 @@ QtObject {
     const QVariant themeColor = object->property("themeColor");
     QVERIFY(themeColor.isValid());
     QVERIFY(themeColor.value<QColor>().isValid());
+}
+
+void QmlModuleBoundaryTest::featureImportsUsePublicDesignModulesOnly()
+{
+    const QStringList violations = featureImportViolations();
+    QVERIFY2(
+        violations.isEmpty(),
+        qPrintable(violations.join(QLatin1Char('\n'))));
 }
 
 } // namespace player::presentation::qml

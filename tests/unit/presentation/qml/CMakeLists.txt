@@ -8,6 +8,12 @@ player_enable_compiler_warnings(qml_module_boundary_tests)
 player_enable_sanitizers(qml_module_boundary_tests)
 player_enable_static_analysis(qml_module_boundary_tests)
 
+target_compile_definitions(
+    qml_module_boundary_tests
+    PRIVATE
+        PLAYER_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
 target_link_libraries(
     qml_module_boundary_tests
     PRIVATE

@@ -49,3 +49,10 @@ target_link_libraries(
     PRIVATE
         player_presentation_theme
 )
+
+add_custom_target(
+    player_qml_lint
+    DEPENDS
+        player_app_qmllint
+        player_presentation_theme_qmllint
+)
