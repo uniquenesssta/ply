@@ -322,7 +322,7 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 
 ## 12. R5-01 实施记录（2026-08-12）
 
-状态：**Candidate — Windows 验收待执行。**
+状态：**Candidate — Windows 修复后复测待执行。**
 
 ### 已实施
 
@@ -332,24 +332,32 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - Theme 真实使用点改为显式 `import Player.Presentation.Theme`，不再依赖应用模块内隐式同域可见性；公共设计系统不使用相对/深路径 import。
 - Design System 模块未引入 Playback/libmpv 依赖；R5-01 不提前实现 R5-02 的 Airy Glass token 改造。
 - 统一 QML tooling 输出到 `${CMAKE_BINARY_DIR}/qml`；模块 `qmldir` 继续由 Qt CMake API 生成，不维护重复手写清单。
-- 新增 `qml_module_boundaries` 最小加载测试：同时导入四个公开 URI，并实例化读取 Theme singleton。
+- 新增 `qml_module_boundaries` 最小加载测试：同时导入四个公开 URI，并实例化读取 Theme singleton；测试允许 `QQmlComponent` 按 Qt 语义异步完成，但 Error/timeout 仍硬失败并输出 status/progress/QQmlError。
 
 ### 影响与兼容性
 
 - C++ 公共接口、PlaybackSession、libmpv、依赖版本、配置和 `Player.Presentation/App` 启动入口不变。
 - QML 内部资源归属变化：Theme 必须经公开模块导入；现有 Shell/Screen/Feature 类型不再作为公共 QML API 暴露。
+- Windows 测试脚本只新增 Qt 安装 `qml` 路径的进程级 `QML_IMPORT_PATH`，执行结束后恢复原环境变量；不改变正式应用运行配置。
+- R5-01 全量回归暴露的 R4-08 late-update 竞态采用局部修复：delivery gate 在 queued signal 消费时再次检查既有 shutdown coordinator，不引入第二 shutdown 状态、不改变 Render/mpv 所有权或公共接口。
 
-### 验证状态
+### Windows 验收事实
 
-- 已完成：远端基线/HEAD、最终变更范围、模块依赖方向与 import 使用点静态复核；相对 R4 基线仅包含 R5-01 的 QML module、import 与测试文件。
-- 尚未执行：Windows Qt 6.8.3 / MSVC 环境的 configure、build、QML lint、`qml_module_boundaries`、全量 CTest 和实际 `player_app` 启动。
-- 原因：当前 GitHub 执行通道不能替代项目锁定的 Windows 本机 Qt/MSVC 运行环境。
-- R5-01 只有上述 Windows 硬验证通过后才转为 **Complete**；失败时停止进入 R5-02，并在本节记录实际故障与修复结果。
+- Qt 6.8.3 / MSVC 19.44 / Ninja 1.12.1 环境已确认 configure **PASS**：`Configuring done`、`Generating done`，`qmltyperegistrar` Generate 阻断消失。
+- 随后 Debug build **PASS**，`qml_module_boundary_tests.exe` 成功链接，development runtime marker 与 Qt runtime deployment 均成功。
+- 第一轮 42-test 回归：**41/42 PASS**；唯一失败 `qml_module_boundaries` 当时没有诊断，因为 `QQmlComponent` 尚在 `Loading` 即被同步断言。测试已修正为等待 `Ready/Error`。
+- 第二轮 42-test 回归：**40/42 PASS**。`qml_module_boundaries` 给出真实根因 `module "QtQuick" is not installed`；这证明四个公开 URI 尚未进入实际解析阶段，失败来自测试进程没有 Qt QML import path。`scripts/test.ps1` 已修复为向 CTest 进程显式提供 `<Qt>/qml`。
+- 同轮回归 `mpv_render_update_bridge::shutdownCoordinatorSuppressesLateRequests` 出现 `deliveredCount=6 / countAfterShutdown=5`。检查 R4-08 既有约束后确认 callback 可在 shutdown 前通过 producer-side 检查、shutdown 后才排入/消费 queued signal；delivery gate 已增加 shutdown-time consumer check，确保 late queued request no-op。
+- 上述两个硬失败的修复尚未在锁定 Windows 环境复测，因此 R5-01 **不得标 Complete，也不得进入 R5-02**。
 
-### Windows 验收阻断与修复记录
+### 已知非硬阻断 tooling 缺口
 
-- 2026-08-13 本机 Qt 6.8.3 / MSVC configure 两次在 Generate 阶段失败，错误均为 `$<TARGET_FILE:::qmltyperegistrar>` / `No target "::qmltyperegistrar"`；因此后续 build 的 `rules.ninja` 缺失与 test 的 development runtime marker 缺失均属于 configure 未完成后的连锁结果，不作为独立故障处理。
+- `player_qml_lint` 当前返回成功，但对 `VideoSurface.qml` 中手动运行时注册的 `MpvVideoItem` 仍报告 6 条关联 warning（根 warning 为 `MpvVideoItem was not found`，其余 anchors/objectName warning 为派生结果）。
+- 该 warning 未通过 `QT_QML_SKIP_QMLLINT`、warning suppression 或降低门禁隐藏；R5-01 最终关闭前仍需决定是补齐正式 QML type metadata，还是基于任务书明确记录到后续 tooling hardening，但不能把 warning 描述为不存在。
+
+### 早期 configure 阻断与修复记录
+
+- 2026-08-13 本机 Qt 6.8.3 / MSVC configure 两次在 Generate 阶段失败，错误均为 `$<TARGET_FILE:::qmltyperegistrar>` / `No target "::qmltyperegistrar"`；因此当时 build 的 `rules.ninja` 缺失与 test 的 development runtime marker 缺失均属于 configure 未完成后的连锁结果，不作为独立故障处理。
 - 第一轮曾把问题误判为三个空 QML 模块的 typeinfo 生成，并对 `Primitives/Controls/Surfaces` 添加 `NO_GENERATE_QMLTYPES`；第二次本机复测证明该假设无效，三个参数已全部撤销，未保留无效绕过。
 - 对照 Qt 6.8.3 `Qt6QmlMacros.cmake` 后确认真正触发点是 executable QML module `player_app` 使用 `DEPENDENCIES TARGET player_presentation_theme`：Qt 会为 TARGET-based dependency 在 `PROJECT_SOURCE_DIR` deferred finalizer 中合并 build-tree `qt.conf`，该路径依赖 `QT_CMAKE_EXPORT_NAMESPACE`；本项目 Qt package 在 `cmake/` 子目录作用域加载，defer 回项目根后该内部变量不可用，最终把工具目标展开成 `::qmltyperegistrar`。
 - 修复改用 Qt 支持的 URI 依赖 `DEPENDENCIES Player.Presentation.Theme`，保留现有 `target_link_libraries(player_app PRIVATE player_presentation_theme)` 作为真实链接关系；不移动 `find_package(Qt6)`、不改变项目 CMake 分层、不引入 Qt 内部变量补丁。
-- 当前候选修复提交：`8a4b59ef403efda8f84d1b08c51d55d711576d5c`。Windows configure/build/qmllint/module load/CTest 仍需重新执行后才能关闭 R5-01。
