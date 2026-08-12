@@ -104,7 +104,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 - 建立 `Theme/Primitives/Controls/Surfaces` 四个公开 QML URI，现有 Theme 使用点改为显式模块 import。
 - `Player.Presentation` 保留 App 公共入口，其余现有 Shell/Screen/Feature 类型收为 internal；播放接口、依赖版本和视觉 token 不变。
-- 新增 QML public-module 最小加载测试；Windows configure/build/QML lint/CTest 尚待本机执行，R5-01 暂不标 Complete。详细记录见 R5 Stage 文档。
+- Windows configure 暴露 Qt 6.8.3 TARGET-based QML dependency 的 deferred `qmltyperegistrar` 生成失败；已改为 URI dependency 并保留显式 backing-target 链接，现等待重新验收。
+- 新增 QML public-module 最小加载测试；R5-01 暂不标 Complete。详细记录见 R5 Stage 文档。
 
 ### 2026-08-11 — README documentation policy
 
