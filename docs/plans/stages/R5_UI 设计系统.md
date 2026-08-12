@@ -322,7 +322,7 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 
 ## 12. R5-01 实施记录（2026-08-12）
 
-状态：**Candidate — QML type metadata 治理后的 Windows 最终复测待执行。**
+状态：**Candidate — 显式 tooling typeinfo 方案的 Windows 最终复测待执行。**
 
 ### 已实施
 
@@ -333,14 +333,15 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - Design System 模块未引入 Playback/libmpv 依赖；R5-01 不提前实现 R5-02 的 Airy Glass token 改造。
 - 统一 QML tooling 输出到 `${CMAKE_BINARY_DIR}/qml`；模块 `qmldir` 继续由 Qt CMake API 生成，不维护重复手写清单。
 - 新增 `qml_module_boundaries` 最小加载测试：同时导入四个公开 URI，并实例化读取 Theme singleton；测试允许 `QQmlComponent` 按 Qt 语义异步完成，但 Error/timeout 仍硬失败并输出 status/progress/QQmlError。
-- `MpvVideoItem` 的 QML 暴露职责收敛到 `presentation/qml/types/mpv_video_item_qml_type.h`：使用 `QML_FOREIGN` + `QML_NAMED_ELEMENT(MpvVideoItem)` 描述既有 render type，不把 Presentation URI 语义写入 playback infrastructure。
-- `Player.Presentation` 恢复 Qt CMake 的自动 `.qmltypes` 与 C++ 类型注册生成；删除重复的 `presentation_type_registration.*` 手写 `qmlRegisterType()` 路径，运行时与 tooling 只保留一份类型注册真值。
+- `MpvVideoItem` 的运行时 QML 暴露恢复由 `presentation/qml/types/presentation_type_registration.*` 独立负责，继续使用已验证的 `qmlRegisterType<MpvVideoItem>("Player.Presentation", 1, 0, "MpvVideoItem")`；Playback render 类不承担 Presentation URI 语义。
+- `MpvVideoItem` 的静态 tooling 元数据由 `presentation/qml/types/player_presentation.qmltypes` 独立负责。`Player.Presentation` 使用 `NO_GENERATE_QMLTYPES + TYPEINFO player_app.qmltypes`，并通过 `qt_query_qml_module(TYPEINFO ...)` 取得 Qt 实际模块输出路径后在 configure 阶段复制该 typeinfo；Qt 继续生成 `qmldir`、QML 资源和 lint target。
+- `Player.Presentation` 新增 URI dependency `QtQuick`，与 `MpvVideoItem` 的 `QQuickItem` 基类 tooling 契约一致；Theme 仍保持 URI dependency + backing-target 链接。
 
 ### 影响与兼容性
 
 - C++ 公共接口、PlaybackSession、libmpv、依赖版本、配置和 `Player.Presentation/App` 启动入口不变。
-- QML 类型名和 URI 保持 `Player.Presentation 1.0 / MpvVideoItem`；变化仅是注册来源从应用启动时手写注册切换为 Qt QML module 自动注册。
-- `MpvVideoItem` 本体、Renderer、Render context、Playback 状态和所有权均未修改；未引入新的生产依赖。
+- QML 类型名和 URI 保持 `Player.Presentation 1.0 / MpvVideoItem`；运行时注册语义恢复到此前已验证路径，新增的 `.qmltypes` 仅供 qmllint/qmlls/Qt tooling 使用，不承担运行时对象所有权。
+- `MpvVideoItem` 本体、Renderer、Render context、Playback 状态和所有权均未修改；R4-04 为 `MpvVideoItem` 建立的手工 moc 构建链保持不变；未引入新的生产依赖。
 - QML 内部资源归属变化：Theme 必须经公开模块导入；现有 Shell/Screen/Feature 类型不再作为公共 QML API 暴露。
 - Windows 测试脚本只新增 Qt 安装 `qml` 路径的进程级 `QML_IMPORT_PATH`，执行结束后恢复原环境变量；不改变正式应用运行配置。
 - R5-01 全量回归暴露的 R4-08 late-update 竞态采用局部修复：delivery gate 在 queued signal 消费时再次检查既有 shutdown coordinator，不引入第二 shutdown 状态、不改变 Render/mpv 所有权或公共接口。
@@ -353,14 +354,16 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - 第二轮 42-test 回归：**40/42 PASS**。`qml_module_boundaries` 给出真实根因 `module "QtQuick" is not installed`，后确认 QtQuick 文件实际存在，故障是测试进程缺少 Qt QML import path；`scripts/test.ps1` 已修复为向 CTest 进程显式提供 `<Qt>/qml`。
 - 同轮回归 `mpv_render_update_bridge::shutdownCoordinatorSuppressesLateRequests` 出现 `deliveredCount=6 / countAfterShutdown=5`；delivery gate 已增加 shutdown-time consumer check，确保 late queued request no-op。
 - 第三轮本机复测已确认上述两个硬失败关闭：**42/42 CTest PASS，0 failed**；`qml_module_boundaries` 与 `mpv_render_update_bridge` 均 PASS。
-- 同一轮 build 仍有 6 条 `VideoSurface.qml` qmllint warning，根 warning 为 `MpvVideoItem was not found`。用户提供的 `all_files.txt` 已确认 QtQuick 模块、`MpvVideoItem` 源文件及既有注册文件均实际存在，因此该问题定性为静态 QML type metadata 缺口，而非缺文件。
+- 同一轮 build 仍有 6 条 `VideoSurface.qml` qmllint warning，根 warning 为 `MpvVideoItem was not found`。用户提供的文件清单已确认 QtQuick 模块、`MpvVideoItem` 源文件及既有注册文件均实际存在，因此该问题定性为静态 QML type metadata 缺口，而非缺文件。
+- 第四轮（2026-08-13）在自动 `QML_FOREIGN` type registration 候选上重新 configure **PASS**，但 Debug build 在 `Automatic QML type registration for target player_app` 阶段硬失败：`qmltyperegistrar` 读取 `qt6player_app_debug_metatypes.json` 返回 `Failed to parse JSON: 5 illegal value`。因此该候选没有进入 qmllint/CTest，随后 `test.ps1` 的 development runtime marker 缺失只是 build 未完成的连锁结果，不作为独立故障处理。
 
 ### qmllint metadata 治理
 
-- 未采用 `QT_QML_SKIP_QMLLINT`、warning suppression、手写 `.qmltypes` 或降低门禁。
-- 原手写 `qmlRegisterType<MpvVideoItem>("Player.Presentation", 1, 0, "MpvVideoItem")` 只在运行时执行，qmllint 不执行应用 bootstrap，因此无法获得类型的静态元数据，并连带产生 anchors/objectName 等 5 条派生 warning。
-- 治理改用 Qt 6.8 官方 QML registration metadata 模式：Presentation 层通过 `QML_FOREIGN` descriptor 暴露既有 `MpvVideoItem`，`qt_add_qml_module()` 生成 `.qmltypes` 和注册代码；Playback render 类保持纯渲染职责。
-- 因该治理修改了 CMake/type-registration 生成链，当前候选仍必须重新执行 Windows configure、build、qmllint、42-test CTest，并实际启动 `Player.exe` 做 QML root 创建 smoke；只有 warning 清零且运行时启动行为不回归后，R5-01 才能标 **Complete**。
+- 未采用 `QT_QML_SKIP_QMLLINT`、warning suppression、降低门禁或伪造占位 QML 类型。
+- 手写 `qmlRegisterType<MpvVideoItem>(...)` 只在运行时执行，qmllint 不执行应用 bootstrap，因此本身不能提供静态类型元数据；这正是原始 `MpvVideoItem was not found` 及 anchors/objectName 派生 warning 的来源。
+- 首次治理尝试使用 Qt 6.8 `QML_FOREIGN` descriptor + `qt_add_qml_module()` 自动 `.qmltypes` / C++ 注册，但当前 executable-backed `player_app` 的 metatypes JSON 生成链在锁定 Windows 环境产生不可解析输入并阻断 build，因此该方案已撤销，不把失败路径保留为兼容层。
+- 当前治理采用 Qt 6.8 支持的 fallback：运行时继续由明确的 Presentation registration module 注册；tooling 使用项目维护的 `.qmltypes`，并由 `TYPEINFO` 写入 Qt 生成的 `qmldir`。这两份信息职责不同：前者是运行时行为，后者是静态工具契约；名称/URI 必须保持一致。
+- 当前候选仍必须重新执行 Windows configure、build、`player_qml_lint`、42-test CTest，并实际启动 `Player.exe` 做 QML root 创建 smoke；只有 qmllint warning 清零且运行时启动行为不回归后，R5-01 才能标 **Complete**。
 
 ### 早期 configure 阻断与修复记录
 
