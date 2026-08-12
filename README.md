@@ -21,7 +21,7 @@
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
 - **D8：Complete — D8-01 ～ D8-07 全部关闭。**
-- **D9：In Progress — D9-01 ～ D9-02 Complete；D9-03 待执行。**
+- **D9：In Progress — D9-01 ～ D9-03 Complete；D9-04 待执行。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -63,7 +63,8 @@
 - **D8-07：命名/变量/层级卫生，Source `591:676` / Verification `591:677`。**
 - **D9-01：核心播放原型，Page `599:3362` / Source `605:203` / Verification `606:203` / Empty `600:2` / Loading `600:24` / Playing Visible `600:43` / Playing Hidden `600:147` / Paused Persistent `600:166`。**
 - **D9-02：Timeline Seek 原型，Page `599:3362` / Source `617:580` / Verification `618:580` / Rest `614:203` / Hover Preview `614:298` / Scrubbing `614:414` / Pending Seek `614:530` / Confirmed Resume `614:647`。**
-- **下一任务：D9-03 Inspector 原型。**
+- **D9-03：Inspector 原型，Page `599:3362` / Source `627:1837` / Verification `627:1891` / Standard Closed `622:939` / Playlist `622:961` / Tracks `623:1062` / Subtitles `623:1363` / Chapters `623:1611` / Narrow Overlay QA `624:3850`。**
+- **下一任务：D9-04 Window Mode 原型。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -3368,23 +3369,151 @@ Atomic boundary 保持：D9-02 未提前实现 D9-03 Inspector、D9-04 Window Mo
 
 **D9-02：Complete。**
 
+### D9-03 Inspector 原型 · Complete
+
+Figma：
+
+```text
+Page                   599:3362  09 Prototype & Handoff
+Source / Contract      627:1837  D9-03 / Inspector Prototype
+Verification           627:1891  D9-03 / Verification
+Standard Closed        622:939
+Playlist               622:961
+Tracks                 623:1062
+Subtitles              623:1363
+Chapters               623:1611
+Narrow Closed          624:3827
+Narrow Overlay QA      624:3850
+Narrow Shell           625:1926
+```
+
+D9-03 从 D9-02 已确认的 66% playback/seek 状态继续组合 Inspector，不创建第二套 Inspector、PlaybackSession、Timeline 或 visibility lifecycle。
+
+Standard 主链：
+
+```text
+622:939 Standard Closed
+  → Playlist action click · 160ms Ease Out
+622:961 Playlist Inspector
+  ↔ Tracks / Subtitles / Chapters · 160ms Ease Out
+
+任一 Standard Open
+  → Close / Outside / ESC · 120ms Dissolve
+622:939 Standard Closed
+```
+
+四个 Standard Open 状态全部消费同一个 `Inspector / Shell` main component `152:4`：
+
+```text
+Playlist    622:983   368×420 @ 564,92
+Tracks      623:1084  368×420 @ 564,92
+Subtitles   623:1385  368×420 @ 564,92
+Chapters    623:1633  368×420 @ 564,92
+```
+
+Mode 与 Content 继续由 D4 唯一 authority 持有：`Inspector / Mode Switch 160:88`、`Playlist / Content 172:284`、`Tracks / Content 183:823`、`Subtitles / Content 191:1565`、`Chapters / Content 200:2168`。D9-03 只负责最终 composition 与 routing。
+
+Standard continuity：
+
+- Closed 与四个 Open 状态都保持 D9-02 Confirmed Data Projection，Timeline actual=`66%`。
+- OSC 全部保持 `856×124 @ 52,538`；Inspector bottom=`512 < OSC top=538`，不重排或挤压播放器控制区。
+- Inspector Open 只消费 D3-07 既有 `Inspector Open` visibility lock；D9-03 不创建 `AFTER_TIMEOUT`、hide deadline 或新的 lock owner。
+
+Narrow QA：
+
+- `624:3850` 是独立 QA Presentation flow，不伪造 Narrow Playlist 产品入口。
+- 直接复用 D4-07 已验证的 Narrow Playlist Shell：`625:1926 = 320×450 @ 374,88`。
+- Narrow OSC=`616×106 @ 52,564`；Shell bottom=`538 < OSC top=564`，验证 overlay 停在 OSC 上方。
+- Close / Outside / ESC 均以 120ms Dissolve 返回 `624:3827 Narrow Closed`。
+
+Prototype reaction：
+
+```text
+D9-03 total                    28
+ON_CLICK                       23
+ON_KEY_DOWN / ESC               5
+Mode switch                     12
+Standard Close / Outside / ESC 12
+Standard open                    1
+Narrow Close / Outside / ESC    3
+AFTER_TIMEOUT                    0
+```
+
+全部 28 条 NAVIGATE destination 都是 D9 Page-level Frame；Non-page destination=`0`，old D4 destination=`0`。
+
+Presentation Flow Start：
+
+```text
+D9-01 Core Playback       → 600:2
+D9-02 Timeline Seek       → 614:203
+D9-03 Inspector           → 622:939
+D9-03 Narrow Overlay QA   → 624:3850
+```
+
+最终 machine gate：
+
+```text
+D9-03 states                             7 / 7 Page-level
+D9-03 reactions                         28 / 28
+D9-03 AFTER_TIMEOUT                      0
+Standard Shell main                   152:4 · 4 / 4 PASS
+Narrow Shell main                     152:4 · PASS
+Standard confirmed position             66% · 5 / 5 PASS
+Narrow geometry                    320×450 @ 374,88 PASS
+Narrow Shell bottom / OSC top          538 / 564 PASS
+Non-page destinations                    0
+Old D4 destinations                      0
+Broken instances                         0
+D9 formal Components / Component Sets    0 / 0
+New Variables                            0
+Variables total                        456
+Foundation Variable Δ                    0
+Generic default-name residue             0
+Unexplained product/UI hardcode          0
+Intentional Synthetic Media solids      10
+Source visible solids                   46 / 46 semantic-bound
+Verification visible solids             72 / 72 semantic-bound
+Source → Verification gap              100px
+D9-01 reactions                         10 unchanged
+D9-01 timeout owner                      1 · 2.2s unchanged
+D9-02 reactions                          6 unchanged
+```
+
+跨页回归：
+
+```text
+D4 Inspector / Shell                   152:4 PASS
+D4 Inspector / Mode Switch            160:88 PASS
+D4 four Content authorities                 PASS
+D4-07 representative Prototype reactions 22 PASS
+D3-07 Board                           142:2 PASS
+D3-07 single AFTER_TIMEOUT owner      143:2 · 2.2s → 143:15 PASS
+```
+
+10 个 unbound solid 全部来自五个 Standard Prototype screen 的 Synthetic Media 测试艺术层，不属于产品 UI Surface；Narrow QA 继续消费 D7 已绑定的产品 UI。Source/Verification 均无 unbound paint。
+
+Atomic boundary 保持：D9-03 未提前实现 D9-04 Window Mode 或 D9-05 Error recovery；没有修改 D3/D4/D8 source、播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D9-03：Complete。**
+
 ## Stage D9 Current Result
 
-D9-01 已建立 Empty → Loading → Playing / Hidden / Paused 的核心播放链；D9-02 已在独立 Presentation flow 中补齐 Timeline Hover Preview → Scrub → Pending → Backend Confirm → Resume，并验证 ESC / Mouse Leave 取消路径。Playback state、confirmed position、OSC visibility、Seek Preview 与 Timeline authority 仍分别归 D3/D5/D8 的既有 owner，D9 只承担最终可点击组合与演示路由。
+D9-01 已建立 Empty → Loading → Playing / Hidden / Paused；D9-02 已补齐 Hover Preview → Scrub → Pending → Backend Confirm；D9-03 已从 confirmed 66% Player 打开唯一 Inspector Shell，并在同一 Shell 内切换 Playlist / Tracks / Subtitles / Chapters，同时完成 Standard 与 720 Narrow overlay dismissal 验证。Playback、confirmed position、Inspector、OSC visibility authority 仍分别归既有 D3/D4/D5/D8 owner，D9 只承担最终可点击组合与演示路由。
 
 **Stage D9：In Progress。**
 
 ## Next
 
-**D9-03 — Inspector 原型**
+**D9-04 — Window Mode 原型**
 
-下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 在已关闭的 D9-01 / D9-02 最终 playback + seek chain 上接入 Inspector：
+下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 在已关闭的 D9-01 / D9-02 / D9-03 最终链上接入 Window Mode：
 
 ```text
-open Inspector
-  → switch Playlist / Tracks / Subtitles / Chapters
-  → close / dismiss
-  → preserve playback + confirmed seek state
+Windowed
+  → Fullscreen
+  → Windowed
+  → Mini
+  → Windowed
 ```
 
-D9-03 必须继续消费 D4 唯一 Inspector Shell / Mode Switch / Content authority，并保持 D3-07 visibility lock、D9-01 playback truth 与 D9-02 confirmed-position truth；不得创建第二个 Inspector 或复制内容组件。
+D9-04 必须继续消费 D7-05 已冻结的 mode topology、Inspector suspension、transient cleanup 与 focus mapping；不得建立第二个 PlaybackSession、Window Mode coordinator、OSC lifecycle 或直接 Fullscreen ↔ Mini 产品边。
