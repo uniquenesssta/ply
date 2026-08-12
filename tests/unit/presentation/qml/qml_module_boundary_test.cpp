@@ -7,6 +7,7 @@
 #include <QQmlEngine>
 #include <QQmlError>
 #include <QRegularExpression>
+#include <QSignalSpy>
 #include <QStringList>
 #include <QUrl>
 #include <QVariant>
@@ -20,10 +21,25 @@ namespace {
 QString componentDiagnostics(const QQmlComponent& component)
 {
     QStringList diagnostics;
+    diagnostics.append(
+        QStringLiteral("status=%1 progress=%2")
+            .arg(static_cast<int>(component.status()))
+            .arg(component.progress(), 0, 'f', 3));
+
     for (const QQmlError& error : component.errors()) {
         diagnostics.append(error.toString());
     }
     return diagnostics.join(QLatin1Char('\n'));
+}
+
+bool waitForComponentResolution(QQmlComponent& component)
+{
+    if (component.status() != QQmlComponent::Loading) {
+        return true;
+    }
+
+    QSignalSpy statusSpy(&component, &QQmlComponent::statusChanged);
+    return statusSpy.wait(5000);
 }
 
 QStringList featureImportViolations()
@@ -116,9 +132,11 @@ QtObject {
 
     component.setData(
         source,
-        QUrl(QStringLiteral("inmemory:/DesignSystemModuleSmoke.qml")));
+        QUrl(QStringLiteral("qrc:/DesignSystemModuleSmoke.qml")));
 
+    const bool resolved = waitForComponentResolution(component);
     const QString loadDiagnostics = componentDiagnostics(component);
+    QVERIFY2(resolved, qPrintable(loadDiagnostics));
     QVERIFY2(component.isReady(), qPrintable(loadDiagnostics));
 
     std::unique_ptr<QObject> object(component.create());
