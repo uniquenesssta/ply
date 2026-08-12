@@ -21,7 +21,7 @@
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
 - **D8：Complete — D8-01 ～ D8-07 全部关闭。**
-- **D9：In Progress — D9-01 ～ D9-05 Complete；D9-06 待执行。**
+- **D9：In Progress — D9-01 ～ D9-06 Complete；D9-07 待执行。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -66,7 +66,8 @@
 - **D9-03：Inspector 原型，Page `599:3362` / Source `627:1837` / Verification `627:1891` / Standard Closed `622:939` / Playlist `622:961` / Tracks `623:1062` / Subtitles `623:1363` / Chapters `623:1611` / Narrow Overlay QA `624:3850`。**
 - **D9-04：Window Mode 原型，Page `599:3362` / Source `638:2454` / Verification `638:2508` / Windowed Clean `634:1837` / Fullscreen Active `634:1934` / Inspector Before `636:1993` / Fullscreen Suspended `636:2193` / Inspector Restored `636:2270` / More Open QA `636:2464` / Mini Hover `634:2028`。**
 - **D9-05：Error Recovery 原型，Page `599:3362` / Source `648:2769` / Verification `648:2823` / Retryable Error `641:2454` / NonRecoverable Error `641:2583` / ErrorRecovery Dialog `641:2697`。**
-- **下一任务：D9-06 Handoff 规格。**
+- **D9-06：Handoff 规格，Page `599:3362` / Handoff Source `660:2769` / Verification `662:2769`。**
+- **下一任务：D9-07 全局视觉 QA。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -241,7 +242,7 @@ Unbound             0
 D3-07 Smoke
 Visible Solid Paint 169 / 169 Semantic-bound
 Text Style           37 / 37
-Unbound              0
+Unbound             0
 
 Single AFTER_TIMEOUT owner = 1
 hide-delay Standard / Reduce Motion = 2200 / 2200ms
@@ -3810,27 +3811,89 @@ Source → Verification gap              100px
 
 **D9-05：Complete。**
 
+### D9-06 Handoff 规格 · Complete
+
+Figma：
+
+```text
+Page                    599:3362  09 Prototype & Handoff
+Handoff Source          660:2769  D9-06 / Handoff Specifications
+Verification            662:2769  D9-06 / Verification
+```
+
+Handoff 按任务书整理为 8 个开发契约模块：
+
+```text
+Product Structure
+Layout Contracts
+Tokens
+Components
+Interaction States
+Responsive Rules
+Accessibility
+QA Matrix
+```
+
+所有数字均从最终 D1–D9 source 重新读取；文档中显式区分 `[VISUAL] / [INTERACTION] / [IMPLEMENTATION]`。关键事实包括：
+
+- Player reference=`1320×700 / R32`，Maximized=`R0`，safe-min=`26`。
+- Header Standard/Compact=`420×54 / 360×50`。
+- OSC=`min(host − 2×26, 880)`；Standard=`H124 / inset26 / bottom38`，Compact=`H106 / inset28 / bottom30`。
+- Timeline=`3px visual / 16px hit / 10px thumb`。
+- Inspector=`368 Standard / 320 Narrow`，top=`92 / 88`。
+- Preferences=`980×680 / 820×620 / 760×560`。
+- Fullscreen reference=`1600×900`；Mini=`420×236`，minimum=`320×180`。
+- Breakpoints 保持 Narrow=`0–839` / Standard=`840–1199` / Wide=`>=1200`；Narrow Timeline Lane `<480px` 时只隐藏 Duration，不创建第四个 breakpoint。
+- Foundation 保持 `456 Variables / 11 Collections`；D8 控件 authority=`9 roots / 72 variants`；Surface authority=`6 roots`。
+- Reduce Motion transition duration=`0ms`，但 `motion/osc/hide-delay=2200ms` 保持。
+- Product minimum control hit=`32×32`；Timeline hit=`16px`；所有可复用控件保持 Focus contract。
+- `[IMPLEMENTATION]` 只表示 Qt Quick/QML 落地目标，不表示当前 runtime 已实现。PlaybackSnapshot/backend 继续是运行时真值。
+
+D9-06 没有创建新的产品 Component、Component Set、Variable、Prototype reaction 或 Flow Start；D9-01～D9-05 原型和 D8 authority 全部保持。
+
+最终 machine gate：
+
+```text
+Handoff modules                         8 / 8 PASS
+Variables                            456 / 456
+Collections                           11 / 11
+D8 Controls                     9 roots / 72 variants
+D8 Surfaces                           6 roots
+Product Component / Set / Variable Δ      0
+Prototype reaction / Flow Start Δ          0
+Source semantic solid paints          44 / 44
+Verification semantic solid paints    77 / 77
+Typography                         98 / 98
+Missing font                              0
+Broken Instance                           0
+Generic default-name residue              0
+Source → Verification gap              100px
+D9-01～D9-05 regression                 PASS
+Final Gate                              PASS
+```
+
+本任务只修改 Figma Handoff 文档与根 README；没有修改播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D9-06：Complete。**
+
 ## Stage D9 Current Result
 
-D9-01 已建立 Empty → Loading → Playing / Hidden / Paused；D9-02 已补齐 Hover Preview → Scrub → Pending → Backend Confirm；D9-03 已接入唯一 Inspector Shell 与四模式切换；D9-04 已完成 Windowed↔Fullscreen 与 Windowed↔Mini 往返；D9-05 已完成 Retryable / NonRecoverable current-media Error → Retry / OpenMedia → 既有 Loading / Playing 的恢复闭环，并验证 ErrorRecovery Dialog 的返回/结束播放路径。Playback、confirmed position、Inspector、OSC visibility、Window Mode topology、Error Overlay/Action/Dialog authority 均继续归既有 D3/D4/D5/D7/D8 owner，D9 只承担最终可点击组合与演示路由。
+D9-01 已建立 Empty → Loading → Playing / Hidden / Paused；D9-02 已补齐 Hover Preview → Scrub → Pending → Backend Confirm；D9-03 已接入唯一 Inspector Shell 与四模式切换；D9-04 已完成 Windowed↔Fullscreen 与 Windowed↔Mini 往返；D9-05 已完成 Retryable / NonRecoverable current-media Error → Retry / OpenMedia → 既有 Loading / Playing 的恢复闭环，并验证 ErrorRecovery Dialog 的返回/结束播放路径；D9-06 已将最终 Product Structure / Layout / Tokens / Components / Interaction / Responsive / Accessibility / QA 反推为开发可执行 Handoff，并明确 `[VISUAL] / [INTERACTION] / [IMPLEMENTATION]` 与 runtime truth 边界。Playback、confirmed position、Inspector、OSC visibility、Window Mode topology、Error Overlay/Action/Dialog authority 均继续归既有 D3/D4/D5/D7/D8 owner，D9 只承担最终可点击组合、Handoff 与验收收口。
 
 **Stage D9：In Progress。**
 
 ## Next
 
-**D9-06 — Handoff 规格**
+**D9-07 — 全局视觉 QA**
 
-下一步按 `docs/plans/stages/D9_原型交付与最终验收.md`，基于已经关闭的 D9-01 ～ D9-05 final Presentation 输出可直接用于 Qt6/QML/C++ 落地的 Handoff 字段：
+下一步按 `docs/plans/stages/D9_原型交付与最终验收.md`，对 Main / Inspector / States / Preferences / Fullscreen / Mini 的代表画面做最终截图审计，重点检查：
 
 ```text
-尺寸 / 间距
-Token / Style
-状态与 Variant
-数据来源 / owner
-动效 / transition
-键盘与焦点
-可访问性
-运行时尚未实现项
+对齐 / 光学中心
+玻璃材质与复杂视频背景可读性
+间距与信息密度
+响应式与窗口模式一致性
+最终组件实例与成品视觉一致性
 ```
 
-D9-06 必须把已冻结的设计映射为开发可执行规格，避免开发者反向猜设计；不得重新设计 D2～D9-05 既有组件、复制 state owner，或把 Figma QA 入口/假 backend event 描述成已经存在的 runtime API。
+D9-07 必须覆盖任务书要求的 100% 代表截图与复杂背景，并把发现的问题回对应 D0–D8 source 根因修复；不得在 QA Board 用文字掩盖已知肉眼小错误。
