@@ -21,7 +21,7 @@
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
 - **D8：Complete — D8-01 ～ D8-07 全部关闭。**
-- **D9：In Progress — D9-01 Complete；D9-02 待执行。**
+- **D9：In Progress — D9-01 ～ D9-02 Complete；D9-03 待执行。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -62,7 +62,8 @@
 - **D8-06：全局实例回刷，Source `529:676` / Verification `529:678`。**
 - **D8-07：命名/变量/层级卫生，Source `591:676` / Verification `591:677`。**
 - **D9-01：核心播放原型，Page `599:3362` / Source `605:203` / Verification `606:203` / Empty `600:2` / Loading `600:24` / Playing Visible `600:43` / Playing Hidden `600:147` / Paused Persistent `600:166`。**
-- **下一任务：D9-02 Timeline Seek 原型。**
+- **D9-02：Timeline Seek 原型，Page `599:3362` / Source `617:580` / Verification `618:580` / Rest `614:203` / Hover Preview `614:298` / Scrubbing `614:414` / Pending Seek `614:530` / Confirmed Resume `614:647`。**
+- **下一任务：D9-03 Inspector 原型。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -3201,24 +3202,189 @@ Atomic boundary 保持：D9-01 未提前实现 D9-02 Timeline Seek、D9-03 Inspe
 
 **D9-01：Complete。**
 
+### D9-02 Timeline Seek 原型 · Complete
+
+Figma：
+
+```text
+Page                    599:3362  09 Prototype & Handoff
+Source / Contract       617:580   D9-02 / Timeline Seek Prototype
+Verification            618:580   D9-02 / Verification
+Rest                    614:203
+Hover Preview           614:298
+Scrubbing               614:414
+Pending Seek            614:530
+Confirmed Resume        614:647
+Timeline Hit · Rest     614:297
+Timeline Hit · Hover    614:413
+Timeline Hit · Scrub    614:529
+QA Backend Confirm Hit  614:646
+```
+
+D9-02 继续使用 D9-01 最终 Playing composition，并消费 D3-03、D5-04 与 D8 已冻结 authority；没有创建第二套 Timeline、PlaybackSnapshot、Seek Preview 或 player state owner。
+
+主链：
+
+```text
+Rest
+  → Mouse Enter · 120ms Ease Out
+Hover Preview
+  → Mouse Down · instant
+Scrubbing
+  → Mouse Up / release · 160ms Ease Out
+Pending Seek
+  → QA Backend Confirm click · 160ms Ease Out
+Confirmed Resume
+```
+
+取消链：
+
+```text
+Hover Preview → Mouse Leave → Rest · 120ms Ease Out
+Scrubbing     → ESC         → Rest · 120ms Ease Out
+```
+
+position truth 继续严格属于 D3-03 `PlaybackSnapshot`：
+
+```text
+Rest               actual 38%
+Hover Preview      actual 38% + preview target 66%
+Scrubbing          temporary target 66% + committed marker 38%
+Pending Seek       actual 38% + pending target 66%
+Backend confirm    actual adopts 66%
+Confirmed Resume   actual 66% / preview cleared
+```
+
+因此 pointer release 只发出 seek intent 并进入 Pending，不提前把 UI target 写成真实播放位置；真正 commit 只发生在 backend confirmation。
+
+`Feedback / Seek Preview` 继续只拥有 preview time；Hover/Scrubbing/Pending 三个状态使用 D5 正式 `Feedback / Seek Preview` instance，Confirmed 后 Preview 消失。
+
+D8 `Control / Timeline` 仍严格只有：
+
+```text
+Default
+HoverPreview
+Scrubbing
+PendingSeek
+ChapterHover
+Unknown
+NonSeekable
+```
+
+即 `2 Size × 7 State = 14 variants`，`Committed variant=0`。Committed 是运行时数据结果，不允许为了 Prototype 增加伪 Variant。
+
+Figma Component Instance 无浮点 progress data property；因此 `614:647 Confirmed Resume` 采用 canonical Scrubbing target geometry 作为 **仅该 D9 Prototype instance 的 confirmed-data projection**，并把 Scrubbing 的临时 `Committed Marker` visibility override 为 hidden。最终视觉为 66% actual、无 Preview、无 Pending、无 Committed Marker；D8 source 与 Variant API 完全未修改，也未 detach instance。
+
+Prototype reaction：
+
+```text
+614:297  MOUSE_ENTER       → 614:298  120ms Ease Out
+614:413  MOUSE_LEAVE       → 614:203  120ms Ease Out
+614:413  MOUSE_DOWN        → 614:414  instant / transition=null
+614:529  MOUSE_UP          → 614:530  160ms Ease Out
+614:414  ESC               → 614:203  120ms Ease Out
+614:646  ON_CLICK          → 614:647  160ms Ease Out
+```
+
+第一次 Hover→Scrubbing 使用 `SMART_ANIMATE duration=0` 时，当前 Figma runtime 自动归一为 300ms；最终已改成 `transition=null`，machine audit 确认该路径为真正即时切换。
+
+Presentation 起点：
+
+```text
+D9-01 Core Playback → 600:2
+D9-02 Timeline Seek → 614:203
+```
+
+第一次增量追加第二 Flow Start 时，Figma `flowStartingPoints` setter 报 duplicate nodeIds 并原子拒绝，未提交任何 reaction；最终通过清空 setter 状态后一次性写回两个唯一 Flow Start，D9-01 起点保持不变。
+
+视觉 QA 实际覆盖：
+
+```text
+614:203  Rest
+614:298  Hover Preview
+614:414  Scrubbing
+614:530  Pending Seek
+614:647  Confirmed Resume
+617:580  Source board
+618:580  Verification board
+```
+
+真实几何结果：
+
+```text
+Rest progress                    38%
+Hover actual                     38%
+Scrubbing progress / target      66%
+Scrubbing committed marker       38%
+Pending actual                   38%
+Pending hollow target            66%
+Confirmed actual                 66%
+Confirmed preview                0
+```
+
+最终 machine gate：
+
+```text
+Prototype states                         5 / 5 Page-level
+Prototype reactions                      6 / 6
+MOUSE_ENTER                               1
+MOUSE_LEAVE                               1
+MOUSE_DOWN                                1 · instant
+MOUSE_UP                                  1
+ON_KEY_DOWN                               1 · ESC
+ON_CLICK                                  1 · QA backend confirm
+D9-02 AFTER_TIMEOUT                       0
+Non-page destinations                     0
+Old D3/D5 destinations                    0
+Broken instances                          0
+D9 formal Components / Component Sets     0
+New Variables                             0
+Variables total                         456
+Foundation Variable Δ                     0
+Generic default-name residue              0
+Unexplained product/UI hardcode           0
+Intentional Synthetic Media solids       10
+D9-02 Source visible solids              46 / 46 semantic-bound
+D9-02 Verification visible solids        72 / 72 semantic-bound
+Source → Verification gap               100px
+D9-01 reactions                          10 unchanged
+D9-01 timeout owner                       1 · 2.2s unchanged
+```
+
+10 个 unbound solid 全部来自 5 个 Prototype screen 的 `Synthetic Media Glow / Accent` 测试艺术层，用于模拟视频内容，不属于产品 UI Surface。
+
+跨页回归：
+
+```text
+D3-03 Board                 104:2 PASS
+D3 Rest/Hover/Scrub/Pending fixtures PASS
+D5 Scrubbing                249:108 → Timeline 453:270 PASS
+D5 Pending                  249:143 → Timeline 453:290 PASS
+D8 Timeline authority       453:341 · 14 variants PASS
+D8 Committed variant        0 PASS
+```
+
+Atomic boundary 保持：D9-02 未提前实现 D9-03 Inspector、D9-04 Window Mode 或 D9-05 Error recovery；没有修改 D3/D5/D8 source、播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D9-02：Complete。**
+
 ## Stage D9 Current Result
 
-核心播放原型已可以从 Empty 连续演示到 Loading / Playing / OSC Hidden / Paused，并可通过 PlayPause、Space、pointer wake 与唯一 2.2s inactivity policy 往返。所有视觉继续消费 D5/D8 正式 authority，D3-07 仍是唯一 OSC visibility policy owner。
+D9-01 已建立 Empty → Loading → Playing / Hidden / Paused 的核心播放链；D9-02 已在独立 Presentation flow 中补齐 Timeline Hover Preview → Scrub → Pending → Backend Confirm → Resume，并验证 ESC / Mouse Leave 取消路径。Playback state、confirmed position、OSC visibility、Seek Preview 与 Timeline authority 仍分别归 D3/D5/D8 的既有 owner，D9 只承担最终可点击组合与演示路由。
 
 **Stage D9：In Progress。**
 
 ## Next
 
-**D9-02 — Timeline Seek 原型**
+**D9-03 — Inspector 原型**
 
-下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 在 D9-01 最终播放链上演示：
+下一步按 `docs/plans/stages/D9_原型交付与最终验收.md` 在已关闭的 D9-01 / D9-02 最终 playback + seek chain 上接入 Inspector：
 
 ```text
-pointer down
-  → scrub / hover preview
-  → release / commit
-  → pending target
-  → backend confirm / resume
+open Inspector
+  → switch Playlist / Tracks / Subtitles / Chapters
+  → close / dismiss
+  → preserve playback + confirmed seek state
 ```
 
-D9-02 必须继续消费 D3-03 confirmed position / preview / scrub / pending ownership 与 D5 `Feedback / Seek Preview`，不得建立第二套 Timeline source、PlaybackSnapshot 或 seek truth。
+D9-03 必须继续消费 D4 唯一 Inspector Shell / Mode Switch / Content authority，并保持 D3-07 visibility lock、D9-01 playback truth 与 D9-02 confirmed-position truth；不得创建第二个 Inspector 或复制内容组件。
