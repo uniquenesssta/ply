@@ -13,6 +13,7 @@
 ## Current design status
 
 - 第三版核心框架：Main Player / Fullscreen / Playlist Inspector 已确认。
+- **D0：Complete — Direction Board `712:2` + Framework `4:2 / 4:48 / 4:88` 为正式冻结基准；no waiver。**
 - **D1：Complete — D1-01 ～ D1-06 全部关闭。**
 - **D2：Complete — D2-01 ～ D2-05 全部关闭。**
 - **D3：Complete — D3-01 ～ D3-07 全部关闭。**
@@ -21,7 +22,7 @@
 - **D6：Complete — D6-01 ～ D6-06 全部关闭。**
 - **D7：Complete — D7-01 ～ D7-05 全部关闭。**
 - **D8：Complete — D8-01 ～ D8-07 全部关闭。**
-- **D9：Complete — D9-01 ～ D9-07 全部关闭；Implementation Ready。**
+- **D9：Complete — D9-01 ～ D9-08 全部关闭；Implementation Ready。**
 - D3-01：OSC Surface & Internal Grid，Board `90:3`。
 - D3-02：Timeline Basic Geometry，Board `95:8`。
 - D3-03：Timeline Interaction States，Board `104:2`。
@@ -68,7 +69,44 @@
 - **D9-05：Error Recovery 原型，Page `599:3362` / Source `648:2769` / Verification `648:2823` / Retryable Error `641:2454` / NonRecoverable Error `641:2583` / ErrorRecovery Dialog `641:2697`。**
 - **D9-06：Handoff 规格，Page `599:3362` / Handoff Source `660:2769` / Verification `662:2769`。**
 - **D9-07：全局视觉 QA，Page `599:3362` / Source `680:2795` / Verification `681:2795`。**
-- **第三版 UI 设计任务书 D1～D9：Complete / Implementation Ready。**
+- **D9-08：结构与设计系统 QA，Page `599:3362` / Source `715:2795` / Verification `715:2842`。**
+- **第三版 UI 设计任务书 D0～D9：Complete / Implementation Ready。**
+
+## Stage D0 — Visual Baseline & Design Governance · Complete
+
+Figma：
+
+```text
+Direction Board             712:2  D0 / Direction Board · Frozen Baseline
+Framework / Main Player       4:2  frozen source
+Framework / Fullscreen       4:48  frozen source
+Framework / Playlist Inspector 4:88 frozen source
+```
+
+D0 正式决定为 **补齐 Direction Board，不采用 waiver**。`712:2` 只把任务书已经冻结的视觉治理事实组织成正式 Board，不建立第二套产品视觉 source：
+
+- Visual Principles：Airy / Ethereal、Soft Glass、Pastel Glow、Luxury Minimal、Sharp Grotesk、Editorial Spacing。
+- Do / Don’t：明确视频优先、统一 Airy Glass 语言，并继续禁止大蓝圆播放键、厚重底栏、纯黑 Drawer、后台卡片墙、重描边/硬阴影与高饱和 Selected 大面积填充。
+- Product Structure：继续冻结 Player Window → Video Viewport / Floating Header / OSC / Inspector Host / Transient Overlay Host，以及 Windowed / Fullscreen / Mini、Preferences、Design System 的职责树。
+- Review Baseline：几何对齐 / 光学居中 / 间距节奏 / 复杂背景可读性 / 跨窗口一致性。
+- 三张原始 Framework `4:2 / 4:48 / 4:88` 保持不变；Direction Board 内只使用锁定的 Reference Snapshot，不承担产品 authority。
+
+D0 Board 最终门禁：
+
+```text
+Authored Direction text                 26 / 26 styled
+Direction visible Solid Paint          185 / 185 semantic-bound
+Direction cards radius                    8 / 8 → radius/20
+Product Components / Component Sets          0
+Prototype Reactions                          0
+New Variables                                0
+Frozen Framework source mutation             0
+Historical pre-D1 reference text        43 / 43 unstyled · documented frozen-reference exception
+```
+
+43 个未样式化文本只来自三张冻结的 pre-D1 Framework reference，属于 D0 历史视觉基准，不属于 D1～D8 产品实现 authority；D9-08 已显式分类该例外，没有为了数字归零而重写冻结基准。
+
+**Stage D0：Complete。**
 
 ## Stage D1 — Foundations · Complete
 
@@ -4004,19 +4042,115 @@ D9-07 Verification 首轮因为 Matrix 文本换行导致第 8 行 `System Hygie
 
 **D9-07：Complete。**
 
+### D9-08 结构与设计系统 QA · Complete
+
+Figma：
+
+```text
+Page                    599:3362  09 Prototype & Handoff
+Source / Structural QA  715:2795  D9-08 / Structural & Design System QA
+Verification            715:2842  D9-08 / Verification
+D0 Direction Board        712:2  D0 / Direction Board · Frozen Baseline
+```
+
+D9-08 严格按任务书逐项检查：空页、Detached、hardcoded、Broken Alias、默认层名、重复 Component、Invalid Reaction 与命名残留。初次审计发现的问题没有在 Handoff 文案中豁免，而是全部回 owning source 修复。
+
+根源修复：
+
+```text
+D2  4   responsive Section default-like names → semantic case names
+D4  6   Empty/Add Copy source layers           → semantic content names
+D5  52  Line N + Status Copy                    → semantic rule/status names
+D6  6   Warning/Diagnostics/Action Copy         → semantic source names
+D7  7   Line N + Layout Copy                    → semantic authority/snapshot names
+Total source/local naming repairs              75
+```
+
+D5 另确认 11 个真实 hardcoded Effect drift：
+
+```text
+Feedback / Error Action  8 variants
+  raw duplicated effect → V3 / Glass / Control
+
+Feedback / Error Status  3 variants
+  raw duplicated effect → V3 / Glass / HUD
+```
+
+这 11 个 Variant 的 blur/shadow 与已有正式 Style 完全一致；同级 Open Media / Ended Action、Buffering / Ended Status 本就使用对应 Style，因此修复回已有 authority，不新增 Effect Style。
+
+Hardcode 分类：
+
+- unexplained product/UI Solid Paint=`0`。
+- unexplained product/UI raw Effect=`0`。
+- unexplained geometry/radius/size fork=`0`。
+- intentional QA/Test Solid=`378`：D2 `1` + D4 `126` + D5 `88` + D7 `110` + D9 `53`；均属于明确测试艺术/Verification，不伪装成产品 Token。
+- D0 三张 frozen Framework Reference 保留 pre-D1 历史未样式化文本 `43`，已作为 **frozen-reference exception** 明确记录；它们不是实现 authority。
+- Component variant geometry consistency 只命中 8 个可解释状态/Size/Content 轴：Tracks Audio/Video Loaded↔Empty、Subtitles Embedded Loaded↔Empty、Error Action 文案宽度、Settings Header Supporting、Search Size、Shortcut Conflict 高度、OSC Size；没有无依据 geometry fork。
+
+最终结构门禁：
+
+```text
+Pages                                      10 / 10 non-empty
+Linked Instances                              5330
+Broken / Detached main component                 0
+Canonical detached-copy suspect                  0
+
+Variables / Collections                    456 / 11
+Alias edges                                 360 / 360
+Broken Alias                                     0
+Blank variable                                   0
+Duplicate variable name in same collection       0
+
+Formal authority roots                           118
+Formal variants                                  330
+Duplicate formal authority root                    0
+Retired legacy authority nodes                     0
+
+Default layer-name residue                         0
+Copy / Untitled / Tmp / Draft naming residue       0
+Invalid Reaction                                   0
+Missing Prototype destination                      0
+Non-page NAVIGATE destination                      0
+
+D9 reactions                         10 / 6 / 28 / 8 / 6
+D9 Flow Starts                                      8
+Prototype graph Δ                                   0
+
+D9-08 Source semantic solids                  54 / 54
+D9-08 Source typography                       33 / 33
+D9-08 Verification semantic solids            47 / 47
+D9-08 Verification typography                 28 / 28
+D9-08 formal Components / Component Sets          0 / 0
+D9-08 Reactions                                    0
+Source / Verification fit                        PASS
+Source → Verification gap                      100px
+
+Product Component / Component Set / Variable Δ     0
+Known structural defects                           0
+Final Structural Gate                            PASS
+```
+
+D9-08 只修改 Figma 源命名/既有 Effect Style 归属、D0 治理文档、D9-08 QA 文档与根 README；没有修改播放器 Qt/QML/C++ 源码、配置、依赖、数据格式或运行时接口，因此没有构建、单元测试或运行时测试项。
+
+**D9-08：Complete。**
+
 ## Stage D9 Current Result
 
-D9-01～D9-05 已形成最终可点击播放/Seek/Inspector/Window Mode/Error Recovery 原型；D9-06 已把最终设计反推为可执行 Handoff；D9-07 已对 Main / Inspector / States / Preferences / Fullscreen / Mini 以及 Narrow/复杂背景完成 23/23 代表截图审计，并将 Empty/Loading Host guide、空 Header title、More 工程文案与 actionable tone 四类问题回 owning source/data projection 修复。最终 known visible defect=`0`；Variables/Collections=`456/11`；Broken Instance=`0`；D9 prototype graph 保持 `10/6/28/8/6` reactions + `8` Flow Starts。设计侧已达到 Implementation Ready；这不表示当前 Qt/QML runtime 已实现这些能力，实现层继续消费 D9-06 Handoff 与 D9-07 QA acceptance targets。
+D9-01～D9-05 已形成最终可点击播放/Seek/Inspector/Window Mode/Error Recovery 原型；D9-06 已把最终设计反推为可执行 Handoff；D9-07 已完成 23/23 代表截图与复杂背景视觉 QA；D9-08 已完成 10 页文件级结构/设计系统 QA，并把 75 个命名残留和 11 个 D5 raw Effect drift 回 D2/D4/D5/D6/D7 root source 修复。最终 Broken/Detached Instance=`0`、Broken Alias=`0`、默认层名=`0`、命名残留=`0`、duplicate authority=`0`、Invalid Reaction=`0`、unexplained product/UI hardcode=`0`；D9 prototype graph 保持 `10/6/28/8/6` reactions + `8` Flow Starts。D0 Direction Board `712:2` 也已补齐，以任务书和三张原始 Framework `4:2 / 4:48 / 4:88` 正式冻结，不采用 waiver。
 
-**Stage D9：Complete — Implementation Ready。**
+设计侧达到 **D0～D9 Complete / Implementation Ready**；这不表示当前 Qt/QML runtime 已实现这些能力，实现层继续消费 D9-06 Handoff、D9-07 Visual QA 与 D9-08 Structural QA acceptance targets。
+
+**Stage D9：Complete — D9-01 ～ D9-08 / Implementation Ready。**
 
 ## Next
 
-第三版 Airy Glass UI 设计任务书 D1～D9 已全部关闭。后续进入 Qt6/QML/C++ 实现阶段时，以：
+第三版 Airy Glass UI 设计任务书 D0～D9 已全部关闭。后续进入 Qt6/QML/C++ 实现阶段时，以：
 
+- D0 `712:2` + `4:2 / 4:48 / 4:88` 作为视觉方向与治理冻结基准；
 - D9-06 `660:2769 / 662:2769` 作为开发 Handoff；
 - D9-07 `680:2795 / 681:2795` 作为最终视觉/响应式/复杂背景 acceptance target；
+- D9-08 `715:2795 / 715:2842` 作为最终结构/设计系统 acceptance target；
 - D8 正式 Component / Surface / Composite authority 作为可复用视觉 source；
 - PlaybackSnapshot / backend / settings model / Action Registry 等实现层对象作为 runtime truth。
 
-不得把 D9 Prototype 的 QA hit、假 backend event、工程 shortcut 或测试媒体文案直接当作生产 API / 默认键位 / 数据真值。
+不得把 D9 Prototype 的 QA hit、假 backend event、工程 shortcut、测试媒体文案或 D0 Reference Snapshot 直接当作生产 API / 默认键位 / 数据真值。
