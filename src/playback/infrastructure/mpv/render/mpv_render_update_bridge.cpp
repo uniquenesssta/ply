@@ -24,8 +24,13 @@ void assignError(QString* errorMessage, QString message)
 
 bool MpvRenderUpdateDeliveryGate::allows(quint64 activationEpoch) const noexcept
 {
-    return activationEpoch != 0
-        && activeEpoch_.load(std::memory_order_acquire) == activationEpoch;
+    if (activationEpoch == 0
+        || activeEpoch_.load(std::memory_order_acquire) != activationEpoch) {
+        return false;
+    }
+
+    return shutdownCoordinator_ == nullptr
+        || !shutdownCoordinator_->isShutdownRequested();
 }
 
 MpvRenderUpdateBridge::MpvRenderUpdateBridge(QObject* parent)
@@ -49,6 +54,7 @@ MpvRenderUpdateBridge::MpvRenderUpdateBridge(
     , shutdownCoordinator_(std::move(shutdownCoordinator))
     , deliveryGate_(std::make_shared<MpvRenderUpdateDeliveryGate>())
 {
+    deliveryGate_->shutdownCoordinator_ = shutdownCoordinator_;
 }
 
 MpvRenderUpdateBridge::~MpvRenderUpdateBridge()
