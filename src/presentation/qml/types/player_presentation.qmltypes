@@ -6,6 +6,6 @@ Module {
         accessSemantics: "reference"
         prototype: "QQuickItem"
         exports: ["Player.Presentation/MpvVideoItem 1.0"]
-        exportMetaObjectRevisions: [0]
+        exportMetaObjectRevisions: [256]
     }
 }
