@@ -242,7 +242,7 @@ Unbound             0
 D3-07 Smoke
 Visible Solid Paint 169 / 169 Semantic-bound
 Text Style           37 / 37
-Unbound             0
+Unbound              0
 
 Single AFTER_TIMEOUT owner = 1
 hide-delay Standard / Reduce Motion = 2200 / 2200ms
