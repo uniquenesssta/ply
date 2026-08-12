@@ -10,6 +10,13 @@ set(PLAYER_QML_FILES
     qml/features/player/chrome/PlayerChrome.qml
 )
 
+target_sources(
+    player_app
+    PRIVATE
+        qml/types/presentation_type_registration.cpp
+        qml/types/presentation_type_registration.h
+)
+
 foreach(qml_file IN LISTS PLAYER_QML_FILES)
     get_filename_component(qml_name "${qml_file}" NAME)
     set_source_files_properties(
@@ -31,11 +38,33 @@ qt_add_qml_module(
     URI Player.Presentation
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    NO_GENERATE_QMLTYPES
+    TYPEINFO player_app.qmltypes
     DEPENDENCIES
+        QtQuick
         Player.Presentation.Theme
-    SOURCES
-        qml/types/mpv_video_item_qml_type.h
     QML_FILES ${PLAYER_QML_FILES}
+)
+
+qt_query_qml_module(
+    player_app
+    TYPEINFO player_presentation_typeinfo_path
+)
+
+if(NOT player_presentation_typeinfo_path)
+    message(FATAL_ERROR "Player.Presentation typeinfo output path was not resolved.")
+endif()
+
+get_filename_component(
+    player_presentation_typeinfo_directory
+    "${player_presentation_typeinfo_path}"
+    DIRECTORY
+)
+file(MAKE_DIRECTORY "${player_presentation_typeinfo_directory}")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/qml/types/player_presentation.qmltypes"
+    "${player_presentation_typeinfo_path}"
+    COPYONLY
 )
 
 target_link_libraries(
