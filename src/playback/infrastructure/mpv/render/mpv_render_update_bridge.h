@@ -26,6 +26,7 @@ private:
     friend class MpvRenderUpdateBridge;
 
     std::atomic_uint64_t activeEpoch_{0};
+    std::shared_ptr<const MpvRenderShutdownCoordinator> shutdownCoordinator_;
 };
 
 class MpvRenderUpdateBridge final : public QObject
