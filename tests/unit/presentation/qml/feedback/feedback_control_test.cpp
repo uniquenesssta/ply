@@ -1,4 +1,6 @@
 #include <QColor>
+#include <QDirIterator>
+#include <QFile>
 #include <QGuiApplication>
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -35,6 +37,41 @@ bool closeEnough(double left, double right)
 {
     return std::abs(left - right) <= 0.000001;
 }
+
+QStringList presentationBoundaryViolations()
+{
+    QStringList violations;
+    const QString root =
+        QStringLiteral(PLAYER_SOURCE_DIR "/src/presentation/qml/feedback");
+    QDirIterator iterator(
+        root,
+        {QStringLiteral("*.qml")},
+        QDir::Files,
+        QDirIterator::Subdirectories);
+
+    while (iterator.hasNext()) {
+        const QString path = iterator.next();
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            violations.append(QStringLiteral("cannot read %1").arg(path));
+            continue;
+        }
+
+        const QString content = QString::fromUtf8(file.readAll());
+        if (content.contains(QStringLiteral("PlaybackSession"), Qt::CaseSensitive)
+            || content.contains(QStringLiteral("libmpv"), Qt::CaseInsensitive)
+            || content.contains(QStringLiteral("mpv_"), Qt::CaseInsensitive)) {
+            violations.append(
+                QStringLiteral("%1 contains playback/backend vocabulary").arg(path));
+        }
+        if (content.contains(QStringLiteral("Timer {"), Qt::CaseSensitive)) {
+            violations.append(
+                QStringLiteral("%1 owns timeout behavior").arg(path));
+        }
+    }
+
+    return violations;
+}
 } // namespace
 
 class FeedbackControlTest final : public QObject
@@ -44,6 +81,7 @@ class FeedbackControlTest final : public QObject
 private slots:
     void rolesLoadAndStayDistinct();
     void toastUsesToastSurface();
+    void moduleRemainsPresentationOnly();
 };
 
 void FeedbackControlTest::rolesLoadAndStayDistinct()
@@ -114,6 +152,14 @@ Toast { title: "Done"; message: "Operation completed" }
     QVERIFY(closeEnough(object->property("z").toDouble(), 80.0));
     QVERIFY(object->property("implicitWidth").toDouble() > 0.0);
     QVERIFY(object->property("implicitHeight").toDouble() > 0.0);
+}
+
+void FeedbackControlTest::moduleRemainsPresentationOnly()
+{
+    const QStringList violations = presentationBoundaryViolations();
+    QVERIFY2(
+        violations.isEmpty(),
+        qPrintable(violations.join(QLatin1Char('\n'))));
 }
 
 } // namespace player::presentation::qml
