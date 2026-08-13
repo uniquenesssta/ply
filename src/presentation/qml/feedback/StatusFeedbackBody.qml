@@ -8,7 +8,7 @@ Item {
     property string detail: ""
     property color titleColor: ColorTokens.textPrimary
     property real textWidth: 0
-    readonly property alias contentColumn: body
+    readonly property Item contentColumn: body
 
     implicitWidth: body.width
     implicitHeight: body.implicitHeight
