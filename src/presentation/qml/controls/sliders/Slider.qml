@@ -37,7 +37,7 @@ Item {
     readonly property var stateTransitionBezier: MotionTokens.controlStateBezier
     readonly property real interactionOpacity: enabled
                                                ? OpacityTokens.visible
-                                               : OpacityTokens.disabled
+                                               : OpacityTokens.controlDisabled
 
     signal interactionStarted()
     signal valueEdited(real value)
@@ -86,13 +86,13 @@ Item {
         applyInteractionValue(candidate, stepSize)
     }
 
-    function nudge(delta, quantum) {
+    function nudge(delta) {
         if (!enabled) {
             return
         }
 
         interactionStarted()
-        applyInteractionValue(normalizedValue + delta, quantum)
+        applyInteractionValue(normalizedValue + delta, stepSize)
         interactionFinished(normalizedValue)
     }
 
@@ -112,8 +112,8 @@ Item {
             return
         }
 
-        const quantum = wheelStep > 0.0 ? wheelStep : stepSize
-        nudge(delta > 0 ? quantum : -quantum, quantum)
+        const increment = wheelStep > 0.0 ? wheelStep : stepSize
+        nudge(delta > 0 ? increment : -increment)
         event.accepted = true
     }
 
@@ -130,10 +130,10 @@ Item {
         }
 
         if (event.key === Qt.Key_Left || event.key === Qt.Key_Down) {
-            root.nudge(-root.stepSize, root.stepSize)
+            root.nudge(-root.stepSize)
             event.accepted = true
         } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Up) {
-            root.nudge(root.stepSize, root.stepSize)
+            root.nudge(root.stepSize)
             event.accepted = true
         }
     }
