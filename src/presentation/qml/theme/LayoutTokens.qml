@@ -33,6 +33,9 @@ QtObject {
     readonly property int volumeTrackWidth: SizePrimitives.size100
 
     readonly property int sliderDefaultWidth: SizePrimitives.size180
+    // Canonical Figma reference at the default width. Runtime hit width is
+    // derived from the actual control width so wrappers can resize the Slider.
+    readonly property int sliderReferenceHitWidth: SizePrimitives.size132
     readonly property int sliderHitHeight: SizePrimitives.size16
     readonly property int sliderTrackInset: SizePrimitives.size3
     readonly property int sliderTrackHeight: SizePrimitives.size3
