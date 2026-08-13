@@ -27,6 +27,7 @@ QtObject {
 
     readonly property int controlIcon: SizePrimitives.size22
     readonly property int controlIconCompact: SizePrimitives.size21
+    readonly property int playbackIcon: SizePrimitives.size24
     readonly property int playbackControl: SizePrimitives.size40
     readonly property int controlHitMinimum: SizePrimitives.size32
     readonly property int volumeTrackWidth: SizePrimitives.size100
