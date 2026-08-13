@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 Complete**；R5-08 Surface controls 尚未开始 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 Complete**；R5-08 Surface controls Candidate，Windows 最终验证待执行 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -99,6 +99,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-13 — R5-08 Surface controls candidate
+
+- 重新核对第三版最终 Figma D8 Surface 规则、`Floating Inspector` 真实设计上下文以及本地 Effect Styles/Variables：Inspector 为 **R32 / fill 38% / blur 42 / shadow 42px·y12·12%**；Popover 为 **R20 / fill 52% / blur 18 / shadow 16px·y5·8%**；HUD 为 **R24 / blur 18 / shadow 16px·y5·8%**；Surface stroke 为 **1px**，z-order 保持 Overlay 35 → Inspector 50 → Popover 60 → HUD 70。
+- 新增 `surfaces/Panel.qml`、`Drawer.qml`、`Popover.qml`、`Hud.qml`。`Panel` 是唯一通用材质与 replaceable content-slot owner；`Drawer` 复用 Inspector-grade Airy Glass 并只提升到 Inspector 层，不引入旧式黑色 Drawer；Popover/Hud 只覆写各自 Material/Radius/Shadow/Padding/Z semantic，不复制 Surface 渲染实现。
+- `Panel` 真实渲染半透明 semantic fill、独立 glass border、圆角和 `QtQuick.Effects.MultiEffect` drop shadow，并通过 `contentItem` + `contentPadding` 承载可替换业务内容。R5-08 不拥有 feature 文案、播放状态、dismiss timer 或 feedback severity。
+- Figma 当前没有独立 `alpha/glass/hud-fill` 变量；HUD Effect Style 与 Control Glass 同属 blur18/control-shadow 层级，因此 HUD fill 复用既有 `MaterialTokens.controlFillAlpha = 48%`，没有凭空创建第二视觉真值。R5-08 只新增已被最终 Figma `stroke/surface` 明确支持的 `LayoutTokens.surfaceBorderWidth = 1`。
+- `backdropBlurRadius` 保留最终 Figma 的 role contract，但通用 Surface 当前不捕获任意祖先背景：Qt Quick 的 backdrop source 属于后续 Window/Overlay composition 宿主职责。本轮不把 Surface 自身像素 blur 后冒充真实 backdrop blur；因此当前真实视觉实现范围为 fill / border / radius / shadow / z / slot，背景捕获仍是明确的后续集成点。
+- `Player.Presentation.Surfaces` 显式依赖既有 Theme 与锁定 Qt 6.8.3 已使用的 `QtQuick.Effects`，没有新增外部生产依赖；`player_qml_lint` 已纳入 surfaces qmllint。Feature import 门禁保持 R5-01 冻结规则，Feature 不因 R5-08 获得直接 `Surfaces` 深依赖。
+- 新增独立 `surface_controls` CTest，覆盖四个公开 Surface role 的材质 contract、replaceable slot/padding、重叠 z-order 与 Surfaces 不依赖 Playback/Controls/Primitives 的静态边界；预计全量测试数由 **48 → 49**。尚未在锁定 Windows 环境执行本候选的 configure/build/qmllint/49-test/`Player.exe` smoke。未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口、配置或持久化。**R5-08 当前为 Candidate；R5-09 未开始。**
 
 ### 2026-08-13 — R5-07 Slider controls Complete
 
