@@ -281,3 +281,45 @@ set_tests_properties(
     slider_controls
     PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+add_executable(
+    surface_control_tests
+    surface_control_test.cpp
+)
+
+player_apply_compiler_options(surface_control_tests)
+player_enable_compiler_warnings(surface_control_tests)
+player_enable_sanitizers(surface_control_tests)
+player_enable_static_analysis(surface_control_tests)
+
+add_dependencies(
+    surface_control_tests
+    player_qml_lint
+)
+
+target_compile_definitions(
+    surface_control_tests
+    PRIVATE
+        PLAYER_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_link_libraries(
+    surface_control_tests
+    PRIVATE
+        player_presentation_theme
+        player_presentation_surfaces
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(
+    NAME surface_controls
+    COMMAND surface_control_tests
+)
+
+set_tests_properties(
+    surface_controls
+    PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+)

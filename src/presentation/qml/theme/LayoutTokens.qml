@@ -46,6 +46,8 @@ QtObject {
     readonly property real sliderFocusRingWidth: SizePrimitives.size1_5
     readonly property int sliderValueWidth: SizePrimitives.size36
 
+    readonly property int surfaceBorderWidth: SizePrimitives.size1
+
     readonly property int inspectorWidth: SizePrimitives.size368
     readonly property int inspectorWidthNarrow: SizePrimitives.size320
     readonly property int inspectorSearchHeight: SizePrimitives.size42
