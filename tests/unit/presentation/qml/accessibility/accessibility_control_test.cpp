@@ -44,7 +44,7 @@ QString readSource(const QString& relativePath)
     return QString::fromUtf8(file.readAll());
 }
 
-real focusBorderWidth(QObject* item)
+qreal focusBorderWidth(QObject* item)
 {
     return QQmlProperty(item, QStringLiteral("border.width")).read().toReal();
 }
