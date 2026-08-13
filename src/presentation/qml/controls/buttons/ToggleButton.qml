@@ -54,29 +54,41 @@ ButtonBase {
         }
     }
 
-    Row {
+    Item {
         id: content
 
+        readonly property bool hasIcon: root.iconId.length > 0
+        readonly property bool hasText: root.text.length > 0
+        readonly property int gap: hasIcon && hasText ? SpacingTokens.controlTight : 0
+
+        implicitWidth: (hasIcon ? icon.width : 0)
+                       + gap
+                       + (hasText ? label.implicitWidth : 0)
+        implicitHeight: Math.max(hasIcon ? icon.height : 0,
+                                 hasText ? label.implicitHeight : 0)
+        width: implicitWidth
+        height: implicitHeight
         anchors.centerIn: parent
-        spacing: icon.visible && label.visible ? SpacingTokens.controlTight : 0
         opacity: root.contentOpacity
 
         Icon {
             id: icon
 
-            visible: root.iconId.length > 0
+            visible: content.hasIcon
             width: LayoutTokens.controlIcon
             height: LayoutTokens.controlIcon
-            anchors.verticalCenter: parent.verticalCenter
+            x: root.opticalOffsetX
+            y: (parent.height - height) / 2
             iconId: root.iconId
             color: root.checked ? ColorTokens.iconPrimary : ColorTokens.iconSecondary
-            transform: Translate { x: root.opticalOffsetX }
         }
 
         BodyText {
             id: label
 
-            visible: root.text.length > 0
+            visible: content.hasText
+            x: (content.hasIcon ? icon.width : 0) + content.gap
+            y: (parent.height - height) / 2
             text: root.text
             variant: BodyText.Control
             color: root.checked ? ColorTokens.textPrimary : ColorTokens.textSecondary
