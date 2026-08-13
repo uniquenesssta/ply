@@ -5,13 +5,13 @@ import Player.Presentation.Theme
 ApplicationWindow {
     id: window
 
-    width: 1280
-    height: 720
-    minimumWidth: 960
-    minimumHeight: 540
+    width: LayoutTokens.windowDefaultWidth
+    height: LayoutTokens.windowDefaultHeight
+    minimumWidth: LayoutTokens.windowMinimumWidth
+    minimumHeight: LayoutTokens.windowMinimumHeight
     visible: true
     title: qsTr("Player")
-    color: Theme.windowBackground
+    color: ColorTokens.surfaceCanvas
 
     PlayerScreen {
         anchors.fill: parent

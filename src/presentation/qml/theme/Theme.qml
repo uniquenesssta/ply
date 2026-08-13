@@ -3,9 +3,11 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    readonly property color windowBackground: "#111216"
-    readonly property color videoBackground: "#08090B"
-    readonly property color chromeBackground: "#D91A1C22"
-    readonly property color primaryText: "#F4F5F7"
-    readonly property color secondaryText: "#A8ADB7"
+    // Compatibility facade kept for R5-01 consumers. New UI code should prefer
+    // the responsibility-specific semantic token singletons directly.
+    readonly property color windowBackground: ColorTokens.surfaceCanvas
+    readonly property color videoBackground: ColorTokens.surfaceVideo
+    readonly property color chromeBackground: ColorTokens.surfaceGlass
+    readonly property color primaryText: ColorTokens.textPrimary
+    readonly property color secondaryText: ColorTokens.textSecondary
 }

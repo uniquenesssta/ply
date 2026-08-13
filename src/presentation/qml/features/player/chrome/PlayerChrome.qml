@@ -10,19 +10,18 @@ Item {
             right: parent.right
             top: parent.top
         }
-        height: 56
-        color: Theme.chromeBackground
+        height: LayoutTokens.headerHeight
+        color: ColorTokens.surfaceGlass
 
         Text {
             anchors {
                 left: parent.left
-                leftMargin: 20
+                leftMargin: SpacingTokens.headerContent
                 verticalCenter: parent.verticalCenter
             }
             text: qsTr("Player framework")
-            color: Theme.primaryText
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
+            color: ColorTokens.textPrimary
+            font: TypographyTokens.mediaTitle
         }
     }
 
@@ -32,14 +31,14 @@ Item {
             right: parent.right
             bottom: parent.bottom
         }
-        height: 72
-        color: Theme.chromeBackground
+        height: LayoutTokens.oscHeight
+        color: ColorTokens.surfaceGlass
 
         Text {
             anchors.centerIn: parent
             text: qsTr("Playback controls will be added after the player state boundary is implemented")
-            color: Theme.secondaryText
-            font.pixelSize: 13
+            color: ColorTokens.textSecondary
+            font: TypographyTokens.controlBody
         }
     }
 }

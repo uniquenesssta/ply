@@ -8,7 +8,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.videoBackground
+        color: ColorTokens.surfaceVideo
     }
 
     MpvVideoItem {
