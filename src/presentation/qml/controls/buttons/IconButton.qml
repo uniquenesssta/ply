@@ -25,7 +25,7 @@ ButtonBase {
                                          ? 0.0
                                          : pressed
                                            ? MaterialTokens.transportPrimaryPressedAlpha
-                                           : interactionActive
+                                           : hovered
                                              ? MaterialTokens.transportPrimaryHoverAlpha
                                              : MaterialTokens.transportPrimaryRestAlpha
     readonly property real iconOpacity: primary ? 1.0 : interactionOpacity
