@@ -20,6 +20,7 @@ QtObject {
     readonly property int controlPlayback: RadiusPrimitives.r20
     readonly property int controlSearch: RadiusPrimitives.r21
     readonly property int controlTransportSecondary: RadiusPrimitives.r16
+    readonly property int controlSlider: RadiusPrimitives.r16
     readonly property int listRow: RadiusPrimitives.r18
     readonly property int track: RadiusPrimitives.r2
     readonly property int inspectorFooter: RadiusPrimitives.r25

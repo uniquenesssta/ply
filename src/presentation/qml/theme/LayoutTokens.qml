@@ -33,7 +33,6 @@ QtObject {
     readonly property int volumeTrackWidth: SizePrimitives.size100
 
     readonly property int sliderDefaultWidth: SizePrimitives.size180
-    readonly property int sliderHitWidth: SizePrimitives.size132
     readonly property int sliderHitHeight: SizePrimitives.size16
     readonly property int sliderTrackInset: SizePrimitives.size3
     readonly property int sliderTrackHeight: SizePrimitives.size3
@@ -42,7 +41,6 @@ QtObject {
     readonly property int sliderThumbPressed: SizePrimitives.size14
     readonly property int sliderThumbBorderWidth: SizePrimitives.size1
     readonly property real sliderFocusRingWidth: SizePrimitives.size1_5
-    readonly property int sliderValueGap: SizePrimitives.size12
     readonly property int sliderValueWidth: SizePrimitives.size36
 
     readonly property int inspectorWidth: SizePrimitives.size368

@@ -10,14 +10,14 @@ Item {
     property real wheelStep: stepSize
     property bool showValue: true
     property bool wheelEnabled: true
-    property string valueText: `${Math.round(normalizedValue * 100)}%`
+    property string valueText: Math.round(normalizedValue * 100) + "%"
 
     readonly property real normalizedValue: clampValue(value)
     readonly property bool hovered: pointerArea.containsMouse
     readonly property bool pressed: pointerArea.pressed
     readonly property real hitTargetWidth: showValue
                                            ? Math.max(0, width
-                                                          - LayoutTokens.sliderValueGap
+                                                          - SpacingTokens.sliderValueGap
                                                           - LayoutTokens.sliderValueWidth)
                                            : width
     readonly property real trackWidth: Math.max(
@@ -105,6 +105,9 @@ Item {
         if (delta === 0) {
             delta = event.pixelDelta.y
         }
+        if (event.inverted) {
+            delta = -delta
+        }
         if (delta === 0) {
             return
         }
@@ -140,7 +143,7 @@ Item {
 
         objectName: "sliderFocusRing"
         anchors.fill: parent
-        radius: RadiusTokens.controlTransportSecondary
+        radius: RadiusTokens.controlSlider
         color: "transparent"
         border.width: root.activeFocus ? LayoutTokens.sliderFocusRingWidth : 0
         border.color: ColorTokens.focusRing
