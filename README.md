@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 Complete**；R5-06 Button controls 已完成候选实现，等待 Windows 47-test 与 `Player.exe` 启动验证 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 Complete**；R5-06 Button controls 已完成候选实现，等待修复后 Windows 47-test 与 `Player.exe` 启动验证 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -109,7 +109,9 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - `Player.Presentation.Controls` 现在显式依赖 Theme + Primitives；Feature import 规则保持 R5-01 冻结状态，Feature 仍只直接消费 Theme/Controls，不允许重新出现 Feature→Primitives 深依赖。`player_qml_lint` 已纳入 controls lint。
 - Tooltip 本轮提供 `toolTipText + toolTipVisible` 请求/状态契约，没有伪造 Figma 尚未冻结的 Tooltip Surface；真正 overlay 材质与宿主仍由后续 Surface/Feedback 层负责。Primary 控件当前消费玻璃填充/边框/交互 alpha，不在通用 Button 内复制依赖背景捕获的 backdrop-blur 实现。
 - 收口静态审查发现并修正 Primary `IconButton` 的 Focus 视觉偏差：`activeFocus` 不再触发 hover glass alpha，键盘 Focus 保持 Figma 冻结的 **48% rest glass + 82% focus ring**；同时 `button_controls` 新增真实 pointer hover/press、Primary hover 52% 与 Focus 48% 的直接断言，避免只测 click 而遗漏视觉状态契约。
-- 新增独立 `button_controls` CTest，覆盖公开类型加载与 32/22、40/24、R16/R20、72/48/82 等设计契约，真实 pointer hover/press/click、Space 键 toggle、disabled no-op、focus tooltip-request 以及 Reduce Motion 传播；全量 Windows CTest 预计由 46 增至 **47**。本轮修改了 QML module/CMake，因此关闭前必须重新 configure/build/qmllint/47-test 并完成 `Player.exe` smoke。当前容器没有锁定 Windows Qt/libmpv sibling 环境，未把这些未执行验证写成 PASS。**R5-06 当前为 Candidate；R5-07 未开始。**
+- 首轮锁定 Windows 验证：configure PASS、Debug build PASS；build 在 Qt 6.8.3 `qvariant.h` 的 QML 生成代码编译路径出现 MSVC **C4702 unreachable code** warning，属于当前 MSVC/Qt system-header 组合的已知外部工具链告警，项目未新增 suppress/白名单。CTest 为 **46/47 PASS**，唯一失败 `button_controls`；5 个失败用例均在组件解析阶段报 `ButtonBase is not a type`，其他既有 46 项回归全部 PASS。
+- 该失败根因是 Controls 的 QML 源位于 `buttons/` 子目录，而内部 `ButtonBase` 与公开按钮没有像已验证的主 Presentation 模块一样统一落到 canonical QML resource root。修复保持源码目录模块化不变：对 Controls QML 文件设置 basename `QT_RESOURCE_ALIAS`，并按 Qt 6.8 对 alias 的约束为该 module 使用 `NO_GENERATE_EXTRA_QMLDIRS`；`ButtonBase` 继续保持 `QT_QML_INTERNAL_TYPE TRUE`，没有扩大成公共 API，也没有加入 path/deep import。
+- 新增独立 `button_controls` CTest，覆盖公开类型加载与 32/22、40/24、R16/R20、72/48/82 等设计契约，真实 pointer hover/press/click、Space 键 toggle、disabled no-op、focus tooltip-request 以及 Reduce Motion 传播；全量 Windows CTest 仍为 **47**。上述 resource-root 修复修改了 QML module CMake，关闭前必须重新 configure/build/qmllint/47-test 并完成 `Player.exe` smoke。**R5-06 当前仍为 Candidate；R5-07 未开始。**
 
 ### 2026-08-13 — R5-05 Typography primitives Complete
 
