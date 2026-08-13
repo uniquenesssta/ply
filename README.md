@@ -1,6 +1,6 @@
 # Modular Qt 6 + libmpv Player
 
-Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器。播放核心使用 libmpv，UI 使用 Qt 6 / Qt Quick / QML，核心代码采用 C++20，构建系统为 CMake + Ninja。
+Windows-first、跨平台预留的 Qt 6 + libmpv 桌面播放器。播放核心使用 libmpv，UI 使用 Qt 6 / Qt Quick/QML，核心代码采用 C++20，构建系统为 CMake + Ninja。
 
 README 只维护**项目入口、当前状态、关键架构边界和简短变更记录**。Atomic Task 的目标、实现边界、验收矩阵与详细结果统一查看 `docs/plans/stages/`；README 不再重复完整实施过程。
 
@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 Complete**：公开 QML module/import 边界、clean qmllint、42/42 CTest 与实际启动 smoke 均通过；R5-02 尚未开始 |
+| R5 — UI 设计系统 | In Progress | **R5-01 Complete**；R5-02 已实现 Airy Glass Color/Typography/Spacing/Layout token 候选与核心 QML semantic-token 迁移，等待 Windows configure/build/qmllint/43-test CTest/启动 smoke 复测 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,12 +100,20 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-13 — R5-02 Color/Typography/Spacing tokens
+
+- 按第三版 Airy Glass 最终 Figma 变量/文本样式建立 `ColorPrimitives/ColorTokens`、`TypographyPrimitives/TypographyTokens`、`SpacingPrimitives/SpacingTokens`；为清除现有核心 QML 的裸尺寸，补充职责独立的 `SizePrimitives/LayoutTokens`，不提前实现 R5-03 的 Motion/Radius/Elevation。
+- `Theme.qml` 收敛为兼容 facade；新 UI 直接消费 responsibility-specific semantic tokens。`MainWindow`、`VideoSurface`、`PlayerChrome` 已移除散落的颜色、字体字号、间距和视觉尺寸字面量；窗口默认/最小尺寸行为保持 1280×720 / 960×540，不改变启动几何兼容性。
+- 现有 Header/OSC 占位几何和文字样式改用最终设计语义：Header 54、OSC 124、header content 22、Media Title 14 Medium、Control Body 12 Regular；Airy palette 使用 `#F7F7FC/#EDEEF7/#1A1720/#7B2CFF` 等最终 token。
+- 新增 `theme_tokens` 单元测试：验证代表性 Figma token contract、Theme 兼容 alias，并扫描 shell/screens/features，阻止 raw hex color、font pixel size 与常用视觉 metric 回流。测试总数由 42 增至 43。
+- 未新增生产依赖，未修改 PlaybackSession、libmpv、Render 生命周期或公共播放接口。当前候选仍需锁定 Windows 环境执行 configure/build、无 warning `player_qml_lint`、43-test CTest 与 `Player.exe` 启动 smoke；未验证前 R5-02 不标 Complete。
+
 ### 2026-08-13 — R5-01 Complete
 
 - `Theme/Primitives/Controls/Surfaces` 四个公开 QML URI、公开 import 边界和最小模块加载链已稳定。
 - 显式 tooling typeinfo 最终候选在锁定 Windows 环境通过 configure、Debug build、development runtime deployment、**无 warning `player_qml_lint`** 和 **42/42 CTest PASS（48.23 s）**。
 - `MpvVideoItem was not found`、anchors/objectName 派生 warning、export/meta-object revision warning 均已关闭；运行时继续使用已验证的 `qmlRegisterType<MpvVideoItem>()`。
-- `Player.exe` 实际启动 smoke 已确认正常：窗口正常创建，无 QML root/type registration 启动错误。**R5-01 正式 Complete；R5-02 尚未开始。**
+- `Player.exe` 实际启动 smoke 已确认正常：窗口正常创建，无 QML root/type registration 启动错误。**R5-01 正式 Complete。**
 
 ### 2026-08-13 — R5-01 validation fixes
 
