@@ -11,6 +11,8 @@ Item {
     property bool showValue: true
     property bool wheelEnabled: true
     property string valueText: Math.round(normalizedValue * 100) + "%"
+    property string accessibleName: ""
+    property string accessibleDescription: ""
 
     readonly property real normalizedValue: clampValue(value)
     readonly property bool hovered: pointerArea.containsMouse
@@ -50,6 +52,11 @@ Item {
     height: implicitHeight
     activeFocusOnTab: enabled
     opacity: interactionOpacity
+
+    Accessible.role: Accessible.Slider
+    Accessible.name: root.accessibleName
+    Accessible.description: root.accessibleDescription
+    Accessible.focusable: root.enabled
 
     function clampValue(candidate) {
         if (!isFinite(candidate)) {
