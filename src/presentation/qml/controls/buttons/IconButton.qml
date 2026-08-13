@@ -34,6 +34,8 @@ ButtonBase {
                    ? LayoutTokens.playbackControl
                    : LayoutTokens.controlHitMinimum
     implicitHeight: implicitWidth
+    width: implicitWidth
+    height: implicitHeight
     opacity: primary && !enabled ? OpacityTokens.controlDisabled : 1.0
 
     function withAlpha(colorValue, alphaValue) {
