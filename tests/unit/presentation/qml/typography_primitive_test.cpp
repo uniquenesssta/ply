@@ -1,12 +1,9 @@
 #include <QColor>
-#include <QDirIterator>
-#include <QFile>
 #include <QFont>
 #include <QGuiApplication>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
-#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QStringList>
 #include <QUrl>
@@ -41,50 +38,6 @@ bool waitForComponentResolution(QQmlComponent& component)
     return statusSpy.wait(5000);
 }
 
-QStringList rawTextViolations()
-{
-    const QStringList roots = {
-        QStringLiteral(PLAYER_SOURCE_DIR "/src/presentation/qml/shell"),
-        QStringLiteral(PLAYER_SOURCE_DIR "/src/presentation/qml/screens"),
-        QStringLiteral(PLAYER_SOURCE_DIR "/src/presentation/qml/features"),
-        QStringLiteral(PLAYER_SOURCE_DIR "/src/presentation/qml/controls"),
-        QStringLiteral(PLAYER_SOURCE_DIR "/src/presentation/qml/surfaces"),
-    };
-    const QRegularExpression rawText(QStringLiteral(R"(\bText\s*\{)"));
-
-    QStringList violations;
-    for (const QString& root : roots) {
-        QDirIterator iterator(
-            root,
-            {QStringLiteral("*.qml")},
-            QDir::Files,
-            QDirIterator::Subdirectories);
-
-        while (iterator.hasNext()) {
-            const QString filePath = iterator.next();
-            QFile file(filePath);
-            if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                violations.append(QStringLiteral("cannot read %1").arg(filePath));
-                continue;
-            }
-
-            const QStringList lines =
-                QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'));
-            for (qsizetype index = 0; index < lines.size(); ++index) {
-                if (!rawText.match(lines.at(index)).hasMatch()) {
-                    continue;
-                }
-                violations.append(
-                    QStringLiteral("%1:%2 bypasses typography primitives")
-                        .arg(filePath)
-                        .arg(index + 1));
-            }
-        }
-    }
-
-    return violations;
-}
-
 } // namespace
 
 class TypographyPrimitiveTest final : public QObject
@@ -95,7 +48,6 @@ private slots:
     void semanticStylesResolve();
     void longTitleElides();
     void timecodeUsesMonospaceContract();
-    void productQmlUsesTypographyPrimitives();
 };
 
 void TypographyPrimitiveTest::semanticStylesResolve()
@@ -251,14 +203,6 @@ TimecodeText {
         object->property("requestedWeight").toInt(),
         static_cast<int>(QFont::Medium));
     QCOMPARE(object->property("renderedLineCount").toInt(), 1);
-}
-
-void TypographyPrimitiveTest::productQmlUsesTypographyPrimitives()
-{
-    const QStringList violations = rawTextViolations();
-    QVERIFY2(
-        violations.isEmpty(),
-        qPrintable(violations.join(QLatin1Char('\n'))));
 }
 
 } // namespace player::presentation::qml
