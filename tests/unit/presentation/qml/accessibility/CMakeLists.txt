@@ -13,6 +13,12 @@ add_dependencies(
     player_qml_lint
 )
 
+target_compile_definitions(
+    accessibility_control_tests
+    PRIVATE
+        PLAYER_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
 target_link_libraries(
     accessibility_control_tests
     PRIVATE
