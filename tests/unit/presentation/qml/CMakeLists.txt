@@ -123,3 +123,45 @@ set_tests_properties(
     theme_effect_tokens
     PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+add_executable(
+    icon_pipeline_tests
+    icon_pipeline_test.cpp
+)
+
+player_apply_compiler_options(icon_pipeline_tests)
+player_enable_compiler_warnings(icon_pipeline_tests)
+player_enable_sanitizers(icon_pipeline_tests)
+player_enable_static_analysis(icon_pipeline_tests)
+
+add_dependencies(
+    icon_pipeline_tests
+    player_qml_lint
+)
+
+target_compile_definitions(
+    icon_pipeline_tests
+    PRIVATE
+        PLAYER_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_link_libraries(
+    icon_pipeline_tests
+    PRIVATE
+        player_presentation_theme
+        player_presentation_primitives
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(
+    NAME icon_pipeline
+    COMMAND icon_pipeline_tests
+)
+
+set_tests_properties(
+    icon_pipeline
+    PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+)
