@@ -6,12 +6,12 @@ Item {
     id: root
 
     property string iconId: ""
-    property color color: IconCatalog.colorRoleFor(iconId) === "secondary"
+    property color color: catalog.colorRoleFor(iconId) === "secondary"
                           ? ColorTokens.iconSecondary
                           : ColorTokens.iconPrimary
 
-    readonly property bool known: IconCatalog.contains(iconId)
-    readonly property url source: IconCatalog.sourceFor(iconId)
+    readonly property bool known: catalog.contains(iconId)
+    readonly property url source: catalog.sourceFor(iconId)
     readonly property int loadStatus: sourceImage.status
     readonly property bool ready: known && loadStatus === Image.Ready
     readonly property string diagnostic: {
@@ -33,6 +33,10 @@ Item {
     implicitHeight: sourceImage.implicitHeight > 0
                     ? sourceImage.implicitHeight
                     : LayoutTokens.controlIcon
+
+    IconCatalog {
+        id: catalog
+    }
 
     Image {
         id: sourceImage
