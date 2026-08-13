@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 Complete**；R5-07 Slider controls 尚未开始 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 Complete**；R5-07 Slider controls 已完成候选实现，等待 Windows 48-test 与 `Player.exe` 启动验证 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -99,6 +99,15 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-13 — R5-07 Slider controls candidate
+
+- 重新核对第三版最终 Figma `Control / Slider` 与 D3 OSC 设计规则：默认组件为 **180×32**，命中区 **132×16**，视觉轨道 **126×3**，值区 **36px** + **12px** gap；Thumb 为 **10 / 12 / 14px（Default/Focus / Hover / Pressed）**，Focus ring **1.5px / 82%**，Disabled **38%**。视觉轨道继续使用既有 `control/track`、`control/progress`、`control/thumb`、`control/thumb-border` semantic color。
+- 新增业务无关 `controls/sliders/Slider.qml`：公开 normalized `value`（0..1）、`stepSize`、`wheelStep`、`showValue/valueText`，只把 pointer/keyboard/wheel 输入转换成 normalized value，并发出 `interactionStarted/valueEdited/interactionFinished/interactionCanceled`；不调用 Seek、Volume、PlaybackSession，也不拥有媒体业务状态。
+- Pointer 通过独立 16px hit target 处理 press/drag，视觉轨道保持 3px；键盘 Left/Down 与 Right/Up 使用 `stepSize`，Wheel 使用 `wheelStep`；Disabled 阻断用户输入但不阻止外部程序设置值。根 `value` 越界时收敛到 0..1。
+- Slider 默认值文本复用 `TimecodeText.ExtraSmall`（Geist Mono 10 Regular），因此 Controls 继续只经既有 Theme + Primitives 边界消费基础能力；Feature import 规则不变，Timeline/Volume 后续应包装 Slider，而不是复制输入状态机。
+- R5-07 首次真实消费补齐 Slider 几何 semantic token：180/132/16/3、10/12/14 thumb、36 value width、12 gap、1px thumb border 与 1.5px focus ring；未改写既有颜色、Opacity、Radius、Motion 真值。
+- 新增独立 `slider_controls` CTest，覆盖 Figma 几何、pointer drag、keyboard、wheel、disabled/clamp 与 Reduce Motion 传播；全量测试数预计由 **47 → 48**。Controls QML 新增模块文件，因此正式关闭前必须重新 configure/build/qmllint/48-test，并完成 `Player.exe` smoke。**R5-07 当前为 Candidate；R5-08 未开始。**
 
 ### 2026-08-13 — R5-06 Button controls Complete
 
