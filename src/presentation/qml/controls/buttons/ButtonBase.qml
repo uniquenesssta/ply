@@ -7,9 +7,10 @@ FocusScope {
     property bool toggleOnActivate: false
     property bool checked: false
     property string toolTipText: ""
+    property bool _keyboardPressed: false
 
     readonly property bool hovered: pointerArea.containsMouse
-    readonly property bool pressed: pointerArea.pressed
+    readonly property bool pressed: pointerArea.pressed || _keyboardPressed
     readonly property bool interactionActive: hovered || activeFocus
     readonly property real interactionOpacity: !enabled
                                                ? OpacityTokens.controlDisabled
@@ -32,6 +33,12 @@ FocusScope {
 
     activeFocusOnTab: enabled
 
+    function isActivationKey(key) {
+        return key === Qt.Key_Space
+                || key === Qt.Key_Enter
+                || key === Qt.Key_Return
+    }
+
     function activate() {
         if (!enabled) {
             return
@@ -42,6 +49,12 @@ FocusScope {
             toggled(checked)
         }
         clicked()
+    }
+
+    onActiveFocusChanged: {
+        if (!activeFocus) {
+            _keyboardPressed = false
+        }
     }
 
     MouseArea {
@@ -57,16 +70,25 @@ FocusScope {
         onClicked: root.activate()
     }
 
-    Keys.onReleased: function(event) {
-        if (!root.enabled || event.isAutoRepeat) {
+    Keys.onPressed: function(event) {
+        if (!root.enabled || event.isAutoRepeat || !root.isActivationKey(event.key)) {
             return
         }
 
-        if (event.key === Qt.Key_Space
-                || event.key === Qt.Key_Enter
-                || event.key === Qt.Key_Return) {
-            root.activate()
-            event.accepted = true
+        root._keyboardPressed = true
+        event.accepted = true
+    }
+
+    Keys.onReleased: function(event) {
+        if (!root.enabled || event.isAutoRepeat || !root.isActivationKey(event.key)) {
+            return
         }
+
+        const shouldActivate = root._keyboardPressed
+        root._keyboardPressed = false
+        if (shouldActivate) {
+            root.activate()
+        }
+        event.accepted = true
     }
 }
