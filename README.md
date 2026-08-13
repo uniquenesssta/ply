@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 Complete**；R5-06 Button controls 已完成候选实现，等待修复后 Windows 47-test 与 `Player.exe` 启动验证 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 Complete**；R5-07 Slider controls 尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,7 +100,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-13 — R5-06 Button controls candidate
+### 2026-08-13 — R5-06 Button controls Complete
 
 - 重新读取第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 的 D3-04 Transport 与 D3-06 Utility 设计上下文：Secondary/Utility 固定 **32px hit / 22px visual / R16**，Primary Playback 固定 **40px / 24px visual / R20**；交互权重使用 rest 72%、hover 100%、pressed 84%、disabled 38%，focus ring 82%，Primary glass alpha 使用 48/52/42%，hover/focus 使用既有 120ms Ease Out、pressed 0ms，Reduce Motion 继续降为 0ms。
 - 新增 `controls/buttons/ButtonBase.qml`、`IconButton.qml`、`TextButton.qml`、`ToggleButton.qml`。内部 `ButtonBase` 统一拥有 pointer hover/press、Space/Enter/Return 键盘激活、focus、disabled gate、toggle/checked 与 tooltip-request 状态；三个公开控件只消费该输入契约并负责各自视觉语义，不复制输入状态机、不持有播放业务状态。
@@ -111,7 +111,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 收口静态审查发现并修正 Primary `IconButton` 的 Focus 视觉偏差：`activeFocus` 不再触发 hover glass alpha，键盘 Focus 保持 Figma 冻结的 **48% rest glass + 82% focus ring**；同时 `button_controls` 新增真实 pointer hover/press、Primary hover 52% 与 Focus 48% 的直接断言，避免只测 click 而遗漏视觉状态契约。
 - 首轮锁定 Windows 验证：configure PASS、Debug build PASS；build 在 Qt 6.8.3 `qvariant.h` 的 QML 生成代码编译路径出现 MSVC **C4702 unreachable code** warning，属于当前 MSVC/Qt system-header 组合的已知外部工具链告警，项目未新增 suppress/白名单。CTest 为 **46/47 PASS**，唯一失败 `button_controls`；5 个失败用例均在组件解析阶段报 `ButtonBase is not a type`，其他既有 46 项回归全部 PASS。
 - 该失败根因是 Controls 的 QML 源位于 `buttons/` 子目录，而内部 `ButtonBase` 与公开按钮没有像已验证的主 Presentation 模块一样统一落到 canonical QML resource root。修复保持源码目录模块化不变：对 Controls QML 文件设置 basename `QT_RESOURCE_ALIAS`，并按 Qt 6.8 对 alias 的约束为该 module 使用 `NO_GENERATE_EXTRA_QMLDIRS`；`ButtonBase` 继续保持 `QT_QML_INTERNAL_TYPE TRUE`，没有扩大成公共 API，也没有加入 path/deep import。
-- 新增独立 `button_controls` CTest，覆盖公开类型加载与 32/22、40/24、R16/R20、72/48/82 等设计契约，真实 pointer hover/press/click、Space 键 toggle、disabled no-op、focus tooltip-request 以及 Reduce Motion 传播；全量 Windows CTest 仍为 **47**。上述 resource-root 修复修改了 QML module CMake，关闭前必须重新 configure/build/qmllint/47-test 并完成 `Player.exe` smoke。**R5-06 当前仍为 Candidate；R5-07 未开始。**
+- 最终锁定 Windows 验证：configure **PASS**（Configuring 3.6 s / Generating 1.6 s）、Debug build **PASS**、controls qmllint 门禁完成；全量 **47/47 CTest PASS，0 failed，50.62 s**，其中 `qml_module_boundaries`、`theme_tokens`、`theme_effect_tokens`、`icon_pipeline`、`typography_primitives`、`button_controls` 均 PASS；`Player.exe` 实际启动 smoke **PASS**，无 QML/运行时错误输出。Qt 6.8.3 system header `qvariant.h` 的生成代码路径仍输出 C4702 warning，未通过 suppression/白名单掩盖，当前不影响 build/test/runtime。没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期或播放接口。**R5-06 正式 Complete；R5-07 未开始。**
 
 ### 2026-08-13 — R5-05 Typography primitives Complete
 
