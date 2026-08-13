@@ -170,7 +170,7 @@ Item {
         QColor(QStringLiteral("#1A1720")));
     QCOMPARE(
         object->property("bodyColor").value<QColor>(),
-        QColor(QStringLiteral("#76707B")));
+        QColor(QStringLiteral("#706A78")));
     QCOMPARE(
         object->property("captionColor").value<QColor>(),
         QColor(QStringLiteral("#76707B")));
