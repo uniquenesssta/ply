@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 Complete**；R5-07 Slider controls 首轮 Windows 验证 47/48，已修复确认的两处局部缺陷并等待 48-test + `Player.exe` 复验 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 Complete**；R5-08 Surface controls 尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,7 +100,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-13 — R5-07 Slider controls candidate
+### 2026-08-13 — R5-07 Slider controls Complete
 
 - 重新核对第三版最终 Figma `Control / Slider` 与 D3 OSC 设计规则：默认组件为 **180×32**，命中区 **132×16**，视觉轨道 **126×3**，值区 **36px** + **12px** gap；Thumb 为 **10 / 12 / 14px（Default/Focus / Hover / Pressed）**，Focus ring **1.5px / 82%**，Disabled **38%**。视觉轨道继续使用既有 `control/track`、`control/progress`、`control/thumb`、`control/thumb-border` semantic color。
 - 新增业务无关 `controls/sliders/Slider.qml`：公开 normalized `value`（0..1）、`stepSize`、`wheelStep`、`showValue/valueText`，只把 pointer/keyboard/wheel 输入转换成 normalized value，并发出 `interactionStarted/valueEdited/interactionFinished/interactionCanceled`；不调用 Seek、Volume、PlaybackSession，也不拥有媒体业务状态。
@@ -109,7 +109,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - R5-07 首次真实消费补齐 Slider 几何 semantic token：180/132/16/3、10/12/14 thumb、36 value width、12 gap、1px thumb border 与 1.5px focus ring；未改写既有颜色、Opacity、Radius、Motion 真值。
 - 新增独立 `slider_controls` CTest，覆盖 Figma 几何、pointer drag、keyboard、wheel、disabled/clamp 与 Reduce Motion 传播；全量测试数由 **47 → 48**。
 - 首轮锁定 Windows 验证：configure **PASS**（Configuring 4.3 s / Generating 1.6 s）、Debug build **PASS**，既有 Qt 6.8.3 `qvariant.h` C4702 warning 仍存在；`player_qml_lint` 新增一条 `OpacityTokens.disabled` missing-property warning。CTest 为 **47/48 PASS**，唯一失败 `slider_controls`：wheel 用例期望 0.5 + 0.2 = 0.7，但候选错误把 `wheelStep=0.2` 同时当成 quantization grid，结果偏离预期；Disabled 用例则因错误 semantic 名称得到 `undefined`。测试中的 QFontDatabase font-directory warning 与 R5-05 已记录的未捆绑字体 fallback 限制一致。
-- 已针对这两处同源实现缺陷修复：Disabled 改为既有 `OpacityTokens.controlDisabled`；`stepSize` 保持 Slider 值域 quantization grid，`wheelStep` 只作为单次 wheel 输入增量，避免 wheelStep 改写值域离散规则。公开 Slider API、pointer/keyboard/wheel signal、Theme/Primitives/Controls 边界均不变；未修改 PlaybackSession、libmpv、Renderer 或 Render 生命周期。正式关闭前仍需重新 build/qmllint/48-test，并完成 `Player.exe` smoke。**R5-07 当前仍为 Candidate；R5-08 未开始。**
+- 已针对这两处实现缺陷修复：Disabled 改为既有 `OpacityTokens.controlDisabled`；`stepSize` 保持 Slider 值域 quantization grid，`wheelStep` 只作为单次 wheel 输入增量，避免 wheelStep 改写值域离散规则。公开 Slider API、pointer/keyboard/wheel signal、Theme/Primitives/Controls 边界均不变；未修改 PlaybackSession、libmpv、Renderer 或 Render 生命周期。
+- 修复后锁定 Windows 复验：Debug build **PASS**；`scripts/test.ps1` 的 QML lint 门禁完成，原 `OpacityTokens.disabled` warning 已消失；全量 **48/48 CTest PASS，0 failed，51.88 s**，其中 `qml_module_boundaries`、`button_controls`、`slider_controls` 均 PASS；`Player.exe` 实际启动 smoke **PASS**，无 QML/运行时错误输出。Qt 6.8.3 `qvariant.h` 的 C4702 warning 仍为已记录的外部工具链 warning，未通过 suppression/白名单掩盖。**R5-07 正式 Complete；R5-08 未开始。**
 
 ### 2026-08-13 — R5-06 Button controls Complete
 
@@ -164,7 +165,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 ### 2026-08-13 — R5-01 validation fixes
 
 - Windows Qt 6.8.3 / MSVC 已确认 configure 与 build 通过；早期 `qmltyperegistrar` Generate 阻断已消失。
-- `qml_module_boundaries` 的 `QtQuick` import path 已通过测试脚本显式注入 `<Qt>/qml` 修复，并在测试后恢复原环境。
+- `qml_module_boundaries` 的 `QtQuick` import path 已通过测试脚本显式注入 `<Qt>/qml` 修复，并在测试后恢复原环境变量。
 - 全量回归捕获的 R4-08 late-update 竞态已通过 consumer-side shutdown gate 修复；公共接口和播放状态所有权不变。
 - 修复后 Windows 全量回归已达到 **42/42 PASS**；后续仅继续治理 qmllint 的 `MpvVideoItem` tooling metadata。
 
