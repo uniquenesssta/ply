@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 Complete**；R5-04 图标管线候选已修复 Qt 6.8 `singleton + internal` configure 阻断，等待 Windows 45-test 最终复测 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 Complete**；R5-04 图标管线已通过 45/45 CTest 与 `Player.exe` 启动 smoke，R5-05 尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,14 +100,14 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-13 — R5-04 icon pipeline candidate
+### 2026-08-13 — R5-04 Complete
 
 - 从第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 直接导出并纳入当前已存在的主操作 glyph：`previous/play/next/volume/subtitles/playlist/fullscreen/close/search`；SVG path 数据未手工重绘。Figma 当前没有独立 Pause/Mute/Exit-Fullscreen 等最终 glyph，因此本任务不伪造缺失资产，未知 `iconId` 由 `Icon.diagnostic` 明确暴露。
 - 新增 `Player.Presentation.Primitives/Icon.qml` 与内部 `IconCatalog.qml`：Catalog 只拥有 `icon id → qrc resource / 默认色角色`，Icon 只负责加载、intrinsic size、semantic color 与状态诊断。默认 primary/secondary 颜色映射既有 `ColorTokens.iconPrimary/iconSecondary`。
-- 首轮 Windows configure 在 `daf6f17` 暴露 Qt 6.8 硬约束：QML 类型不能同时标记 `QT_QML_SINGLETON_TYPE` 与 `QT_QML_INTERNAL_TYPE`。后续 `rules.ninja` 和 development marker 缺失均是 configure 未完成的连锁结果，不作为独立故障。修复后 `IconCatalog` 改为仅 internal 的普通 QML type，由 `Icon` 内部实例化；公共 `Icon` API、iconId、SVG 资源和着色语义均不变，也没有把 Catalog 扩大为公共 QML API。该修复仍待锁定 Windows 环境复测。
+- 首轮 Windows configure 在 `daf6f17` 暴露 Qt 6.8 硬约束：QML 类型不能同时标记 `QT_QML_SINGLETON_TYPE` 与 `QT_QML_INTERNAL_TYPE`。后续 `rules.ninja` 和 development marker 缺失均是 configure 未完成的连锁结果，不作为独立故障。修复后 `IconCatalog` 改为仅 internal 的普通 QML type，由 `Icon` 内部实例化；公共 `Icon` API、iconId、SVG 资源和着色语义均不变，也没有把 Catalog 扩大为公共 QML API。
 - SVG 统一放入 `src/presentation/qml/assets/icons/`，由 `player_presentation_primitives` QML module 以固定 resource alias 打包；Icon semantic tint 使用锁定 Qt **6.8.3** 已包含的 `QtQuick.Effects.MultiEffect`。没有新增外部包或第三方许可证，但 primitives 模块新增对现有 `QtQuick.Effects` QML runtime module 的依赖，Windows 部署需包含既有 `effectsplugin.dll`；用户当前 Qt 安装已确认该模块存在。相比引入 QtSvg/C++ image provider 或复制多套预着色 SVG，该方案保持单一 Figma SVG 真值且只对 22/24 px 图标增加轻量 colorization pass。
-- `player_qml_lint` 现在包含 primitives lint；新增 `icon_pipeline` CTest，验证九个当前 Figma glyph 全部从 qrc 加载、Figma intrinsic 22/24 尺寸、primary/secondary semantic tint、未知 id 诊断、资产清单和产品 QML 不绕过 Icon primitive。CTest 预期由 44 增至 **45**。
-- 未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口或当前 Player 骨架行为。R5-04 当前保持 Candidate，需锁定 Windows 环境完成 configure/build、无 warning qmllint、45/45 CTest 和 `Player.exe` 启动 smoke 后才能标 Complete。
+- `player_qml_lint` 包含 primitives lint；`icon_pipeline` CTest 验证九个当前 Figma glyph 全部从 qrc 加载、Figma intrinsic 22/24 尺寸、primary/secondary semantic tint、未知 id 诊断、资产清单和产品 QML 不绕过 Icon primitive。
+- 锁定 Windows 环境最终实测：全量 **45/45 CTest PASS，0 failed，49.83 s**；`qml_module_boundaries`、`theme_tokens`、`theme_effect_tokens`、`icon_pipeline` 均 PASS；`Player.exe` 实际启动无报错。未修改 PlaybackSession、libmpv、Renderer、Render 生命周期或播放接口。**R5-04 正式 Complete。**
 
 ### 2026-08-13 — R5-03 Complete
 
