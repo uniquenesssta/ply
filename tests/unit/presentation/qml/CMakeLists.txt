@@ -207,3 +207,40 @@ set_tests_properties(
     typography_primitives
     PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+add_executable(
+    button_control_tests
+    button_control_test.cpp
+)
+
+player_apply_compiler_options(button_control_tests)
+player_enable_compiler_warnings(button_control_tests)
+player_enable_sanitizers(button_control_tests)
+player_enable_static_analysis(button_control_tests)
+
+add_dependencies(
+    button_control_tests
+    player_qml_lint
+)
+
+target_link_libraries(
+    button_control_tests
+    PRIVATE
+        player_presentation_theme
+        player_presentation_primitives
+        player_presentation_controls
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(
+    NAME button_controls
+    COMMAND button_control_tests
+)
+
+set_tests_properties(
+    button_controls
+    PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+)
