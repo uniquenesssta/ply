@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 Complete**；R5-02 已实现 Airy Glass Color/Typography/Spacing/Layout token 候选与核心 QML semantic-token 迁移，等待 Windows configure/build/qmllint/43-test CTest/启动 smoke 复测 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 Complete**；R5-03 已实现 Airy Glass Motion/Radius/Material/Elevation/Opacity/Z-order token 候选与 Reduce Motion 契约，等待 Windows 44-test 最终复测 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,13 +100,19 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-13 — R5-02 Color/Typography/Spacing tokens
+### 2026-08-13 — R5-03 Motion/Radius/Elevation token candidate
 
-- 按第三版 Airy Glass 最终 Figma 变量/文本样式建立 `ColorPrimitives/ColorTokens`、`TypographyPrimitives/TypographyTokens`、`SpacingPrimitives/SpacingTokens`；为清除现有核心 QML 的裸尺寸，补充职责独立的 `SizePrimitives/LayoutTokens`，不提前实现 R5-03 的 Motion/Radius/Elevation。
-- `Theme.qml` 收敛为兼容 facade；新 UI 直接消费 responsibility-specific semantic tokens。`MainWindow`、`VideoSurface`、`PlayerChrome` 已移除散落的颜色、字体字号、间距和视觉尺寸字面量；窗口默认/最小尺寸行为保持 1280×720 / 960×540，不改变启动几何兼容性。
-- 现有 Header/OSC 占位几何和文字样式改用最终设计语义：Header 54、OSC 124、header content 22、Media Title 14 Medium、Control Body 12 Regular；Airy palette 使用 `#F7F7FC/#EDEEF7/#1A1720/#7B2CFF` 等最终 token。
-- 新增 `theme_tokens` 单元测试：验证代表性 Figma token contract、Theme 兼容 alias，并扫描 shell/screens/features，阻止 raw hex color、font pixel size 与常用视觉 metric 回流。测试总数由 42 增至 43。
-- 未新增生产依赖，未修改 PlaybackSession、libmpv、Render 生命周期或公共播放接口。当前候选仍需锁定 Windows 环境执行 configure/build、无 warning `player_qml_lint`、43-test CTest 与 `Player.exe` 启动 smoke；未验证前 R5-02 不标 Complete。
+- 按第三版 Airy Glass 最终 Figma Variables / Effect Styles 建立独立 Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token；未新增生产依赖，也未修改 PlaybackSession、libmpv、Render 生命周期或公共播放接口。
+- Reduce Motion 契约统一由 `MotionTokens.reduceMotionEnabled` 控制：过渡 duration 降为 0、easing 改为 Linear；语义性 OSC inactivity hide-delay 仍保持 **2200 ms**，不把“减少动态效果”误实现为改变交互时序。
+- Figma 交互 opacity 百分比在 `OpacityPrimitives` 单点转换为 QML `0.0–1.0`；新增 `theme_effect_tokens` 合同测试与产品 QML raw radius/z/opacity/duration 回流门禁，CTest 总数预计由 43 增至 **44**。
+- R5-03 当前为 Candidate；真正 Panel/Popover/HUD 等 Surface 对 blur/shadow/radius 的消费属于 R5-08，本任务不提前创建组件。
+
+### 2026-08-13 — R5-02 Complete
+
+- 按第三版 Airy Glass 最终 Figma 变量/文本样式建立 `ColorPrimitives/ColorTokens`、`TypographyPrimitives/TypographyTokens`、`SpacingPrimitives/SpacingTokens`；为清除现有核心 QML 的裸尺寸，补充职责独立的 `SizePrimitives/LayoutTokens`。
+- `Theme.qml` 收敛为兼容 facade；`MainWindow`、`VideoSurface`、`PlayerChrome` 已移除散落的颜色、字体字号、间距和视觉尺寸字面量；窗口默认/最小尺寸行为保持 1280×720 / 960×540。
+- 新增 `theme_tokens` 合同测试和产品 QML 硬编码回流门禁，测试总数由 42 增至 43。
+- 锁定 Windows 环境实测已确认：configure、Debug build、无 warning `player_qml_lint`、**43/43 CTest PASS** 与 `Player.exe` 启动 smoke 均通过。**R5-02 正式 Complete。**
 
 ### 2026-08-13 — R5-01 Complete
 
