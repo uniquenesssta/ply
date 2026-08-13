@@ -9,6 +9,7 @@ QtObject {
     readonly property real scrim: 0.18
     readonly property real disabled: 0.38
     readonly property real idle: 0.72
+    readonly property real focus: 0.82
     readonly property real pressed: 0.84
     readonly property real visible: 1.0
 }
