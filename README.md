@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 Complete**；R5-07 Slider controls 已完成候选实现，等待 Windows 48-test 与 `Player.exe` 启动验证 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 Complete**；R5-07 Slider controls 首轮 Windows 验证 47/48，已修复确认的两处局部缺陷并等待 48-test + `Player.exe` 复验 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -107,7 +107,9 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - Pointer 通过独立 16px hit target 处理 press/drag，视觉轨道保持 3px；键盘 Left/Down 与 Right/Up 使用 `stepSize`，Wheel 使用 `wheelStep`；Disabled 阻断用户输入但不阻止外部程序设置值。根 `value` 越界时收敛到 0..1。
 - Slider 默认值文本复用 `TimecodeText.ExtraSmall`（Geist Mono 10 Regular），因此 Controls 继续只经既有 Theme + Primitives 边界消费基础能力；Feature import 规则不变，Timeline/Volume 后续应包装 Slider，而不是复制输入状态机。
 - R5-07 首次真实消费补齐 Slider 几何 semantic token：180/132/16/3、10/12/14 thumb、36 value width、12 gap、1px thumb border 与 1.5px focus ring；未改写既有颜色、Opacity、Radius、Motion 真值。
-- 新增独立 `slider_controls` CTest，覆盖 Figma 几何、pointer drag、keyboard、wheel、disabled/clamp 与 Reduce Motion 传播；全量测试数预计由 **47 → 48**。Controls QML 新增模块文件，因此正式关闭前必须重新 configure/build/qmllint/48-test，并完成 `Player.exe` smoke。**R5-07 当前为 Candidate；R5-08 未开始。**
+- 新增独立 `slider_controls` CTest，覆盖 Figma 几何、pointer drag、keyboard、wheel、disabled/clamp 与 Reduce Motion 传播；全量测试数由 **47 → 48**。
+- 首轮锁定 Windows 验证：configure **PASS**（Configuring 4.3 s / Generating 1.6 s）、Debug build **PASS**，既有 Qt 6.8.3 `qvariant.h` C4702 warning 仍存在；`player_qml_lint` 新增一条 `OpacityTokens.disabled` missing-property warning。CTest 为 **47/48 PASS**，唯一失败 `slider_controls`：wheel 用例期望 0.5 + 0.2 = 0.7，但候选错误把 `wheelStep=0.2` 同时当成 quantization grid，结果偏离预期；Disabled 用例则因错误 semantic 名称得到 `undefined`。测试中的 QFontDatabase font-directory warning 与 R5-05 已记录的未捆绑字体 fallback 限制一致。
+- 已针对这两处同源实现缺陷修复：Disabled 改为既有 `OpacityTokens.controlDisabled`；`stepSize` 保持 Slider 值域 quantization grid，`wheelStep` 只作为单次 wheel 输入增量，避免 wheelStep 改写值域离散规则。公开 Slider API、pointer/keyboard/wheel signal、Theme/Primitives/Controls 边界均不变；未修改 PlaybackSession、libmpv、Renderer 或 Render 生命周期。正式关闭前仍需重新 build/qmllint/48-test，并完成 `Player.exe` smoke。**R5-07 当前仍为 Candidate；R5-08 未开始。**
 
 ### 2026-08-13 — R5-06 Button controls Complete
 
