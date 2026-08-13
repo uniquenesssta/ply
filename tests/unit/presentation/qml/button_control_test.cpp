@@ -46,6 +46,7 @@ class ButtonControlTest final : public QObject
 
 private slots:
     void publicControlsResolveDesignGeometry();
+    void pointerStateVisualContractsHold();
     void pointerAndKeyboardActivationWork();
     void disabledAndTooltipContractsHold();
     void reduceMotionFlowsIntoButtonStateTransitions();
@@ -137,6 +138,93 @@ Item {
 
     QCOMPARE(object->property("playbackIconSize").toInt(), 24);
     QCOMPARE(object->property("focusOpacity").toReal(), 0.82);
+}
+
+void ButtonControlTest::pointerStateVisualContractsHold()
+{
+    QQmlEngine engine;
+    QQmlComponent component(&engine);
+
+    component.setData(
+        QByteArrayLiteral(R"QML(
+import QtQuick
+import Player.Presentation.Controls
+
+Item {
+    width: 260
+    height: 140
+
+    IconButton {
+        objectName: "secondary"
+        x: 20
+        y: 20
+        iconId: "previous"
+    }
+
+    IconButton {
+        objectName: "primary"
+        x: 80
+        y: 20
+        iconId: "play"
+        emphasis: IconButton.Primary
+        toolTipText: "Play"
+    }
+}
+)QML"),
+        QUrl(QStringLiteral("qrc:/ButtonControlPointerStateContract.qml")));
+
+    const bool resolved = waitForComponentResolution(component);
+    const QString diagnostics = componentDiagnostics(component);
+    QVERIFY2(resolved, qPrintable(diagnostics));
+    QVERIFY2(component.isReady(), qPrintable(diagnostics));
+
+    std::unique_ptr<QObject> object(component.create());
+    QVERIFY2(object != nullptr, qPrintable(componentDiagnostics(component)));
+
+    auto* rootItem = qobject_cast<QQuickItem*>(object.get());
+    auto* secondary = qobject_cast<QQuickItem*>(
+        object->findChild<QObject*>(QStringLiteral("secondary")));
+    auto* primary = qobject_cast<QQuickItem*>(
+        object->findChild<QObject*>(QStringLiteral("primary")));
+    QVERIFY(rootItem != nullptr);
+    QVERIFY(secondary != nullptr);
+    QVERIFY(primary != nullptr);
+
+    QQuickWindow window;
+    window.setGeometry(0, 0, 260, 140);
+    rootItem->setParentItem(window.contentItem());
+    window.show();
+    QTest::qWait(50);
+
+    QTest::mouseMove(&window, QPoint(30, 30));
+    QTRY_VERIFY_WITH_TIMEOUT(secondary->property("hovered").toBool(), 1000);
+    QCOMPARE(secondary->property("interactionOpacity").toReal(), 1.0);
+    QCOMPARE(secondary->property("iconOpacity").toReal(), 1.0);
+
+    QTest::mousePress(
+        &window,
+        Qt::LeftButton,
+        Qt::NoModifier,
+        QPoint(30, 30));
+    QTRY_VERIFY_WITH_TIMEOUT(secondary->property("pressed").toBool(), 1000);
+    QCOMPARE(secondary->property("interactionOpacity").toReal(), 0.84);
+    QTest::mouseRelease(
+        &window,
+        Qt::LeftButton,
+        Qt::NoModifier,
+        QPoint(30, 30));
+    QTRY_VERIFY_WITH_TIMEOUT(!secondary->property("pressed").toBool(), 1000);
+
+    QTest::mouseMove(&window, QPoint(90, 30));
+    QTRY_VERIFY_WITH_TIMEOUT(primary->property("hovered").toBool(), 1000);
+    QCOMPARE(primary->property("surfaceAlpha").toReal(), 0.52);
+
+    QTest::mouseMove(&window, QPoint(220, 100));
+    QTRY_VERIFY_WITH_TIMEOUT(!primary->property("hovered").toBool(), 1000);
+    primary->forceActiveFocus(Qt::TabFocusReason);
+    QTRY_VERIFY_WITH_TIMEOUT(primary->hasActiveFocus(), 1000);
+    QCOMPARE(primary->property("surfaceAlpha").toReal(), 0.48);
+    QCOMPARE(primary->property("toolTipVisible").toBool(), true);
 }
 
 void ButtonControlTest::pointerAndKeyboardActivationWork()
