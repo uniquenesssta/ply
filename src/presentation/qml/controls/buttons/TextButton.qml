@@ -8,6 +8,8 @@ ButtonBase {
     property string text: ""
     property color textColor: ColorTokens.textPrimary
 
+    accessibleName: text.length > 0 ? text : toolTipText
+
     implicitWidth: Math.max(LayoutTokens.controlHitMinimum,
                             label.implicitWidth + (SpacingTokens.controlAdjacent * 2))
     implicitHeight: LayoutTokens.controlHitMinimum
@@ -19,6 +21,7 @@ ButtonBase {
     }
 
     Rectangle {
+        objectName: "buttonFocusRing"
         anchors.fill: parent
         radius: RadiusTokens.controlTransportSecondary
         color: "transparent"
