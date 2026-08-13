@@ -30,28 +30,34 @@ ButtonBase {
     }
 
     Rectangle {
-        id: selectionSurface
+        id: selectionFill
 
         anchors.fill: parent
         radius: RadiusTokens.controlTransportSecondary
-        color: root.checked
-               ? root.withAlpha(ColorTokens.surfaceSelection,
-                                MaterialTokens.selectionFillAlpha)
-               : "transparent"
+        color: ColorTokens.surfaceSelection
+        opacity: root.checked ? MaterialTokens.selectionFillAlpha : 0.0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: root.stateTransitionDuration
+                easing.type: root.stateTransitionEasingType
+                easing.bezierCurve: root.stateTransitionBezier
+            }
+        }
+    }
+
+    Rectangle {
+        id: selectionBorder
+
+        anchors.fill: parent
+        radius: RadiusTokens.controlTransportSecondary
+        color: "transparent"
         border.width: root.checked || root.activeFocus ? 1 : 0
         border.color: root.activeFocus
                       ? root.withAlpha(ColorTokens.focusRing,
                                        OpacityTokens.focusRing)
                       : root.withAlpha(ColorTokens.borderSelection,
                                        MaterialTokens.selectionBorderAlpha)
-
-        Behavior on color {
-            ColorAnimation {
-                duration: root.stateTransitionDuration
-                easing.type: root.stateTransitionEasingType
-                easing.bezierCurve: root.stateTransitionBezier
-            }
-        }
     }
 
     Item {
