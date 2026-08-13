@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 Complete**；R5-03 已实现 Airy Glass Motion/Radius/Material/Elevation/Opacity/Z-order token 候选与 Reduce Motion 契约，等待 Windows 44-test 最终复测 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 Complete**；Motion/Radius/Material/Elevation/Opacity/Z-order token 与 Reduce Motion 契约已通过 Windows 44-test 回归和实际启动 smoke；R5-04 尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,12 +100,13 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-13 — R5-03 Motion/Radius/Elevation token candidate
+### 2026-08-13 — R5-03 Complete
 
 - 按第三版 Airy Glass 最终 Figma Variables / Effect Styles 建立独立 Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token；未新增生产依赖，也未修改 PlaybackSession、libmpv、Render 生命周期或公共播放接口。
 - Reduce Motion 契约统一由 `MotionTokens.reduceMotionEnabled` 控制：过渡 duration 降为 0、easing 改为 Linear；语义性 OSC inactivity hide-delay 仍保持 **2200 ms**，不把“减少动态效果”误实现为改变交互时序。
-- Figma 交互 opacity 百分比在 `OpacityPrimitives` 单点转换为 QML `0.0–1.0`；新增 `theme_effect_tokens` 合同测试与产品 QML raw radius/z/opacity/duration 回流门禁，CTest 总数预计由 43 增至 **44**。
-- R5-03 当前为 Candidate；真正 Panel/Popover/HUD 等 Surface 对 blur/shadow/radius 的消费属于 R5-08，本任务不提前创建组件。
+- Figma 交互 opacity 百分比在 `OpacityPrimitives` 单点转换为 QML `0.0–1.0`；新增 `theme_effect_tokens` 合同测试与产品 QML raw radius/z/opacity/duration 回流门禁。
+- 锁定 Windows Qt 6.8.3 / MSVC 环境实测：configure **PASS**、Debug build **PASS**、`player_qml_lint` 无 warning 输出、**44/44 CTest PASS，0 failed，49.52 s**；`qml_module_boundaries`、`theme_tokens`、`theme_effect_tokens` 均 PASS。
+- `Player.exe` 实际启动 smoke **PASS**：窗口正常创建。当前可见界面仍是 Player framework 骨架符合 R5-03 边界；真正 Panel/Popover/HUD 等 Surface 对 blur/shadow/radius 的消费属于 R5-08。**R5-03 正式 Complete；R5-04 尚未开始。**
 
 ### 2026-08-13 — R5-02 Complete
 
