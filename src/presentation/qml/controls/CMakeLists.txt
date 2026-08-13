@@ -3,6 +3,7 @@ set(PLAYER_CONTROL_QML_FILES
     buttons/IconButton.qml
     buttons/TextButton.qml
     buttons/ToggleButton.qml
+    sliders/Slider.qml
 )
 
 foreach(control_qml_file IN LISTS PLAYER_CONTROL_QML_FILES)
