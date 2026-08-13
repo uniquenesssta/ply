@@ -322,7 +322,7 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 
 ## 12. R5-01 实施记录（2026-08-12）
 
-状态：**Candidate — 显式 tooling typeinfo 方案的 Windows 最终复测待执行。**
+状态：**R5-01 Complete（2026-08-13）。**
 
 ### 已实施
 
@@ -356,14 +356,24 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - 第三轮本机复测已确认上述两个硬失败关闭：**42/42 CTest PASS，0 failed**；`qml_module_boundaries` 与 `mpv_render_update_bridge` 均 PASS。
 - 同一轮 build 仍有 6 条 `VideoSurface.qml` qmllint warning，根 warning 为 `MpvVideoItem was not found`。用户提供的文件清单已确认 QtQuick 模块、`MpvVideoItem` 源文件及既有注册文件均实际存在，因此该问题定性为静态 QML type metadata 缺口，而非缺文件。
 - 第四轮（2026-08-13）在自动 `QML_FOREIGN` type registration 候选上重新 configure **PASS**，但 Debug build 在 `Automatic QML type registration for target player_app` 阶段硬失败：`qmltyperegistrar` 读取 `qt6player_app_debug_metatypes.json` 返回 `Failed to parse JSON: 5 illegal value`。因此该候选没有进入 qmllint/CTest，随后 `test.ps1` 的 development runtime marker 缺失只是 build 未完成的连锁结果，不作为独立故障处理。
+- 第五轮显式 tooling typeinfo 候选验证：configure **PASS**、Debug build **PASS**、development runtime deployment **PASS**；原 `MpvVideoItem was not found` 与其 anchors/objectName 派生 warning 均消失，全量 **42/42 CTest PASS**。
+- 修正 `exportMetaObjectRevisions` 的 1.0 编码后再次验证：configure **PASS**、Debug build **PASS**、`player_qml_lint` **无 warning**、全量 **42/42 CTest PASS，0 failed，48.23 s**；`qml_module_boundaries` 与 Render shutdown 相关回归继续 PASS。
+- `Player.exe` 实际启动 smoke 已由用户确认 **PASS**：窗口正常启动，无 QML root/type registration 启动错误。
 
 ### qmllint metadata 治理
 
 - 未采用 `QT_QML_SKIP_QMLLINT`、warning suppression、降低门禁或伪造占位 QML 类型。
 - 手写 `qmlRegisterType<MpvVideoItem>(...)` 只在运行时执行，qmllint 不执行应用 bootstrap，因此本身不能提供静态类型元数据；这正是原始 `MpvVideoItem was not found` 及 anchors/objectName 派生 warning 的来源。
 - 首次治理尝试使用 Qt 6.8 `QML_FOREIGN` descriptor + `qt_add_qml_module()` 自动 `.qmltypes` / C++ 注册，但当前 executable-backed `player_app` 的 metatypes JSON 生成链在锁定 Windows 环境产生不可解析输入并阻断 build，因此该方案已撤销，不把失败路径保留为兼容层。
-- 当前治理采用 Qt 6.8 支持的 fallback：运行时继续由明确的 Presentation registration module 注册；tooling 使用项目维护的 `.qmltypes`，并由 `TYPEINFO` 写入 Qt 生成的 `qmldir`。这两份信息职责不同：前者是运行时行为，后者是静态工具契约；名称/URI 必须保持一致。
-- 当前候选仍必须重新执行 Windows configure、build、`player_qml_lint`、42-test CTest，并实际启动 `Player.exe` 做 QML root 创建 smoke；只有 qmllint warning 清零且运行时启动行为不回归后，R5-01 才能标 **Complete**。
+- 最终治理采用 Qt 6.8 支持的 fallback：运行时继续由明确的 Presentation registration module 注册；tooling 使用项目维护的 `.qmltypes`，并由 `TYPEINFO` 写入 Qt 生成的 `qmldir`。两份信息职责不同：前者是运行时行为，后者是静态工具契约；名称/URI 保持一致。
+- `.qmltypes` 的 `Player.Presentation/MpvVideoItem 1.0` 使用 `exportMetaObjectRevisions: [256]`，与 Qt `QTypeRevision` 1.0 编码一致；最终 qmllint 已无 warning。
+
+### R5-01 关闭结论
+
+- 后续 UI 已具有稳定公开 QML module 入口和明确 import 边界。
+- qmllint、最小模块加载、全量 42-test 回归和实际应用启动均通过。
+- R5-01 不包含 R5-02 token 实施，也未将 playback/libmpv 逻辑引入 Design System。
+- **R5-01 正式 Complete。R5-02 尚未开始，等待单独任务指令。**
 
 ### 早期 configure 阻断与修复记录
 
