@@ -7,6 +7,8 @@ FocusScope {
     property bool toggleOnActivate: false
     property bool checked: false
     property string toolTipText: ""
+    property string accessibleName: toolTipText
+    property string accessibleDescription: ""
     property bool _keyboardPressed: false
 
     readonly property bool hovered: pointerArea.containsMouse
@@ -32,6 +34,15 @@ FocusScope {
     signal toggled(bool checked)
 
     activeFocusOnTab: enabled
+
+    Accessible.role: Accessible.Button
+    Accessible.name: root.accessibleName
+    Accessible.description: root.accessibleDescription
+    Accessible.focusable: root.enabled
+    Accessible.pressed: root.pressed
+    Accessible.checkable: root.toggleOnActivate
+    Accessible.checked: root.checked
+    Accessible.onPressAction: root.activate()
 
     function isActivationKey(key) {
         return key === Qt.Key_Space
