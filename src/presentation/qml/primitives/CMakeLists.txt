@@ -1,6 +1,10 @@
 set(PLAYER_PRIMITIVE_QML_FILES
     Icon.qml
     IconCatalog.qml
+    text/TitleText.qml
+    text/BodyText.qml
+    text/CaptionText.qml
+    text/TimecodeText.qml
 )
 
 set(PLAYER_ICON_ASSETS

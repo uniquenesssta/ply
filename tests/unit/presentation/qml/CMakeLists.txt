@@ -165,3 +165,45 @@ set_tests_properties(
     icon_pipeline
     PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+add_executable(
+    typography_primitive_tests
+    typography_primitive_test.cpp
+)
+
+player_apply_compiler_options(typography_primitive_tests)
+player_enable_compiler_warnings(typography_primitive_tests)
+player_enable_sanitizers(typography_primitive_tests)
+player_enable_static_analysis(typography_primitive_tests)
+
+add_dependencies(
+    typography_primitive_tests
+    player_qml_lint
+)
+
+target_compile_definitions(
+    typography_primitive_tests
+    PRIVATE
+        PLAYER_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_link_libraries(
+    typography_primitive_tests
+    PRIVATE
+        player_presentation_theme
+        player_presentation_primitives
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(
+    NAME typography_primitives
+    COMMAND typography_primitive_tests
+)
+
+set_tests_properties(
+    typography_primitives
+    PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+)
