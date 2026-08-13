@@ -475,3 +475,35 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - 修复后锁定 Windows 环境最终实测：全量 **45/45 CTest PASS，0 failed，49.83 s**；`qml_module_boundaries`、`theme_tokens`、`theme_effect_tokens`、`icon_pipeline` 均 PASS。
 - `Player.exe` 实际启动 smoke 已由用户确认 **PASS**：启动无报错。
 - **R5-04 正式 Complete。R5-05 尚未开始。**
+
+## 16. R5-05 实施记录（2026-08-13）
+
+状态：**Candidate — Windows 最终验证待执行。**
+
+### 设计来源与职责边界
+
+- 重新读取第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 的本地 Text Styles；最终样式仍以 Inter / Noto Sans SC / Geist Mono 为三类字体，并包含 Inspector/Media、Control/Meta/Technical、Strong label 与 M/S/XS Timecode 层级。R5-02 `TypographyTokens` 已与这些值一致，因此 R5-05 不建立第二套字号、字重或字体真值。
+- 本任务只建立 Stage R5-05 明确要求的标题、正文、说明、Timecode primitive，并把当前真实 feature 消费点迁移到该边界；不提前实现 R5-06 Button、R5-10 accessibility 行为或新的字体打包方案。
+- 第三版设计任务书中 Display/Keycap 等样式已经存在于 Figma/`TypographyTokens`，但当前 R5-05 不为没有真实 consumer 的样式创建额外透明 wrapper，后续按实际 Feature/Control 需求提升。
+
+### 已实施
+
+- 新增 `primitives/text/TitleText.qml`：公开 Inspector / Media / MediaCompact 三种 title variant，默认使用 primary text color、PlainText、单行 NoWrap + `ElideRight`。
+- 新增 `BodyText.qml`：公开 Supporting / Control 正文 variant，默认使用 secondary text color和 WordWrap。
+- 新增 `CaptionText.qml`：公开 Meta / Technical / MicroStrong / CompactStrong variant，默认使用 muted text color、单行 `ElideRight`。
+- 新增 `TimecodeText.qml`：公开 MediumPrimary / MediumSecondary / SmallPrimary / SmallSecondary / ExtraSmall variant，统一消费 Geist Mono semantic token、单行 NoWrap；primary/secondary 颜色随时间码层级映射。
+- `PlayerChrome.qml` 已显式 import `Player.Presentation.Primitives`，Header/OSC 两个裸 `Text` 分别替换为 `TitleText` / `BodyText`。Header title 增加左右约束，长媒体标题可在可用宽度内右侧截断；现有占位文案和播放器骨架不变。
+- 四个文字 primitive 纳入既有 `Player.Presentation.Primitives` QML module；没有新增 URI、生产依赖或业务状态。
+
+### 验证设计
+
+- 新增独立 `typography_primitives` CTest，避免把 R5-05 继续堆入 R5-02 `theme_tokens` 测试。
+- Contract smoke 验证 Inspector/Media/Supporting/Control/Meta/Technical/Strong semantic 字号和字重映射、默认文字色、长标题 `truncated + lineCount=1`、Timecode `Geist Mono / 12px / Medium / lineCount=1` 契约。
+- 静态扫描 shell/screens/features/controls/surfaces，禁止产品 QML 重新直接声明裸 `Text {`，从结构上固定 `semantic text style → primitive → feature/control` 的消费路径；Theme/Primitives 自身不在该扫描范围。
+- 新增测试后 Windows CTest 预计由 45 增至 **46**。关闭条件为 configure、Debug build、`player_qml_lint` 无 warning、`typography_primitives` 与既有 45 项回归全部通过，并完成 `Player.exe` 启动 smoke。
+
+### 当前限制
+
+- 本任务不改变 R5-02 已记录的字体部署事实：仓库仍未捆绑 Inter / Noto Sans SC / Geist Mono 字体文件；目标系统缺字库时 Qt 仍可能 fallback。R5-05 验证的是请求字体 family、字号/字重和文本布局契约，不把字体安装状态伪装成 primitive 逻辑。
+- 当前容器不具备用户锁定的 Windows Qt/libmpv sibling 运行环境，因此没有把未执行的 configure/build/CTest 写成 PASS；最终验收仍以用户 Windows 实测为准。
+- **R5-05 当前为 Candidate；R5-06 未开始。**
