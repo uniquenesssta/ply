@@ -45,6 +45,7 @@ ButtonBase {
     Rectangle {
         id: surface
 
+        objectName: "buttonFocusRing"
         anchors.fill: parent
         radius: root.controlRadius
         color: root.primary
