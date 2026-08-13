@@ -538,3 +538,31 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - Debug build 仍在 Qt 6.8.3 `qvariant.h` 的 QML 生成代码编译路径输出 MSVC C4702 unreachable-code warning。该 warning 来自锁定 Qt system header/生成代码路径，当前不影响 configure/build/CTest/runtime；项目未增加 warning suppression、白名单或降低质量门禁。
 - 未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口、配置、数据结构或持久化语义。
 - **R5-06 正式 Complete。R5-07 尚未开始。**
+
+## 18. R5-07 实施记录（2026-08-13）
+
+状态：**R5-07 Complete（2026-08-13）。**
+
+### 设计来源与职责边界
+
+- 实现对齐第三版最终 Figma `Control / Slider` 与 D3 OSC 规则：默认组件 180×32，命中区 132×16，视觉轨道 126×3，值区 36px + 12px gap；Thumb 为 10/12/14px（Default/Focus / Hover / Pressed），Focus ring 为 1.5px / 82%，Disabled 为 38%。
+- R5-07 只建立业务无关 Slider；它拥有 normalized `0..1` value、step、pointer/keyboard/wheel 输入与 interaction signal，不调用 Seek/Volume/PlaybackSession，不承担媒体业务状态。
+- Timeline/Volume 后续必须作为业务 wrapper 消费 Slider，不复制 Slider 的输入状态机。
+
+### 已实施
+
+- 新增公开 `controls/sliders/Slider.qml`：支持 pointer press/drag、Left/Down 与 Right/Up 键盘调整、wheel 调整、focus、disabled、clamp、Reduce Motion、可选值文本，以及 `interactionStarted/valueEdited/interactionFinished/interactionCanceled` 信号。
+- Slider 默认值文本复用 `TimecodeText.ExtraSmall`；Controls 继续只经既有 Theme + Primitives 边界消费基础能力，Feature import 规则不变。
+- 补齐 Slider 独立几何 semantic token，包括默认宽度、hit height、track height/inset、thumb 10/12/14、value width、value gap、thumb border、focus ring width 与独立 `controlSlider` radius；没有借用 Button token 作为 Slider 长期语义。
+- `stepSize` 是 Slider 值域 quantization grid；`wheelStep` 只表示单次 wheel 输入增量。二者职责分离，避免 wheelStep 意外改写值域离散规则。
+
+### 验证与关闭
+
+- 新增独立 `slider_controls` CTest，覆盖设计几何、Default/Hover/Pressed/Focus/Disabled、pointer drag、keyboard、wheel、clamp、disabled no-op 与 Reduce Motion。
+- 首轮锁定 Windows configure/build 均 PASS，但 qmllint 报 `OpacityTokens.disabled` missing-property warning；全量为 **47/48 PASS**，唯一失败 `slider_controls`。其中 wheel 用例暴露 `wheelStep` 被错误当成 quantization grid，Disabled 用例因不存在的 semantic 名称得到 `undefined`。其余 47 项回归全部 PASS。
+- 修复没有放宽测试或新增重复 token：Disabled 改为既有 `OpacityTokens.controlDisabled`；wheel 继续使用 `wheelStep` 作为增量，但 quantization 保持由 `stepSize` 决定。公共 Slider API、interaction signal 与 import 边界不变。
+- 修复后 Windows Debug build **PASS**；`scripts/test.ps1` 的 QML lint 门禁完成，原 missing-property warning 已消失；全量 **48/48 CTest PASS，0 failed，51.88 s**，其中 `qml_module_boundaries`、`button_controls`、`slider_controls` 均 PASS。
+- `Player.exe` 实际启动 smoke **PASS**：命令无 QML/运行时错误输出。
+- Qt 6.8.3 `qvariant.h` 的 QML 生成代码路径仍输出已记录的 MSVC C4702 warning；当前不影响 build/CTest/runtime，项目未增加 warning suppression、白名单或降低质量门禁。
+- 未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口、配置、数据结构或持久化语义。
+- **R5-07 正式 Complete。R5-08 尚未开始。**
