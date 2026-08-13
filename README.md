@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 Complete**；R5-08 Surface controls Candidate，49/49 已通过但 qmllint 修正待复验 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 / R5-08 Complete**；R5-09 Feedback controls Candidate，Windows 最终验证待执行 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,17 +100,27 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — R5-08 Surface controls candidate
+### 2026-08-14 — R5-09 Feedback controls candidate
+
+- 按 R5-09 开发任务和第三版 D5/D8 反馈规则建立独立 `Player.Presentation.Feedback` QML module，物理目录为 `src/presentation/qml/feedback/`；公开类型为 `Toast`、`ErrorFeedback`、`LoadingFeedback`、`EmptyFeedback`，内部 `StatusFeedbackBody` / `ActionFeedbackBody` 只负责复用文本和可选 action 组合，不形成万能反馈组件。
+- 四类语义保持严格分层：Toast 是 z80 的非阻断结果玻璃 Surface；Error/Loading/Empty 是 z35 的媒体状态展示内容，其中 Error/Empty 可提供 action，Loading 不拥有 action、Timer 或大型 Spinner 卡片。组件只接受 title/detail/action 等展示输入，不判断错误来源、不读取 PlaybackSession、不调用 libmpv，也不拥有 timeout/dismiss 业务生命周期。
+- Toast 没有发明新几何/材质 token，直接复用已经冻结的 `surfaceToast R22`、Popover-grade fill 52% / blur18、control shadow 16px·y5·8%、18px padding、feedback semantic colors 与 `ZOrderTokens.toast=80`。Error/Loading/Empty 复用既有 Typography/feedback colors/overlay z-order；没有新增图标资产或猜测 D5 未暴露的尺寸。
+- 设计来源限制已明确核对：第三版 D5/D8 任务书定义了 Feedback Priority 与 Toast/Error/Loading/Empty/HUD/Dialog 的职责，但当前可访问的最终 Figma 文件页只暴露 Framework/D0 节点，未暴露独立 D5 feedback component node。因此 R5-09 只实现任务书明确语义并复用已有冻结 token，不把缺失的 live Figma 几何自行补成“最终设计事实”。
+- Feedback module 只向内组合 Theme / Primitives / Controls / Surfaces；R5-01 的 Feature import 门禁完全不变，Feature 仍只允许直接 import Theme/Controls。本任务没有把 Feedback 或 Surfaces 加入 Feature 直连白名单，也没有修改现有公共播放 API。
+- `player_qml_lint` 已纳入 `player_presentation_feedback_qmllint`；新增独立 `feedback_controls` CTest，验证四类公开类型可加载且 role 不混用、Loading 无 action、Error/Empty 有 action、Toast 复用冻结 Surface contract；另有静态边界门禁禁止 Feedback QML 出现 Playback/backend 调用词或 `Timer`。预计全量测试数由 **49 → 50**。
+- R5-09 候选尚未在锁定 Windows 环境执行 configure/build/qmllint/50-test/`Player.exe` smoke。没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、配置、数据结构或持久化。**R5-09 当前为 Candidate；R5-10 未开始。**
+
+### 2026-08-14 — R5-08 Surface controls Complete
 
 - 重新核对第三版最终 Figma D8 Surface 规则、`Floating Inspector` 真实设计上下文以及本地 Effect Styles/Variables：Inspector 为 **R32 / fill 38% / blur 42 / shadow 42px·y12·12%**；Popover 为 **R20 / fill 52% / blur 18 / shadow 16px·y5·8%**；HUD 为 **R24 / blur 18 / shadow 16px·y5·8%**；Surface stroke 为 **1px**，z-order 保持 Overlay 35 → Inspector 50 → Popover 60 → HUD 70。
 - 新增 `surfaces/Panel.qml`、`Drawer.qml`、`Popover.qml`、`Hud.qml`。`Panel` 是唯一通用材质与 replaceable content-slot owner；`Drawer` 复用 Inspector-grade Airy Glass 并只提升到 Inspector 层，不引入旧式黑色 Drawer；Popover/Hud 只覆写各自 Material/Radius/Shadow/Padding/Z semantic，不复制 Surface 渲染实现。
-- `Panel` 真实渲染半透明 semantic fill、独立 glass border、圆角和 `QtQuick.Effects.MultiEffect` drop shadow，并通过 `contentItem` + `contentPadding` 承载可替换业务内容。R5-08 不拥有 feature 文案、播放状态、dismiss timer 或 feedback severity。
-- Figma 当前没有独立 `alpha/glass/hud-fill` 变量；HUD Effect Style 与 Control Glass 同属 blur18/control-shadow 层级，因此 HUD fill 复用既有 `MaterialTokens.controlFillAlpha = 48%`，没有凭空创建第二视觉真值。R5-08 只新增已被最终 Figma `stroke/surface` 明确支持的 `LayoutTokens.surfaceBorderWidth = 1`。
-- `backdropBlurRadius` 保留最终 Figma 的 role contract，但通用 Surface 当前不捕获任意祖先背景：Qt Quick 的 backdrop source 属于后续 Window/Overlay composition 宿主职责。本轮不把 Surface 自身像素 blur 后冒充真实 backdrop blur；因此当前真实视觉实现范围为 fill / border / radius / shadow / z / slot，背景捕获仍是明确的后续集成点。
-- `Player.Presentation.Surfaces` 显式依赖既有 Theme 与锁定 Qt 6.8.3 已使用的 `QtQuick.Effects`，没有新增外部生产依赖；`player_qml_lint` 已纳入 surfaces qmllint。Feature import 门禁保持 R5-01 冻结规则，Feature 不因 R5-08 获得直接 `Surfaces` 深依赖。
+- `Panel` 真实渲染半透明 semantic fill、独立 glass border、圆角和 `QtQuick.Effects.MultiEffect` drop shadow，并通过 `contentItem` + `contentPadding` 承载可替换业务内容。`backdropBlurRadius` 保留最终 Figma role contract，但通用 Surface 不捕获任意祖先背景，也不把自身像素 blur 冒充真实 backdrop blur；实际落地范围为 fill / border / radius / shadow / z / slot。
+- Figma 当前没有独立 `alpha/glass/hud-fill` 变量；HUD Effect Style 与 Control Glass 同属 blur18/control-shadow 层级，因此 HUD fill 复用既有 `MaterialTokens.controlFillAlpha = 48%`。R5-08 只新增最终 Figma `stroke/surface` 明确支持的 `LayoutTokens.surfaceBorderWidth = 1`。
+- `Player.Presentation.Surfaces` 显式依赖既有 Theme 与锁定 Qt 6.8.3 已使用的 `QtQuick.Effects`，没有新增外部生产依赖；Feature import 门禁保持 R5-01 冻结规则。
 - 新增独立 `surface_controls` CTest，覆盖四个公开 Surface role 的材质 contract、replaceable slot/padding、重叠 z-order 与 Surfaces 不依赖 Playback/Controls/Primitives 的静态边界；全量测试数由 **48 → 49**。
-- 首轮锁定 Windows 验证：configure **PASS**（Configuring 4.4 s / Generating 1.7 s）、Debug build **PASS**、全量 **49/49 CTest PASS，0 failed，53.13 s**；`qml_module_boundaries`、`button_controls`、`slider_controls`、`surface_controls` 均 PASS。该轮 build 与 `scripts/test.ps1` 的 surfaces qmllint 同时报告 `Panel.qml` 四条 `Unqualified access` warning，均来自 `layer.effect: MultiEffect` 内对外层 `root` 的引用；因此不能按“无 warning qmllint”标准关闭 R5-08。用户日志中尚无 `Player.exe` startup smoke 结果。
-- 修正严格限定在该 lint 根因：`Panel.qml` 增加 Qt 6.8 qmllint 明确建议的 `pragma ComponentBehavior: Bound`，使嵌套 `MultiEffect` 绑定外层 component ID 的作用域契约显式化；Surface API、材质数值、slot、z-order、Playback/Render 边界均不变。该修正仍需重新执行 Debug build、`scripts/test.ps1` 并完成 `Player.exe` startup smoke 后才能标记 Complete。未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口、配置或持久化。**R5-08 当前仍为 Candidate；R5-09 未开始。**
+- 首轮锁定 Windows 验证：configure **PASS**（Configuring 4.4 s / Generating 1.7 s）、Debug build **PASS**、全量 **49/49 CTest PASS，0 failed，53.13 s**。该轮 surfaces qmllint 同时报告 `Panel.qml` 四条 `Unqualified access` warning，均来自 `layer.effect: MultiEffect` 内对外层 `root` 的引用，因此没有提前按 warning-free 标准关闭。
+- 修正严格限定在 lint 根因：`Panel.qml` 增加 Qt 6.8 qmllint 建议的 `pragma ComponentBehavior: Bound`，Surface API、材质数值、slot、z-order 和 Playback/Render 边界均不变。修正后 Windows Debug build **PASS**，`scripts/test.ps1` 的 surfaces qmllint 不再输出上述 warning；全量 **49/49 CTest PASS，0 failed，52.19 s**，`surface_controls` 与全部既有回归均 PASS；`Player.exe` 实际启动 smoke **PASS**，无 QML/运行时错误输出。
+- 未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口、配置或持久化。**R5-08 正式 Complete。**
 
 ### 2026-08-13 — R5-07 Slider controls Complete
 
