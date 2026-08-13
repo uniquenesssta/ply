@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 Complete**；R5-04 图标管线已通过 45/45 CTest 与 `Player.exe` 启动 smoke，R5-05 尚未开始 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 Complete**；R5-05 Typography primitives 已完成候选实现，等待 Windows 46-test 与 `Player.exe` 启动验证 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -99,6 +99,14 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-13 — R5-05 typography primitives candidate
+
+- 重新读取第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 本地 Text Styles；现有 `TypographyTokens` 的 Inter / Noto Sans SC / Geist Mono、字号和字重已经与最终设计一致，因此 R5-05 不复制或改写字体真值。
+- 新增 `primitives/text/TitleText.qml`、`BodyText.qml`、`CaptionText.qml`、`TimecodeText.qml`。四类 primitive 分别消费既有 semantic typography/color token，并覆盖 Inspector/Media 标题、Supporting/Control 正文、Meta/Technical/Strong 说明和 M/S/XS Timecode 变体；标题和说明默认单行右侧 ellipsis，Timecode 固定单行并使用 Geist Mono 语义字体。
+- `PlayerChrome.qml` 的两个裸 `Text` 已迁移到 `TitleText` / `BodyText`；Header 标题增加左右约束，使真实长标题能够触发 ellipsis，当前占位文案和整体骨架行为保持不变。
+- 新增独立 `typography_primitives` CTest：验证 semantic style 映射、长标题截断、Timecode 字体/单行契约，并扫描 shell/screens/features/controls/surfaces，阻止产品 QML 重新直接创建裸 `Text`。CTest 预计由 45 增至 **46**。
+- 没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期或播放接口。R5-02 已记录的字体文件未随应用捆绑限制仍然存在；锁定 Windows 环境的 configure/build、无 warning qmllint、46/46 CTest 与启动 smoke 尚待执行，因此 **R5-05 当前为 Candidate**。
 
 ### 2026-08-13 — R5-04 Complete
 
