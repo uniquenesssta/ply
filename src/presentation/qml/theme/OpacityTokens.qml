@@ -8,6 +8,7 @@ QtObject {
     readonly property real controlHover: OpacityPrimitives.visible
     readonly property real controlPressed: OpacityPrimitives.pressed
     readonly property real controlDisabled: OpacityPrimitives.disabled
+    readonly property real focusRing: OpacityPrimitives.focus
     readonly property real dialogScrim: OpacityPrimitives.scrim
     readonly property real visible: OpacityPrimitives.visible
 }
