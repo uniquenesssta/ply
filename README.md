@@ -108,7 +108,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - R5-06 首次真实消费暴露两个基础 token 缺口：补充 `SizePrimitives.size24 → LayoutTokens.playbackIcon` 与 `OpacityPrimitives.focus → OpacityTokens.focusRing`，分别承载 Figma 的 24px Primary glyph 与 82% focus ring；未改写既有 72/84/38/100% 或 Radius/Material/Motion 真值。
 - `Player.Presentation.Controls` 现在显式依赖 Theme + Primitives；Feature import 规则保持 R5-01 冻结状态，Feature 仍只直接消费 Theme/Controls，不允许重新出现 Feature→Primitives 深依赖。`player_qml_lint` 已纳入 controls lint。
 - Tooltip 本轮提供 `toolTipText + toolTipVisible` 请求/状态契约，没有伪造 Figma 尚未冻结的 Tooltip Surface；真正 overlay 材质与宿主仍由后续 Surface/Feedback 层负责。Primary 控件当前消费玻璃填充/边框/交互 alpha，不在通用 Button 内复制依赖背景捕获的 backdrop-blur 实现。
-- 新增独立 `button_controls` CTest，覆盖公开类型加载与 32/22、40/24、R16/R20、72/48/82 等设计契约，真实 pointer click、Space 键 toggle、disabled no-op、focus tooltip-request 以及 Reduce Motion 传播；全量 Windows CTest 预计由 46 增至 **47**。本轮修改了 QML module/CMake，因此关闭前必须重新 configure/build/qmllint/47-test 并完成 `Player.exe` smoke。当前容器没有锁定 Windows Qt/libmpv sibling 环境，未把这些未执行验证写成 PASS。**R5-06 当前为 Candidate；R5-07 未开始。**
+- 收口静态审查发现并修正 Primary `IconButton` 的 Focus 视觉偏差：`activeFocus` 不再触发 hover glass alpha，键盘 Focus 保持 Figma 冻结的 **48% rest glass + 82% focus ring**；同时 `button_controls` 新增真实 pointer hover/press、Primary hover 52% 与 Focus 48% 的直接断言，避免只测 click 而遗漏视觉状态契约。
+- 新增独立 `button_controls` CTest，覆盖公开类型加载与 32/22、40/24、R16/R20、72/48/82 等设计契约，真实 pointer hover/press/click、Space 键 toggle、disabled no-op、focus tooltip-request 以及 Reduce Motion 传播；全量 Windows CTest 预计由 46 增至 **47**。本轮修改了 QML module/CMake，因此关闭前必须重新 configure/build/qmllint/47-test 并完成 `Player.exe` smoke。当前容器没有锁定 Windows Qt/libmpv sibling 环境，未把这些未执行验证写成 PASS。**R5-06 当前为 Candidate；R5-07 未开始。**
 
 ### 2026-08-13 — R5-05 Typography primitives Complete
 
