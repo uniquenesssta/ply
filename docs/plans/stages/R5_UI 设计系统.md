@@ -509,3 +509,32 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 
 - 本任务不改变 R5-02 已记录的字体部署事实：仓库仍未捆绑 Inter / Noto Sans SC / Geist Mono 字体文件；目标系统缺字库时 Qt 仍可能 fallback。R5-05 验证的是请求字体 family、字号/字重和文本布局契约，不把字体安装状态伪装成 primitive 逻辑。
 - R5-05 只建立 Typography primitives，不提前实现 R5-06 Button，也不修改播放、Render 或 libmpv 链路。
+
+## 17. R5-06 实施记录（2026-08-13）
+
+状态：**R5-06 Complete（2026-08-13）。**
+
+### 设计来源与职责边界
+
+- 实现直接对齐第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 的 D3-04 Transport 与 D3-06 Utility：Secondary/Utility 为 32px hit / 22px visual / R16，Primary Playback 为 40px / 24px visual / R20；交互权重为 rest 72%、hover 100%、pressed 84%、disabled 38%、focus ring 82%，Primary glass alpha 为 rest 48%、hover 52%、pressed 42%。
+- R5-06 只建立业务无关的 Button controls 与其临时交互状态，不绑定 PlaybackSession、播放/暂停业务、Inspector open state 或其他 Feature action；Feature 仍通过公开 Controls/Theme 边界消费设计系统。
+- Tooltip 本轮只建立 `toolTipText + toolTipVisible` 请求契约，不伪造尚未冻结的 Tooltip Surface；真正浮层材质和 overlay host 留给 Surface/Feedback 层。
+
+### 已实施
+
+- 新增 `controls/buttons/ButtonBase.qml`，作为 internal 输入/状态基类统一拥有 pointer hover/press、Space/Enter/Return 键盘激活、focus、disabled gate、checked/toggle 与 tooltip-request，避免三个公开按钮重复实现输入状态机。
+- 新增公开 `IconButton.qml`、`TextButton.qml`、`ToggleButton.qml`。`IconButton` 提供 Secondary/Primary emphasis 与 `opticalOffsetX`；`TextButton` 复用 BodyText Control 语义；`ToggleButton` 将 selection fill 66% 与 selection border 28% 分层实现。
+- 补充真实消费才暴露的两个基础 token：`SizePrimitives.size24 → LayoutTokens.playbackIcon` 与 `OpacityPrimitives.focus → OpacityTokens.focusRing`；没有改写既有 opacity/radius/material/motion 真值。
+- 收口静态审查修正 Primary Focus 视觉偏差：键盘 Focus 不再被当成 hover，Primary Focus 保持 48% rest glass + 82% focus ring；hover 仍为 52%，press 为 42%。
+- `Player.Presentation.Controls` 显式依赖 Theme + Primitives，`player_qml_lint` 纳入 controls lint；R5-01 的 Feature import 门禁不放宽，Feature 仍不得直接深依赖 Primitives。
+- 初版 Controls QML 源位于 `buttons/` 子目录时，internal `ButtonBase` 在运行时模块解析中不可见。修复保留物理目录模块化：为 Controls QML 设置 basename `QT_RESOURCE_ALIAS` 统一到 canonical module resource root，并使用 `NO_GENERATE_EXTRA_QMLDIRS`；`ButtonBase` 继续为 internal type，没有扩大为公共 API或引入 path/deep import。
+
+### 验证与关闭
+
+- 新增独立 `button_controls` CTest，覆盖公开类型加载、32/22 与 40/24 几何、R16/R20、rest/hover/press/focus 视觉 contract、真实 pointer hover/press/click、Space toggle、disabled no-op、focus tooltip-request 与 Reduce Motion 传播。
+- 首轮锁定 Windows configure/build 均 PASS，但全量为 **46/47 PASS**；唯一失败 `button_controls` 的 5 个用例均在组件解析阶段报 `ButtonBase is not a type`，其余 46 项全部 PASS。该失败没有通过放宽测试或公开 internal type 绕过，而是按上述 canonical resource-root 方案修复。
+- 修复后重新执行完整 Windows configure/build/test：configure **PASS**（Configuring 3.6 s / Generating 1.6 s），Debug build **PASS**，controls qmllint 门禁完成；全量 **47/47 CTest PASS，0 failed，50.62 s**，其中 `qml_module_boundaries`、`theme_tokens`、`theme_effect_tokens`、`icon_pipeline`、`typography_primitives`、`button_controls` 均 PASS。
+- `Player.exe` 实际启动 smoke **PASS**：命令无 QML/运行时错误输出。
+- Debug build 仍在 Qt 6.8.3 `qvariant.h` 的 QML 生成代码编译路径输出 MSVC C4702 unreachable-code warning。该 warning 来自锁定 Qt system header/生成代码路径，当前不影响 configure/build/CTest/runtime；项目未增加 warning suppression、白名单或降低质量门禁。
+- 未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口、配置、数据结构或持久化语义。
+- **R5-06 正式 Complete。R5-07 尚未开始。**
