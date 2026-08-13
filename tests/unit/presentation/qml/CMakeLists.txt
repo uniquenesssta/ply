@@ -323,3 +323,5 @@ set_tests_properties(
     surface_controls
     PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+add_subdirectory(feedback)

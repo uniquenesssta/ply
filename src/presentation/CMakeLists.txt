@@ -81,4 +81,5 @@ add_custom_target(
         player_presentation_primitives_qmllint
         player_presentation_controls_qmllint
         player_presentation_surfaces_qmllint
+        player_presentation_feedback_qmllint
 )
