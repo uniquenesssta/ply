@@ -7,6 +7,12 @@ player_enable_static_analysis(feedback_control_tests)
 
 add_dependencies(feedback_control_tests player_qml_lint)
 
+target_compile_definitions(
+    feedback_control_tests
+    PRIVATE
+        PLAYER_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
 target_link_libraries(
     feedback_control_tests
     PRIVATE
