@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 Complete**；Motion/Radius/Material/Elevation/Opacity/Z-order token 与 Reduce Motion 契约已通过 Windows 44-test 回归和实际启动 smoke；R5-04 尚未开始 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 Complete**；R5-04 已实现最终 Figma 主操作 SVG、`Icon` primitive、semantic tint、资源打包与缺失 icon 诊断候选，等待 Windows 45-test 最终复测 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,13 +100,19 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-13 — R5-04 icon pipeline candidate
+
+- 从第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 直接导出并纳入当前已存在的主操作 glyph：`previous/play/next/volume/subtitles/playlist/fullscreen/close/search`；SVG path 数据未手工重绘。Figma 当前没有独立 Pause/Mute/Exit-Fullscreen 等最终 glyph，因此本任务不伪造缺失资产，未知 `iconId` 由 `Icon.diagnostic` 明确暴露。
+- 新增 `Player.Presentation.Primitives/Icon.qml` 与 internal singleton `IconCatalog.qml`：Catalog 只拥有 `icon id → qrc resource / 默认色角色`，Icon 只负责加载、intrinsic size、semantic color 与状态诊断。默认 primary/secondary 颜色映射既有 `ColorTokens.iconPrimary/iconSecondary`。
+- SVG 统一放入 `src/presentation/qml/assets/icons/`，由 `player_presentation_primitives` QML module 以固定 resource alias 打包；Icon 着色使用 Qt 6.8 自带 `QtQuick.Effects.MultiEffect` colorization，无新增第三方/生产依赖。
+- `player_qml_lint` 现在包含 primitives lint；新增 `icon_pipeline` CTest，验证九个当前 Figma glyph 全部从 qrc 加载、Figma intrinsic 22/24 尺寸、primary/secondary semantic tint、未知 id 诊断、资产清单和产品 QML 不绕过 Icon primitive。CTest 预期由 44 增至 **45**。
+- 未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口或当前 Player 骨架行为。R5-04 当前保持 Candidate，需锁定 Windows 环境完成 configure/build、无 warning qmllint、45/45 CTest 和 `Player.exe` 启动 smoke 后才能标 Complete。
+
 ### 2026-08-13 — R5-03 Complete
 
-- 按第三版 Airy Glass 最终 Figma Variables / Effect Styles 建立独立 Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token；未新增生产依赖，也未修改 PlaybackSession、libmpv、Render 生命周期或公共播放接口。
-- Reduce Motion 契约统一由 `MotionTokens.reduceMotionEnabled` 控制：过渡 duration 降为 0、easing 改为 Linear；语义性 OSC inactivity hide-delay 仍保持 **2200 ms**，不把“减少动态效果”误实现为改变交互时序。
-- Figma 交互 opacity 百分比在 `OpacityPrimitives` 单点转换为 QML `0.0–1.0`；新增 `theme_effect_tokens` 合同测试与产品 QML raw radius/z/opacity/duration 回流门禁。
-- 锁定 Windows Qt 6.8.3 / MSVC 环境实测：configure **PASS**、Debug build **PASS**、`player_qml_lint` 无 warning 输出、**44/44 CTest PASS，0 failed，49.52 s**；`qml_module_boundaries`、`theme_tokens`、`theme_effect_tokens` 均 PASS。
-- `Player.exe` 实际启动 smoke **PASS**：窗口正常创建。当前可见界面仍是 Player framework 骨架符合 R5-03 边界；真正 Panel/Popover/HUD 等 Surface 对 blur/shadow/radius 的消费属于 R5-08。**R5-03 正式 Complete；R5-04 尚未开始。**
+- Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token 已建立；Reduce Motion 统一将 transition duration 降为 0 并切换 Linear easing，OSC inactivity hide-delay 继续保持 **2200 ms**。
+- 新增 `theme_effect_tokens` 合同测试与产品 QML raw radius/z/opacity/duration 回流门禁。
+- 锁定 Windows 环境实测已确认：configure、Debug build、无 warning `player_qml_lint`、**44/44 CTest PASS（49.52 s）** 与 `Player.exe` 启动 smoke 均通过。当前仍是播放器骨架界面；Panel/Popover/HUD 等实际 Surface 消费属于 R5-08。**R5-03 正式 Complete。**
 
 ### 2026-08-13 — R5-02 Complete
 
