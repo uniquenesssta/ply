@@ -1,6 +1,5 @@
 import QtQuick
 import Player.Presentation.Theme
-import Player.Presentation.Primitives
 
 Item {
     id: root
@@ -14,16 +13,15 @@ Item {
         height: LayoutTokens.headerHeight
         color: ColorTokens.surfaceGlass
 
-        TitleText {
+        Text {
             anchors {
                 left: parent.left
-                right: parent.right
                 leftMargin: SpacingTokens.headerContent
-                rightMargin: SpacingTokens.headerActionsInset
                 verticalCenter: parent.verticalCenter
             }
             text: qsTr("Player framework")
-            variant: TitleText.Media
+            color: ColorTokens.textPrimary
+            font: TypographyTokens.mediaTitle
         }
     }
 
@@ -36,12 +34,11 @@ Item {
         height: LayoutTokens.oscHeight
         color: ColorTokens.surfaceGlass
 
-        BodyText {
+        Text {
             anchors.centerIn: parent
-            width: parent.width - (SpacingTokens.oscInset * 2)
             text: qsTr("Playback controls will be added after the player state boundary is implemented")
-            variant: BodyText.Control
-            horizontalAlignment: Text.AlignHCenter
+            color: ColorTokens.textSecondary
+            font: TypographyTokens.controlBody
         }
     }
 }
