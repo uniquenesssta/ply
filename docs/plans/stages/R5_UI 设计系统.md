@@ -381,3 +381,37 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - 第一轮曾把问题误判为三个空 QML 模块的 typeinfo 生成，并对 `Primitives/Controls/Surfaces` 添加 `NO_GENERATE_QMLTYPES`；第二次本机复测证明该假设无效，三个参数已全部撤销，未保留无效绕过。
 - 对照 Qt 6.8.3 `Qt6QmlMacros.cmake` 后确认真正触发点是 executable QML module `player_app` 使用 `DEPENDENCIES TARGET player_presentation_theme`：Qt 会为 TARGET-based dependency 在 `PROJECT_SOURCE_DIR` deferred finalizer 中合并 build-tree `qt.conf`，该路径依赖 `QT_CMAKE_EXPORT_NAMESPACE`；本项目 Qt package 在 `cmake/` 子目录作用域加载，defer 回项目根后该内部变量不可用，最终把工具目标展开成 `::qmltyperegistrar`。
 - 修复改用 Qt 支持的 URI 依赖 `DEPENDENCIES Player.Presentation.Theme`，保留现有 `target_link_libraries(player_app PRIVATE player_presentation_theme)` 作为真实链接关系；不移动 `find_package(Qt6)`、不改变项目 CMake 分层、不引入 Qt 内部变量补丁。
+
+## 13. R5-02 实施记录（2026-08-13）
+
+状态：**Candidate — Windows 最终验证待执行。**
+
+### 设计来源与实施边界
+
+- 实现值来自第三版 Airy Glass Figma 文件 `KIOxfwTvQJlcVLinkeJAxY` 的最终本地 Variables / Text Styles，而不是根据旧 Theme 或截图猜值。
+- 只推进 R5-02 的 Color / Typography / Spacing 语义；为满足根任务书“核心页面无散落硬编码颜色和尺寸”，额外建立 `SizePrimitives/LayoutTokens` 作为纯几何语义边界，但不实现 R5-03 的 Motion / Radius / Elevation，也不提前实现 Surface 材质、Blur 或 Shadow。
+- 未新增生产依赖；未修改 PlaybackSession、libmpv、Render context、Renderer、线程/生命周期、播放接口或数据结构。
+
+### 已实施
+
+- Theme 模块按职责拆成：`ColorPrimitives → ColorTokens`、`TypographyPrimitives → TypographyTokens`、`SpacingPrimitives → SpacingTokens`、`SizePrimitives → LayoutTokens`。
+- `Theme.qml` 保留为 R5-01 兼容 facade，仅把旧 `windowBackground/videoBackground/chromeBackground/primaryText/secondaryText` 映射到新的 semantic color token；后续新 UI 不再往 `Theme.qml` 聚合新职责。
+- 颜色使用第三版最终值与语义映射，包括 `surface/canvas #F7F7FC`、`surface/video #EDEEF7`、`text/primary #1A1720`、`accent/primary #7B2CFF`，并覆盖当前 R6 将需要的 text/icon/border/accent/selection/focus/feedback/control 基础语义。
+- Typography 映射最终 Figma 字体层级：Inter 用于 Latin/UI 技术标签，Noto Sans SC 用于中文媒体/控件文本，Geist Mono 用于 timecode；当前实现只声明字体契约，不捆绑字体文件、不新增字体依赖。
+- Spacing/Size 按 Figma primitive → semantic 映射实现；现有窗口默认/最小尺寸继续保持 1280×720 / 960×540，以避免 R5-02 无关的启动几何行为变化，同时暴露最终设计参考窗口 1320×700 给后续响应式阶段使用。
+- `MainWindow.qml`、`VideoSurface.qml`、`PlayerChrome.qml` 改为直接消费 semantic token；原 `#...`、56/72/20、15/13 等散落视觉值不再留在核心 QML。当前占位 Header/OSC 几何分别映射最终语义 54 / 124，文字使用 Media Title 14 Medium 与 Control Body 12 Regular。
+- Theme CMake 统一注册所有 token singleton，不手写 `qmldir`，继续使用 R5-01 已稳定的 `Player.Presentation.Theme` 公共 URI。
+
+### 验证设计
+
+- 新增独立 `theme_tokens` CTest，不把 R5-02 contract 塞进 R5-01 的 `qml_module_boundaries` 测试。
+- contract smoke 会真实导入 `Player.Presentation.Theme`，验证代表性 Color/Typography/Spacing/Layout token、Theme 兼容 alias 与最终 Figma 值。
+- 静态扫描 shell/screens/features 中的 QML，禁止 raw hex color、`font.pixelSize` 和常见 visual metric 数值字面量回流；这项门禁针对产品 QML，不扫描 token 定义自身。
+- 字体 contract 验证声明的 family 名称与字号/字重，不要求验证机已经安装 Noto Sans SC 或 Geist Mono，避免把字体部署问题伪装成 token 定义失败；正式字体资源/发布可用性后续按实际 UI/发布任务处理。
+- 新增测试后 Windows CTest 预期由 42 增至 **43**；R5-02 只有在 configure、Debug build、无 warning `player_qml_lint`、43/43 CTest 和 `Player.exe` 启动 smoke 均通过后才能标 Complete。
+
+### 当前限制
+
+- `surfaceGlass` 在 R5-02 只提供颜色语义；Opacity、Blur、Shadow、Radius 与真正 Airy Glass 材质层级属于 R5-03/R5-08，当前不宣称玻璃视觉已经完成。
+- 当前代码未捆绑 Inter/Noto Sans SC/Geist Mono 字体文件，也未新增生产字体依赖；若目标机器缺少指定字体，Qt 仍可能使用系统 fallback。这不改变 R5-02 的 token API，但正式交付前必须由后续字体/发布阶段明确解决。
+- **R5-02 当前保持 Candidate；R5-03 未开始。**
