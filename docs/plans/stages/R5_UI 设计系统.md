@@ -384,12 +384,12 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 
 ## 13. R5-02 实施记录（2026-08-13）
 
-状态：**Candidate — Windows 最终验证待执行。**
+状态：**R5-02 Complete（2026-08-13）。**
 
 ### 设计来源与实施边界
 
 - 实现值来自第三版 Airy Glass Figma 文件 `KIOxfwTvQJlcVLinkeJAxY` 的最终本地 Variables / Text Styles，而不是根据旧 Theme 或截图猜值。
-- 只推进 R5-02 的 Color / Typography / Spacing 语义；为满足根任务书“核心页面无散落硬编码颜色和尺寸”，额外建立 `SizePrimitives/LayoutTokens` 作为纯几何语义边界，但不实现 R5-03 的 Motion / Radius / Elevation，也不提前实现 Surface 材质、Blur 或 Shadow。
+- 只推进 R5-02 的 Color / Typography / Spacing 语义；为满足根任务书“核心页面无散落硬编码颜色和尺寸”，额外建立 `SizePrimitives/LayoutTokens` 作为纯几何语义边界；R5-02 本身不实现 Motion / Radius / Elevation 或 Surface 材质组件。
 - 未新增生产依赖；未修改 PlaybackSession、libmpv、Render context、Renderer、线程/生命周期、播放接口或数据结构。
 
 ### 已实施
@@ -402,16 +402,51 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - `MainWindow.qml`、`VideoSurface.qml`、`PlayerChrome.qml` 改为直接消费 semantic token；原 `#...`、56/72/20、15/13 等散落视觉值不再留在核心 QML。当前占位 Header/OSC 几何分别映射最终语义 54 / 124，文字使用 Media Title 14 Medium 与 Control Body 12 Regular。
 - Theme CMake 统一注册所有 token singleton，不手写 `qmldir`，继续使用 R5-01 已稳定的 `Player.Presentation.Theme` 公共 URI。
 
-### 验证设计
+### 验证与关闭
 
-- 新增独立 `theme_tokens` CTest，不把 R5-02 contract 塞进 R5-01 的 `qml_module_boundaries` 测试。
-- contract smoke 会真实导入 `Player.Presentation.Theme`，验证代表性 Color/Typography/Spacing/Layout token、Theme 兼容 alias 与最终 Figma 值。
-- 静态扫描 shell/screens/features 中的 QML，禁止 raw hex color、`font.pixelSize` 和常见 visual metric 数值字面量回流；这项门禁针对产品 QML，不扫描 token 定义自身。
+- `theme_tokens` CTest 独立验证代表性 Color/Typography/Spacing/Layout token、Theme 兼容 alias 与最终 Figma 值，并静态扫描 shell/screens/features，阻止 raw hex color、`font.pixelSize` 和常见 visual metric 数值字面量回流。
 - 字体 contract 验证声明的 family 名称与字号/字重，不要求验证机已经安装 Noto Sans SC 或 Geist Mono，避免把字体部署问题伪装成 token 定义失败；正式字体资源/发布可用性后续按实际 UI/发布任务处理。
-- 新增测试后 Windows CTest 预期由 42 增至 **43**；R5-02 只有在 configure、Debug build、无 warning `player_qml_lint`、43/43 CTest 和 `Player.exe` 启动 smoke 均通过后才能标 Complete。
+- 用户在锁定 Windows 环境完成实测并确认 **OK**：configure **PASS**、Debug build **PASS**、`player_qml_lint` **无 warning**、全量 **43/43 CTest PASS**、`Player.exe` 启动 smoke **PASS**。
+- **R5-02 正式 Complete。**
 
 ### 当前限制
 
-- `surfaceGlass` 在 R5-02 只提供颜色语义；Opacity、Blur、Shadow、Radius 与真正 Airy Glass 材质层级属于 R5-03/R5-08，当前不宣称玻璃视觉已经完成。
 - 当前代码未捆绑 Inter/Noto Sans SC/Geist Mono 字体文件，也未新增生产字体依赖；若目标机器缺少指定字体，Qt 仍可能使用系统 fallback。这不改变 R5-02 的 token API，但正式交付前必须由后续字体/发布阶段明确解决。
-- **R5-02 当前保持 Candidate；R5-03 未开始。**
+- Radius/Material/Elevation/Motion 等基础 token 已转入 R5-03；真正 Panel/Popover/HUD 等 Surface 对这些 token 的视觉消费仍属于 R5-08。
+
+## 14. R5-03 实施记录（2026-08-13）
+
+状态：**Candidate — Windows 最终验证待执行。**
+
+### 设计来源与职责边界
+
+- 实现值直接读取第三版 Airy Glass Figma 最终 `V3 / Geometry Primitive/Semantic`、`V3 / Effect Primitive/Material Semantic`、`V3 / Interaction Primitive/Semantic` 与 Effect Styles；不根据截图或旧 UI 猜测 Radius、Blur、Shadow、Motion、Opacity、Z-order。
+- R5-03 只建立设计基础真值和 Reduce Motion 契约；不提前创建 R5-08 的 Panel/Drawer/Popover/HUD/Dialog surface，不修改播放业务或窗口模式行为。
+- 为避免一个 singleton 混合多种独立视觉职责，按原因变化拆成 Radius、Blur/Material、Elevation、Motion、Opacity、Z-order 各自 primitive/semantic 模块；`Theme.qml` 继续只承担兼容 facade，不吸收新职责。
+- 未新增生产依赖；未修改 PlaybackSession、libmpv、MpvVideoItem、Renderer、Render context、线程/生命周期、持久化结构或公共播放接口。
+
+### 已实施
+
+- `RadiusPrimitives/RadiusTokens` 映射最终几何语义：Player 32、Fullscreen 34、Maximized 0、OSC 34、Inspector 32、Popover 20、Toast 22、HUD 24、Dialog 30，并覆盖 Header/Control/List/Timeline 等已确认半径。
+- `BlurPrimitives/MaterialAlphaPrimitives/MaterialTokens` 映射 Airy Glass 材质基础：Header blur 28、OSC 36、Inspector/Dialog 42、Control/HUD/Popover 18；同时集中 header/OSC/inspector/control/field/footer/selection/atmosphere 等 alpha 真值。
+- `ShadowPrimitives/ElevationTokens` 映射最终四级空间阴影：Floating `42/12/0/.12`、Control `16/5/0/.08`、Window `70/24/0/.12`、Immersive Window `65/22/0/.11`；阴影颜色复用既有 `ColorPrimitives.shadowPlum #2E1F47`，不建立第二颜色真值。
+- `MotionPrimitives/MotionTokens` 映射 duration `0/120/160/180/200/240 ms` 与 Figma easing；CSS cubic-bezier 转为 Qt `Easing.BezierSpline` 控制点数组，Reduce Motion 时统一切为 `Easing.Linear` 且 transition duration 归零。
+- `MotionTokens.reduceMotionEnabled` 是 Presentation 层的运行时配置入口，不创建第二播放状态或持久化 owner。OSC `hideDelay = 2200 ms` 属于语义性 inactivity delay，在 Standard/Reduce Motion 均保持 2200，不因“减少动态效果”改变交互时序。
+- `OpacityPrimitives/OpacityTokens` 将 Figma 交互透明度百分比在单点转换为 QML `Item.opacity` 的 `0.0–1.0`：hidden 0、scrim .18、disabled .38、idle .72、pressed .84、visible 1；消费者不再重复换算。
+- `ZOrderPrimitives/ZOrderTokens` 固定层级：Video 0 → Atmosphere 10 → Media 20 → Contrast 25 → Header 30 → Overlay 35 → OSC 40 → Inspector 50 → Popover 60 → HUD 70 → Toast 80 → Dialog Scrim 90 → Dialog 100。
+- Theme CMake 将上述 singleton 纳入既有 `Player.Presentation.Theme` URI；不新增公开 URI、不手写 qmldir。
+
+### 验证设计
+
+- 新增独立 `theme_effect_tokens` CTest，避免把 R5-03 contract 继续堆入 R5-02 的 `theme_tokens`。
+- QML contract smoke 会验证代表性 Radius、Blur/Material、Elevation、Opacity、Z-order、Motion 真值与标准模式 easing 控制点。
+- Reduce Motion 测试会运行时开启 `MotionTokens.reduceMotionEnabled`，确认 OSC/Inspector/Popover/Timeline/Control 等 transition duration 均变为 0、Bezier 数据移除，同时 `oscHideDelay` 保持 **2200 ms**。
+- 静态扫描 shell/screens/features 中的 QML，阻止裸 `radius/z/opacity/duration` 数值字面量回流；token 定义自身不在扫描范围。
+- 新增测试后 Windows CTest 预计由 43 增至 **44**。关闭条件为 configure、Debug build、无 warning `player_qml_lint`、`theme_tokens`、`theme_effect_tokens`、`qml_module_boundaries` 与全量 **44/44 CTest** 全部通过，并完成 `Player.exe` 启动 smoke。
+
+### 当前限制
+
+- R5-03 建立的是材质/动效基础真值，并没有把 Qt Quick Surface 控件提前实现出来；因此当前应用不会仅因新增 Blur/Shadow token 就自动出现最终玻璃模糊和阴影，真实消费在 R5-08。
+- `MotionTokens.reduceMotionEnabled` 当前是可注入的运行时 Presentation 配置点，尚未接 Preferences/系统辅助功能持久化；该集成属于后续真实设置/可访问性链路，不在 R5-03 制造额外状态 owner。
+- 当前容器无法访问用户锁定的 Windows Qt/libmpv sibling 环境，未在容器伪造 configure/build/CTest 结果；Windows 最终验证需要在用户现有开发机执行。
+- **R5-03 当前为 Candidate；R5-04 未开始。**
