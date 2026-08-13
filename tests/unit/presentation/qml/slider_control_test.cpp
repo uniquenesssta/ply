@@ -177,6 +177,10 @@ Item {
     QVERIFY(edited.isValid());
     QVERIFY(finished.isValid());
 
+    QTest::mouseMove(&window, QPoint(55, 36));
+    QTRY_VERIFY_WITH_TIMEOUT(slider->property("hovered").toBool(), 1000);
+    QCOMPARE(slider->property("visualThumbSize").toInt(), 12);
+
     QTest::mousePress(
         &window,
         Qt::LeftButton,
@@ -242,8 +246,10 @@ Item {
     auto* rootItem = qobject_cast<QQuickItem*>(object.get());
     auto* slider = qobject_cast<QQuickItem*>(
         object->findChild<QObject*>(QStringLiteral("slider")));
+    QObject* focusRing = object->findChild<QObject*>(QStringLiteral("sliderFocusRing"));
     QVERIFY(rootItem != nullptr);
     QVERIFY(slider != nullptr);
+    QVERIFY(focusRing != nullptr);
 
     QQuickWindow window;
     window.setGeometry(0, 0, 260, 100);
@@ -253,6 +259,9 @@ Item {
 
     slider->forceActiveFocus(Qt::TabFocusReason);
     QTRY_VERIFY_WITH_TIMEOUT(slider->hasActiveFocus(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        fuzzyEqual(focusRing->property("opacity").toDouble(), 0.82),
+        1000);
 
     QTest::keyClick(&window, Qt::Key_Right);
     QTRY_VERIFY_WITH_TIMEOUT(
