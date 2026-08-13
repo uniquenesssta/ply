@@ -82,3 +82,44 @@ set_tests_properties(
     theme_tokens
     PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+add_executable(
+    theme_effect_token_tests
+    theme_effect_token_test.cpp
+)
+
+player_apply_compiler_options(theme_effect_token_tests)
+player_enable_compiler_warnings(theme_effect_token_tests)
+player_enable_sanitizers(theme_effect_token_tests)
+player_enable_static_analysis(theme_effect_token_tests)
+
+add_dependencies(
+    theme_effect_token_tests
+    player_qml_lint
+)
+
+target_compile_definitions(
+    theme_effect_token_tests
+    PRIVATE
+        PLAYER_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_link_libraries(
+    theme_effect_token_tests
+    PRIVATE
+        player_presentation_theme
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(
+    NAME theme_effect_tokens
+    COMMAND theme_effect_token_tests
+)
+
+set_tests_properties(
+    theme_effect_tokens
+    PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+)

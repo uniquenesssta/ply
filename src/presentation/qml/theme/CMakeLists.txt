@@ -8,6 +8,19 @@ set(PLAYER_THEME_SINGLETONS
     SpacingTokens.qml
     SizePrimitives.qml
     LayoutTokens.qml
+    RadiusPrimitives.qml
+    RadiusTokens.qml
+    BlurPrimitives.qml
+    ShadowPrimitives.qml
+    MaterialAlphaPrimitives.qml
+    MaterialTokens.qml
+    ElevationTokens.qml
+    MotionPrimitives.qml
+    MotionTokens.qml
+    OpacityPrimitives.qml
+    OpacityTokens.qml
+    ZOrderPrimitives.qml
+    ZOrderTokens.qml
 )
 
 set_source_files_properties(
