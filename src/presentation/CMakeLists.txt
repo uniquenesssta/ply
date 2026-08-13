@@ -79,4 +79,5 @@ add_custom_target(
         player_app_qmllint
         player_presentation_theme_qmllint
         player_presentation_primitives_qmllint
+        player_presentation_controls_qmllint
 )
