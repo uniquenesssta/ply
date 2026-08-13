@@ -4,13 +4,11 @@ import Player.Presentation.Primitives
 
 Item {
     id: root
-
-    default property alias extraContent: body.data
-
     property string title: ""
     property string detail: ""
     property color titleColor: ColorTokens.textPrimary
     property real textWidth: 0
+    readonly property alias contentColumn: body
 
     implicitWidth: body.width
     implicitHeight: body.implicitHeight
@@ -19,12 +17,10 @@ Item {
 
     Column {
         id: body
-
         width: root.textWidth > 0 ? root.textWidth : implicitWidth
         spacing: SpacingTokens.controlTight
 
         TitleText {
-            id: titleLabel
             objectName: "feedbackTitle"
             width: root.textWidth > 0 ? root.textWidth : implicitWidth
             text: root.title
@@ -34,7 +30,6 @@ Item {
         }
 
         BodyText {
-            id: detailLabel
             objectName: "feedbackDetail"
             width: root.textWidth > 0 ? root.textWidth : implicitWidth
             text: root.detail
