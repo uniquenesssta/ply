@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 / R5-08 Complete**；R5-09 Feedback controls Candidate，Windows 最终验证待执行 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 / R5-08 / R5-09 Complete**；R5-10 Accessibility baseline Candidate，Windows 最终验证待执行 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,15 +100,27 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — R5-09 Feedback controls candidate
+### 2026-08-14 — R5-10 Accessibility baseline candidate
+
+- 在既有基础 Controls 上补齐最小可访问性元数据，不建立第二套交互状态：internal `ButtonBase` 统一提供 `accessibleName/accessibileDescription` 输入，并映射 `Accessible.Button`、name/description、focusable、pressed、checkable/checked 与 press action；`Accessible.onPressAction` 继续调用既有 `activate()`，因此鼠标、键盘和辅助功能入口共享同一点击/切换链路。
+- `TextButton` / `ToggleButton` 默认从可见 `text` 派生 accessible name，缺少文字时回退既有 tooltip；`IconButton` 默认继承 `ButtonBase` 的 tooltip name，业务 consumer 仍可显式覆写 `accessibleName`。没有根据 `iconId` 猜测本地化名称，避免把资产标识当成用户语义。
+- `Slider` 新增显式 `accessibleName/accessibileDescription` 并映射 `Accessible.Slider`、name/description、focusable；现有 Left/Down、Right/Up、pointer、wheel、normalized value 与 signal 行为不变。R5-10 不提前实现高级 screen-reader value/action 适配，符合任务书“高级 screen reader 验证后续补”的边界。
+- 既有视觉 Focus 真值不改：Button 继续消费已冻结 focus ring 82%，Slider 继续消费 1.5px / 82% focus ring。为自动化验证给既有 Button focus border 增加内部 `objectName=buttonFocusRing`，不改变 geometry/color/z-order 或用户可观察外观。
+- 新增独立 `tests/unit/presentation/qml/accessibility/` 模块，`accessibility_controls` 覆盖 Accessible metadata 声明、Text/Icon/Toggle/Slider semantic name、Tab traversal、disabled control skip 与 Button/Slider focus-visible；测试目录独立于既有 Button/Slider tests，避免继续堆积到单个测试文件。
+- 第三版设计任务书的 Accessibility 基线要求 Focus visible、点击目标不因视觉缩小而缩小、Reduce Motion 与可解释键盘导航；现有 R5-06/R5-07 已保留 32/40px Button hit target、32px Slider host、键盘激活/调整和 Reduce Motion，本轮只补缺失的 accessibility metadata 与跨控件 Tab/focus 回归，不修改 Design Token。
+- R5-01 Feature import 门禁保持不变；本轮仅修改 Controls 与 accessibility tests，没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、Feature、配置、数据结构或持久化。新增 CTest 后预计全量测试数 **50 → 51**。
+- 当前候选尚未在锁定 Windows 环境执行 configure/build/qmllint/51-test/`Player.exe` smoke；必须通过 `accessibility_controls` 与既有 50 项回归后才能关闭 R5-10/Stage R5。**R5-10 当前为 Candidate。**
+
+### 2026-08-14 — R5-09 Feedback controls Complete
 
 - 按 R5-09 开发任务和第三版 D5/D8 反馈规则建立独立 `Player.Presentation.Feedback` QML module，物理目录为 `src/presentation/qml/feedback/`；公开类型为 `Toast`、`ErrorFeedback`、`LoadingFeedback`、`EmptyFeedback`，内部 `StatusFeedbackBody` / `ActionFeedbackBody` 只负责复用文本和可选 action 组合，不形成万能反馈组件。
 - 四类语义保持严格分层：Toast 是 z80 的非阻断结果玻璃 Surface；Error/Loading/Empty 是 z35 的媒体状态展示内容，其中 Error/Empty 可提供 action，Loading 不拥有 action、Timer 或大型 Spinner 卡片。组件只接受 title/detail/action 等展示输入，不判断错误来源、不读取 PlaybackSession、不调用 libmpv，也不拥有 timeout/dismiss 业务生命周期。
 - Toast 没有发明新几何/材质 token，直接复用已经冻结的 `surfaceToast R22`、Popover-grade fill 52% / blur18、control shadow 16px·y5·8%、18px padding、feedback semantic colors 与 `ZOrderTokens.toast=80`。Error/Loading/Empty 复用既有 Typography/feedback colors/overlay z-order；没有新增图标资产或猜测 D5 未暴露的尺寸。
 - 设计来源限制已明确核对：第三版 D5/D8 任务书定义了 Feedback Priority 与 Toast/Error/Loading/Empty/HUD/Dialog 的职责，但当前可访问的最终 Figma 文件页只暴露 Framework/D0 节点，未暴露独立 D5 feedback component node。因此 R5-09 只实现任务书明确语义并复用已有冻结 token，不把缺失的 live Figma 几何自行补成“最终设计事实”。
 - Feedback module 只向内组合 Theme / Primitives / Controls / Surfaces；R5-01 的 Feature import 门禁完全不变，Feature 仍只允许直接 import Theme/Controls。本任务没有把 Feedback 或 Surfaces 加入 Feature 直连白名单，也没有修改现有公共播放 API。
-- `player_qml_lint` 已纳入 `player_presentation_feedback_qmllint`；新增独立 `feedback_controls` CTest，验证四类公开类型可加载且 role 不混用、Loading 无 action、Error/Empty 有 action、Toast 复用冻结 Surface contract；另有静态边界门禁禁止 Feedback QML 出现 Playback/backend 调用词或 `Timer`。预计全量测试数由 **49 → 50**。
-- R5-09 候选尚未在锁定 Windows 环境执行 configure/build/qmllint/50-test/`Player.exe` smoke。没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、配置、数据结构或持久化。**R5-09 当前为 Candidate；R5-10 未开始。**
+- `player_qml_lint` 纳入 `player_presentation_feedback_qmllint`；独立 `feedback_controls` CTest 验证四类公开类型可加载且 role 不混用、Loading 无 action、Error/Empty 有 action、Toast 复用冻结 Surface contract，并以静态边界门禁禁止 Feedback QML 出现 Playback/backend 调用词或 `Timer`。
+- 锁定 Windows 最终验收：configure **PASS**（Configuring 4.4 s / Generating 1.7 s）、Debug build **PASS**，`scripts/test.ps1` 的 QML lint 门禁完成且无 warning/error；全量 **50/50 CTest PASS，0 failed，52.39 s**，其中 `qml_module_boundaries`、`button_controls`、`slider_controls`、`surface_controls`、`feedback_controls` 全部 PASS；`Player.exe` startup smoke **PASS**，无 QML/运行时错误输出。Build 中 MSVC `/showIncludes` 中文输出存在控制台编码乱码，但没有形成 compiler warning/error 或门禁失败。
+- 没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、配置、数据结构或持久化。**R5-09 正式 Complete。**
 
 ### 2026-08-14 — R5-08 Surface controls Complete
 
