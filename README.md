@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 Complete**；R5-05 Typography primitives 为 Candidate，首轮 Windows 回归 45/46，通过后已修正 Feature→Primitives 越界，等待复测 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 Complete**；R5-06 Button controls 尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -100,13 +100,13 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-13 — R5-05 typography primitives candidate
+### 2026-08-13 — R5-05 Typography primitives Complete
 
 - 重新读取第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 本地 Text Styles；现有 `TypographyTokens` 的 Inter / Noto Sans SC / Geist Mono、字号和字重已经与最终设计一致，因此 R5-05 不复制或改写字体真值。
 - 新增 `primitives/text/TitleText.qml`、`BodyText.qml`、`CaptionText.qml`、`TimecodeText.qml`。四类 primitive 分别消费既有 semantic typography/color token，并覆盖 Inspector/Media 标题、Supporting/Control 正文、Meta/Technical/Strong 说明和 M/S/XS Timecode 变体；标题和说明默认单行右侧 ellipsis，Timecode 固定单行并使用 Geist Mono 语义字体。
 - 首轮 Windows configure/build 均 PASS；`typography_primitives` 自身 PASS，但全量回归为 **45/46 PASS**。唯一失败是既有 `qml_module_boundaries`：候选把 `PlayerChrome` 直接改为 `import Player.Presentation.Primitives`，违反 R5-01 已冻结的 Feature 仅直接消费 Theme/Controls 的边界。
-- 修复不放宽 R5-01 门禁：已撤回 `PlayerChrome → Primitives` 直接依赖并恢复既有 Theme/TypographyTokens 消费；同时删除本轮错误新增的“所有产品 QML 必须直接使用 typography primitive”扫描。`typography_primitives` 继续独立验证 semantic style、长标题 ellipsis 与 Geist Mono Timecode 契约，供后续 Controls/Surfaces 组合使用。
-- 没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期或播放接口。R5-02 已记录的字体文件未随应用捆绑限制仍然存在；修复后的 Windows build/46-test/启动 smoke 尚待复测，因此 **R5-05 仍为 Candidate**。
+- 修复没有放宽 R5-01 门禁：撤回 `PlayerChrome → Primitives` 直接依赖并恢复既有 Theme/TypographyTokens 消费，同时删除错误新增的“所有产品 QML 必须直接使用 typography primitive”扫描；`typography_primitives` 继续独立验证 semantic style、长标题 ellipsis 与 Geist Mono Timecode 契约，供后续 Controls/Surfaces 组合使用。
+- 修复后 Windows Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且无 warning/error；全量 **46/46 CTest PASS，0 failed，49.49 s**，其中 `qml_module_boundaries` 与 `typography_primitives` 均 PASS；`Player.exe` 实际启动 smoke 无 QML/运行时错误输出。没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期或播放接口。字体文件仍未随应用捆绑，沿用 R5-02 已记录的系统 fallback 限制。**R5-05 正式 Complete。**
 
 ### 2026-08-13 — R5-04 Complete
 
