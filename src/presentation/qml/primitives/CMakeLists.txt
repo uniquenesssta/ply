@@ -17,9 +17,7 @@ set(PLAYER_ICON_ASSETS
 
 set_source_files_properties(
     IconCatalog.qml
-    PROPERTIES
-        QT_QML_SINGLETON_TYPE TRUE
-        QT_QML_INTERNAL_TYPE TRUE
+    PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 
 foreach(icon_file IN LISTS PLAYER_ICON_ASSETS)
