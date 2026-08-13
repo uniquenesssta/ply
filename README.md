@@ -104,7 +104,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 - 从第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 直接导出并纳入当前已存在的主操作 glyph：`previous/play/next/volume/subtitles/playlist/fullscreen/close/search`；SVG path 数据未手工重绘。Figma 当前没有独立 Pause/Mute/Exit-Fullscreen 等最终 glyph，因此本任务不伪造缺失资产，未知 `iconId` 由 `Icon.diagnostic` 明确暴露。
 - 新增 `Player.Presentation.Primitives/Icon.qml` 与 internal singleton `IconCatalog.qml`：Catalog 只拥有 `icon id → qrc resource / 默认色角色`，Icon 只负责加载、intrinsic size、semantic color 与状态诊断。默认 primary/secondary 颜色映射既有 `ColorTokens.iconPrimary/iconSecondary`。
-- SVG 统一放入 `src/presentation/qml/assets/icons/`，由 `player_presentation_primitives` QML module 以固定 resource alias 打包；Icon 着色使用 Qt 6.8 自带 `QtQuick.Effects.MultiEffect` colorization，无新增第三方/生产依赖。
+- SVG 统一放入 `src/presentation/qml/assets/icons/`，由 `player_presentation_primitives` QML module 以固定 resource alias 打包；Icon semantic tint 使用锁定 Qt **6.8.3** 已包含的 `QtQuick.Effects.MultiEffect`。没有新增外部包或第三方许可证，但 primitives 模块新增对现有 `QtQuick.Effects` QML runtime module 的依赖，Windows 部署需包含既有 `effectsplugin.dll`；用户当前 Qt 安装已确认该模块存在。相比引入 QtSvg/C++ image provider 或复制多套预着色 SVG，该方案保持单一 Figma SVG 真值且只对 22/24 px 图标增加轻量 colorization pass。
 - `player_qml_lint` 现在包含 primitives lint；新增 `icon_pipeline` CTest，验证九个当前 Figma glyph 全部从 qrc 加载、Figma intrinsic 22/24 尺寸、primary/secondary semantic tint、未知 id 诊断、资产清单和产品 QML 不绕过 Icon primitive。CTest 预期由 44 增至 **45**。
 - 未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口或当前 Player 骨架行为。R5-04 当前保持 Candidate，需锁定 Windows 环境完成 configure/build、无 warning qmllint、45/45 CTest 和 `Player.exe` 启动 smoke 后才能标 Complete。
 
