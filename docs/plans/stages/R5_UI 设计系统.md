@@ -416,7 +416,7 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 
 ## 14. R5-03 实施记录（2026-08-13）
 
-状态：**Candidate — Windows 最终验证待执行。**
+状态：**R5-03 Complete（2026-08-13）。**
 
 ### 设计来源与职责边界
 
@@ -436,17 +436,42 @@ R6 所需基础组件齐全；qmllint/加载正常；不包含任何 libmpv/play
 - `ZOrderPrimitives/ZOrderTokens` 固定层级：Video 0 → Atmosphere 10 → Media 20 → Contrast 25 → Header 30 → Overlay 35 → OSC 40 → Inspector 50 → Popover 60 → HUD 70 → Toast 80 → Dialog Scrim 90 → Dialog 100。
 - Theme CMake 将上述 singleton 纳入既有 `Player.Presentation.Theme` URI；不新增公开 URI、不手写 qmldir。
 
-### 验证设计
+### 验证与关闭
 
-- 新增独立 `theme_effect_tokens` CTest，避免把 R5-03 contract 继续堆入 R5-02 的 `theme_tokens`。
-- QML contract smoke 会验证代表性 Radius、Blur/Material、Elevation、Opacity、Z-order、Motion 真值与标准模式 easing 控制点。
-- Reduce Motion 测试会运行时开启 `MotionTokens.reduceMotionEnabled`，确认 OSC/Inspector/Popover/Timeline/Control 等 transition duration 均变为 0、Bezier 数据移除，同时 `oscHideDelay` 保持 **2200 ms**。
+- `theme_effect_tokens` CTest 独立验证代表性 Radius、Blur/Material、Elevation、Opacity、Z-order、Motion 真值与标准模式 easing 控制点。
+- Reduce Motion 测试运行时开启 `MotionTokens.reduceMotionEnabled`，确认 OSC/Inspector/Popover/Timeline/Control 等 transition duration 均变为 0、Bezier 数据移除，同时 `oscHideDelay` 保持 **2200 ms**。
 - 静态扫描 shell/screens/features 中的 QML，阻止裸 `radius/z/opacity/duration` 数值字面量回流；token 定义自身不在扫描范围。
-- 新增测试后 Windows CTest 预计由 43 增至 **44**。关闭条件为 configure、Debug build、无 warning `player_qml_lint`、`theme_tokens`、`theme_effect_tokens`、`qml_module_boundaries` 与全量 **44/44 CTest** 全部通过，并完成 `Player.exe` 启动 smoke。
+- 锁定 Windows 环境最终实测：configure **PASS**、Debug build **PASS**、`player_qml_lint` **无 warning**、全量 **44/44 CTest PASS，0 failed，49.52 s**；`theme_tokens`、`theme_effect_tokens`、`qml_module_boundaries` 均 PASS；`Player.exe` 启动 smoke **PASS**。
+- **R5-03 正式 Complete。**
 
 ### 当前限制
 
 - R5-03 建立的是材质/动效基础真值，并没有把 Qt Quick Surface 控件提前实现出来；因此当前应用不会仅因新增 Blur/Shadow token 就自动出现最终玻璃模糊和阴影，真实消费在 R5-08。
 - `MotionTokens.reduceMotionEnabled` 当前是可注入的运行时 Presentation 配置点，尚未接 Preferences/系统辅助功能持久化；该集成属于后续真实设置/可访问性链路，不在 R5-03 制造额外状态 owner。
-- 当前容器无法访问用户锁定的 Windows Qt/libmpv sibling 环境，未在容器伪造 configure/build/CTest 结果；Windows 最终验证需要在用户现有开发机执行。
-- **R5-03 当前为 Candidate；R5-04 未开始。**
+
+## 15. R5-04 实施记录（2026-08-13）
+
+状态：**R5-04 Complete（2026-08-13）。**
+
+### 设计来源与职责边界
+
+- 图标资源直接来自第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 当前已存在的主操作 glyph，不根据截图手绘或猜测缺失资产。
+- 当前纳入 `previous/play/next/volume/subtitles/playlist/fullscreen/close/search` 九个 glyph；Figma 当前没有独立 Pause/Mute/Exit-Fullscreen 等最终 glyph，因此本任务不伪造这些资源。
+- `IconCatalog` 只拥有 `iconId → qrc resource / 默认 semantic color role`；公开 `Icon` primitive 只负责加载、尺寸、semantic tint、ready/error 状态和诊断。Playback/libmpv 状态不进入 Design System。
+
+### 已实施
+
+- SVG 统一放入 `src/presentation/qml/assets/icons/`，由 `player_presentation_primitives` 以固定 qrc alias 打包；资源 path 数据保持 Figma 导出真值。
+- `Icon.qml` 公开 `iconId`、semantic `color`、`known/source/loadStatus/ready/diagnostic` 与 intrinsic size 契约；未知 id 明确返回 `Unknown icon id: ...`，不静默吞掉缺失资源。
+- `IconCatalog.qml` 保持模块内部实现。首轮候选曾同时标记 singleton/internal，Qt 6.8 configure 明确拒绝；最终修复为仅 internal 的普通 QML type，由每个 `Icon` 内部实例化，不扩大公共 API。
+- primary/secondary 默认 tint 复用既有 `ColorTokens.iconPrimary/iconSecondary`；着色使用锁定 Qt 6.8.3 自带 `QtQuick.Effects.MultiEffect`。没有新增外部包或第三方许可证，但 primitives 模块新增对既有 `QtQuick.Effects` runtime module 的依赖，Windows 部署需包含现有 `effectsplugin.dll`。
+- `player_qml_lint` 覆盖 primitives；产品 QML 静态门禁禁止绕过 `Icon` primitive 直接引用 `assets/icons/`。
+- 未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、播放接口或当前 Player 骨架行为。
+
+### 验证与关闭
+
+- 新增独立 `icon_pipeline` CTest：验证九个 Figma glyph 从 qrc 加载成功、22/24 intrinsic size、primary/secondary semantic tint、未知 id 诊断、资产清单与产品 QML 不绕过 primitive。
+- 首轮 Windows configure 在 `daf6f17` 因 Qt 6.8 `singleton + internal` 冲突硬失败；当轮 build 的 `rules.ninja` 缺失与 test development marker 缺失均为 configure 未完成后的连锁结果，不作为独立故障。
+- 修复后锁定 Windows 环境最终实测：全量 **45/45 CTest PASS，0 failed，49.83 s**；`qml_module_boundaries`、`theme_tokens`、`theme_effect_tokens`、`icon_pipeline` 均 PASS。
+- `Player.exe` 实际启动 smoke 已由用户确认 **PASS**：启动无报错。
+- **R5-04 正式 Complete。R5-05 尚未开始。**
