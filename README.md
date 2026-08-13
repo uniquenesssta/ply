@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 Complete**；R5-06 Button controls 尚未开始 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 Complete**；R5-06 Button controls 已完成候选实现，等待 Windows 47-test 与 `Player.exe` 启动验证 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -99,6 +99,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-13 — R5-06 Button controls candidate
+
+- 重新读取第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 的 D3-04 Transport 与 D3-06 Utility 设计上下文：Secondary/Utility 固定 **32px hit / 22px visual / R16**，Primary Playback 固定 **40px / 24px visual / R20**；交互权重使用 rest 72%、hover 100%、pressed 84%、disabled 38%，focus ring 82%，Primary glass alpha 使用 48/52/42%，hover/focus 使用既有 120ms Ease Out、pressed 0ms，Reduce Motion 继续降为 0ms。
+- 新增 `controls/buttons/ButtonBase.qml`、`IconButton.qml`、`TextButton.qml`、`ToggleButton.qml`。内部 `ButtonBase` 统一拥有 pointer hover/press、Space/Enter/Return 键盘激活、focus、disabled gate、toggle/checked 与 tooltip-request 状态；三个公开控件只消费该输入契约并负责各自视觉语义，不复制输入状态机、不持有播放业务状态。
+- `IconButton` 支持 Secondary / Primary 两级 emphasis，并暴露 `opticalOffsetX` 给后续 Transport consumer 应用已冻结的 Prev/Play/Next 光学修正；`ToggleButton` 复用 D3-06 open-selection 语义，selection fill 66% 与 selection border 28% 分层实现；`TextButton` 采用低权重 semantic text 状态，不凭空新增品牌色实心按钮变体。
+- R5-06 首次真实消费暴露两个基础 token 缺口：补充 `SizePrimitives.size24 → LayoutTokens.playbackIcon` 与 `OpacityPrimitives.focus → OpacityTokens.focusRing`，分别承载 Figma 的 24px Primary glyph 与 82% focus ring；未改写既有 72/84/38/100% 或 Radius/Material/Motion 真值。
+- `Player.Presentation.Controls` 现在显式依赖 Theme + Primitives；Feature import 规则保持 R5-01 冻结状态，Feature 仍只直接消费 Theme/Controls，不允许重新出现 Feature→Primitives 深依赖。`player_qml_lint` 已纳入 controls lint。
+- Tooltip 本轮提供 `toolTipText + toolTipVisible` 请求/状态契约，没有伪造 Figma 尚未冻结的 Tooltip Surface；真正 overlay 材质与宿主仍由后续 Surface/Feedback 层负责。Primary 控件当前消费玻璃填充/边框/交互 alpha，不在通用 Button 内复制依赖背景捕获的 backdrop-blur 实现。
+- 新增独立 `button_controls` CTest，覆盖公开类型加载与 32/22、40/24、R16/R20、72/48/82 等设计契约，真实 pointer click、Space 键 toggle、disabled no-op、focus tooltip-request 以及 Reduce Motion 传播；全量 Windows CTest 预计由 46 增至 **47**。本轮修改了 QML module/CMake，因此关闭前必须重新 configure/build/qmllint/47-test 并完成 `Player.exe` smoke。当前容器没有锁定 Windows Qt/libmpv sibling 环境，未把这些未执行验证写成 PASS。**R5-06 当前为 Candidate；R5-07 未开始。**
 
 ### 2026-08-13 — R5-05 Typography primitives Complete
 
