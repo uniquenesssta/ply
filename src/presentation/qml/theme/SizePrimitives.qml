@@ -8,6 +8,7 @@ QtObject {
     readonly property int size16: 16
     readonly property int size21: 21
     readonly property int size22: 22
+    readonly property int size24: 24
     readonly property int size26: 26
     readonly property int size28: 28
     readonly property int size32: 32
