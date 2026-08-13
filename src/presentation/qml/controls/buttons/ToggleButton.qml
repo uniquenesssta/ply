@@ -17,6 +17,7 @@ ButtonBase {
                                                ? OpacityTokens.controlHover
                                                : OpacityTokens.controlIdle
 
+    accessibleName: text.length > 0 ? text : toolTipText
     toggleOnActivate: true
     implicitWidth: Math.max(LayoutTokens.controlHitMinimum,
                             content.implicitWidth + (SpacingTokens.controlAdjacent * 2))
@@ -49,6 +50,7 @@ ButtonBase {
     Rectangle {
         id: selectionBorder
 
+        objectName: "buttonFocusRing"
         anchors.fill: parent
         radius: RadiusTokens.controlTransportSecondary
         color: "transparent"
