@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete；R6-02 视频 viewport Complete；R6-03 Floating Header Complete**；R6-04 Bottom control region implementation candidate 已提交（`bcac6a31`）；最后已验证基线为 Windows configure/build/QML lint PASS、**54/54 CTest PASS（54.36 s）**，R6-04 Windows/运行验收待执行 |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen、R6-02 Video viewport、R6-03 Floating Header、R6-04 Bottom control region 均 Complete**；R6-04 Windows configure/build/QML lint PASS、**55/55 CTest PASS（53.23 s）**、`Player.exe` 启动验收完成；R6-05 Transport implementation candidate 已提交，Windows validation pending |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -102,14 +102,22 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — R6-04 Bottom control region implementation candidate
+### 2026-08-14 — R6-05 Transport implementation candidate
 
-- `PlayerBottomRegion` 继续保持 R6-01 的 replaceable Host 职责；新增 screen-local `screens/player/osc/PlayerOscLayout.qml` 与 `OscControlRow.qml`。`PlayerOscLayout` 只拥有 OSC 两层布局和 Timeline / Transport / Volume / Utility 四个独立 slot，`OscControlRow` 只拥有三类控制簇的排列与溢出边界，没有把任何 Feature 内部实现重新塞进 `PlayerScreen.qml`。
-- 按第三版 D3/D8 的单一 Surface 规则补齐 `Player.Presentation.Surfaces/OscSurface.qml`，直接复用既有 `Panel` 材质实现；Standard/Compact 分别消费已冻结的 **880 max width、124/106 height、R34/R32、34%/32% fill、blur36/38、z40** 等 semantic token，没有新增 primitive 数值、生产依赖或第二套玻璃实现。`surface_controls` 同步加入 Standard/Compact `OscSurface` 的真实 QML contract、replaceable slot 和 `overlay35 < osc40 < inspector50` 层级回归。
-- OSC 垂直网格完全由既有 token 组成：Standard 为 **18 top + 28 timeline + 14 gap + 40 control + 24 bottom = 124**；Compact 为 **12 + 26 + 6 + 40 + 22 = 106**。Surface 最大宽度 880 并始终水平居中，`PlayerScreen` 只根据可用宽度选择 Standard/Compact 的高度、底边距和 inset，不硬编码第二套几何。
-- 窄宽策略不缩小后续 Feature 的交互目标：Utility 固定靠右，Transport→Volume 保持 leading cluster 顺序；可用宽度不足时 leading cluster 在非负 clip 区域内截断，避免与 Utility 重叠。当前 `MainWindow` 最小宽度仍为 960，因此正常窗口最小尺寸下 880px Standard OSC 仍可容纳；本轮 Compact 是窄宽安全降级边界，真实 Fullscreen Compact mode 仍归 R6-08，不提前混入窗口模式逻辑。
-- 当前仓库尚无 R6-05~07 的 Transport/Timeline/Volume Feature controls，因此 R6-04 **没有创建静态假按钮、假时间轴或假音量控件**。本轮建立的是后续真实 Feature 可直接插入的稳定组合边界；在 R6-05~07 接入前，产品运行时预期只显示空的 Floating OSC Surface，而不是伪造“主要控制已经可用”。
-- 新增职责独立的 `player_bottom_region` CTest target，静态锁定 PlayerScreen→BottomRegion→OSC、四类 slot、Standard/Compact token、窄宽非负 clip 以及 Playback/libmpv 不得进入布局层；成功 configure 后全量测试数预期由 **54 → 55**。当前只完成远端源码/Figma任务书/模块边界差异审计，Windows Qt 6.8.3/MSVC 环境下的 configure、Debug build、QML lint、55 项 CTest 与 `Player.exe` 常见宽度运行验收尚未执行，**R6-04 仍是 implementation candidate，不得标记 Complete**。
+- 新增纯 Domain `playback_selectors.*`，从 `PlaybackSnapshot` 单向投影 `canPlay/canPause/canStop/isPlaying`；新增独立 `PlayerTransportViewModel` 只消费这些 selector 并发出 play/pause/stop intent，不拥有 Playback 状态、不直接访问 PlaybackSession/libmpv。
+- 新增 `PlaybackComposition`，产品启动现在真实创建 `PlaybackSessionThread`、共享 `PlaybackRequestIdGenerator` 与 Transport VM，并建立 `StatePublisher → VM → intent → PlaybackCommandBus` 链。Transport/Timeline/Volume 后续共享 RequestId 生成策略，避免多个 Feature 独立计数导致 RequestTracker duplicate-ID。
+- `QmlBootstrap` 增加 initial-properties 注入边界；VM 由 `ApplicationBootstrap → MainWindow → PlayerScreen → TransportControls` 显式传递，没有新增 QML singleton/service locator。ApplicationContainer shutdown 顺序调整为先销毁 QML，再停止 PlaybackComposition，最后关闭 Logging。
+- 新增 `features/player/transport/TransportControls.qml` 并直接插入 R6-04 Transport slot；按第三版 canonical OSC 使用 Previous / Primary Play / Next，Previous/Next 在 Playlist command/state 尚未存在时保持禁用。Feature QML 继续只 import Theme/Controls。
+- 最终 Figma 当前没有 Pause/Stop canonical glyph/control；候选没有手绘替代资产。Primary control 的 Tooltip/Accessible name 可随 `isPlaying` 切为 Pause，toggle intent 已接通，但视觉 glyph 暂时只能保持 canonical Play；Stop command 已接入 VM/CommandBus，却没有新增与设计不一致的可见 Stop button。该资产缺口在解决前阻止 R6-05 标记 Complete。
+- 新增 `playback_selectors`、`playback_request_ids`、`player_transport_view_model`、`player_transport_controls` 四个 CTest target，并扩展 `application_container` lifecycle；重新 configure 后预期全量测试数 **55 → 59**。Windows configure/build/QML lint/CTest 和产品 startup 尚未执行，当前只完成远端源码、Figma 与模块边界审计，**R6-05 仍是 implementation candidate**。
+
+### 2026-08-14 — R6-04 Bottom control region Complete
+
+- `PlayerBottomRegion` 保持 replaceable Host；`PlayerOscLayout` 只拥有 OSC 两层布局与 Timeline / Transport / Volume / Utility 四类 slot，`OscControlRow` 只拥有 control cluster 排列与窄宽 clip；各 Feature 实现没有回流 `PlayerScreen.qml`。
+- 新增 `OscSurface` 并复用既有 Panel 材质；Standard/Compact 使用冻结的 880px max width、124/106px height 与对应 Material/Radius/Z-order token。Utility 靠右，Transport→Volume 保持 leading 顺序，窄宽时只裁切 leading 可用区，不缩小交互目标。
+- R6-04 没有预造 R6-05~07 的静态假按钮/Timeline/Volume；新增独立 `player_bottom_region`，并扩展 `surface_controls` 覆盖 Standard/Compact `OscSurface` runtime contract。
+- 用户 Windows 锁定环境最终验收：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 1.9 s）；Debug build **PASS**；`scripts/test.ps1` 完成 QML lint；全量 **55/55 CTest PASS，0 failed，53.23 s**，新增 `player_bottom_region` **0.11 s PASS**；随后实际启动 `Player.exe`。用户明确要求收口，**R6-04 正式 Complete**。
+- 本地已有 `.gitignore`、`r4-04-qml-diagnostics/`、R4-09 1080p/4K JSON 继续作为受保护内容保留；没有 reset/clean，也没有修改 PlaybackSession、libmpv、Renderer、配置、数据结构或持久化。
 
 ### 2026-08-14 — R6-03 Floating Header Complete
 
@@ -206,7 +214,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - Tooltip 本轮提供 `toolTipText + toolTipVisible` 请求/状态契约，没有伪造 Figma 尚未冻结的 Tooltip Surface；真正 overlay 材质与宿主仍由后续 Surface/Feedback 层负责。Primary 控件当前消费玻璃填充/边框/交互 alpha，不在通用 Button 内复制依赖背景捕获的 backdrop-blur 实现。
 - 收口静态审查发现并修正 Primary `IconButton` 的 Focus 视觉偏差：`activeFocus` 不再触发 hover glass alpha，键盘 Focus 保持 Figma 冻结的 **48% rest glass + 82% focus ring**；同时 `button_controls` 新增真实 pointer hover/press、Primary hover 52% 与 Focus 48% 的直接断言，避免只测 click 而遗漏视觉状态契约。
 - 首轮锁定 Windows 验证：configure PASS、Debug build PASS；build 在 Qt 6.8.3 `qvariant.h` 的 QML 生成代码编译路径出现 MSVC **C4702 unreachable code** warning，属于当前 MSVC/Qt system-header 组合的已知外部工具链告警，项目未新增 suppress/白名单。CTest 为 **46/47 PASS**，唯一失败 `button_controls`；5 个失败用例均在组件解析阶段报 `ButtonBase is not a type`，其他既有 46 项回归全部 PASS。
-- 该失败根因是 Controls 的 QML 源位于 `buttons/` 子目录，而 internal `ButtonBase` 与公开按钮没有像已验证的主 Presentation 模块一样统一落到 canonical QML resource root。修复保持源码目录模块化不变：为 Controls QML 文件设置 basename `QT_RESOURCE_ALIAS`，并按 Qt 6.8 对 alias 的约束为该 module 使用 `NO_GENERATE_EXTRA_QMLDIRS`；`ButtonBase` 继续为 internal type，没有扩大为公共 API或引入 path/deep import。
+- 该失败根因是 Controls 的 QML 源位于 `buttons/` 子目录，而 internal `ButtonBase` 与公开按钮没有像已验证的主 Presentation 模块一样统一落到 canonical QML resource root。修复保持源码目录模块化不变：为 Controls QML 文件设置 basename `QT_RESOURCE_ALIAS`，并按 Qt 6.8 对 alias 的约束为该 module 使用 `NO_GENERATE_EXTRA_QMLDIRS`；`ButtonBase` 继续为 internal type，没有扩大为公共 QML API或引入 path/deep import。
 - 最终锁定 Windows 验证：configure **PASS**（Configuring 3.6 s / Generating 1.6 s）、Debug build **PASS**、controls qmllint 门禁完成；全量 **47/47 CTest PASS，0 failed，50.62 s**，其中 `qml_module_boundaries`、`theme_tokens`、`theme_effect_tokens`、`icon_pipeline`、`typography_primitives`、`button_controls` 均 PASS；`Player.exe` 实际启动 smoke **PASS**，无 QML/运行时错误输出。Qt 6.8.3 system header `qvariant.h` 的生成代码路径仍输出 C4702 warning，未通过 suppression/白名单掩盖，当前不影响 build/test/runtime。没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期或播放接口。**R5-06 正式 Complete；R5-07 未开始。**
 
 ### 2026-08-13 — R5-05 Typography primitives Complete
