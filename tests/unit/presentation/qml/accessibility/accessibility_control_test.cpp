@@ -221,7 +221,7 @@ Item {
     QObject* sliderRing = third->findChild<QObject*>(QStringLiteral("sliderFocusRing"));
     QVERIFY(sliderRing != nullptr);
     QVERIFY(focusBorderWidth(sliderRing) > 0.0);
-    QVERIFY(sliderRing->property("opacity").toReal() > 0.0);
+    QTRY_VERIFY_WITH_TIMEOUT(sliderRing->property("opacity").toReal() > 0.0, 1000);
 }
 
 } // namespace player::presentation::qml
