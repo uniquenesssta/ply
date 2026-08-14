@@ -43,7 +43,11 @@ void TransportControlsTest::usesCanonicalTransportControlsAndViewModelIntent()
     QVERIFY(source.contains(QStringLiteral("iconId: \"previous\"")));
     QVERIFY(source.contains(QStringLiteral("iconId: \"play\"")));
     QVERIFY(source.contains(QStringLiteral("iconId: \"next\"")));
-    QVERIFY(source.contains(QStringLiteral("emphasis: IconButton.Primary")));
+    QVERIFY(source.contains(QStringLiteral("property bool compact: false")));
+    QVERIFY(source.contains(QStringLiteral("emphasis: root.compact")));
+    QVERIFY(source.contains(QStringLiteral("? IconButton.Secondary")));
+    QVERIFY(source.contains(QStringLiteral(": IconButton.Primary")));
+    QVERIFY(source.contains(QStringLiteral("LayoutTokens.controlIconCompact")));
 
     QVERIFY(source.contains(QStringLiteral("root.viewModel.canPrevious")));
     QVERIFY(source.contains(QStringLiteral("root.viewModel.canPlay")));
