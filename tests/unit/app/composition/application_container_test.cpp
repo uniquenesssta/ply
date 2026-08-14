@@ -1,6 +1,8 @@
 #include "app/composition/application_container.h"
 
 #include "app/bootstrap/logging_bootstrap.h"
+#include "app/composition/playback_composition.h"
+#include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 
 #include <QDir>
 #include <QFile>
@@ -21,6 +23,7 @@ private slots:
     void ownsResolvedRuntimePathsByValue();
     void loggingBootstrapCreatesResolvedDevelopmentLog();
     void adoptsPreStartedLoggingBootstrap();
+    void playbackCompositionStartsAndStops();
     void shutdownIsIdempotent();
 };
 
@@ -103,6 +106,30 @@ void ApplicationContainerTest::adoptsPreStartedLoggingBootstrap()
         qPrintable(error));
 
     container.shutdown();
+}
+
+void ApplicationContainerTest::playbackCompositionStartsAndStops()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    ApplicationContainer container(RuntimePaths::resolve(
+        RuntimePaths::Mode::Portable,
+        temporaryDirectory.path()));
+    PlaybackComposition& playback = container.playbackComposition();
+
+    QVERIFY(!playback.isRunning());
+    QVERIFY(!playback.transportViewModel().canPlay());
+    QVERIFY(!playback.transportViewModel().canPause());
+    QVERIFY(!playback.transportViewModel().canStop());
+
+    QString error;
+    QVERIFY2(playback.start(&error), qPrintable(error));
+    QTRY_VERIFY_WITH_TIMEOUT(playback.isRunning(), 1000);
+
+    error.clear();
+    QVERIFY2(playback.stop(&error), qPrintable(error));
+    QVERIFY(!playback.isRunning());
 }
 
 void ApplicationContainerTest::shutdownIsIdempotent()

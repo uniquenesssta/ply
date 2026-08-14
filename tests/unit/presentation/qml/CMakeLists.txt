@@ -327,3 +327,4 @@ set_tests_properties(
 add_subdirectory(accessibility)
 add_subdirectory(feedback)
 add_subdirectory(player_screen)
+add_subdirectory(player_transport)

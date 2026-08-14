@@ -96,6 +96,8 @@ add_executable(
     unit/app/composition/application_container_test.cpp
     ../src/app/composition/application_container.cpp
     ../src/app/composition/application_container.h
+    ../src/app/composition/playback_composition.cpp
+    ../src/app/composition/playback_composition.h
     ../src/app/bootstrap/logging_bootstrap.cpp
     ../src/app/bootstrap/logging_bootstrap.h
     ../src/app/bootstrap/qml_bootstrap.cpp
@@ -119,10 +121,14 @@ target_link_libraries(
     application_container_tests
     PRIVATE
         player_foundation
+        player_playback_application
+        player_presentation_transport
         Qt6::Core
         Qt6::Qml
         Qt6::Test
 )
+
+player_stage_libmpv_runtime(application_container_tests)
 
 add_test(
     NAME application_container
@@ -398,4 +404,4 @@ add_test(
 add_subdirectory(unit/playback/domain)
 add_subdirectory(unit/playback/application)
 add_subdirectory(unit/playback/infrastructure/mpv/render)
-add_subdirectory(unit/presentation/qml)
+add_subdirectory(unit/presentation)

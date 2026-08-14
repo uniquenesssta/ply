@@ -138,4 +138,27 @@ add_test(
     COMMAND playback_invariants_domain_tests
 )
 
+add_executable(
+    playback_selector_domain_tests
+    state/playback_selectors_test.cpp
+)
+
+player_apply_compiler_options(playback_selector_domain_tests)
+player_enable_compiler_warnings(playback_selector_domain_tests)
+player_enable_sanitizers(playback_selector_domain_tests)
+player_enable_static_analysis(playback_selector_domain_tests)
+
+target_link_libraries(
+    playback_selector_domain_tests
+    PRIVATE
+        player_playback_domain
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME playback_selectors
+    COMMAND playback_selector_domain_tests
+)
+
 add_subdirectory(state/reducer)
