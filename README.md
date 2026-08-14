@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete**；R6-02 视频 viewport 实现候选已提交（`6227451`），Windows configure/build/QML lint 与空/音频/视频三态验收待执行；最后已验证基线仍为 **52/52 CTest PASS（52.79 s）** |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete；R6-02 视频 viewport Complete**；Windows configure/build/QML lint PASS、**53/53 CTest PASS（53.38 s）**；R6-03 未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -102,13 +102,14 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — R6-02 Video viewport implementation candidate
+### 2026-08-14 — R6-02 Video viewport Complete
 
 - `VideoViewport.qml` 新增 `hasMedia` / `hasVideo` 的 presentation 输入契约，默认保持空媒体；`hasMedia && !hasVideo` 映射纯音频，只有 `hasMedia && hasVideo` 才显示 `VideoSurface`。空媒体、纯音频、视频态分别消费既有 `surfaceEmpty` / `surfaceAudio` / `surfaceLetterbox`，没有新增颜色真值或裸色值。
 - `VideoSurface.qml` 继续作为 R4 `MpvVideoItem` 的唯一 QML Render Surface owner；`MpvVideoItem` 仍 `anchors.fill: parent`，未迁移进 `PlayerScreen` / `VideoViewport`。视频 underlay 改为既有 `surfaceLetterbox`，aspect-fit 继续由已验证的 R4/libmpv Render 路径保持正确纵横比，R6-02 不复制第二套 QML 裁切/缩放算法。
-- 在既有 `tests/unit/presentation/qml/player_screen/` 模块中新增职责独立的 `video_viewport_test.cpp` 与 `player_video_viewport` CTest target，静态锁定媒体能力输入、三态 semantic background、VideoSurface 可见性以及 `MpvVideoItem` 不得上移到 viewport 的模块边界；既有 `player_screen_structure` 测试未混入 R6-02 断言。
-- 当前仓库尚无 `PlayerViewModel` / playback presentation composition，因此本提交只建立 `PlaybackSnapshot/media capability` 后续可绑定的 viewport 输入边界，不把未存在的 snapshot→QML live binding 伪装为已接通，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。
-- 本环境已完成远端源码/影响边界复核与候选静态契约检查；由于当前容器无法通过本地 Git 网络解析 GitHub，且未安装 Qt `qmllint`/Windows MSVC/libmpv 运行环境，**Windows configure、Debug build、QML lint、CTest 与空媒体/纯音频/视频三态真实运行验收尚未执行**。因此 R6-02 当前为 implementation candidate，**不得标记 Complete**；需在 Windows 锁定环境运行标准 configure/build/test 以及三态手工验证后收口。
+- 在既有 `tests/unit/presentation/qml/player_screen/` 模块中新增职责独立的 `video_viewport_test.cpp` 与 `player_video_viewport` CTest target，锁定媒体能力输入、空媒体/纯音频/视频三态 semantic background、VideoSurface 可见性以及 `MpvVideoItem` 不得上移到 viewport 的模块边界；既有 `player_screen_structure` 测试未混入 R6-02 断言。
+- 当前仓库尚无 `PlayerViewModel` / playback presentation composition，因此本任务建立的是 `PlaybackSnapshot/media capability` 后续绑定所需的 viewport presentation 边界，不提前把 ViewModel/CommandBus/PlaybackSession composition 塞进 R6-02；没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。
+- 用户 Windows 锁定环境实测：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 1.8 s）；Debug `build.ps1` **PASS**，新增 `player_video_viewport_tests.exe` 正常编译链接并完成 Qt runtime deployment；`scripts/test.ps1` 的 QML lint 门禁完成，全量 **53/53 CTest PASS，0 failed，53.38 s**，新增 `player_video_viewport` PASS，既有 R2–R6-01 全部回归保持 PASS。构建日志中的 `/showIncludes` 中文乱码是已知控制台编码显示问题；`WrapVulkanHeaders` 未找到在当前固定 OpenGL backend 下未形成 configure/build/test 阻断。
+- 本地验证前工作区已有受保护内容：`.gitignore` 修改，以及 `r4-04-qml-diagnostics/`、R4-09 1080p/4K JSON 文件；本任务 pull/build/test 均未覆盖、删除或清理这些文件。**R6-02 正式 Complete；R6-03 未开始。**
 
 ### 2026-08-14 — R6-01 PlayerScreen composition Complete
 
@@ -120,7 +121,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 目标结构中的 `states/` 本轮没有创建空文件：R6-01 尚无独立状态 owner，Loading/Buffering/Ended/Error selector 属于后续 R6-11；不为了目录形式制造透明转发或推测状态抽象。当前仓库也尚无 `PlayerViewModel`，因此 R6-01 只建立 `PlayerViewModel → PlayerScreen → child features` 链中的 Screen/Host 边界，不把尚未存在的 VM 伪装为已接通。
 - 新增独立 `player_screen_structure` CTest，静态验证 PlayerScreen 只组合五类 Host、Host 使用正确 z-order/slot、VideoViewport 只包装 VideoSurface、Screen/Host 不出现 PlaybackSession/libmpv/mpv_ 业务词，并强制旧 `PlayerChrome.qml` 不再存在。全量测试数由 **51 → 52**。
 - 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被 `verify-project-layout.ps1` 阻断，原因是旧 scaffold 校验仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake 自动重跑正常，Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且无新增 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS。
-- 同源修复更新 `scripts/verify-project-layout.ps1`：required-files 真值改为 R6-01 五个 Screen Host + `VideoSurface`，旧 `PlayerChrome.qml` 改为 obsolete path；Presentation CMake 校验同步要求五个 Host 已进入 QML module；PlayerScreen composition 校验同步改为新五层结构。没有恢复旧 Chrome，也没有弱化项目布局门禁。
+- 同源修复更新 `scripts/verify-project-layout.ps1`：required-files 真值改为 R6-01 五个 Screen Host + `VideoSurface`，旧 `PlayerChrome.qml` 改为 obsolete path；Presentation CMake 校验同步要求五个 Host 已进入 QML module；PlayerScreen composition 校验同步改为新五层结构。没有恢复旧 Chrome，也没有弱化校验。
 - 修复后 `configure.ps1` 在锁定 Windows 环境复验 **PASS**：layout verifier 明确报告 R6-01 PlayerScreen composition 完整，CMake **Configuring 3.7 s / Generating 1.7 s**；此前 build/QML lint/52-test 结果保持有效，因为修复只涉及 verifier 与文档。
 - 最终手工 basic resize 验证 **PASS**：窗口缩小、放大均正常，内容始终铺满，没有错位或运行时报错；`Player.exe` 再次启动正常。未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-01 正式 Complete；R6-02 未开始。**
 
