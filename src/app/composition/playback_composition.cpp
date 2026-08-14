@@ -6,6 +6,7 @@
 #include "playback/application/session/playback_session_thread.h"
 #include "playback/application/state_publisher/state_publisher.h"
 #include "playback/domain/commands/playback_command.h"
+#include "playback/domain/commands/seek_command.h"
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 
