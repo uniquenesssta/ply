@@ -99,7 +99,7 @@ void PlayerBottomRegionTest::oscLayoutOwnsSurfaceAndTwoLaneGrid()
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscTimelineLaneHeightCompact")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscTimelineLaneHeight")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscControlLaneHeight")));
-    QVERIFY(source.contains(QStringLiteral("clip: true")));
+    QVERIFY(source.contains(QStringLiteral("clip: false")));
 
     verifyAbsent(
         source,
