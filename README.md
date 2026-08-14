@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete；R6-02 视频 viewport Complete；R6-03 Floating Header Complete**；Windows configure/build/QML lint PASS、**54/54 CTest PASS（54.36 s）**，`Player.exe` 窗口动作与 resize 手工验收 PASS |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete；R6-02 视频 viewport Complete；R6-03 Floating Header Complete**；R6-04 Bottom control region implementation candidate 已提交（`bcac6a31`）；最后已验证基线为 Windows configure/build/QML lint PASS、**54/54 CTest PASS（54.36 s）**，R6-04 Windows/运行验收待执行 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -101,6 +101,15 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-14 — R6-04 Bottom control region implementation candidate
+
+- `PlayerBottomRegion` 继续保持 R6-01 的 replaceable Host 职责；新增 screen-local `screens/player/osc/PlayerOscLayout.qml` 与 `OscControlRow.qml`。`PlayerOscLayout` 只拥有 OSC 两层布局和 Timeline / Transport / Volume / Utility 四个独立 slot，`OscControlRow` 只拥有三类控制簇的排列与溢出边界，没有把任何 Feature 内部实现重新塞进 `PlayerScreen.qml`。
+- 按第三版 D3/D8 的单一 Surface 规则补齐 `Player.Presentation.Surfaces/OscSurface.qml`，直接复用既有 `Panel` 材质实现；Standard/Compact 分别消费已冻结的 **880 max width、124/106 height、R34/R32、34%/32% fill、blur36/38、z40** 等 semantic token，没有新增 primitive 数值、生产依赖或第二套玻璃实现。`surface_controls` 同步加入 Standard/Compact `OscSurface` 的真实 QML contract、replaceable slot 和 `overlay35 < osc40 < inspector50` 层级回归。
+- OSC 垂直网格完全由既有 token 组成：Standard 为 **18 top + 28 timeline + 14 gap + 40 control + 24 bottom = 124**；Compact 为 **12 + 26 + 6 + 40 + 22 = 106**。Surface 最大宽度 880 并始终水平居中，`PlayerScreen` 只根据可用宽度选择 Standard/Compact 的高度、底边距和 inset，不硬编码第二套几何。
+- 窄宽策略不缩小后续 Feature 的交互目标：Utility 固定靠右，Transport→Volume 保持 leading cluster 顺序；可用宽度不足时 leading cluster 在非负 clip 区域内截断，避免与 Utility 重叠。当前 `MainWindow` 最小宽度仍为 960，因此正常窗口最小尺寸下 880px Standard OSC 仍可容纳；本轮 Compact 是窄宽安全降级边界，真实 Fullscreen Compact mode 仍归 R6-08，不提前混入窗口模式逻辑。
+- 当前仓库尚无 R6-05~07 的 Transport/Timeline/Volume Feature controls，因此 R6-04 **没有创建静态假按钮、假时间轴或假音量控件**。本轮建立的是后续真实 Feature 可直接插入的稳定组合边界；在 R6-05~07 接入前，产品运行时预期只显示空的 Floating OSC Surface，而不是伪造“主要控制已经可用”。
+- 新增职责独立的 `player_bottom_region` CTest target，静态锁定 PlayerScreen→BottomRegion→OSC、四类 slot、Standard/Compact token、窄宽非负 clip 以及 Playback/libmpv 不得进入布局层；成功 configure 后全量测试数预期由 **54 → 55**。当前只完成远端源码/Figma任务书/模块边界差异审计，Windows Qt 6.8.3/MSVC 环境下的 configure、Debug build、QML lint、55 项 CTest 与 `Player.exe` 常见宽度运行验收尚未执行，**R6-04 仍是 implementation candidate，不得标记 Complete**。
 
 ### 2026-08-14 — R6-03 Floating Header Complete
 
