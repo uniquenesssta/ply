@@ -50,7 +50,7 @@ private slots:
     void cancelRestoresActualWithoutSeek();
     void generationChangeCancelsScrub();
     void nonSeekableAndUnknownDurationBlockInteraction();
-    void backendSeekingCycleAcknowledgesPendingCommit();
+    void seekingCycleDoesNotReleasePreviewBeforeTargetPosition();
     void rejectedSubmissionReleasesPendingPreview();
 };
 
@@ -179,7 +179,7 @@ void PlayerTimelineViewModelTest::nonSeekableAndUnknownDurationBlockInteraction(
     QCOMPARE(viewModel.durationText(), QStringLiteral("--:--:--"));
 }
 
-void PlayerTimelineViewModelTest::backendSeekingCycleAcknowledgesPendingCommit()
+void PlayerTimelineViewModelTest::seekingCycleDoesNotReleasePreviewBeforeTargetPosition()
 {
     PlayerTimelineViewModel viewModel;
 
@@ -194,9 +194,13 @@ void PlayerTimelineViewModelTest::backendSeekingCycleAcknowledgesPendingCommit()
     QVERIFY(fuzzyEqual(viewModel.displayedNormalized(), 0.8));
 
     viewModel.acceptSnapshot(timelineSnapshot(7, 11.0, 100.0, true, false));
-    QVERIFY(!viewModel.seekPending());
+    QVERIFY(viewModel.seekPending());
     QVERIFY(!viewModel.backendSeeking());
-    QVERIFY(fuzzyEqual(viewModel.displayedNormalized(), 0.11));
+    QVERIFY(fuzzyEqual(viewModel.displayedNormalized(), 0.8));
+
+    viewModel.acceptSnapshot(timelineSnapshot(7, 80.1, 100.0, true, false));
+    QVERIFY(!viewModel.seekPending());
+    QVERIFY(fuzzyEqual(viewModel.displayedNormalized(), 0.801));
 }
 
 void PlayerTimelineViewModelTest::rejectedSubmissionReleasesPendingPreview()
