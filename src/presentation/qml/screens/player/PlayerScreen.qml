@@ -8,12 +8,20 @@ Item {
     property string mediaMetadataText: ""
     property bool windowExpanded: false
     property bool fullScreen: false
+    property bool popupOpen: false
+    property bool errorOverlayVisible: false
     property var transportViewModel: null
     property var timelineViewModel: null
     property var volumeViewModel: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property bool oscCompact: root.fullScreen
+    readonly property bool playbackPlaying: root.transportViewModel !== null
+                                            && root.transportViewModel.isPlaying
+    readonly property bool timelineInteractionActive: root.timelineViewModel !== null
+                                                      && (root.timelineViewModel.isScrubbing
+                                                          || root.timelineViewModel.seekPending)
+    readonly property bool oscVisible: chromeVisibilityController.chromeVisible
 
     signal minimizeRequested()
     signal maximizeRestoreRequested()
@@ -34,6 +42,26 @@ Item {
         anchors.fill: parent
 
         onToggleFullscreenRequested: root.fullscreenToggleRequested()
+    }
+
+    PlayerChromeVisibilityController {
+        id: chromeVisibilityController
+
+        playing: root.playbackPlaying
+        scrubbing: root.timelineInteractionActive
+        popupOpen: root.popupOpen
+        errorVisible: root.errorOverlayVisible
+        fullScreen: root.fullScreen
+    }
+
+    PlayerChromeActivityLayer {
+        id: chromeActivityLayer
+
+        anchors.fill: parent
+
+        onActivityDetected: function(reason) {
+            chromeVisibilityController.notifyActivity(reason)
+        }
     }
 
     PlayerTopRegion {
@@ -96,6 +124,11 @@ Item {
         height: root.oscCompact
                 ? LayoutTokens.oscHeightCompact
                 : LayoutTokens.oscHeight
+        opacity: root.oscVisible
+                 ? OpacityTokens.visible
+                 : OpacityTokens.hidden
+        visible: root.oscVisible || opacity > OpacityTokens.hidden
+        enabled: root.oscVisible
 
         PlayerOscLayout {
             anchors.fill: parent
@@ -126,6 +159,20 @@ Item {
                     onToggleFullscreenRequested: root.fullscreenToggleRequested()
                 }
             ]
+        }
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: root.oscVisible
+                          ? MotionTokens.oscShowDuration
+                          : MotionTokens.oscHideDuration
+                easing.type: root.oscVisible
+                             ? MotionTokens.enterEasingType
+                             : MotionTokens.exitEasingType
+                easing.bezierCurve: root.oscVisible
+                                    ? MotionTokens.enterBezier
+                                    : MotionTokens.exitBezier
+            }
         }
     }
 
