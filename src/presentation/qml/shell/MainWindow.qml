@@ -7,6 +7,7 @@ ApplicationWindow {
     id: window
 
     property var transportViewModel: null
+    property var timelineViewModel: null
 
     width: LayoutTokens.windowDefaultWidth
     height: LayoutTokens.windowDefaultHeight
@@ -19,6 +20,7 @@ ApplicationWindow {
     PlayerScreen {
         anchors.fill: parent
         transportViewModel: window.transportViewModel
+        timelineViewModel: window.timelineViewModel
         windowExpanded: window.visibility === Window.Maximized
                         || window.visibility === Window.FullScreen
 
