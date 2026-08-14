@@ -1,12 +1,14 @@
 target_sources(
     player_playback_application
     PRIVATE
+        playback_request_id_generator.cpp
         request_supersession_policy.cpp
         request_timeout_monitor.cpp
         request_timeout_monitor.h
         request_tracker.cpp
     PUBLIC
         playback_request.h
+        playback_request_id_generator.h
         request_supersession_policy.h
         request_tracker.h
 )

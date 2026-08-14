@@ -7,6 +7,7 @@
 namespace player::app {
 
 class LoggingBootstrap;
+class PlaybackComposition;
 class QmlBootstrap;
 
 class ApplicationContainer final
@@ -25,6 +26,7 @@ public:
 
     [[nodiscard]] const RuntimePaths& runtimePaths() const noexcept;
     [[nodiscard]] LoggingBootstrap& loggingBootstrap() noexcept;
+    [[nodiscard]] PlaybackComposition& playbackComposition() noexcept;
     [[nodiscard]] QmlBootstrap& qmlBootstrap() noexcept;
 
     void shutdown() noexcept;
@@ -32,6 +34,7 @@ public:
 private:
     RuntimePaths runtimePaths_;
     std::unique_ptr<LoggingBootstrap> loggingBootstrap_;
+    std::unique_ptr<PlaybackComposition> playbackComposition_;
     std::unique_ptr<QmlBootstrap> qmlBootstrap_;
 };
 

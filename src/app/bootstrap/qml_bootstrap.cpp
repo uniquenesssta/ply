@@ -25,6 +25,11 @@ QmlBootstrap::QmlBootstrap()
         });
 }
 
+void QmlBootstrap::setInitialProperties(const QVariantMap& properties)
+{
+    engine_.setInitialProperties(properties);
+}
+
 bool QmlBootstrap::load()
 {
     warningMessages_.clear();

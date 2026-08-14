@@ -4,14 +4,19 @@
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/bootstrap/qml_bootstrap.h"
 #include "app/composition/application_container.h"
+#include "app/composition/playback_composition.h"
 #include "foundation/logging/log_categories.h"
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
 #include "presentation/qml/types/presentation_type_registration.h"
+#include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 
 #include <QCoreApplication>
 #include <QDebug>
 #include <QGuiApplication>
+#include <QObject>
 #include <QString>
+#include <QVariant>
+#include <QVariantMap>
 
 #include <cstdlib>
 #include <memory>
@@ -79,7 +84,22 @@ int ApplicationBootstrap::run(
         return EXIT_FAILURE;
     }
 
+    PlaybackComposition& playbackComposition = container.playbackComposition();
+    QString playbackError;
+    if (!playbackComposition.start(&playbackError)) {
+        qCCritical(player::logging::appLifecycle).noquote()
+            << "Playback composition failed to start:" << playbackError;
+        return EXIT_FAILURE;
+    }
+
     QmlBootstrap& qmlBootstrap = container.qmlBootstrap();
+    QVariantMap initialProperties;
+    initialProperties.insert(
+        QStringLiteral("transportViewModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.transportViewModel())));
+    qmlBootstrap.setInitialProperties(initialProperties);
+
     if (!qmlBootstrap.load()) {
         qCCritical(player::logging::appBootstrap).noquote()
             << "QML bootstrap failed:" << qmlBootstrap.lastError();

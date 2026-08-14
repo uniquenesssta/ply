@@ -6,6 +6,8 @@ import Player.Presentation.Theme
 ApplicationWindow {
     id: window
 
+    property var transportViewModel: null
+
     width: LayoutTokens.windowDefaultWidth
     height: LayoutTokens.windowDefaultHeight
     minimumWidth: LayoutTokens.windowMinimumWidth
@@ -16,6 +18,7 @@ ApplicationWindow {
 
     PlayerScreen {
         anchors.fill: parent
+        transportViewModel: window.transportViewModel
         windowExpanded: window.visibility === Window.Maximized
                         || window.visibility === Window.FullScreen
 

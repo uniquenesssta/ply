@@ -7,6 +7,7 @@ Item {
     property string mediaTitle: ""
     property string mediaMetadataText: ""
     property bool windowExpanded: false
+    property var transportViewModel: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property real oscAvailableWidth: Math.max(
@@ -75,6 +76,11 @@ Item {
         PlayerOscLayout {
             anchors.fill: parent
             compact: root.oscCompact
+            transportContent: [
+                TransportControls {
+                    viewModel: root.transportViewModel
+                }
+            ]
         }
     }
 

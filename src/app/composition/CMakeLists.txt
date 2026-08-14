@@ -3,4 +3,6 @@ target_sources(
     PRIVATE
         application_container.cpp
         application_container.h
+        playback_composition.cpp
+        playback_composition.h
 )

@@ -26,4 +26,5 @@ target_link_libraries(
     PRIVATE
         player_foundation
         player_mpv_infrastructure
+        player_playback_application
 )
