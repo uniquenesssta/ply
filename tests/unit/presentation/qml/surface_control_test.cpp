@@ -189,7 +189,7 @@ Item {
     QVERIFY(fuzzyEqual(oscCompact->property("fillAlpha").toDouble(), 0.32));
     QCOMPARE(oscCompact->property("backdropBlurRadius").toInt(), 38);
     QCOMPARE(oscCompact->property("contentPadding").toInt(), 0);
-    QCOMPARE(oscCompact->property("implicitWidth").toInt(), 880);
+    QCOMPARE(oscCompact->property("implicitWidth").toInt(), 828);
     QCOMPARE(oscCompact->property("implicitHeight").toInt(), 106);
     QVERIFY(fuzzyEqual(oscCompact->property("z").toDouble(), 40.0));
 
