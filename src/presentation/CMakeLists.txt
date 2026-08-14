@@ -2,6 +2,7 @@ set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
 add_subdirectory(qml)
 add_subdirectory(viewmodels/player/transport)
+add_subdirectory(viewmodels/player/timeline)
 
 set(PLAYER_QML_FILES
     qml/App.qml
@@ -19,6 +20,7 @@ set(PLAYER_QML_FILES
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml
     qml/features/player/transport/TransportControls.qml
+    qml/features/player/timeline/TimelineControls.qml
 )
 
 target_sources(
@@ -51,6 +53,7 @@ set_source_files_properties(
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml
     qml/features/player/transport/TransportControls.qml
+    qml/features/player/timeline/TimelineControls.qml
     PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 
@@ -99,6 +102,7 @@ target_link_libraries(
         player_presentation_controls
         player_presentation_surfaces
         player_presentation_transport
+        player_presentation_timeline
 )
 
 add_custom_target(
