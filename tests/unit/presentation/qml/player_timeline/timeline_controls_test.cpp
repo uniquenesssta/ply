@@ -43,7 +43,6 @@ void TimelineControlsTest::timelineUsesCanonicalGeometryAndGenericSlider()
     QVERIFY(source.contains(QStringLiteral("Slider {")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.timelineHitHeight")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.sliderTrackInset")));
-    QVERIFY(source.contains(QStringLiteral("LayoutTokens.sliderTrackHeight")));
     QVERIFY(source.contains(QStringLiteral("TypographyTokens.timecodeMediumPrimary")));
     QVERIFY(source.contains(QStringLiteral("TypographyTokens.timecodeMediumSecondary")));
     QVERIFY(source.contains(QStringLiteral("TypographyTokens.timecodeSmallPrimary")));
@@ -52,6 +51,13 @@ void TimelineControlsTest::timelineUsesCanonicalGeometryAndGenericSlider()
     QVERIFY(source.contains(QStringLiteral("objectName: \"timelineDurationTime\"")));
     QVERIFY(source.contains(QStringLiteral("showValue: false")));
     QVERIFY(source.contains(QStringLiteral("wheelEnabled: false")));
+
+    const QString sliderSource = readSource(QStringLiteral(
+        "src/presentation/qml/controls/sliders/Slider.qml"));
+    QVERIFY2(!sliderSource.isEmpty(), qPrintable(sourcePath(QStringLiteral(
+        "src/presentation/qml/controls/sliders/Slider.qml"))));
+    QVERIFY(sliderSource.contains(QStringLiteral(
+        "height: LayoutTokens.sliderTrackHeight")));
 
     const QString oscSource = readSource(QStringLiteral(
         "src/presentation/qml/screens/player/osc/PlayerOscLayout.qml"));

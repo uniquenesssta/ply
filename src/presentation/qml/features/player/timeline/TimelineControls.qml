@@ -88,7 +88,6 @@ Item {
         objectName: "timelineCurrentTime"
         anchors.left: parent.left
         anchors.top: parent.top
-        z: 2
         text: root.viewModel !== null
               ? root.viewModel.positionText
               : "--:--:--"
@@ -104,7 +103,6 @@ Item {
         objectName: "timelineDurationTime"
         anchors.right: parent.right
         anchors.top: parent.top
-        z: 2
         text: root.viewModel !== null
               ? root.viewModel.durationText
               : "--:--:--"
