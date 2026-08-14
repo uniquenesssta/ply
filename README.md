@@ -11,9 +11,9 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 / R5-08 / R5-09 Complete**；R5-10 Accessibility baseline Candidate，首轮 Windows 验证 50/51，修正待复验 |
+| R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
 
-R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
+R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
 当前保留的已知非阻塞事项：R2-01 的仓库根 `player.log` 落盘缺口仍未关闭。
 
@@ -100,7 +100,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — R5-10 Accessibility baseline candidate
+### 2026-08-14 — R5-10 Accessibility baseline / Stage R5 Complete
 
 - 在既有基础 Controls 上补齐最小可访问性元数据，不建立第二套交互状态：internal `ButtonBase` 统一提供 `accessibleName/accessibileDescription` 输入，并映射 `Accessible.Button`、name/description、focusable、pressed、checkable/checked 与 press action；`Accessible.onPressAction` 继续调用既有 `activate()`，因此鼠标、键盘和辅助功能入口共享同一点击/切换链路。
 - `TextButton` / `ToggleButton` 默认从可见 `text` 派生 accessible name，缺少文字时回退既有 tooltip；`IconButton` 默认继承 `ButtonBase` 的 tooltip name，业务 consumer 仍可显式覆写 `accessibleName`。没有根据 `iconId` 猜测本地化名称，避免把资产标识当成用户语义。
@@ -110,8 +110,9 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 第三版设计任务书的 Accessibility 基线要求 Focus visible、点击目标不因视觉缩小而缩小、Reduce Motion 与可解释键盘导航；现有 R5-06/R5-07 已保留 32/40px Button hit target、32px Slider host、键盘激活/调整和 Reduce Motion，本轮只补缺失的 accessibility metadata 与跨控件 Tab/focus 回归，不修改 Design Token。
 - R5-01 Feature import 门禁保持不变；本轮仅修改 Controls 与 accessibility tests，没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、Feature、配置、数据结构或持久化。新增 CTest 后全量测试数 **50 → 51**。
 - 首轮锁定 Windows 验证：configure **PASS**（Configuring 5.9 s / Generating 1.8 s）、Debug build **PASS**；build 继续出现已记录的 Qt 6.8.3 `qvariant.h` 生成代码路径 MSVC C4702 warning。CTest 为 **50/51 PASS，1 failed，63.00 s**，唯一失败 `accessibility_controls::tabNavigationKeepsFocusVisible`；Accessible metadata、semantic names、Button Tab focus、disabled skip 均 PASS。失败现场已确认 Slider 获得 `activeFocus` 且 focus border width > 0，但测试在同一时刻同步读取 `opacity`，而 Slider 的 focus opacity 由既有 `Behavior on opacity / NumberAnimation` 过渡，因此读到动画起点 0。
-- 修复严格限定在测试时序：将 Slider focus opacity 的同步 `QVERIFY` 改为 `QTRY_VERIFY_WITH_TIMEOUT(..., 1000)`，等待既有 Focus 动画进入可见状态；生产 `Slider.qml`、Motion token、Focus 视觉、公共 API 与交互行为均未修改。字体目录 warning 仍属于 R5-05 已记录的字体未捆绑限制；由于首轮 CTest 未通过，本轮没有把 `Player.exe` smoke 描述为已验证。
-- 修正后的 Windows build/51-test/`Player.exe` smoke 尚待复验。**R5-10 当前仍为 Candidate；Stage R5 尚未关闭。**
+- 修复严格限定在测试时序：将 Slider focus opacity 的同步 `QVERIFY` 改为 `QTRY_VERIFY_WITH_TIMEOUT(..., 1000)`，等待既有 Focus 动画进入可见状态；生产 `Slider.qml`、Motion token、Focus 视觉、公共 API 与交互行为均未修改。
+- 修正后锁定 Windows 复验：Debug build **PASS**；`scripts/test.ps1` 的 QML lint 门禁完成；全量 **51/51 CTest PASS，0 failed，53.29 s**，其中 `accessibility_controls`、`feedback_controls` 以及全部既有 49 项回归均 PASS；`Player.exe` 实际启动 smoke **PASS**，无 QML/运行时错误输出。MSVC `/showIncludes` 中文控制台编码乱码继续存在，但没有形成 compiler warning/error 或测试失败；字体目录 warning 仍属于 R5-05 已记录的字体未捆绑限制。
+- R5-01 ~ R5-10 已全部完成，R6 所需 Theme / Primitives / Controls / Surfaces / Feedback / Accessibility 基础链齐全，Design System 内仍不包含 libmpv/playback 业务逻辑。**R5-10 正式 Complete；Stage R5 正式 Complete。**
 
 ### 2026-08-14 — R5-09 Feedback controls Complete
 
@@ -158,7 +159,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - Tooltip 本轮提供 `toolTipText + toolTipVisible` 请求/状态契约，没有伪造 Figma 尚未冻结的 Tooltip Surface；真正 overlay 材质与宿主仍由后续 Surface/Feedback 层负责。Primary 控件当前消费玻璃填充/边框/交互 alpha，不在通用 Button 内复制依赖背景捕获的 backdrop-blur 实现。
 - 收口静态审查发现并修正 Primary `IconButton` 的 Focus 视觉偏差：`activeFocus` 不再触发 hover glass alpha，键盘 Focus 保持 Figma 冻结的 **48% rest glass + 82% focus ring**；同时 `button_controls` 新增真实 pointer hover/press、Primary hover 52% 与 Focus 48% 的直接断言，避免只测 click 而遗漏视觉状态契约。
 - 首轮锁定 Windows 验证：configure PASS、Debug build PASS；build 在 Qt 6.8.3 `qvariant.h` 的 QML 生成代码编译路径出现 MSVC **C4702 unreachable code** warning，属于当前 MSVC/Qt system-header 组合的已知外部工具链告警，项目未新增 suppress/白名单。CTest 为 **46/47 PASS**，唯一失败 `button_controls`；5 个失败用例均在组件解析阶段报 `ButtonBase is not a type`，其他既有 46 项回归全部 PASS。
-- 该失败根因是 Controls 的 QML 源位于 `buttons/` 子目录，而内部 `ButtonBase` 与公开按钮没有像已验证的主 Presentation 模块一样统一落到 canonical QML resource root。修复保持源码目录模块化不变：对 Controls QML 文件设置 basename `QT_RESOURCE_ALIAS`，并按 Qt 6.8 对 alias 的约束为该 module 使用 `NO_GENERATE_EXTRA_QMLDIRS`；`ButtonBase` 继续保持 `QT_QML_INTERNAL_TYPE TRUE`，没有扩大成公共 API，也没有加入 path/deep import。
+- 该失败根因是 Controls 的 QML 源位于 `buttons/` 子目录，而 internal `ButtonBase` 与公开按钮没有像已验证的主 Presentation 模块一样统一落到 canonical QML resource root。修复保持源码目录模块化不变：为 Controls QML 文件设置 basename `QT_RESOURCE_ALIAS`，并按 Qt 6.8 对 alias 的约束为该 module 使用 `NO_GENERATE_EXTRA_QMLDIRS`；`ButtonBase` 继续为 internal type，没有扩大为公共 API或引入 path/deep import。
 - 最终锁定 Windows 验证：configure **PASS**（Configuring 3.6 s / Generating 1.6 s）、Debug build **PASS**、controls qmllint 门禁完成；全量 **47/47 CTest PASS，0 failed，50.62 s**，其中 `qml_module_boundaries`、`theme_tokens`、`theme_effect_tokens`、`icon_pipeline`、`typography_primitives`、`button_controls` 均 PASS；`Player.exe` 实际启动 smoke **PASS**，无 QML/运行时错误输出。Qt 6.8.3 system header `qvariant.h` 的生成代码路径仍输出 C4702 warning，未通过 suppression/白名单掩盖，当前不影响 build/test/runtime。没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期或播放接口。**R5-06 正式 Complete；R5-07 未开始。**
 
 ### 2026-08-13 — R5-05 Typography primitives Complete
