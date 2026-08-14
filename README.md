@@ -12,6 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Candidate**；已建立 VideoViewport / TopRegion / BottomRegion / OverlayStack / DrawerHost，Windows 52-test 与启动/resize 验证待执行 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -75,9 +76,10 @@ src/persistence/                 持久化边界
 - [R3 — 领域状态与 PlaybackSession](docs/plans/stages/R3_领域状态与%20PlaybackSession.md)
 - [R4 — libmpv OpenGL Render API](docs/plans/stages/R4_libmpv%20OpenGL%20Render%20API.md)
 - [R5 — UI 设计系统](docs/plans/stages/R5_UI%20设计系统.md)
+- [R6 — 播放器主界面与基础交互](docs/plans/stages/R6_播放器主界面与基础交互.md)
 - [R4 后置 — PlaybackSession 职责边界优化](docs/plans/stages/R4后置_PlaybackSession职责边界优化.md)
 
-R6–R14 的任务书继续由 [Stage 索引](docs/plans/stages/00_INDEX.md) 统一导航。
+R7–R14 的任务书继续由 [Stage 索引](docs/plans/stages/00_INDEX.md) 统一导航。
 
 ## Build and test
 
@@ -99,6 +101,17 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-14 — R6-01 PlayerScreen composition candidate
+
+- 从已正式关闭的 R5 HEAD `470ea1a58739be59dc4f24ff910a90dfb8c6c506` 创建独立 `agent/r6-stage`，R6-01 只推进播放器页面组合骨架，不提前进入 R6-02 的媒体状态/aspect fit 或 R6-03/R6-04 的真实 Header/OSC 内容。
+- 按 R6-01 与第三版 D2 Window System 契约，将 `PlayerScreen` 从旧的 `VideoSurface + PlayerChrome` 两层占位结构拆为职责独立的 `VideoViewport`、`PlayerTopRegion`、`PlayerBottomRegion`、`PlayerOverlayStack`、`PlayerDrawerHost`。`PlayerScreen.qml` 现在只负责 Host 组合、安全边距、尺寸约束和层级，不包含按钮、文字、播放业务或 libmpv 调用。
+- `VideoViewport.qml` 继续包裹现有 `VideoSurface`，因此 R4 已验证的 `MpvVideoItem` Render 链没有被复制或改写；本任务不把 `MpvVideoItem` 直接移入 Screen，也不改变 Renderer/Render context 生命周期。
+- Top/Bottom/Overlay/Drawer 四个 Host 都只提供 replaceable content slot，并直接消费 R5 已冻结的 `LayoutTokens` / `SpacingTokens` / `ZOrderTokens`。DrawerHost 作为 z50 Inspector overlay 覆盖在视频之上，不通过改变 VideoViewport 宽度挤压视频，符合最终 Figma Player+Inspector 组合规则。
+- 已删除被新结构完整替代的 `features/player/chrome/PlayerChrome.qml`。该旧文件同时拥有顶部和底部占位 UI，继续保留会形成重复路径；删除不改变任何已实现业务操作，因为其中只有框架提示文字和玻璃占位矩形。
+- 目标结构中的 `states/` 本轮没有创建空文件：R6-01 尚无独立状态 owner，Loading/Buffering/Ended/Error selector 属于后续 R6-11；不为了目录形式制造透明转发或推测状态抽象。当前仓库也尚无 `PlayerViewModel`，因此 R6-01 只建立 `PlayerViewModel → PlayerScreen → child features` 链中的 Screen/Host 边界，不把尚未存在的 VM 伪装为已接通。
+- 新增独立 `player_screen_structure` CTest，静态验证 PlayerScreen 只组合五类 Host、Host 使用正确 z-order/slot、VideoViewport 只包装 VideoSurface、Screen/Host 不出现 PlaybackSession/libmpv/mpv_ 业务词，并强制旧 `PlayerChrome.qml` 不再存在。全量测试数预计 **51 → 52**。
+- 当前只能完成远端静态审查：未在锁定 Windows Qt 6.8.3 环境执行 configure/build/qmllint/52-test，也尚未执行 `Player.exe` 启动与窗口 resize smoke。没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-01 当前为 Candidate；R6-02 未开始。**
 
 ### 2026-08-14 — R5-10 Accessibility baseline / Stage R5 Complete
 
