@@ -15,6 +15,16 @@ PlaybackSnapshot snapshotFor(
     return PlaybackSnapshot{state};
 }
 
+PlaybackSnapshot seekSnapshotFor(
+    PlaybackLifecycleState lifecycle,
+    std::optional<bool> seekable)
+{
+    PlaybackSnapshotState state;
+    state.lifecycle = lifecycle;
+    state.timeline.seekable = seekable;
+    return PlaybackSnapshot{state};
+}
+
 } // namespace
 
 class PlaybackSelectorsTest final : public QObject
@@ -23,6 +33,7 @@ class PlaybackSelectorsTest final : public QObject
 
 private slots:
     void lifecycleAndTransportMatrixIsConservative();
+    void seekCapabilityRequiresReadyAndExplicitBackendSupport();
 };
 
 void PlaybackSelectorsTest::lifecycleAndTransportMatrixIsConservative()
@@ -98,6 +109,28 @@ void PlaybackSelectorsTest::lifecycleAndTransportMatrixIsConservative()
     QVERIFY(!selectors::canPause(closing));
     QVERIFY(!selectors::canStop(closing));
     QVERIFY(!selectors::isPlaying(closing));
+}
+
+void PlaybackSelectorsTest::seekCapabilityRequiresReadyAndExplicitBackendSupport()
+{
+    QVERIFY(!selectors::canSeek(seekSnapshotFor(
+        PlaybackLifecycleState::Empty,
+        true)));
+    QVERIFY(!selectors::canSeek(seekSnapshotFor(
+        PlaybackLifecycleState::Opening,
+        true)));
+    QVERIFY(!selectors::canSeek(seekSnapshotFor(
+        PlaybackLifecycleState::Ready,
+        std::nullopt)));
+    QVERIFY(!selectors::canSeek(seekSnapshotFor(
+        PlaybackLifecycleState::Ready,
+        false)));
+    QVERIFY(selectors::canSeek(seekSnapshotFor(
+        PlaybackLifecycleState::Ready,
+        true)));
+    QVERIFY(!selectors::canSeek(seekSnapshotFor(
+        PlaybackLifecycleState::Ended,
+        true)));
 }
 
 } // namespace player::playback::domain
