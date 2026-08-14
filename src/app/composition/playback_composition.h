@@ -1,5 +1,7 @@
 #pragma once
 
+#include "playback/domain/commands/transport_command.h"
+
 #include <memory>
 
 class QString;
@@ -7,10 +9,6 @@ class QString;
 namespace player::playback::application {
 class PlaybackRequestIdGenerator;
 class PlaybackSessionThread;
-}
-
-namespace player::playback::domain {
-enum class TransportAction;
 }
 
 namespace player::presentation {
