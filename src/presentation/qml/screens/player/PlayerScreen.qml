@@ -8,6 +8,7 @@ Item {
     property string mediaMetadataText: ""
     property bool windowExpanded: false
     property var transportViewModel: null
+    property var timelineViewModel: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property real oscAvailableWidth: Math.max(
@@ -76,6 +77,13 @@ Item {
         PlayerOscLayout {
             anchors.fill: parent
             compact: root.oscCompact
+            timelineContent: [
+                TimelineControls {
+                    anchors.fill: parent
+                    compact: root.oscCompact
+                    viewModel: root.timelineViewModel
+                }
+            ]
             transportContent: [
                 TransportControls {
                     viewModel: root.transportViewModel
