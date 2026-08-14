@@ -12,11 +12,11 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-08 均 Complete**；R6-08 最终 Windows Debug build/QML lint/**65/65 CTest PASS（53.75 s）**，Fullscreen 按钮/Esc/双击及 Windowed/Maximized 恢复矩阵手工 PASS；R6-09 尚未开始。Pre-R6-09 runtime file diagnostics candidate 已提交，开发态日志目标为仓库根相对路径 `..\logs\player.log`，待 Windows 验证 |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-08 均 Complete**；Pre-R6-09 runtime file diagnostics 已完成 Windows **65/65 PASS（53.73 s）**并确认 `Player.exe` 自主生成 `..\logs\player.log`；**R6-09 OSC auto-hide implementation candidate 已提交，Windows 66-test 验证 pending** |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
-当前保留的已知非阻塞事项：R2-01 原“仓库根 `player.log`”落盘缺口已进入替代候选：开发态改写到仓库上一级 `logs/player.log`；在 Windows 实机确认文件真实生成前不标记关闭。
+R2-01 原“仓库根 `player.log`”落盘缺口已经由 Pre-R6-09 development diagnostics 正式关闭：开发态日志固定自主写入项目根上一级 `logs/player.log`；普通 Installed/Portable 路径规则保持原有语义。
 
 ## Technical baseline
 
@@ -102,13 +102,23 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — Pre-R6-09 runtime file diagnostics candidate
+### 2026-08-14 — R6-09 OSC auto-hide — implementation candidate
 
-- 复用现有 `RuntimePaths → LoggingBootstrap → LogFileSink` 单一日志主链，没有创建第二套 logger、QML 专用日志系统或新的生产依赖。现有 Qt message handler 会继续收集 C++ `qDebug/qInfo/qWarning/qCritical`、logging category 与 QML/Qt runtime message，供后续 R6-09 运行时判定与 PowerShell 输出一起分析。
-- 开发态通过既有 `.player-development-root` 识别项目根后，日志目录从项目根改为其上一级的 `logs/`，因此用户工作区 `F:\QT6-PLAYER\qt6-player r2` 的固定相对位置为 **`..\logs\player.log`**。`LogFileSink` 继续自动创建目录；4 MiB active file + 3 个 archive、线程安全写入与敏感信息 redaction 行为保持不变。
-- 只改变 Development marker 路径：普通 Installed 仍写入 `AppLocalDataLocation/logs`，Portable 仍写在可执行文件旁 `logs/`；配置、截图、持久化路径和公共播放接口不变。`LoggingBootstrap` 在 sink 安装成功后把实际 `player.log` 完整路径写入日志首段，便于确认当前运行对应的文件。
-- `runtime_paths` 既有测试直接扩展为验证 project-parent `logs/`，并覆盖 pre-GUI executable path 与 development-marker-over-portable 兼容路径；没有新增测试 target，因此 Windows 全量仍应为 **65**。
-- 当前仅完成源码/路径/测试静态审查，Windows Debug build、QML lint、65 CTest、`Player.exe` 启动以及 `..\logs\player.log` 实际生成/内容检查尚未执行。**R6-09 尚未开始。**
+- 新增职责独立的 `features/player/chrome/PlayerChromeVisibilityController.qml` 作为 OSC visibility / inactivity timer 的单一 owner；状态为 `Hidden / Rest / Active`，只消费 playing、scrubbing、popup、error、fullscreen 等 presentation 输入，不接触 PlaybackSession、CommandBus 或 libmpv。Paused、Scrubbing/Pending Seek、Popup、Error 均属于 visibility lock，不允许 timeout 误隐藏。
+- 新增 `PlayerChromeActivityLayer.qml`，只通过 `HoverHandler` 把 pointer enter/move 转成 activity intent；没有复制 MouseArea、没有第二个 Timer。`PlayerScreen` 只组合 Activity Layer/Visibility Controller，并将 `transportViewModel.isPlaying`、`timelineViewModel.isScrubbing/seekPending`、`popupOpen`、`errorOverlayVisible` 与 `fullScreen` 显式传入。
+- Windowed 继续使用 R5 已冻结 `MotionTokens.oscHideDelay=2200ms`；新增 `oscFullscreenHideDelay=1600ms` 以落实第三版 UI 任务书“fullscreen inactive 更快回 Hidden”。Reduce Motion 仍只关闭/简化 OSC enter/exit 过渡，不删除语义 inactivity delay。
+- `PlayerBottomRegion` 仍是 OSC Host；只在 Host 层按 `oscVisible` 控制 opacity/visible/enabled，显示/隐藏动画继续消费 `MotionTokens.oscShowDuration/oscHideDuration`、enter/exit easing 与 `OpacityTokens.visible/hidden`。Timeline、Transport、Volume、FullscreenControls 的实现和所有权没有复制或迁移。
+- 运行日志只在 `Hidden/Rest/Active` **真正切换**时写一条 `R6-09 OSC visibility`，附 reason/playing/scrubbing/popup/error/fullscreen；持续 pointer move 若状态仍是 Active 不重复写日志，避免 `player.log` 刷屏。R6-10 的 CursorVisibilityController/cursorShape 完全未提前实现，后续应直接消费本任务的可见性策略结果。
+- 新增独立 `player_chrome_visibility` CTest，真实运行 QML Timer 覆盖 Windowed 2.2s、Fullscreen 1.6s、activity wake、Paused/Scrub/Popup/Error lock，并静态锁定单一 Timer owner、Motion/Opacity token 与 R6-10 禁区。新 target/QML 文件已纳入 CMake，因此重新 configure 后预期全量 **65 → 66**。
+- 当前仅完成代码/Figma 任务书/Qt API/模块边界静态审查；锁定 Windows 环境的 configure、Debug build、QML lint、**66/66 CTest**、`Player.exe` startup 尚未执行。由于 R7 媒体打开入口仍未实现，产品 UI 当前无法进入真实 Playing 后做 live-media inactivity 手工矩阵；本轮定向测试会真实运行 Timer/policy，该产品级手工回归将在媒体入口存在后补。**R6-09 当前不是 Complete。**
+
+### 2026-08-14 — Pre-R6-09 runtime file diagnostics Complete
+
+- 复用既有 `RuntimePaths → LoggingBootstrap → LogFileSink` 单一日志主链，没有创建第二套 logger、QML 专用日志系统或新生产依赖。现有 Qt message handler 自动收集 C++ `qDebug/qInfo/qWarning/qCritical`、logging category 与 QML/Qt runtime message；日志由 `Player.exe` 启动时自主创建/追加，PowerShell `Get-Item/Get-Content` 仅用于查看，不是触发条件。
+- 开发态固定输出到项目根上一级 `logs/player.log`；用户工作区实际路径已验证为 `F:\QT6-PLAYER\logs\player.log`，从项目根看即 **`..\logs\player.log`**。`LogFileSink` 继续自动建目录，保留 4 MiB active file + 3 archive、线程安全写入与敏感信息 redaction。普通 Installed 仍写 `AppLocalDataLocation/logs`，Portable 仍写可执行文件旁 `logs/`。
+- 首轮修正测试后全量曾恢复 **65/65 PASS**，但直接启动产品仍未生成目标日志。最终根因确认是 build/runtime development marker 契约错位：构建脚本 canonical marker 位于 `build/windows-msvc-debug/cmake/.player-development-root` 且内容 `../../..`，而旧 RuntimePaths 只查 executable directory 的 legacy `../..` marker。产品现已优先解析 canonical marker；legacy marker 仅在 canonical 不存在时兼容回退，存在但非法的 canonical marker不会被 legacy 静默覆盖。
+- `runtime_paths` 与 `application_container` 测试同步改用真实 canonical build layout，避免测试构造产品实际不会生成的 marker。构建脚本本身未改，未恢复旧 marker；配置、截图、持久化路径与公共播放接口不变。
+- 用户最终锁定 Windows 复验：Debug build PASS；`scripts/test.ps1` **65/65 CTest PASS，0 failed，53.73 s**；随后启动 `Player.exe`，无需额外日志触发命令即自主生成 `F:\QT6-PLAYER\logs\player.log`。实际日志包含 `File logging active`、`Pre-GUI bootstrap starting`、`Application starting`、libmpv 0.41.0 / FFmpeg 8.0.3 runtime validation、NVIDIA OpenGL 4.6 backend validation以及正常 `Application stopping with exit code 0`。**Pre-R6-09 runtime diagnostics 正式 Complete，R2-01 原日志落盘缺口关闭。**
 
 ### 2026-08-14 — R6-08 Fullscreen Complete
 
@@ -120,7 +130,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - Fullscreen Header 在当前无媒体 identity 时不渲染空玻璃块；真正媒体标题绑定仍由后续媒体入口/presentation 数据链提供。R6-08 没有提前实现 R6-09 的 inactivity Timer/OSC 自动隐藏，也没有提前实现 R10 的 FramelessWindowHint、Win32 hit-test、DWM、Snap 或 native resize。
 - 新增独立 `player_fullscreen_controls` CTest，并同步修正 R6-04 Bottom Region contract：`compact` 明确代表 Fullscreen mode，而不是普通 Main Window 宽度断点。Qt 6.8 API 静态核对确认 `Shortcut/Qt.ApplicationShortcut`、`TapHandler.doubleTapped` 与 `Window.showFullScreen()/showMaximized()/showNormal()` 均属于锁定版本支持能力。
 - 首轮 Windows 锁定环境验证：`configure.ps1` **PASS**（CMake Configuring 4.6 s / Generating 2.1 s）；Debug `build.ps1` **PASS**；首轮 CTest 为 **63/65 PASS、2 failed，56.34 s**。两个失败均为 Presentation contract：无视觉意义的 controller `width:0/height:0` 被 raw-metric 门禁识别，以及旧 Transport test 错误要求所有模式的 Play 都固定 Primary。两处同源修复只删除零尺寸声明，并同时锁定 Main Standard Primary 与 Fullscreen compact Secondary + 21px visual，未改变 Fullscreen/Transport 生产语义。
-- 最终 Windows 复验：Debug `build.ps1` **PASS**；`scripts/test.ps1` 完成 QML lint；**65/65 CTest PASS，0 failed，53.75 s**，`player_fullscreen_controls` **0.02 s PASS**，Playback/Render/Presentation 全量回归保持通过；随后 `Player.exe` 实际启动。用户明确确认手工 Fullscreen 验收“通过”，覆盖按钮进入/退出、Esc、视频区域双击，以及 Windowed/Maximized 进入 Fullscreen 后恢复语义。**R6-08 正式 Complete；R6-09 尚未开始。**
+- 最终 Windows 复验：Debug `build.ps1` **PASS**；`scripts/test.ps1` 完成 QML lint；**65/65 CTest PASS，0 failed，53.75 s**，`player_fullscreen_controls` **0.02 s PASS**，Playback/Render/Presentation 全量回归保持通过；随后 `Player.exe` 实际启动。用户明确确认手工 Fullscreen 验收“通过”，覆盖按钮进入/退出、Esc、视频区域双击，以及 Windowed/Maximized 进入 Fullscreen 后恢复语义。**R6-08 正式 Complete。**
 
 ### 2026-08-14 — R6-07 Volume Complete
 
@@ -206,7 +216,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 在既有基础 Controls 上补齐最小可访问性元数据，不建立第二套交互状态：internal `ButtonBase` 统一提供 `accessibleName/accessibileDescription` 输入，并映射 `Accessible.Button`、name/description、focusable、pressed、checkable/checked 与 press action；`Accessible.onPressAction` 继续调用既有 `activate()`，因此鼠标、键盘和辅助功能入口共享同一点击/切换链路。
 - `TextButton` / `ToggleButton` 默认从可见 `text` 派生 accessible name，缺少文字时回退既有 tooltip；`IconButton` 默认继承 `ButtonBase` 的 tooltip name，业务 consumer 仍可显式覆写 `accessibleName`。没有根据 `iconId` 猜测本地化名称，避免把资产标识当成用户语义。
 - `Slider` 新增显式 `accessibleName/accessibileDescription` 并映射 `Accessible.Slider`、name/description、focusable；现有 Left/Down、Right/Up、pointer、wheel、normalized value 与 signal 行为不变。R5-10 不提前实现高级 screen-reader value/action 适配，符合任务书“高级 screen reader 验证后续补”的边界。
-- 既有视觉 Focus 真值不改：Button 继续消费已冻结 focus ring 82%，Slider 继续消费 1.5px / 82% focus ring。为自动化验证给既有 Button focus border 增加内部 `objectName=buttonFocusRing`，不改变 geometry/color/z-order 或用户可观察外观。
+- 既有视觉 Focus 真值不改：Button 继续消费已冻结 focus ring 82%，Slider 继续消费 1.5px / 82% focus ring。为自动化验证给既有 Button focus border增加内部 `objectName=buttonFocusRing`，不改变 geometry/color/z-order 或用户可观察外观。
 - 新增独立 `tests/unit/presentation/qml/accessibility/` 模块，`accessibility_controls` 覆盖 Accessible metadata 声明、Text/Icon/Toggle/Slider semantic name、Tab traversal、disabled control skip 与 Button/Slider focus-visible；测试目录独立于既有 Button/Slider tests，避免继续堆积到单个测试文件。
 - 第三版设计任务书的 Accessibility 基线要求 Focus visible、点击目标不因视觉缩小而缩小、Reduce Motion 与可解释键盘导航；现有 R5-06/R5-07 已保留 32/40px Button hit target、32px Slider host、键盘激活/调整和 Reduce Motion，本轮只补缺失的 accessibility metadata 与跨控件 Tab/focus 回归，不修改 Design Token。
 - R5-01 Feature import 门禁保持不变；本轮仅修改 Controls 与 accessibility tests，没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、Feature、配置、数据结构或持久化。新增 CTest 后全量测试数 **50 → 51**。
@@ -336,4 +346,4 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 - **R2-01~R2-11 完成 Stage 主链；Stage R2 Complete。**
 - 建立固定 libmpv 运行链、RAII client、初始化、命令、属性、事件、错误映射与 headless playback probe。
-- R2-01 原仓库根 `player.log` 落盘缺口当前由 pre-R6-09 development log relocation candidate 替代，待 Windows 实机确认 `..\logs\player.log` 后正式关闭。
+- R2-01 原仓库根 `player.log` 落盘缺口已由 Pre-R6-09 development diagnostics 正式关闭：开发态 `Player.exe` 自主写入项目根上一级 `..\logs\player.log`，Windows 实机验证通过。
