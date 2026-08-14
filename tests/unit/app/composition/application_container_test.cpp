@@ -56,12 +56,14 @@ void ApplicationContainerTest::loggingBootstrapCreatesResolvedDevelopmentLog()
         QStringLiteral("project root with spaces"));
     const QString executableDirectory = QDir(projectDirectory).filePath(
         QStringLiteral("build/custom-output"));
-    QVERIFY(QDir().mkpath(executableDirectory));
+    const QString markerDirectory = QDir(executableDirectory).filePath(
+        QStringLiteral("cmake"));
+    QVERIFY(QDir().mkpath(markerDirectory));
 
-    QFile developmentMarker(QDir(executableDirectory).filePath(
+    QFile developmentMarker(QDir(markerDirectory).filePath(
         QStringLiteral(".player-development-root")));
     QVERIFY(developmentMarker.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text));
-    QCOMPARE(developmentMarker.write("../..\n"), qint64(6));
+    QCOMPARE(developmentMarker.write("../../..\n"), qint64(9));
     developmentMarker.close();
 
     ApplicationContainer container(RuntimePaths::resolve(
