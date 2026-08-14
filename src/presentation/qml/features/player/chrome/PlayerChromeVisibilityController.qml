@@ -19,15 +19,19 @@ Item {
 
     property int visibilityState: PlayerChromeVisibilityController.Rest
 
-    readonly property bool visibilityLocked: !root.autoHideEnabled
-                                             || !root.playing
-                                             || root.scrubbing
-                                             || root.popupOpen
-                                             || root.errorVisible
+    readonly property bool visibilityLocked: root.isVisibilityLocked()
     readonly property bool chromeVisible: root.visibilityState
                                           !== PlayerChromeVisibilityController.Hidden
 
     objectName: "playerChromeVisibilityController"
+
+    function isVisibilityLocked() {
+        return !root.autoHideEnabled
+                || !root.playing
+                || root.scrubbing
+                || root.popupOpen
+                || root.errorVisible
+    }
 
     function stateName(state) {
         if (state === PlayerChromeVisibilityController.Hidden) {
@@ -57,7 +61,7 @@ Item {
     }
 
     function scheduleHide() {
-        if (root.visibilityLocked) {
+        if (root.isVisibilityLocked()) {
             inactivityTimer.stop()
             return
         }
@@ -72,7 +76,7 @@ Item {
     }
 
     function hideIfEligible() {
-        if (root.visibilityLocked) {
+        if (root.isVisibilityLocked()) {
             root.reevaluatePolicy("timeout-locked")
             return
         }
@@ -82,7 +86,7 @@ Item {
     }
 
     function reevaluatePolicy(reason) {
-        if (root.visibilityLocked) {
+        if (root.isVisibilityLocked()) {
             inactivityTimer.stop()
             if (!root.chromeVisible) {
                 root.setVisibilityState(
