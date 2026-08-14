@@ -31,7 +31,7 @@ private slots:
 void TimelineScrubSessionTest::dragCommitKeepsPreviewPending()
 {
     TimelineScrubSession session;
-    QCOMPARE(session.phase(), TimelineScrubPhase::Idle);
+    QVERIFY(session.phase() == TimelineScrubPhase::Idle);
     QVERIFY(!session.isActive());
 
     QVERIFY(session.begin(MediaGeneration{1}, 0.2));
@@ -49,7 +49,7 @@ void TimelineScrubSessionTest::dragCommitKeepsPreviewPending()
     QVERIFY(fuzzyEqual(session.previewNormalized(), 0.75));
 
     QVERIFY(session.acknowledgePending());
-    QCOMPARE(session.phase(), TimelineScrubPhase::Idle);
+    QVERIFY(session.phase() == TimelineScrubPhase::Idle);
     QVERIFY(!session.isActive());
 }
 
@@ -59,7 +59,7 @@ void TimelineScrubSessionTest::cancelReturnsToIdle()
     QVERIFY(session.begin(MediaGeneration{3}, 0.4));
     QVERIFY(session.update(0.6));
     QVERIFY(session.cancel());
-    QCOMPARE(session.phase(), TimelineScrubPhase::Idle);
+    QVERIFY(session.phase() == TimelineScrubPhase::Idle);
     QVERIFY(!session.cancel());
     QVERIFY(!session.acknowledgePending());
 }
