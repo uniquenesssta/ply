@@ -62,7 +62,6 @@ private:
     std::optional<double> pendingAbsoluteSeconds_;
     bool canSeek_ = false;
     bool backendSeeking_ = false;
-    bool pendingSawBackendSeeking_ = false;
     TimelineScrubSession scrubSession_;
 };
 
