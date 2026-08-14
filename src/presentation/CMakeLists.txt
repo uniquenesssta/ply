@@ -6,8 +6,12 @@ set(PLAYER_QML_FILES
     qml/App.qml
     qml/shell/MainWindow.qml
     qml/screens/player/PlayerScreen.qml
+    qml/screens/player/layout/VideoViewport.qml
+    qml/screens/player/layout/PlayerTopRegion.qml
+    qml/screens/player/layout/PlayerBottomRegion.qml
+    qml/screens/player/overlays/PlayerOverlayStack.qml
+    qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml
-    qml/features/player/chrome/PlayerChrome.qml
 )
 
 target_sources(
@@ -28,8 +32,12 @@ endforeach()
 set_source_files_properties(
     qml/shell/MainWindow.qml
     qml/screens/player/PlayerScreen.qml
+    qml/screens/player/layout/VideoViewport.qml
+    qml/screens/player/layout/PlayerTopRegion.qml
+    qml/screens/player/layout/PlayerBottomRegion.qml
+    qml/screens/player/overlays/PlayerOverlayStack.qml
+    qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml
-    qml/features/player/chrome/PlayerChrome.qml
     PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 
