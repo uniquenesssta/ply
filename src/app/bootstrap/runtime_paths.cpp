@@ -20,7 +20,9 @@ namespace {
 
 constexpr auto kPortableMarkerFileName = "portable.flag";
 constexpr auto kDevelopmentRootMarkerFileName = ".player-development-root";
-constexpr auto kExpectedDevelopmentRootRoute = "../..";
+constexpr auto kDevelopmentMarkerDirectoryName = "cmake";
+constexpr auto kCanonicalDevelopmentRootRoute = "../../..";
+constexpr auto kLegacyDevelopmentRootRoute = "../..";
 constexpr auto kDevelopmentLogDirectoryName = "logs";
 
 QString normalizedPath(QString path)
@@ -64,6 +66,35 @@ QString currentProcessExecutableFilePath()
 #endif
 }
 
+QString projectDirectoryFromDevelopmentMarker(
+    const QString& markerDirectory,
+    const QString& expectedRelativeRoot)
+{
+    const QString normalizedMarkerDirectory = normalizedPath(markerDirectory);
+    if (normalizedMarkerDirectory.isEmpty()) {
+        return {};
+    }
+
+    QFile marker(QDir(normalizedMarkerDirectory).filePath(
+        QString::fromLatin1(kDevelopmentRootMarkerFileName)));
+    if (!marker.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return {};
+    }
+
+    const QString relativeRoot = QString::fromUtf8(marker.readAll()).trimmed();
+    if (relativeRoot != expectedRelativeRoot || QDir::isAbsolutePath(relativeRoot)) {
+        return {};
+    }
+
+    const QString projectDirectory = normalizedPath(
+        QDir(normalizedMarkerDirectory).absoluteFilePath(relativeRoot));
+    if (projectDirectory.isEmpty() || !QFileInfo(projectDirectory).isDir()) {
+        return {};
+    }
+
+    return projectDirectory;
+}
+
 QString developmentProjectDirectory(const QString& executableDirectory)
 {
     const QString normalizedExecutableDirectory = normalizedPath(executableDirectory);
@@ -71,25 +102,22 @@ QString developmentProjectDirectory(const QString& executableDirectory)
         return {};
     }
 
-    QFile marker(QDir(normalizedExecutableDirectory).filePath(
-        QString::fromLatin1(kDevelopmentRootMarkerFileName)));
-    if (!marker.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return {};
+    const QString canonicalMarkerDirectory = childPath(
+        normalizedExecutableDirectory,
+        QString::fromLatin1(kDevelopmentMarkerDirectoryName));
+    const QString canonicalMarkerPath = childPath(
+        canonicalMarkerDirectory,
+        QString::fromLatin1(kDevelopmentRootMarkerFileName));
+
+    if (QFileInfo(canonicalMarkerPath).isFile()) {
+        return projectDirectoryFromDevelopmentMarker(
+            canonicalMarkerDirectory,
+            QString::fromLatin1(kCanonicalDevelopmentRootRoute));
     }
 
-    const QString relativeRoot = QString::fromUtf8(marker.readAll()).trimmed();
-    if (relativeRoot != QString::fromLatin1(kExpectedDevelopmentRootRoute)
-        || QDir::isAbsolutePath(relativeRoot)) {
-        return {};
-    }
-
-    const QString projectDirectory = normalizedPath(
-        QDir(normalizedExecutableDirectory).absoluteFilePath(relativeRoot));
-    if (projectDirectory.isEmpty() || !QFileInfo(projectDirectory).isDir()) {
-        return {};
-    }
-
-    return projectDirectory;
+    return projectDirectoryFromDevelopmentMarker(
+        normalizedExecutableDirectory,
+        QString::fromLatin1(kLegacyDevelopmentRootRoute));
 }
 
 QString developmentLogDirectory(const QString& projectDirectory)
