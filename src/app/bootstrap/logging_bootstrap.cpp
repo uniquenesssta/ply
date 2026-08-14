@@ -3,6 +3,7 @@
 #include "app/bootstrap/runtime_paths.h"
 #include "foundation/logging/log_file_sink.h"
 
+#include <QDebug>
 #include <QString>
 
 #include <utility>
@@ -36,6 +37,7 @@ bool LoggingBootstrap::start(const RuntimePaths& paths, QString* errorMessage)
     }
 
     m_sink = std::move(sink);
+    qInfo().noquote() << "File logging active:" << m_sink->currentLogFilePath();
     return true;
 }
 
