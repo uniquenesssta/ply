@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Candidate**；已建立 VideoViewport / TopRegion / BottomRegion / OverlayStack / DrawerHost，Windows 52-test 与启动/resize 验证待执行 |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Candidate**；Windows Debug build PASS、QML lint 门禁完成、**52/52 CTest PASS（52.79 s）**、`Player.exe` startup PASS；configure 布局校验修复待复验，basic resize 待确认 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -110,8 +110,10 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - Top/Bottom/Overlay/Drawer 四个 Host 都只提供 replaceable content slot，并直接消费 R5 已冻结的 `LayoutTokens` / `SpacingTokens` / `ZOrderTokens`。DrawerHost 作为 z50 Inspector overlay 覆盖在视频之上，不通过改变 VideoViewport 宽度挤压视频，符合最终 Figma Player+Inspector 组合规则。
 - 已删除被新结构完整替代的 `features/player/chrome/PlayerChrome.qml`。该旧文件同时拥有顶部和底部占位 UI，继续保留会形成重复路径；删除不改变任何已实现业务操作，因为其中只有框架提示文字和玻璃占位矩形。
 - 目标结构中的 `states/` 本轮没有创建空文件：R6-01 尚无独立状态 owner，Loading/Buffering/Ended/Error selector 属于后续 R6-11；不为了目录形式制造透明转发或推测状态抽象。当前仓库也尚无 `PlayerViewModel`，因此 R6-01 只建立 `PlayerViewModel → PlayerScreen → child features` 链中的 Screen/Host 边界，不把尚未存在的 VM 伪装为已接通。
-- 新增独立 `player_screen_structure` CTest，静态验证 PlayerScreen 只组合五类 Host、Host 使用正确 z-order/slot、VideoViewport 只包装 VideoSurface、Screen/Host 不出现 PlaybackSession/libmpv/mpv_ 业务词，并强制旧 `PlayerChrome.qml` 不再存在。全量测试数预计 **51 → 52**。
-- 当前只能完成远端静态审查：未在锁定 Windows Qt 6.8.3 环境执行 configure/build/qmllint/52-test，也尚未执行 `Player.exe` 启动与窗口 resize smoke。没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-01 当前为 Candidate；R6-02 未开始。**
+- 新增独立 `player_screen_structure` CTest，静态验证 PlayerScreen 只组合五类 Host、Host 使用正确 z-order/slot、VideoViewport 只包装 VideoSurface、Screen/Host 不出现 PlaybackSession/libmpv/mpv_ 业务词，并强制旧 `PlayerChrome.qml` 不再存在。全量测试数由 **51 → 52**。
+- 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被 `verify-project-layout.ps1` 阻断，原因是该旧 scaffold 校验仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake 自动重跑可正常 Configuring/Generating（1.8 s / 1.8 s），Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且日志无 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS，用户截图显示当前无媒体骨架正常铺满窗口，旧 Header/OSC 占位条已消失。MSVC `/showIncludes` 中文控制台乱码仍只是输出编码问题，没有形成 compiler warning/error 或测试失败。
+- 同源修复已更新 `scripts/verify-project-layout.ps1`：required-files 真值改为 R6-01 的五个 Screen Host + `VideoSurface`，旧 `PlayerChrome.qml` 改为 obsolete path；Presentation CMake 校验同步要求五个 Host 已进入 QML module；`PlayerScreen` 组合校验同步从旧 `VideoSurface + PlayerChrome` 改为 `VideoViewport + TopRegion + BottomRegion + OverlayStack + DrawerHost`。没有恢复旧 Chrome、没有弱化校验，也没有修改生产 QML/C++、PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。
+- 修复后的 `configure.ps1` 尚待 Windows 复验；R6-01 任务书要求的 basic resize 也尚未得到明确人工确认。此前生产代码 build/52-test/startup 结果仍有效，但在这两项确认前 **R6-01 保持 Candidate；R6-02 未开始。**
 
 ### 2026-08-14 — R5-10 Accessibility baseline / Stage R5 Complete
 
@@ -152,7 +154,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ### 2026-08-13 — R5-07 Slider controls Complete
 
-- 重新核对第三版最终 Figma `Control / Slider` 与 D3 OSC 设计规则：默认组件为 **180×32**，命中区 **132×16**，视觉轨道 **126×3**，值区 **36px** + **12px** gap；Thumb 为 **10 / 12 / 14px（Default/Focus / Hover / Pressed）**，Focus ring **1.5px / 82%**，Disabled **38%**。视觉轨道继续使用既有 `control/track`、`control/progress`、`control/thumb`、`control/thumb-border` semantic color。
+- 重新核对第三版最终 Figma `Control / Slider` 与 D3 OSC 设计规则：默认组件为 **180×32**，命中区 **132×16**，视觉轨道 **126×3**，值区 **36px** + **12px** gap；Thumb 为 **10 / 12 / 14px（Default/Focus / Hover / Pressed）**，Focus ring **1.5px / 82%**，Disabled **38%**。视觉轨道继续使用既有 `control/track`、`control/progress`、`control/thumb-border` semantic color。
 - 新增业务无关 `controls/sliders/Slider.qml`：公开 normalized `value`（0..1）、`stepSize`、`wheelStep`、`showValue/valueText`，只把 pointer/keyboard/wheel 输入转换成 normalized value，并发出 `interactionStarted/valueEdited/interactionFinished/interactionCanceled`；不调用 Seek、Volume、PlaybackSession，也不拥有媒体业务状态。
 - Pointer 通过独立 16px hit target 处理 press/drag，视觉轨道保持 3px；键盘 Left/Down 与 Right/Up 使用 `stepSize`，Wheel 使用 `wheelStep`；Disabled 阻断用户输入但不阻止外部程序设置值。根 `value` 越界时收敛到 0..1。
 - Slider 默认值文本复用 `TimecodeText.ExtraSmall`（Geist Mono 10 Regular），因此 Controls 继续只经既有 Theme + Primitives 边界消费基础能力；Feature import 规则不变，Timeline/Volume 后续应包装 Slider，而不是复制输入状态机。
@@ -164,7 +166,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ### 2026-08-13 — R5-06 Button controls Complete
 
-- 重新读取第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 的 D3-04 Transport 与 D3-06 Utility 设计上下文：Secondary/Utility 固定 **32px hit / 22px visual / R16**，Primary Playback 固定 **40px / 24px visual / R20**；交互权重使用 rest 72%、hover 100%、pressed 84%、disabled 38%，focus ring 82%，Primary glass alpha 使用 48/52/42%，hover/focus 使用既有 120ms Ease Out、pressed 0ms，Reduce Motion 继续降为 0ms。
+- 重新读取第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 的 D3-04 Transport 与 D3-06 Utility 设计上下文：Secondary/Utility 固定 **32px hit / 22px visual / R16**，Primary Playback 固定 **40px / 24px visual / R20**；交互权重使用 rest 72%、hover 100%、pressed 84%、disabled 38%、focus ring 82%，Primary glass alpha 使用 48/52/42%，hover/focus 使用既有 120ms Ease Out、pressed 0ms，Reduce Motion 继续降为 0ms。
 - 新增 `controls/buttons/ButtonBase.qml`、`IconButton.qml`、`TextButton.qml`、`ToggleButton.qml`。内部 `ButtonBase` 统一拥有 pointer hover/press、Space/Enter/Return 键盘激活、focus、disabled gate、toggle/checked 与 tooltip-request 状态；三个公开控件只消费该输入契约并负责各自视觉语义，不复制输入状态机、不持有播放业务状态。
 - `IconButton` 支持 Secondary / Primary 两级 emphasis，并暴露 `opticalOffsetX` 给后续 Transport consumer 应用已冻结的 Prev/Play/Next 光学修正；`ToggleButton` 复用 D3-06 open-selection 语义，selection fill 66% 与 selection border 28% 分层实现；`TextButton` 采用低权重 semantic text 状态，不凭空新增品牌色实心按钮变体。
 - R5-06 首次真实消费暴露两个基础 token 缺口：补充 `SizePrimitives.size24 → LayoutTokens.playbackIcon` 与 `OpacityPrimitives.focus → OpacityTokens.focusRing`，分别承载 Figma 的 24px Primary glyph 与 82% focus ring；未改写既有 72/84/38/100% 或 Radius/Material/Motion 真值。
