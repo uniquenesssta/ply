@@ -13,11 +13,14 @@ ButtonBase {
     property string iconId: ""
     property int emphasis: IconButton.Secondary
     property real opticalOffsetX: 0.0
+    property int iconSizeOverride: 0
 
     readonly property bool primary: emphasis === IconButton.Primary
-    readonly property int visualIconSize: primary
-                                          ? LayoutTokens.playbackIcon
-                                          : LayoutTokens.controlIcon
+    readonly property int visualIconSize: root.iconSizeOverride > 0
+                                          ? root.iconSizeOverride
+                                          : primary
+                                            ? LayoutTokens.playbackIcon
+                                            : LayoutTokens.controlIcon
     readonly property int controlRadius: primary
                                          ? RadiusTokens.controlPlayback
                                          : RadiusTokens.controlTransportSecondary

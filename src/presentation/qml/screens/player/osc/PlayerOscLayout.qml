@@ -16,10 +16,13 @@ Item {
     readonly property Item transportItem: controlRow.transportItem
     readonly property Item volumeItem: controlRow.volumeItem
     readonly property Item utilityItem: controlRow.utilityItem
+    readonly property int maximumSurfaceWidth: root.compact
+                                                ? LayoutTokens.oscMaximumWidthCompact
+                                                : LayoutTokens.oscMaximumWidth
     readonly property real surfaceWidth: Math.min(
-        LayoutTokens.oscMaximumWidth,
+        root.maximumSurfaceWidth,
         Math.max(0, root.width))
-    readonly property bool widthConstrained: root.surfaceWidth < LayoutTokens.oscMaximumWidth
+    readonly property bool widthConstrained: root.surfaceWidth < root.maximumSurfaceWidth
                                              || controlRow.contentConstrained
     readonly property int horizontalInset: root.compact
                                             ? SpacingTokens.oscInsetCompact
@@ -81,7 +84,6 @@ Item {
                 topMargin: root.laneGap
             }
             height: LayoutTokens.oscControlLaneHeight
-            compact: root.compact
         }
     }
 }

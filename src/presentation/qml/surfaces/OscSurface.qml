@@ -7,7 +7,9 @@ Panel {
     property bool compact: false
 
     objectName: "oscSurface"
-    implicitWidth: LayoutTokens.oscMaximumWidth
+    implicitWidth: root.compact
+                   ? LayoutTokens.oscMaximumWidthCompact
+                   : LayoutTokens.oscMaximumWidth
     implicitHeight: root.compact
                     ? LayoutTokens.oscHeightCompact
                     : LayoutTokens.oscHeight

@@ -34,9 +34,11 @@ QtObject {
     readonly property int size360: 360
     readonly property int size368: 368
     readonly property int size420: 420
+    readonly property int size440: 440
     readonly property int size540: 540
     readonly property int size700: 700
     readonly property int size720: 720
+    readonly property int size828: 828
     readonly property int size880: 880
     readonly property int size960: 960
     readonly property int size1280: 1280

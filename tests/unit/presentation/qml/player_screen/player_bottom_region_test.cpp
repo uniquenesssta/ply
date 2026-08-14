@@ -48,10 +48,8 @@ void PlayerBottomRegionTest::playerScreenComposesResponsiveOscHost()
     const QString source = readSource(relativePath);
     QVERIFY2(!source.isEmpty(), qPrintable(sourcePath(relativePath)));
 
-    QVERIFY(source.contains(QStringLiteral("readonly property real oscAvailableWidth")));
-    QVERIFY(source.contains(QStringLiteral("SpacingTokens.floatingEdge * 2")));
-    QVERIFY(source.contains(QStringLiteral("readonly property bool oscCompact")));
-    QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscMaximumWidth")));
+    QVERIFY(source.contains(QStringLiteral("property bool fullScreen: false")));
+    QVERIFY(source.contains(QStringLiteral("readonly property bool oscCompact: root.fullScreen")));
     QVERIFY(source.contains(QStringLiteral("PlayerBottomRegion {")));
     QVERIFY(source.contains(QStringLiteral("PlayerOscLayout {")));
     QVERIFY(source.contains(QStringLiteral("compact: root.oscCompact")));
@@ -89,6 +87,7 @@ void PlayerBottomRegionTest::oscLayoutOwnsSurfaceAndTwoLaneGrid()
     QVERIFY(source.contains(QStringLiteral("objectName: \"playerOscTimelineSlot\"")));
     QVERIFY(source.contains(QStringLiteral("OscControlRow {")));
     QVERIFY(source.contains(QStringLiteral("Math.min(")));
+    QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscMaximumWidthCompact")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscMaximumWidth")));
     QVERIFY(source.contains(QStringLiteral("SpacingTokens.oscInsetCompact")));
     QVERIFY(source.contains(QStringLiteral("SpacingTokens.oscInset")));
@@ -128,7 +127,6 @@ void PlayerBottomRegionTest::controlRowKeepsFeatureSlotsSeparate()
     QVERIFY(source.contains(QStringLiteral("property alias transportContent")));
     QVERIFY(source.contains(QStringLiteral("property alias volumeContent")));
     QVERIFY(source.contains(QStringLiteral("property alias utilityContent")));
-    QVERIFY(source.contains(QStringLiteral("SpacingTokens.controlAdjacent")));
     QVERIFY(source.contains(QStringLiteral("SpacingTokens.controlGroup")));
     QVERIFY(source.contains(QStringLiteral("readonly property bool contentConstrained")));
     QVERIFY(source.contains(QStringLiteral("id: leadingClip")));
@@ -153,6 +151,7 @@ void PlayerBottomRegionTest::oscSurfaceKeepsMaterialResponsibilityOnly()
     QVERIFY2(!source.isEmpty(), qPrintable(sourcePath(relativePath)));
 
     QVERIFY(source.contains(QStringLiteral("Panel {")));
+    QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscMaximumWidthCompact")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscMaximumWidth")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscHeightCompact")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.oscHeight")));

@@ -18,10 +18,12 @@ QtObject {
     readonly property int headerInfoWidthCompact: SizePrimitives.size360
     readonly property int headerActionsWidth: SizePrimitives.size110
     readonly property int headerActionGap: SizePrimitives.size3
+    readonly property int fullscreenHeaderWidth: SizePrimitives.size440
 
     readonly property int oscHeight: SizePrimitives.size124
     readonly property int oscHeightCompact: SizePrimitives.size106
     readonly property int oscMaximumWidth: SizePrimitives.size880
+    readonly property int oscMaximumWidthCompact: SizePrimitives.size828
     readonly property int oscTimelineLaneHeight: SizePrimitives.size28
     readonly property int oscTimelineLaneHeightCompact: SizePrimitives.size26
     readonly property int oscControlLaneHeight: SizePrimitives.size40

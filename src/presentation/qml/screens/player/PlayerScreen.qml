@@ -7,18 +7,17 @@ Item {
     property string mediaTitle: ""
     property string mediaMetadataText: ""
     property bool windowExpanded: false
+    property bool fullScreen: false
     property var transportViewModel: null
     property var timelineViewModel: null
     property var volumeViewModel: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
-    readonly property real oscAvailableWidth: Math.max(
-        0,
-        root.width - (SpacingTokens.floatingEdge * 2))
-    readonly property bool oscCompact: root.oscAvailableWidth < LayoutTokens.oscMaximumWidth
+    readonly property bool oscCompact: root.fullScreen
 
     signal minimizeRequested()
     signal maximizeRestoreRequested()
+    signal fullscreenToggleRequested()
     signal closeRequested()
 
     objectName: "playerScreen"
@@ -26,6 +25,15 @@ Item {
     VideoViewport {
         id: videoViewport
         anchors.fill: parent
+    }
+
+    FullscreenGestureLayer {
+        id: fullscreenGestureLayer
+
+        parent: videoViewport
+        anchors.fill: parent
+
+        onToggleFullscreenRequested: root.fullscreenToggleRequested()
     }
 
     PlayerTopRegion {
@@ -38,12 +46,15 @@ Item {
             leftMargin: SpacingTokens.windowSafeMinimum
             rightMargin: SpacingTokens.windowSafeMinimum
         }
-        height: root.headerCompact
+        height: root.fullScreen
                 ? LayoutTokens.headerHeightCompact
-                : LayoutTokens.headerHeight
+                : root.headerCompact
+                  ? LayoutTokens.headerHeightCompact
+                  : LayoutTokens.headerHeight
 
         PlayerFloatingHeader {
             anchors.fill: parent
+            visible: !root.fullScreen
             mediaTitle: root.mediaTitle
             metadataText: root.mediaMetadataText
             windowExpanded: root.windowExpanded
@@ -51,6 +62,17 @@ Item {
             onMinimizeRequested: root.minimizeRequested()
             onMaximizeRestoreRequested: root.maximizeRestoreRequested()
             onCloseRequested: root.closeRequested()
+        }
+
+        FullscreenHeader {
+            anchors {
+                top: parent.top
+                horizontalCenter: parent.horizontalCenter
+            }
+            width: Math.min(LayoutTokens.fullscreenHeaderWidth, parent.width)
+            height: parent.height
+            active: root.fullScreen
+            mediaTitle: root.mediaTitle
         }
     }
 
@@ -87,6 +109,7 @@ Item {
             ]
             transportContent: [
                 TransportControls {
+                    compact: root.oscCompact
                     viewModel: root.transportViewModel
                 }
             ]
@@ -94,6 +117,13 @@ Item {
                 VolumeControls {
                     compact: root.oscCompact
                     viewModel: root.volumeViewModel
+                }
+            ]
+            utilityContent: [
+                FullscreenControls {
+                    fullScreen: root.fullScreen
+
+                    onToggleFullscreenRequested: root.fullscreenToggleRequested()
                 }
             ]
         }

@@ -6,6 +6,7 @@ QtObject {
     readonly property int controlTight: SpacingPrimitives.space6
     readonly property int controlAdjacent: SpacingPrimitives.space12
     readonly property int controlGroup: SpacingPrimitives.space32
+    readonly property int fullscreenTransportGap: SpacingPrimitives.space18
     readonly property int sliderValueGap: SpacingPrimitives.space12
 
     readonly property int surfacePaddingSmall: SpacingPrimitives.space18

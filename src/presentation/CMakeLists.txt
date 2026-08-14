@@ -8,6 +8,7 @@ add_subdirectory(viewmodels/player/volume)
 set(PLAYER_QML_FILES
     qml/App.qml
     qml/shell/MainWindow.qml
+    qml/shell/window/FullscreenWindowController.qml
     qml/screens/player/PlayerScreen.qml
     qml/screens/player/layout/VideoViewport.qml
     qml/screens/player/layout/PlayerTopRegion.qml
@@ -15,6 +16,7 @@ set(PLAYER_QML_FILES
     qml/screens/player/header/PlayerFloatingHeader.qml
     qml/screens/player/header/MediaInfoPod.qml
     qml/screens/player/header/WindowActionsPod.qml
+    qml/screens/player/fullscreen/FullscreenHeader.qml
     qml/screens/player/osc/PlayerOscLayout.qml
     qml/screens/player/osc/OscControlRow.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
@@ -23,6 +25,8 @@ set(PLAYER_QML_FILES
     qml/features/player/transport/TransportControls.qml
     qml/features/player/timeline/TimelineControls.qml
     qml/features/player/volume/VolumeControls.qml
+    qml/features/player/fullscreen/FullscreenControls.qml
+    qml/features/player/fullscreen/FullscreenGestureLayer.qml
 )
 
 target_sources(
@@ -42,6 +46,7 @@ endforeach()
 
 set_source_files_properties(
     qml/shell/MainWindow.qml
+    qml/shell/window/FullscreenWindowController.qml
     qml/screens/player/PlayerScreen.qml
     qml/screens/player/layout/VideoViewport.qml
     qml/screens/player/layout/PlayerTopRegion.qml
@@ -49,6 +54,7 @@ set_source_files_properties(
     qml/screens/player/header/PlayerFloatingHeader.qml
     qml/screens/player/header/MediaInfoPod.qml
     qml/screens/player/header/WindowActionsPod.qml
+    qml/screens/player/fullscreen/FullscreenHeader.qml
     qml/screens/player/osc/PlayerOscLayout.qml
     qml/screens/player/osc/OscControlRow.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
@@ -57,6 +63,8 @@ set_source_files_properties(
     qml/features/player/transport/TransportControls.qml
     qml/features/player/timeline/TimelineControls.qml
     qml/features/player/volume/VolumeControls.qml
+    qml/features/player/fullscreen/FullscreenControls.qml
+    qml/features/player/fullscreen/FullscreenGestureLayer.qml
     PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 

@@ -6,15 +6,19 @@ Row {
     id: root
 
     property var viewModel: null
+    property bool compact: false
 
     objectName: "playerTransportControls"
-    spacing: SpacingTokens.controlTight
+    spacing: root.compact
+             ? SpacingTokens.fullscreenTransportGap
+             : SpacingTokens.controlTight
 
     IconButton {
         id: previousButton
 
         objectName: "transportPreviousButton"
         iconId: "previous"
+        iconSizeOverride: root.compact ? LayoutTokens.controlIconCompact : 0
         enabled: root.viewModel !== null && root.viewModel.canPrevious
         toolTipText: qsTr("Previous")
         accessibleName: toolTipText
@@ -31,7 +35,10 @@ Row {
 
         objectName: "transportPlayPauseButton"
         iconId: "play"
-        emphasis: IconButton.Primary
+        iconSizeOverride: root.compact ? LayoutTokens.controlIconCompact : 0
+        emphasis: root.compact
+                  ? IconButton.Secondary
+                  : IconButton.Primary
         enabled: root.viewModel !== null
                  && (root.viewModel.canPlay || root.viewModel.canPause)
         toolTipText: root.viewModel !== null && root.viewModel.isPlaying
@@ -51,6 +58,7 @@ Row {
 
         objectName: "transportNextButton"
         iconId: "next"
+        iconSizeOverride: root.compact ? LayoutTokens.controlIconCompact : 0
         enabled: root.viewModel !== null && root.viewModel.canNext
         toolTipText: qsTr("Next")
         accessibleName: toolTipText

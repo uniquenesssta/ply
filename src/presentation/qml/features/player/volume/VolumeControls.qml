@@ -28,6 +28,7 @@ Row {
 
         objectName: "volumeMuteButton"
         iconId: "volume"
+        iconSizeOverride: root.compact ? LayoutTokens.controlIconCompact : 0
         enabled: root.viewModel !== null
                  && root.viewModel.canToggleMute
                  && !root.viewModel.mutePending

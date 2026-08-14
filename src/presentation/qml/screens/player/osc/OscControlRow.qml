@@ -4,8 +4,6 @@ import Player.Presentation.Theme
 Item {
     id: root
 
-    property bool compact: false
-
     property alias transportContent: transportHost.data
     property alias volumeContent: volumeHost.data
     property alias utilityContent: utilityHost.data
@@ -13,9 +11,7 @@ Item {
     readonly property Item transportItem: transportHost
     readonly property Item volumeItem: volumeHost
     readonly property Item utilityItem: utilityHost
-    readonly property int groupGap: root.compact
-                                    ? SpacingTokens.controlAdjacent
-                                    : SpacingTokens.controlGroup
+    readonly property int groupGap: SpacingTokens.controlGroup
     readonly property bool contentConstrained: leadingRow.width > leadingClip.width
                                                 || utilityHost.implicitWidth > root.width
 
