@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Candidate**；Windows Debug build PASS、QML lint 门禁完成、**52/52 CTest PASS（52.79 s）**、`Player.exe` startup PASS；configure 布局校验修复待复验，basic resize 待确认 |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete**；Windows configure/build/QML lint PASS、**52/52 CTest PASS（52.79 s）**、`Player.exe` startup PASS、basic resize PASS；R6-02 未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -102,7 +102,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — R6-01 PlayerScreen composition candidate
+### 2026-08-14 — R6-01 PlayerScreen composition Complete
 
 - 从已正式关闭的 R5 HEAD `470ea1a58739be59dc4f24ff910a90dfb8c6c506` 创建独立 `agent/r6-stage`，R6-01 只推进播放器页面组合骨架，不提前进入 R6-02 的媒体状态/aspect fit 或 R6-03/R6-04 的真实 Header/OSC 内容。
 - 按 R6-01 与第三版 D2 Window System 契约，将 `PlayerScreen` 从旧的 `VideoSurface + PlayerChrome` 两层占位结构拆为职责独立的 `VideoViewport`、`PlayerTopRegion`、`PlayerBottomRegion`、`PlayerOverlayStack`、`PlayerDrawerHost`。`PlayerScreen.qml` 现在只负责 Host 组合、安全边距、尺寸约束和层级，不包含按钮、文字、播放业务或 libmpv 调用。
@@ -111,9 +111,10 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 已删除被新结构完整替代的 `features/player/chrome/PlayerChrome.qml`。该旧文件同时拥有顶部和底部占位 UI，继续保留会形成重复路径；删除不改变任何已实现业务操作，因为其中只有框架提示文字和玻璃占位矩形。
 - 目标结构中的 `states/` 本轮没有创建空文件：R6-01 尚无独立状态 owner，Loading/Buffering/Ended/Error selector 属于后续 R6-11；不为了目录形式制造透明转发或推测状态抽象。当前仓库也尚无 `PlayerViewModel`，因此 R6-01 只建立 `PlayerViewModel → PlayerScreen → child features` 链中的 Screen/Host 边界，不把尚未存在的 VM 伪装为已接通。
 - 新增独立 `player_screen_structure` CTest，静态验证 PlayerScreen 只组合五类 Host、Host 使用正确 z-order/slot、VideoViewport 只包装 VideoSurface、Screen/Host 不出现 PlaybackSession/libmpv/mpv_ 业务词，并强制旧 `PlayerChrome.qml` 不再存在。全量测试数由 **51 → 52**。
-- 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被 `verify-project-layout.ps1` 阻断，原因是该旧 scaffold 校验仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake 自动重跑可正常 Configuring/Generating（1.8 s / 1.8 s），Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且日志无 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS，用户截图显示当前无媒体骨架正常铺满窗口，旧 Header/OSC 占位条已消失。MSVC `/showIncludes` 中文控制台乱码仍只是输出编码问题，没有形成 compiler warning/error 或测试失败。
-- 同源修复已更新 `scripts/verify-project-layout.ps1`：required-files 真值改为 R6-01 的五个 Screen Host + `VideoSurface`，旧 `PlayerChrome.qml` 改为 obsolete path；Presentation CMake 校验同步要求五个 Host 已进入 QML module；`PlayerScreen` 组合校验同步从旧 `VideoSurface + PlayerChrome` 改为 `VideoViewport + TopRegion + BottomRegion + OverlayStack + DrawerHost`。没有恢复旧 Chrome、没有弱化校验，也没有修改生产 QML/C++、PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。
-- 修复后的 `configure.ps1` 尚待 Windows 复验；R6-01 任务书要求的 basic resize 也尚未得到明确人工确认。此前生产代码 build/52-test/startup 结果仍有效，但在这两项确认前 **R6-01 保持 Candidate；R6-02 未开始。**
+- 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被 `verify-project-layout.ps1` 阻断，原因是旧 scaffold 校验仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake 自动重跑正常，Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且无新增 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS。
+- 同源修复更新 `scripts/verify-project-layout.ps1`：required-files 真值改为 R6-01 五个 Screen Host + `VideoSurface`，旧 `PlayerChrome.qml` 改为 obsolete path；Presentation CMake 校验同步要求五个 Host 已进入 QML module；PlayerScreen composition 校验同步改为新五层结构。没有恢复旧 Chrome，也没有弱化项目布局门禁。
+- 修复后 `configure.ps1` 在锁定 Windows 环境复验 **PASS**：layout verifier 明确报告 R6-01 PlayerScreen composition 完整，CMake **Configuring 3.7 s / Generating 1.7 s**；此前 build/QML lint/52-test 结果保持有效，因为修复只涉及 verifier 与文档。
+- 最终手工 basic resize 验证 **PASS**：窗口缩小、放大均正常，内容始终铺满，没有错位或运行时报错；`Player.exe` 再次启动正常。未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-01 正式 Complete；R6-02 未开始。**
 
 ### 2026-08-14 — R5-10 Accessibility baseline / Stage R5 Complete
 
