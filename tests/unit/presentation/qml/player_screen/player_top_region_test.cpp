@@ -76,7 +76,8 @@ void PlayerTopRegionTest::headerKeepsPodsIndependent()
     QVERIFY(source.contains(QStringLiteral("left: parent.left")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.headerInfoWidth")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.headerInfoWidthCompact")));
-    QVERIFY(source.contains(QStringLiteral("LayoutTokens.headerActionsWidth")) == false);
+    QVERIFY(source.contains(QStringLiteral("LayoutTokens.headerActionsWidth")));
+    QVERIFY(source.contains(QStringLiteral("height: root.podHeight")));
     QVERIFY(source.contains(QStringLiteral("SpacingTokens.controlAdjacent")));
 
     const QStringList forbidden{
@@ -158,10 +159,12 @@ void PlayerTopRegionTest::shellOwnsGenericWindowCommands()
 
     QVERIFY(source.contains(QStringLiteral("Window.Maximized")));
     QVERIFY(source.contains(QStringLiteral("Window.FullScreen")));
-    QVERIFY(source.contains(QStringLiteral("root.showMinimized()")));
-    QVERIFY(source.contains(QStringLiteral("root.showMaximized()")));
-    QVERIFY(source.contains(QStringLiteral("root.showNormal()")));
-    QVERIFY(source.contains(QStringLiteral("root.close()")));
+    QVERIFY(source.contains(QStringLiteral("window.showMinimized()")));
+    QVERIFY(source.contains(QStringLiteral("window.showMaximized()")));
+    QVERIFY(source.contains(QStringLiteral("window.showNormal()")));
+    QVERIFY(source.contains(QStringLiteral("window.close()")));
+    QVERIFY(source.contains(QStringLiteral("title: qsTr(\"Player\")")));
+    QVERIFY(source.contains(QStringLiteral("color: ColorTokens.surfaceCanvas")));
     QVERIFY(!source.contains(QStringLiteral("Qt.FramelessWindowHint")));
     QVERIFY(!source.contains(QStringLiteral("startSystemMove")));
     QVERIFY(!source.contains(QStringLiteral("Win32")));

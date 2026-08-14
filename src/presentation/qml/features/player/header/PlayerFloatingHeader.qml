@@ -12,6 +12,9 @@ Item {
     readonly property int preferredInfoWidth: root.compact
                                                ? LayoutTokens.headerInfoWidthCompact
                                                : LayoutTokens.headerInfoWidth
+    readonly property int podHeight: root.compact
+                                     ? LayoutTokens.headerHeightCompact
+                                     : LayoutTokens.headerHeight
 
     signal minimizeRequested()
     signal maximizeRestoreRequested()
@@ -27,6 +30,8 @@ Item {
             right: parent.right
             verticalCenter: parent.verticalCenter
         }
+        width: LayoutTokens.headerActionsWidth
+        height: root.podHeight
         compact: root.compact
         windowExpanded: root.windowExpanded
 
@@ -49,6 +54,7 @@ Item {
                 root.width
                     - windowActions.width
                     - SpacingTokens.controlAdjacent))
+        height: root.podHeight
         compact: root.compact
         mediaTitle: root.mediaTitle
         metadataText: root.metadataText

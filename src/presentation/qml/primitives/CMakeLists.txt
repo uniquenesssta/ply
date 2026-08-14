@@ -42,7 +42,6 @@ qt_add_qml_module(
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
     NO_PLUGIN
-    NO_GENERATE_EXTRA_QMLDIRS
     DEPENDENCIES
         QtQuick
         QtQuick.Effects
