@@ -9,6 +9,10 @@ class PlaybackRequestIdGenerator;
 class PlaybackSessionThread;
 }
 
+namespace player::playback::domain {
+enum class TransportAction;
+}
+
 namespace player::presentation {
 class PlayerTransportViewModel;
 }
@@ -31,9 +35,7 @@ public:
     [[nodiscard]] player::presentation::PlayerTransportViewModel& transportViewModel() noexcept;
 
 private:
-    void submitPlay();
-    void submitPause();
-    void submitStop();
+    void submitTransport(player::playback::domain::TransportAction action);
 
     std::unique_ptr<player::playback::application::PlaybackSessionThread> playbackThread_;
     std::unique_ptr<player::playback::application::PlaybackRequestIdGenerator> requestIdGenerator_;

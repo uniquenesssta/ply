@@ -10,14 +10,13 @@
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 
 #include <QLoggingCategory>
+#include <QObject>
 #include <QString>
 
 namespace player::app {
 namespace {
 
-using player::playback::domain::PlaybackCommand;
 using player::playback::domain::TransportAction;
-using player::playback::domain::TransportCommand;
 
 QString transportActionName(TransportAction action)
 {
@@ -53,17 +52,17 @@ PlaybackComposition::PlaybackComposition()
         transportViewModel_.get(),
         &player::presentation::PlayerTransportViewModel::playRequested,
         playbackThread_.get(),
-        [this]() { submitPlay(); });
+        [this]() { submitTransport(TransportAction::Play); });
     QObject::connect(
         transportViewModel_.get(),
         &player::presentation::PlayerTransportViewModel::pauseRequested,
         playbackThread_.get(),
-        [this]() { submitPause(); });
+        [this]() { submitTransport(TransportAction::Pause); });
     QObject::connect(
         transportViewModel_.get(),
         &player::presentation::PlayerTransportViewModel::stopRequested,
         playbackThread_.get(),
-        [this]() { submitStop(); });
+        [this]() { submitTransport(TransportAction::Stop); });
 
     QObject::connect(
         playbackThread_.get(),
@@ -105,68 +104,24 @@ PlaybackComposition::transportViewModel() noexcept
     return *transportViewModel_;
 }
 
-void PlaybackComposition::submitPlay()
+void PlaybackComposition::submitTransport(TransportAction action)
 {
-    using namespace player::playback;
-    application::PlaybackCommandBus* bus = playbackThread_->commandBus();
+    auto* bus = playbackThread_->commandBus();
     if (bus == nullptr || !bus->isAcceptingCommands()) {
-        qCWarning(player::logging::uiInteraction)
-            << "Transport play intent ignored because PlaybackCommandBus is unavailable.";
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Transport intent ignored because PlaybackCommandBus is unavailable:"
+            << transportActionName(action);
         return;
     }
 
     QString diagnostic;
-    const PlaybackCommand command{
+    const player::playback::domain::PlaybackCommand command{
         requestIdGenerator_->next(),
-        TransportCommand{TransportAction::Play}};
+        player::playback::domain::TransportCommand{action}};
     if (!bus->submit(command, &diagnostic)) {
         qCWarning(player::logging::uiInteraction).noquote()
             << "Transport command submission failed:"
-            << transportActionName(TransportAction::Play)
-            << diagnostic;
-    }
-}
-
-void PlaybackComposition::submitPause()
-{
-    using namespace player::playback;
-    application::PlaybackCommandBus* bus = playbackThread_->commandBus();
-    if (bus == nullptr || !bus->isAcceptingCommands()) {
-        qCWarning(player::logging::uiInteraction)
-            << "Transport pause intent ignored because PlaybackCommandBus is unavailable.";
-        return;
-    }
-
-    QString diagnostic;
-    const PlaybackCommand command{
-        requestIdGenerator_->next(),
-        TransportCommand{TransportAction::Pause}};
-    if (!bus->submit(command, &diagnostic)) {
-        qCWarning(player::logging::uiInteraction).noquote()
-            << "Transport command submission failed:"
-            << transportActionName(TransportAction::Pause)
-            << diagnostic;
-    }
-}
-
-void PlaybackComposition::submitStop()
-{
-    using namespace player::playback;
-    application::PlaybackCommandBus* bus = playbackThread_->commandBus();
-    if (bus == nullptr || !bus->isAcceptingCommands()) {
-        qCWarning(player::logging::uiInteraction)
-            << "Transport stop intent ignored because PlaybackCommandBus is unavailable.";
-        return;
-    }
-
-    QString diagnostic;
-    const PlaybackCommand command{
-        requestIdGenerator_->next(),
-        TransportCommand{TransportAction::Stop}};
-    if (!bus->submit(command, &diagnostic)) {
-        qCWarning(player::logging::uiInteraction).noquote()
-            << "Transport command submission failed:"
-            << transportActionName(TransportAction::Stop)
+            << transportActionName(action)
             << diagnostic;
     }
 }
