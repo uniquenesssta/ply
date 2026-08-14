@@ -101,7 +101,6 @@ bool PlayerTimelineViewModel::beginScrub(double normalized)
     }
 
     pendingAbsoluteSeconds_.reset();
-    pendingSawBackendSeeking_ = false;
     emit stateChanged();
     return true;
 }
@@ -128,7 +127,6 @@ bool PlayerTimelineViewModel::commitScrub(double normalized)
     }
 
     pendingAbsoluteSeconds_ = *committed * *durationSeconds_;
-    pendingSawBackendSeeking_ = backendSeeking_;
     emit stateChanged();
     emit seekRequested(*pendingAbsoluteSeconds_);
     return true;
@@ -142,7 +140,6 @@ bool PlayerTimelineViewModel::cancelScrub()
 
     (void)scrubSession_.cancel();
     pendingAbsoluteSeconds_.reset();
-    pendingSawBackendSeeking_ = false;
     emit stateChanged();
     return true;
 }
@@ -154,7 +151,6 @@ bool PlayerTimelineViewModel::rejectPendingSeek()
     }
 
     pendingAbsoluteSeconds_.reset();
-    pendingSawBackendSeeking_ = false;
     emit stateChanged();
     return true;
 }
@@ -175,7 +171,6 @@ void PlayerTimelineViewModel::acceptSnapshot(
     if (nextGeneration != generation_) {
         (void)scrubSession_.cancelIfGenerationChanged(nextGeneration);
         pendingAbsoluteSeconds_.reset();
-        pendingSawBackendSeeking_ = false;
     }
     generation_ = nextGeneration;
 
@@ -190,24 +185,16 @@ void PlayerTimelineViewModel::acceptSnapshot(
     if (!canSeek_) {
         (void)scrubSession_.cancel();
         pendingAbsoluteSeconds_.reset();
-        pendingSawBackendSeeking_ = false;
     } else if (scrubSession_.isPendingCommit()) {
-        if (backendSeeking_) {
-            pendingSawBackendSeeking_ = true;
-        }
-
         const double targetSeconds = pendingAbsoluteSeconds_.value_or(
             scrubSession_.previewNormalized() * *durationSeconds_);
         const bool targetObserved = actualPositionSeconds_.has_value()
             && std::abs(*actualPositionSeconds_ - targetSeconds)
                 <= kSeekAcknowledgementToleranceSeconds;
-        const bool seekCycleCompleted =
-            pendingSawBackendSeeking_ && !backendSeeking_;
 
-        if (targetObserved || seekCycleCompleted) {
+        if (targetObserved) {
             (void)scrubSession_.acknowledgePending();
             pendingAbsoluteSeconds_.reset();
-            pendingSawBackendSeeking_ = false;
         }
     }
 
