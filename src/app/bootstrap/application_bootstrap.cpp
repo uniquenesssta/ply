@@ -8,6 +8,7 @@
 #include "foundation/logging/log_categories.h"
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
 #include "presentation/qml/types/presentation_type_registration.h"
+#include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 
 #include <QCoreApplication>
@@ -98,6 +99,10 @@ int ApplicationBootstrap::run(
         QStringLiteral("transportViewModel"),
         QVariant::fromValue(
             static_cast<QObject*>(&playbackComposition.transportViewModel())));
+    initialProperties.insert(
+        QStringLiteral("timelineViewModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.timelineViewModel())));
     qmlBootstrap.setInitialProperties(initialProperties);
 
     if (!qmlBootstrap.load()) {
