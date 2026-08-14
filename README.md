@@ -12,11 +12,11 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-07 均 Complete**；R6-08 Fullscreen candidate 首轮 Windows configure/build PASS，但 CTest 为 **63/65 PASS、2 failed（56.34 s）**；raw-metric 门禁与旧 Transport contract 已修正，待 65/65 + 手工 fullscreen 复验 |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-08 均 Complete**；R6-08 最终 Windows Debug build/QML lint/**65/65 CTest PASS（53.75 s）**，Fullscreen 按钮/Esc/双击及 Windowed/Maximized 恢复矩阵手工 PASS；R6-09 尚未开始。Pre-R6-09 runtime file diagnostics candidate 已提交，开发态日志目标为仓库根相对路径 `..\logs\player.log`，待 Windows 验证 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
-当前保留的已知非阻塞事项：R2-01 的仓库根 `player.log` 落盘缺口仍未关闭。
+当前保留的已知非阻塞事项：R2-01 原“仓库根 `player.log`”落盘缺口已进入替代候选：开发态改写到仓库上一级 `logs/player.log`；在 Windows 实机确认文件真实生成前不标记关闭。
 
 ## Technical baseline
 
@@ -102,18 +102,25 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — R6-08 Fullscreen implementation candidate
+### 2026-08-14 — Pre-R6-09 runtime file diagnostics candidate
+
+- 复用现有 `RuntimePaths → LoggingBootstrap → LogFileSink` 单一日志主链，没有创建第二套 logger、QML 专用日志系统或新的生产依赖。现有 Qt message handler 会继续收集 C++ `qDebug/qInfo/qWarning/qCritical`、logging category 与 QML/Qt runtime message，供后续 R6-09 运行时判定与 PowerShell 输出一起分析。
+- 开发态通过既有 `.player-development-root` 识别项目根后，日志目录从项目根改为其上一级的 `logs/`，因此用户工作区 `F:\QT6-PLAYER\qt6-player r2` 的固定相对位置为 **`..\logs\player.log`**。`LogFileSink` 继续自动创建目录；4 MiB active file + 3 个 archive、线程安全写入与敏感信息 redaction 行为保持不变。
+- 只改变 Development marker 路径：普通 Installed 仍写入 `AppLocalDataLocation/logs`，Portable 仍写在可执行文件旁 `logs/`；配置、截图、持久化路径和公共播放接口不变。`LoggingBootstrap` 在 sink 安装成功后把实际 `player.log` 完整路径写入日志首段，便于确认当前运行对应的文件。
+- `runtime_paths` 既有测试直接扩展为验证 project-parent `logs/`，并覆盖 pre-GUI executable path 与 development-marker-over-portable 兼容路径；没有新增测试 target，因此 Windows 全量仍应为 **65**。
+- 当前仅完成源码/路径/测试静态审查，Windows Debug build、QML lint、65 CTest、`Player.exe` 启动以及 `..\logs\player.log` 实际生成/内容检查尚未执行。**R6-09 尚未开始。**
+
+### 2026-08-14 — R6-08 Fullscreen Complete
 
 - Fullscreen 是窗口模式，不建立第二套 Playback 真值。新增 `shell/window/FullscreenWindowController.qml`，直接以 Qt `Window.visibility === Window.FullScreen` 作为权威状态；进入前只记录 Windowed/Maximized 恢复语义，退出时分别 `showNormal()` / `showMaximized()`。`MainWindow → PlayerScreen` 只显式传递 `fullScreen` 并转发 fullscreen intent，没有把 window-state owner 塞进 Playback ViewModel。
 - 新增职责独立的 `features/player/fullscreen/FullscreenControls.qml` 与 `FullscreenGestureLayer.qml`：前者只拥有 OSC Utility 的 Fullscreen action，后者只用 `TapHandler.onDoubleTapped` 把视频双击转换为同一 toggle intent；Esc 由 Window Controller 的 `Shortcut` + `Qt.ApplicationShortcut` 统一处理，因此按钮、双击、Esc 最终共用一个进入/退出 owner。
 - 重新读取最终 Figma `4:48 Framework / Fullscreen`：Fullscreen Header `4:60` 为 **440×50**，使用 Header Compact 材质/R25/MediaCompact title + `ESC` keycap；Fullscreen OSC `4:63` 为 **828×106**、R32、Compact material，Timeline 使用 11px timecode/28px inset，Transport/Volume/Utility visual glyph 为 **21px**，Volume slider 不显示。新增 `SizePrimitives.size440/size828` 与对应 semantic Layout token，没有把裸尺寸散回业务 QML。
-- Fullscreen 没有复制 Timeline/Transport/Volume：`PlayerScreen` 仍组合现有 `PlayerOscLayout` 与同一三类 Feature，只把 `compact` 的模式来源改为 `fullScreen`。`PlayerOscLayout/OscSurface` 在 Fullscreen 使用 828px max width；`TransportControls` 在 compact 下复用同一 intent/VM，但把 Play 从 40px Primary glass降为 Secondary，并用新增的通用 `IconButton.iconSizeOverride` 输出 21px visual；32px Secondary hit target 继续保持。`VolumeControls` 在 compact 下继续隐藏 Slider 并把 Volume visual 降为 21px。
-- 最终 Figma 目前只有 canonical `fullscreen` glyph，没有独立 Exit-Fullscreen glyph；本候选不手绘/伪造资产，进入/退出使用同一 canonical glyph，仅切换 Tooltip/Accessible description。Subtitles/Playlist 尚属后续真实 Feature，因此 R6-08 不用静态假按钮占位。
-- Fullscreen Header 在当前无媒体 identity 时不渲染空玻璃块；真正媒体标题绑定仍由后续媒体入口/presentation 数据链提供。R6-08 也不提前实现 R6-09 的 inactivity Timer/OSC 自动隐藏，不提前实现 R10 的 FramelessWindowHint、Win32 hit-test、DWM、Snap 或 native resize。
-- 新增独立 `player_fullscreen_controls` CTest，并同步修正 R6-04 Bottom Region contract：`compact` 现在明确代表 Fullscreen mode，而不是普通 Main Window 宽度断点；全量预期 **64 → 65**。Qt 6.8 官方接口静态核对确认 `Shortcut/Qt.ApplicationShortcut`、`TapHandler.doubleTapped` 与 `Window.showFullScreen()/showMaximized()/showNormal()` 均属于锁定版本支持能力。
-- 首轮 Windows 锁定环境验证：`configure.ps1` **PASS**（CMake Configuring 4.6 s / Generating 2.1 s）；Debug `build.ps1` **PASS**，development marker 与 Qt runtime deployment 正常；`scripts/test.ps1` 完成 QML lint 后得到 **63/65 PASS、2 failed，56.34 s**。新增 `player_fullscreen_controls` **0.11 s PASS**，失败仅为 `theme_tokens` 与既有 `player_transport_controls` Presentation contract；Playback/Render/Timeline/Volume 其余 63 项均保持通过。构建中的 Qt 6.8.3 system-header C4702 warning 仍为已记录的外部工具链 warning。
-- 两处失败已按根因修正：`FullscreenWindowController.qml` 删除无视觉意义的 `width: 0` / `height: 0`，让 Theme raw-metric 门禁不再把零尺寸 controller 声明识别为视觉裸值；既有 Transport contract 不再错误要求所有模式都固定 `emphasis: IconButton.Primary`，而是同时锁定 Main Standard 的 Primary 与 Fullscreen compact 的 Secondary + 21px visual。生产 Fullscreen/Transport 行为、公共播放接口和窗口状态所有权均未改变。修复源码提交为 `5ed9df951323e9f99b824bfc93d37d55d499b87c`。
-- 日志证明 `Player.exe` 已被启动，但没有提供 Fullscreen 按钮、Esc、双击以及 Windowed/Maximized 恢复结果，因此不能把手工矩阵写成通过。修复后的 Debug build/QML lint/**65/65 CTest** 与手工 fullscreen 矩阵仍待复验，**R6-08 当前不是 Complete。**
+- Fullscreen 没有复制 Timeline/Transport/Volume：`PlayerScreen` 仍组合现有 `PlayerOscLayout` 与同一三类 Feature，只把 `compact` 的模式来源改为 `fullScreen`。`PlayerOscLayout/OscSurface` 在 Fullscreen 使用 828px max width；`TransportControls` 在 compact 下复用同一 intent/VM，但把 Play 从 40px Primary glass 降为 Secondary，并用新增的通用 `IconButton.iconSizeOverride` 输出 21px visual；32px Secondary hit target 继续保持。`VolumeControls` 在 compact 下继续隐藏 Slider 并把 Volume visual 降为 21px。
+- 最终 Figma 目前只有 canonical `fullscreen` glyph，没有独立 Exit-Fullscreen glyph；实现不手绘/伪造资产，进入/退出使用同一 canonical glyph，仅切换 Tooltip/Accessible description。Subtitles/Playlist 尚属后续真实 Feature，因此 R6-08 不用静态假按钮占位。
+- Fullscreen Header 在当前无媒体 identity 时不渲染空玻璃块；真正媒体标题绑定仍由后续媒体入口/presentation 数据链提供。R6-08 没有提前实现 R6-09 的 inactivity Timer/OSC 自动隐藏，也没有提前实现 R10 的 FramelessWindowHint、Win32 hit-test、DWM、Snap 或 native resize。
+- 新增独立 `player_fullscreen_controls` CTest，并同步修正 R6-04 Bottom Region contract：`compact` 明确代表 Fullscreen mode，而不是普通 Main Window 宽度断点。Qt 6.8 API 静态核对确认 `Shortcut/Qt.ApplicationShortcut`、`TapHandler.doubleTapped` 与 `Window.showFullScreen()/showMaximized()/showNormal()` 均属于锁定版本支持能力。
+- 首轮 Windows 锁定环境验证：`configure.ps1` **PASS**（CMake Configuring 4.6 s / Generating 2.1 s）；Debug `build.ps1` **PASS**；首轮 CTest 为 **63/65 PASS、2 failed，56.34 s**。两个失败均为 Presentation contract：无视觉意义的 controller `width:0/height:0` 被 raw-metric 门禁识别，以及旧 Transport test 错误要求所有模式的 Play 都固定 Primary。两处同源修复只删除零尺寸声明，并同时锁定 Main Standard Primary 与 Fullscreen compact Secondary + 21px visual，未改变 Fullscreen/Transport 生产语义。
+- 最终 Windows 复验：Debug `build.ps1` **PASS**；`scripts/test.ps1` 完成 QML lint；**65/65 CTest PASS，0 failed，53.75 s**，`player_fullscreen_controls` **0.02 s PASS**，Playback/Render/Presentation 全量回归保持通过；随后 `Player.exe` 实际启动。用户明确确认手工 Fullscreen 验收“通过”，覆盖按钮进入/退出、Esc、视频区域双击，以及 Windowed/Maximized 进入 Fullscreen 后恢复语义。**R6-08 正式 Complete；R6-09 尚未开始。**
 
 ### 2026-08-14 — R6-07 Volume Complete
 
@@ -329,4 +336,4 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 - **R2-01~R2-11 完成 Stage 主链；Stage R2 Complete。**
 - 建立固定 libmpv 运行链、RAII client、初始化、命令、属性、事件、错误映射与 headless playback probe。
-- R2-01 的根 `player.log` 落盘缺口继续作为已知非阻塞诊断事项保留。
+- R2-01 原仓库根 `player.log` 落盘缺口当前由 pre-R6-09 development log relocation candidate 替代，待 Windows 实机确认 `..\logs\player.log` 后正式关闭。
