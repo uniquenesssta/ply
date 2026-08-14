@@ -66,7 +66,7 @@ void PlayerTopRegionTest::screenInjectsHeaderThroughTopRegionHost()
 void PlayerTopRegionTest::headerKeepsPodsIndependent()
 {
     const QString path = QStringLiteral(
-        "src/presentation/qml/features/player/header/PlayerFloatingHeader.qml");
+        "src/presentation/qml/screens/player/header/PlayerFloatingHeader.qml");
     const QString source = readSource(path);
     QVERIFY2(!source.isEmpty(), qPrintable(sourcePath(path)));
 
@@ -95,7 +95,7 @@ void PlayerTopRegionTest::headerKeepsPodsIndependent()
 void PlayerTopRegionTest::mediaInfoPrioritizesTitle()
 {
     const QString path = QStringLiteral(
-        "src/presentation/qml/features/player/header/MediaInfoPod.qml");
+        "src/presentation/qml/screens/player/header/MediaInfoPod.qml");
     const QString source = readSource(path);
     QVERIFY2(!source.isEmpty(), qPrintable(sourcePath(path)));
 
@@ -123,7 +123,7 @@ void PlayerTopRegionTest::mediaInfoPrioritizesTitle()
 void PlayerTopRegionTest::windowActionsEmitIntentsOnly()
 {
     const QString path = QStringLiteral(
-        "src/presentation/qml/features/player/header/WindowActionsPod.qml");
+        "src/presentation/qml/screens/player/header/WindowActionsPod.qml");
     const QString source = readSource(path);
     QVERIFY2(!source.isEmpty(), qPrintable(sourcePath(path)));
 

@@ -9,12 +9,12 @@ set(PLAYER_QML_FILES
     qml/screens/player/layout/VideoViewport.qml
     qml/screens/player/layout/PlayerTopRegion.qml
     qml/screens/player/layout/PlayerBottomRegion.qml
+    qml/screens/player/header/PlayerFloatingHeader.qml
+    qml/screens/player/header/MediaInfoPod.qml
+    qml/screens/player/header/WindowActionsPod.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml
-    qml/features/player/header/PlayerFloatingHeader.qml
-    qml/features/player/header/MediaInfoPod.qml
-    qml/features/player/header/WindowActionsPod.qml
 )
 
 target_sources(
@@ -38,12 +38,12 @@ set_source_files_properties(
     qml/screens/player/layout/VideoViewport.qml
     qml/screens/player/layout/PlayerTopRegion.qml
     qml/screens/player/layout/PlayerBottomRegion.qml
+    qml/screens/player/header/PlayerFloatingHeader.qml
+    qml/screens/player/header/MediaInfoPod.qml
+    qml/screens/player/header/WindowActionsPod.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml
-    qml/features/player/header/PlayerFloatingHeader.qml
-    qml/features/player/header/MediaInfoPod.qml
-    qml/features/player/header/WindowActionsPod.qml
     PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 
