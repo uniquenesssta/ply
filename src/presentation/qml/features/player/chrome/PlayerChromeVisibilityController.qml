@@ -99,6 +99,7 @@ Item {
 
     Timer {
         id: inactivityTimer
+        objectName: "oscInactivityTimer"
 
         interval: root.fullScreen
                   ? MotionTokens.oscFullscreenHideDelay
