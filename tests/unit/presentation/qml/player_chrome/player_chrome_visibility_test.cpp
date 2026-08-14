@@ -104,17 +104,21 @@ void PlayerChromeVisibilityTest::inactivityTimerUsesWindowAndFullscreenDelays()
     QVERIFY(timer != nullptr);
 
     QVERIFY(controller->property("chromeVisible").toBool());
+    QVERIFY(controller->property("visibilityLocked").toBool());
     QVERIFY(controller->setProperty("playing", true));
 
+    // Regression guard: the playing-change handler must schedule from the
+    // current primitive inputs, not from a derived binding whose evaluation
+    // order relative to onPlayingChanged is unspecified by QML.
+    QVERIFY(!controller->property("visibilityLocked").toBool());
     QVERIFY(timer->property("running").toBool());
     QCOMPARE(timer->property("interval").toInt(), kWindowHideDelayMs);
     QVERIFY(controller->property("chromeVisible").toBool());
 
     // CTest intentionally runs this target with QT_QPA_PLATFORM=offscreen.
-    // Qt Quick's animation clock is not a reliable wall-clock source in that
-    // platform plugin, so validate our scheduling contract deterministically:
-    // Timer is armed with the canonical interval and its triggered handler
-    // drives the same hide policy used in the product.
+    // Validate our scheduling contract deterministically: Timer is armed with
+    // the canonical interval and its triggered handler drives the same hide
+    // policy used in the product.
     QVERIFY(emitTimerTriggered(timer));
     QTRY_VERIFY(!controller->property("chromeVisible").toBool());
 
@@ -142,44 +146,52 @@ void PlayerChromeVisibilityTest::pauseScrubPopupAndErrorKeepOscVisible()
     QVERIFY(timer != nullptr);
 
     QVERIFY(controller->setProperty("playing", true));
+    QVERIFY(!controller->property("visibilityLocked").toBool());
     QVERIFY(timer->property("running").toBool());
     QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(!controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("scrubbing", true));
+    QVERIFY(controller->property("visibilityLocked").toBool());
     QVERIFY(controller->property("chromeVisible").toBool());
     QVERIFY(!timer->property("running").toBool());
     QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("scrubbing", false));
+    QVERIFY(!controller->property("visibilityLocked").toBool());
     QVERIFY(timer->property("running").toBool());
     QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(!controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("popupOpen", true));
+    QVERIFY(controller->property("visibilityLocked").toBool());
     QVERIFY(controller->property("chromeVisible").toBool());
     QVERIFY(!timer->property("running").toBool());
     QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("popupOpen", false));
+    QVERIFY(!controller->property("visibilityLocked").toBool());
     QVERIFY(timer->property("running").toBool());
     QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(!controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("errorVisible", true));
+    QVERIFY(controller->property("visibilityLocked").toBool());
     QVERIFY(controller->property("chromeVisible").toBool());
     QVERIFY(!timer->property("running").toBool());
     QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("errorVisible", false));
+    QVERIFY(!controller->property("visibilityLocked").toBool());
     QVERIFY(timer->property("running").toBool());
     QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(!controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("playing", false));
+    QVERIFY(controller->property("visibilityLocked").toBool());
     QVERIFY(controller->property("chromeVisible").toBool());
     QVERIFY(!timer->property("running").toBool());
     QVERIFY(invokeNoArg(controller, "hideIfEligible"));
@@ -207,6 +219,10 @@ void PlayerChromeVisibilityTest::screenIntegratesSingleOscVisibilityOwner()
     QVERIFY(controller.contains(QStringLiteral("MotionTokens.oscHideDelay")));
     QVERIFY(controller.contains(QStringLiteral("MotionTokens.oscFullscreenHideDelay")));
     QVERIFY(controller.contains(QStringLiteral("onTriggered: root.hideIfEligible()")));
+    QVERIFY(controller.contains(QStringLiteral("readonly property bool visibilityLocked: root.isVisibilityLocked()")));
+    QVERIFY(controller.contains(QStringLiteral("function isVisibilityLocked()")));
+    QVERIFY(controller.count(QStringLiteral("root.isVisibilityLocked()")) >= 4);
+    QVERIFY(!controller.contains(QStringLiteral("if (root.visibilityLocked)")));
     QVERIFY(controller.contains(QStringLiteral("property bool scrubbing: false")));
     QVERIFY(controller.contains(QStringLiteral("property bool popupOpen: false")));
     QVERIFY(controller.contains(QStringLiteral("property bool errorVisible: false")));
