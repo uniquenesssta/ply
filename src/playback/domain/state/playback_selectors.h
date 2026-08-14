@@ -8,5 +8,6 @@ namespace player::playback::domain::selectors {
 [[nodiscard]] bool canPlay(const PlaybackSnapshot& snapshot) noexcept;
 [[nodiscard]] bool canPause(const PlaybackSnapshot& snapshot) noexcept;
 [[nodiscard]] bool canStop(const PlaybackSnapshot& snapshot) noexcept;
+[[nodiscard]] bool canSeek(const PlaybackSnapshot& snapshot) noexcept;
 
 } // namespace player::playback::domain::selectors
