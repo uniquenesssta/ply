@@ -10,6 +10,7 @@ Item {
     property bool fullScreen: false
     property bool popupOpen: false
     property bool errorOverlayVisible: false
+    property bool cursorHideSuppressed: false
     property var transportViewModel: null
     property var timelineViewModel: null
     property var volumeViewModel: null
@@ -22,6 +23,7 @@ Item {
                                                       && (root.timelineViewModel.isScrubbing
                                                           || root.timelineViewModel.seekPending)
     readonly property bool oscVisible: chromeVisibilityController.chromeVisible
+    readonly property bool cursorHidden: cursorVisibilityController.cursorHidden
 
     signal minimizeRequested()
     signal maximizeRestoreRequested()
@@ -54,10 +56,22 @@ Item {
         fullScreen: root.fullScreen
     }
 
+    PlayerCursorVisibilityController {
+        id: cursorVisibilityController
+
+        playing: root.playbackPlaying
+        oscVisible: root.oscVisible
+        scrubbing: root.timelineInteractionActive
+        popupOpen: root.popupOpen
+        errorVisible: root.errorOverlayVisible
+        cursorHideSuppressed: root.cursorHideSuppressed
+    }
+
     PlayerChromeActivityLayer {
         id: chromeActivityLayer
 
         anchors.fill: parent
+        cursorHidden: root.cursorHidden
 
         onActivityDetected: function(reason) {
             chromeVisibilityController.notifyActivity(reason)
