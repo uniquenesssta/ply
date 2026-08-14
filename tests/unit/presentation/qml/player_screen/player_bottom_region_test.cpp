@@ -132,7 +132,8 @@ void PlayerBottomRegionTest::controlRowKeepsFeatureSlotsSeparate()
     QVERIFY(source.contains(QStringLiteral("SpacingTokens.controlGroup")));
     QVERIFY(source.contains(QStringLiteral("readonly property bool contentConstrained")));
     QVERIFY(source.contains(QStringLiteral("id: leadingClip")));
-    QVERIFY(source.contains(QStringLiteral("right: utilityHost.left")));
+    QVERIFY(source.contains(QStringLiteral("utilityHost.x")));
+    QVERIFY(source.contains(QStringLiteral("width: Math.max(")));
     QVERIFY(source.contains(QStringLiteral("clip: true")));
 
     verifyAbsent(

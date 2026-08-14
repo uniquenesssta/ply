@@ -131,6 +131,8 @@ import Player.Presentation.Surfaces
 
 Item {
     Panel { objectName: "panel"; width: 240; height: 140 }
+    OscSurface { objectName: "osc"; width: 880; height: 124 }
+    OscSurface { objectName: "oscCompact"; compact: true; width: 600; height: 106 }
     Drawer { objectName: "drawer"; width: 240; height: 140 }
     Popover { objectName: "popover"; width: 200; height: 100 }
     Hud { objectName: "hud"; width: 180; height: 80 }
@@ -147,10 +149,14 @@ Item {
     QVERIFY2(object != nullptr, qPrintable(componentDiagnostics(component)));
 
     QObject* panel = requireChild(object.get(), "panel");
+    QObject* osc = requireChild(object.get(), "osc");
+    QObject* oscCompact = requireChild(object.get(), "oscCompact");
     QObject* drawer = requireChild(object.get(), "drawer");
     QObject* popover = requireChild(object.get(), "popover");
     QObject* hud = requireChild(object.get(), "hud");
     QVERIFY(panel != nullptr);
+    QVERIFY(osc != nullptr);
+    QVERIFY(oscCompact != nullptr);
     QVERIFY(drawer != nullptr);
     QVERIFY(popover != nullptr);
     QVERIFY(hud != nullptr);
@@ -165,6 +171,27 @@ Item {
     QVERIFY(fuzzyEqual(panel->property("borderAlpha").toDouble(), 0.48));
     QCOMPARE(panel->property("contentPadding").toInt(), 22);
     QVERIFY(fuzzyEqual(panel->property("z").toDouble(), 35.0));
+
+    QCOMPARE(osc->property("cornerRadius").toInt(), 34);
+    QVERIFY(fuzzyEqual(osc->property("fillAlpha").toDouble(), 0.34));
+    QCOMPARE(osc->property("backdropBlurRadius").toInt(), 36);
+    QCOMPARE(osc->property("shadowRadius").toInt(), 42);
+    QVERIFY(fuzzyEqual(osc->property("shadowYOffset").toDouble(), 12.0));
+    QVERIFY(fuzzyEqual(osc->property("shadowAlpha").toDouble(), 0.12));
+    QCOMPARE(osc->property("borderWidth").toInt(), 1);
+    QVERIFY(fuzzyEqual(osc->property("borderAlpha").toDouble(), 0.48));
+    QCOMPARE(osc->property("contentPadding").toInt(), 0);
+    QCOMPARE(osc->property("implicitWidth").toInt(), 880);
+    QCOMPARE(osc->property("implicitHeight").toInt(), 124);
+    QVERIFY(fuzzyEqual(osc->property("z").toDouble(), 40.0));
+
+    QCOMPARE(oscCompact->property("cornerRadius").toInt(), 32);
+    QVERIFY(fuzzyEqual(oscCompact->property("fillAlpha").toDouble(), 0.32));
+    QCOMPARE(oscCompact->property("backdropBlurRadius").toInt(), 38);
+    QCOMPARE(oscCompact->property("contentPadding").toInt(), 0);
+    QCOMPARE(oscCompact->property("implicitWidth").toInt(), 880);
+    QCOMPARE(oscCompact->property("implicitHeight").toInt(), 106);
+    QVERIFY(fuzzyEqual(oscCompact->property("z").toDouble(), 40.0));
 
     QCOMPARE(drawer->property("cornerRadius").toInt(), 32);
     QVERIFY(fuzzyEqual(drawer->property("fillAlpha").toDouble(), 0.38));
@@ -212,6 +239,17 @@ Item {
         }
     }
 
+    OscSurface {
+        objectName: "osc"
+        width: 880
+        height: 124
+
+        Item {
+            objectName: "oscSlot"
+            anchors.fill: parent
+        }
+    }
+
     Popover {
         objectName: "popover"
         width: 180
@@ -235,10 +273,13 @@ Item {
     QVERIFY2(object != nullptr, qPrintable(componentDiagnostics(component)));
 
     auto* panelSlot = qobject_cast<QQuickItem*>(requireChild(object.get(), "panelSlot"));
+    auto* oscSlot = qobject_cast<QQuickItem*>(requireChild(object.get(), "oscSlot"));
     auto* popoverSlot = qobject_cast<QQuickItem*>(requireChild(object.get(), "popoverSlot"));
     QVERIFY(panelSlot != nullptr);
+    QVERIFY(oscSlot != nullptr);
     QVERIFY(popoverSlot != nullptr);
     QVERIFY(panelSlot->parentItem() != nullptr);
+    QVERIFY(oscSlot->parentItem() != nullptr);
     QVERIFY(popoverSlot->parentItem() != nullptr);
 
     QCOMPARE(panelSlot->parentItem()->objectName(), QStringLiteral("surfaceContent"));
@@ -246,6 +287,12 @@ Item {
     QVERIFY(fuzzyEqual(panelSlot->parentItem()->y(), 22.0));
     QVERIFY(fuzzyEqual(panelSlot->parentItem()->width(), 156.0));
     QVERIFY(fuzzyEqual(panelSlot->parentItem()->height(), 76.0));
+
+    QCOMPARE(oscSlot->parentItem()->objectName(), QStringLiteral("surfaceContent"));
+    QVERIFY(fuzzyEqual(oscSlot->parentItem()->x(), 0.0));
+    QVERIFY(fuzzyEqual(oscSlot->parentItem()->y(), 0.0));
+    QVERIFY(fuzzyEqual(oscSlot->parentItem()->width(), 880.0));
+    QVERIFY(fuzzyEqual(oscSlot->parentItem()->height(), 124.0));
 
     QCOMPARE(popoverSlot->parentItem()->objectName(), QStringLiteral("surfaceContent"));
     QVERIFY(fuzzyEqual(popoverSlot->parentItem()->x(), 18.0));
@@ -265,6 +312,7 @@ import Player.Presentation.Surfaces
 
 Item {
     Panel { objectName: "panel"; width: 200; height: 100 }
+    OscSurface { objectName: "osc"; width: 200; height: 100 }
     Drawer { objectName: "drawer"; width: 200; height: 100 }
     Popover { objectName: "popover"; width: 200; height: 100 }
     Hud { objectName: "hud"; width: 200; height: 100 }
@@ -281,19 +329,23 @@ Item {
     QVERIFY2(object != nullptr, qPrintable(componentDiagnostics(component)));
 
     QObject* panel = requireChild(object.get(), "panel");
+    QObject* osc = requireChild(object.get(), "osc");
     QObject* drawer = requireChild(object.get(), "drawer");
     QObject* popover = requireChild(object.get(), "popover");
     QObject* hud = requireChild(object.get(), "hud");
     QVERIFY(panel != nullptr);
+    QVERIFY(osc != nullptr);
     QVERIFY(drawer != nullptr);
     QVERIFY(popover != nullptr);
     QVERIFY(hud != nullptr);
 
     const double panelZ = panel->property("z").toDouble();
+    const double oscZ = osc->property("z").toDouble();
     const double drawerZ = drawer->property("z").toDouble();
     const double popoverZ = popover->property("z").toDouble();
     const double hudZ = hud->property("z").toDouble();
-    QVERIFY(panelZ < drawerZ);
+    QVERIFY(panelZ < oscZ);
+    QVERIFY(oscZ < drawerZ);
     QVERIFY(drawerZ < popoverZ);
     QVERIFY(popoverZ < hudZ);
 }

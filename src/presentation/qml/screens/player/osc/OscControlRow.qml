@@ -43,9 +43,10 @@ Item {
             left: parent.left
             top: parent.top
             bottom: parent.bottom
-            right: utilityHost.left
-            rightMargin: utilityHost.width > 0 ? root.groupGap : 0
         }
+        width: Math.max(
+            0,
+            utilityHost.x - (utilityHost.width > 0 ? root.groupGap : 0))
         clip: true
 
         Row {
