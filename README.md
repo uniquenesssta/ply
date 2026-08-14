@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete；R6-02 视频 viewport Complete**；Windows configure/build/QML lint PASS、**53/53 CTest PASS（53.38 s）**；R6-03 未开始 |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete；R6-02 视频 viewport Complete**；R6-03 Floating Header implementation candidate 已提交（`d6680de`）；最后已验证基线仍为 Windows configure/build/QML lint PASS、**53/53 CTest PASS（53.38 s）**，R6-03 Windows/手工验收待执行 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -102,6 +102,17 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-14 — R6-03 Floating Header implementation candidate
+
+- `PlayerTopRegion` 继续保持 R6-01 的 replaceable Host 职责；真实 Header 内容拆入 `screens/player/header/PlayerFloatingHeader.qml`、`MediaInfoPod.qml`、`WindowActionsPod.qml` 三个 screen-local 模块。`PlayerScreen.qml` 只提供 `mediaTitle` / `mediaMetadataText` / `windowExpanded` presentation 输入并转发 minimize / maximize-restore / close intent，没有把文本、按钮实现或窗口命令塞回 Screen。
+- 已重新读取第三版最终 Figma D2-03 与 D8-05 canonical Floating Header：Standard 使用 **420×54 Media Info + 110×54 Window Actions**，Compact 使用 **360×50 + 110×50**；两种尺寸都保持 Media Info 真正水平居中，Header 左右使用 **26px safe edge**；Compact 隐藏 metadata，title 继续消费既有 `TitleText.MediaCompact` 单行 ENDING ellipsis。无 title 时 `MediaInfoPod` 完全不渲染，Window Actions 始终保留。
+- Window Actions 直接复用 R5 已冻结的 **32×32 `IconButton` hit target / 22×22 glyph**，并按 D8-05 使用既有 `SizePrimitives.size3` 的 3px gap（新增 `LayoutTokens.headerActionGap` 只建立语义别名，不新增新的 primitive 数值）。没有为了早期 D2 22px 示意缩小可访问点击区，也没有复制 Button hover/pressed/focus 状态机。
+- Minimize / Maximize / Close 三枚 glyph 已从最终 Figma D8-02 canonical 组件 `441:5` / `441:10` / `441:16` 只读 SVG export，仓库提交的是 Figma 导出的原始 geometry，不再保留候选阶段的手工矢量。D8-02 canonical 源组明确只包含 Minimize / Maximize / Close，**没有 Restore glyph**，因此删除了临时 `restore.svg`，不伪造缺失资产；最大化后的同一 action 继续使用 canonical Maximize glyph，但 Tooltip/Accessible description 与命令语义切换为 Restore。
+- `WindowActionsPod` 只发出 intent，真正 Qt 通用窗口操作由 `MainWindow.qml` 统一执行 `showMinimized()` / `showMaximized()` / `showNormal()` / `close()`；没有加入 `Qt.FramelessWindowHint`、Win32 native event、hit-test、resize 或 Snap。R10-04 仍是无边框窗口与 Windows hit-test 的唯一任务，因此当前中间阶段**仍保留系统原生标题栏，原生窗口按钮与 Floating Header actions 会暂时共存**，本任务不提前消除它。
+- 当前仓库仍没有 `PlayerViewModel` / playback presentation composition，所以 `mediaTitle` / `mediaMetadataText` 只是后续可绑定的数据边界，未伪装成 `PlaybackSnapshot → Header` live binding；应用默认没有媒体 identity 时只显示 Window Actions。R6-03 不创建静态假媒体标题，也不把 PlaybackSession/libmpv 引入 QML。
+- 新增职责独立的 `player_top_region` CTest target，静态锁定 Host→Header→POD 模块边界、居中/Compact/无标题优先级、Window intent owner、R10 native-window 禁区以及 Figma canonical window glyph geometry；既有 `icon_pipeline` 同步纳入新增 Minimize/Maximize 资产并继续禁止产品 QML 绕过 Icon primitive。成功 configure 后全量测试数预期由 **53 → 54**。
+- 本轮已完成远端源码差异审计、QML module import 边界审计、Figma canonical component/asset 对照与测试合同审查；当前执行环境没有 Windows Qt 6.8.3 / MSVC / libmpv 锁定运行环境，因此 **R6-03 的 `configure.ps1`、Debug build、QML lint、54 项 CTest、Player.exe startup，以及长标题/无标题/窗口动作/fullscreen 真实运行验收均尚未执行**。R6-03 当前仅为 implementation candidate，**不得标记 Complete**。
+
 ### 2026-08-14 — R6-02 Video viewport Complete
 
 - `VideoViewport.qml` 新增 `hasMedia` / `hasVideo` 的 presentation 输入契约，默认保持空媒体；`hasMedia && !hasVideo` 映射纯音频，只有 `hasMedia && hasVideo` 才显示 `VideoSurface`。空媒体、纯音频、视频态分别消费既有 `surfaceEmpty` / `surfaceAudio` / `surfaceLetterbox`，没有新增颜色真值或裸色值。
@@ -120,7 +131,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 已删除被新结构完整替代的 `features/player/chrome/PlayerChrome.qml`。该旧文件同时拥有顶部和底部占位 UI，继续保留会形成重复路径；删除不改变任何已实现业务操作，因为其中只有框架提示文字和玻璃占位矩形。
 - 目标结构中的 `states/` 本轮没有创建空文件：R6-01 尚无独立状态 owner，Loading/Buffering/Ended/Error selector 属于后续 R6-11；不为了目录形式制造透明转发或推测状态抽象。当前仓库也尚无 `PlayerViewModel`，因此 R6-01 只建立 `PlayerViewModel → PlayerScreen → child features` 链中的 Screen/Host 边界，不把尚未存在的 VM 伪装为已接通。
 - 新增独立 `player_screen_structure` CTest，静态验证 PlayerScreen 只组合五类 Host、Host 使用正确 z-order/slot、VideoViewport 只包装 VideoSurface、Screen/Host 不出现 PlaybackSession/libmpv/mpv_ 业务词，并强制旧 `PlayerChrome.qml` 不再存在。全量测试数由 **51 → 52**。
-- 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被 `verify-project-layout.ps1` 阻断，原因是旧 scaffold 校验仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake 自动重跑正常，Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且无新增 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS。
+- 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被 `verify-project-layout.ps1` 阻断，原因是旧 scaffold 校验仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake自动重跑正常，Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且无新增 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS。
 - 同源修复更新 `scripts/verify-project-layout.ps1`：required-files 真值改为 R6-01 五个 Screen Host + `VideoSurface`，旧 `PlayerChrome.qml` 改为 obsolete path；Presentation CMake 校验同步要求五个 Host 已进入 QML module；PlayerScreen composition 校验同步改为新五层结构。没有恢复旧 Chrome，也没有弱化校验。
 - 修复后 `configure.ps1` 在锁定 Windows 环境复验 **PASS**：layout verifier 明确报告 R6-01 PlayerScreen composition 完整，CMake **Configuring 3.7 s / Generating 1.7 s**；此前 build/QML lint/52-test 结果保持有效，因为修复只涉及 verifier 与文档。
 - 最终手工 basic resize 验证 **PASS**：窗口缩小、放大均正常，内容始终铺满，没有错位或运行时报错；`Player.exe` 再次启动正常。未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-01 正式 Complete；R6-02 未开始。**
