@@ -1,5 +1,6 @@
 #pragma once
 
+#include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/transport_command.h"
 
 #include <memory>
@@ -12,6 +13,7 @@ class PlaybackSessionThread;
 }
 
 namespace player::presentation {
+class PlayerTimelineViewModel;
 class PlayerTransportViewModel;
 }
 
@@ -31,13 +33,16 @@ public:
     [[nodiscard]] bool isRunning() const noexcept;
 
     [[nodiscard]] player::presentation::PlayerTransportViewModel& transportViewModel() noexcept;
+    [[nodiscard]] player::presentation::PlayerTimelineViewModel& timelineViewModel() noexcept;
 
 private:
     void submitTransport(player::playback::domain::TransportAction action);
+    [[nodiscard]] bool submitSeek(double absoluteSeconds);
 
     std::unique_ptr<player::playback::application::PlaybackSessionThread> playbackThread_;
     std::unique_ptr<player::playback::application::PlaybackRequestIdGenerator> requestIdGenerator_;
     std::unique_ptr<player::presentation::PlayerTransportViewModel> transportViewModel_;
+    std::unique_ptr<player::presentation::PlayerTimelineViewModel> timelineViewModel_;
 };
 
 } // namespace player::app
