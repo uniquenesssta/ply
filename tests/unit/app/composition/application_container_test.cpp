@@ -68,16 +68,18 @@ void ApplicationContainerTest::loggingBootstrapCreatesResolvedDevelopmentLog()
         RuntimePaths::Mode::Installed,
         executableDirectory));
 
+    const QString expectedLogDirectory = QDir(temporaryDirectory.path()).filePath(
+        QStringLiteral("logs"));
     QCOMPARE(
         QDir::cleanPath(container.runtimePaths().logDirectory()),
-        QDir::cleanPath(projectDirectory));
+        QDir::cleanPath(expectedLogDirectory));
 
     QString error;
     QVERIFY2(
         container.loggingBootstrap().start(container.runtimePaths(), &error),
         qPrintable(error));
 
-    const QString logPath = QDir(projectDirectory).filePath(QStringLiteral("player.log"));
+    const QString logPath = QDir(expectedLogDirectory).filePath(QStringLiteral("player.log"));
     QVERIFY2(QFileInfo(logPath).isFile(), qPrintable(logPath));
 
     container.shutdown();
