@@ -11,7 +11,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R2 — 无 UI libmpv 播放核心 | Complete | 真实 load/play/pause/seek/stop、事件/属性/命令与 headless probe 主链完成 |
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
-| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 / R5-08 / R5-09 Complete**；R5-10 Accessibility baseline Candidate，Windows 最终验证待执行 |
+| R5 — UI 设计系统 | In Progress | **R5-01 / R5-02 / R5-03 / R5-04 / R5-05 / R5-06 / R5-07 / R5-08 / R5-09 Complete**；R5-10 Accessibility baseline Candidate，首轮 Windows 验证 50/51，修正待复验 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断 R5。
 
@@ -108,8 +108,10 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 既有视觉 Focus 真值不改：Button 继续消费已冻结 focus ring 82%，Slider 继续消费 1.5px / 82% focus ring。为自动化验证给既有 Button focus border 增加内部 `objectName=buttonFocusRing`，不改变 geometry/color/z-order 或用户可观察外观。
 - 新增独立 `tests/unit/presentation/qml/accessibility/` 模块，`accessibility_controls` 覆盖 Accessible metadata 声明、Text/Icon/Toggle/Slider semantic name、Tab traversal、disabled control skip 与 Button/Slider focus-visible；测试目录独立于既有 Button/Slider tests，避免继续堆积到单个测试文件。
 - 第三版设计任务书的 Accessibility 基线要求 Focus visible、点击目标不因视觉缩小而缩小、Reduce Motion 与可解释键盘导航；现有 R5-06/R5-07 已保留 32/40px Button hit target、32px Slider host、键盘激活/调整和 Reduce Motion，本轮只补缺失的 accessibility metadata 与跨控件 Tab/focus 回归，不修改 Design Token。
-- R5-01 Feature import 门禁保持不变；本轮仅修改 Controls 与 accessibility tests，没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、Feature、配置、数据结构或持久化。新增 CTest 后预计全量测试数 **50 → 51**。
-- 当前候选尚未在锁定 Windows 环境执行 configure/build/qmllint/51-test/`Player.exe` smoke；必须通过 `accessibility_controls` 与既有 50 项回归后才能关闭 R5-10/Stage R5。**R5-10 当前为 Candidate。**
+- R5-01 Feature import 门禁保持不变；本轮仅修改 Controls 与 accessibility tests，没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、Feature、配置、数据结构或持久化。新增 CTest 后全量测试数 **50 → 51**。
+- 首轮锁定 Windows 验证：configure **PASS**（Configuring 5.9 s / Generating 1.8 s）、Debug build **PASS**；build 继续出现已记录的 Qt 6.8.3 `qvariant.h` 生成代码路径 MSVC C4702 warning。CTest 为 **50/51 PASS，1 failed，63.00 s**，唯一失败 `accessibility_controls::tabNavigationKeepsFocusVisible`；Accessible metadata、semantic names、Button Tab focus、disabled skip 均 PASS。失败现场已确认 Slider 获得 `activeFocus` 且 focus border width > 0，但测试在同一时刻同步读取 `opacity`，而 Slider 的 focus opacity 由既有 `Behavior on opacity / NumberAnimation` 过渡，因此读到动画起点 0。
+- 修复严格限定在测试时序：将 Slider focus opacity 的同步 `QVERIFY` 改为 `QTRY_VERIFY_WITH_TIMEOUT(..., 1000)`，等待既有 Focus 动画进入可见状态；生产 `Slider.qml`、Motion token、Focus 视觉、公共 API 与交互行为均未修改。字体目录 warning 仍属于 R5-05 已记录的字体未捆绑限制；由于首轮 CTest 未通过，本轮没有把 `Player.exe` smoke 描述为已验证。
+- 修正后的 Windows build/51-test/`Player.exe` smoke 尚待复验。**R5-10 当前仍为 Candidate；Stage R5 尚未关闭。**
 
 ### 2026-08-14 — R5-09 Feedback controls Complete
 
@@ -142,7 +144,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - Slider 默认值文本复用 `TimecodeText.ExtraSmall`（Geist Mono 10 Regular），因此 Controls 继续只经既有 Theme + Primitives 边界消费基础能力；Feature import 规则不变，Timeline/Volume 后续应包装 Slider，而不是复制输入状态机。
 - R5-07 首次真实消费补齐 Slider 几何 semantic token：180/132/16/3、10/12/14 thumb、36 value width、12 gap、1px thumb border 与 1.5px focus ring；未改写既有颜色、Opacity、Radius、Motion 真值。
 - 新增独立 `slider_controls` CTest，覆盖 Figma 几何、pointer drag、keyboard、wheel、disabled/clamp 与 Reduce Motion 传播；全量测试数由 **47 → 48**。
-- 首轮锁定 Windows 验证：configure **PASS**（Configuring 4.3 s / Generating 1.6 s）、Debug build **PASS**，既有 Qt 6.8.3 `qvariant.h` C4702 warning 仍存在；`player_qml_lint` 新增一条 `OpacityTokens.disabled` missing-property warning。CTest 为 **47/48 PASS**，唯一失败 `slider_controls`：wheel 用例期望 0.5 + 0.2 = 0.7，但候选错误把 `wheelStep=0.2` 同时当成 quantization grid，结果偏离预期；Disabled 用例则因错误 semantic 名称得到 `undefined`。测试中的 QFontDatabase font-directory warning 与 R5-05 已记录的未捆绑字体 fallback 限制一致。
+- 首轮锁定 Windows验证：configure **PASS**（Configuring 4.3 s / Generating 1.6 s）、Debug build **PASS**，既有 Qt 6.8.3 `qvariant.h` C4702 warning 仍存在；`player_qml_lint` 新增一条 `OpacityTokens.disabled` missing-property warning。CTest 为 **47/48 PASS**，唯一失败 `slider_controls`：wheel 用例期望 0.5 + 0.2 = 0.7，但候选错误把 `wheelStep=0.2` 同时当成 quantization grid，结果偏离预期；Disabled 用例则因错误 semantic 名称得到 `undefined`。测试中的 QFontDatabase font-directory warning 与 R5-05 已记录的未捆绑字体 fallback 限制一致。
 - 已针对这两处实现缺陷修复：Disabled 改为既有 `OpacityTokens.controlDisabled`；`stepSize` 保持 Slider 值域 quantization grid，`wheelStep` 只作为单次 wheel 输入增量，避免 wheelStep 改写值域离散规则。公开 Slider API、pointer/keyboard/wheel signal、Theme/Primitives/Controls 边界均不变；未修改 PlaybackSession、libmpv、Renderer 或 Render 生命周期。
 - 修复后锁定 Windows 复验：Debug build **PASS**；`scripts/test.ps1` 的 QML lint 门禁完成，原 `OpacityTokens.disabled` warning 已消失；全量 **48/48 CTest PASS，0 failed，51.88 s**，其中 `qml_module_boundaries`、`button_controls`、`slider_controls` 均 PASS；`Player.exe` 实际启动 smoke **PASS**，无 QML/运行时错误输出。Qt 6.8.3 `qvariant.h` 的 C4702 warning 仍为已记录的外部工具链 warning，未通过 suppression/白名单掩盖。**R5-07 正式 Complete；R5-08 未开始。**
 
