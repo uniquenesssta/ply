@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-05 均 Complete**；R6-06 Timeline implementation candidate 已通过 Windows configure/build/QML lint；第二轮 **60/62 CTest PASS**，剩余两个 Presentation contract 失败已修复，等待 62/62 与 startup 复验 |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-06 均 Complete**；R6-07 Volume implementation candidate 已提交，新增 volume/mute pending ViewModel、Standard/Compact Volume Controls 与 2 个定向 CTest，预期 **62 → 64**；Windows configure/build/QML lint/CTest/startup pending |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -102,19 +102,27 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — R6-06 Timeline implementation candidate
+### 2026-08-14 — R6-07 Volume implementation candidate
+
+- 既有 Domain/libmpv 主链已经提供 `SetVolumeCommand` / `SetMutedCommand`、mpv volume/mute request、property event 与 Reducer→`PlaybackSnapshot.controls` 回写，因此本轮没有改动 libmpv、Reducer、播放命令数据结构、配置或持久化。
+- 新增职责独立的 `PlayerVolumeViewModel`：Snapshot 仍是 volume/mute 真值；ViewModel 只持有短暂 pending target。连续 volume 编辑期间 stale backend echo 不覆盖最新 UI target，实际回写达到目标 ±0.5% 后释放 pending；CommandBus 立即拒绝可显式回退。Mute 在前一个 toggle 获得 Snapshot acknowledgement 前阻止第二次 toggle，避免未确认 optimistic state 上再次反转。
+- `PlaybackComposition` 将 Volume VM 接入与 Transport/Timeline 相同的 StatePublisher、共享 `PlaybackRequestIdGenerator` 与唯一 `PlaybackCommandBus`，分别提交 `SetVolumeCommand` / `SetMutedCommand`；`ApplicationBootstrap → MainWindow → PlayerScreen → VolumeControls` 继续通过显式 root property 注入，没有引入 QML singleton/service locator。
+- `VolumeControls.qml` 只 import Theme/Controls 并复用既有 `IconButton + Slider`；Standard Figma `4:20` 使用 22px Volume glyph + **100px / 3px** slider，候选通过 `LayoutTokens.volumeTrackWidth` 和 generic Slider 的既有 3px inset/track 实现；Compact Figma `4:63` 只保留 Volume icon，因此 compact mode 隐藏 slider。Wheel 直接复用 generic Slider 的 WheelHandler 与 1% step，没有在 Feature 内复制输入状态机。
+- 最终 Figma 目前只有 canonical `volume` glyph，没有独立 Mute glyph；候选不手绘/伪造 `mute.svg`，静音状态暂由同一 glyph + Tooltip/Accessible description 表达。该设计资产缺口需要在 R6-07 正式收口前明确处理或接受。
+- R6-12 明确拥有 `HudMessageQueue + PlayerHudOverlay` 以及连续 volume/seek 消息合并策略，所以本候选没有提前创建第二套 HUD Timer/queue；R6-07 只建立后续 HUD consumer 所需的 Volume 状态/intent 主链。
+- 新增独立 `player_volume_view_model`、`player_volume_controls` 两个 CTest target，并扩展 `application_container` 的直接 composition 链接/生命周期边界；重新 configure 后预期全量 **62 → 64**。用户锁定 Windows Qt 6.8.3/MSVC/libmpv 环境的 configure/build/QML lint/64 CTest 与 `Player.exe` startup 尚未执行，**R6-07 当前仍是 implementation candidate，不是 Complete。**
+
+### 2026-08-14 — R6-06 Timeline Complete
 
 - 新增职责独立的 `TimelineScrubSession` 与 `PlayerTimelineViewModel`。Scrub session 只拥有 `Idle / Scrubbing / PendingCommit` 交互状态、MediaGeneration 与 normalized preview；真实 position/duration/seekable/seeking 继续来自 `PlaybackSnapshot.timeline`，没有建立第二套 Playback 真值。
 - Timeline VM 增加 `canSeek/isScrubbing/seekPending/backendSeeking/displayedNormalized/durationSeconds/positionText/durationText` 投影；拖动时 preview 屏蔽后台旧 position，commit 只发一次 absolute target。commit 后冻结 absolute target seconds，即使同媒体 duration 刷新也不会重算成错误目标；现有 mpv mapper/encoder 的 Absolute Seek 已确认走 `absolute+exact`，PendingCommit 只在实际 position 到达冻结 target ±0.75s 后释放，避免 `seeking:true→false` 事件先到造成 thumb 回弹。
 - `PlaybackComposition` 继续复用 R6-05 的同一个 `PlaybackSessionThread`、共享 `PlaybackRequestIdGenerator` 与 `PlaybackCommandBus`，新增 `SeekCommand{absoluteSeconds, SeekMode::Absolute}` 提交；CommandBus 立即拒绝时显式释放 pending preview。具体 SeekCommand 依赖保持在 composition `.cpp`，没有扩散到公共头。
 - `ApplicationBootstrap → MainWindow → PlayerScreen → TimelineControls` 通过 initial properties 显式传递 Timeline VM；新增 `features/player/timeline/TimelineControls.qml` 只 import Theme/Controls，复用既有通用 `Slider` pointer/keyboard 状态机，不复制 `MouseArea` 或直接接触 PlaybackSession/libmpv。
 - Timeline 几何重新核对最终 Figma Standard `4:20` 与 Compact `4:63`：继续复用 12/11px Geist Mono timecode、3px track、10px rest thumb、16px hit target 与 26/28px OSC inset。wrapper 的半像素纵向补偿由既有 1px thumb-border token 的一半推导；R6-04 timeline slot 改为 `clip:false` 允许 canonical thumb 略超出 28/26px lane，外层 OSC Surface 仍是裁切 owner，其他 Feature slot 不变。
-- Domain `playback_selectors` 新增 `canSeek()`；新增 `timeline_scrub_session`、`player_timeline_view_model`、`player_timeline_controls` 三个 CTest target，并扩展 selector 与 R6-04 slot contract，预期全量测试数 **59 → 62**。覆盖 drag/cancel/one-commit、stale position、pending target、duration refresh、generation change、non-seekable、unknown duration、seeking event ordering 与立即提交失败。
-- 首轮 Windows 锁定环境验证：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 2.0 s）；Debug `build.ps1` 在 `application_container_tests.exe` 链接阶段 **FAILED**。该测试直接编译 `playback_composition.cpp`，但测试 target 仍只链接 R6-05 的 `player_presentation_transport`，遗漏本轮新增的 `player_presentation_timeline`，因此出现 `PlayerTimelineViewModel` ctor / `acceptSnapshot` / `seekRequested` / `rejectPendingSeek` / `staticMetaObject` 的 LNK2019/LNK2001，最终 LNK1120。`player_timeline_view_model_tests.exe` 本身已成功链接；`scripts/test.ps1` 随后因 development runtime marker 未生成而正确阻断，所以 QML lint、62 项 CTest 和 `Player.exe` startup 仍未执行。
-- 同源修复 commit `23f593ed8f26e42dd85bc75aa51e04b4ae6de6b8` 仅在 `tests/CMakeLists.txt` 为 `application_container_tests` 增加 `player_presentation_timeline` 链接。生产 `player_app` 在 `src/presentation/CMakeLists.txt` 原本已经同时链接 Transport 与 Timeline，因此此次修复不改变产品运行链、公共接口或用户可观察行为。
-- 第二轮 Windows 复验：`configure.ps1` **PASS**（Configuring 4.0 s / Generating 2.0 s）；Debug `build.ps1` **PASS**，development runtime marker 与 Qt deployment 正常；`scripts/test.ps1` 的 QML lint 阶段完成。全量 CTest 为 **60/62 PASS，2 failed，57.54 s**。`theme_effect_tokens` 唯一失败来自 `TimelineControls.qml` 两个裸 `z: 2`，违反 R5-03 effect-token 回流门禁；`player_timeline_controls` 唯一失败来自测试把 generic Slider 内部 `sliderTrackHeight` 错误要求在 Timeline wrapper 中直接出现。Seek/selector/`timeline_scrub_session`/`player_timeline_view_model`、`application_container` 与其余 58 项回归均 PASS。
-- 第二轮同源修复保持职责边界：删除 current/duration timecode 上不必要的 `z: 2`，依靠它们声明在 Slider 之后的 QML sibling 绘制顺序保持局部覆盖关系，不新增虚构 z token；同时把 3px track contract 移回真正 owner `controls/sliders/Slider.qml` 的定向断言，Timeline wrapper 继续只复用 generic Slider，不为了满足测试重复读取 Control 内部视觉 token。该修复不改变 Seek/VM/CommandBus 语义，也不改变 Figma Timeline geometry。
-- 产品媒体打开入口仍属于 R7，所以 live-media 产品手工 scrub 当前仍不可执行；当前还需要 Windows **62/62 CTest** 与 `Player.exe` startup 复验后才能收口。**R6-06 仍是 implementation candidate，不是 Complete。**
+- Domain `playback_selectors` 新增 `canSeek()`；新增 `timeline_scrub_session`、`player_timeline_view_model`、`player_timeline_controls` 三个 CTest target，并扩展 selector 与 R6-04 slot contract，测试总数 **59 → 62**。覆盖 drag/cancel/one-commit、stale position、pending target、duration refresh、generation change、non-seekable、unknown duration、seeking event ordering 与立即提交失败。
+- 首轮 Windows 锁定环境验证：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 2.0 s）；Debug `build.ps1` 在 `application_container_tests.exe` 链接阶段 **FAILED**，根因是测试 target 遗漏 `player_presentation_timeline`。同源修复 commit `23f593ed8f26e42dd85bc75aa51e04b4ae6de6b8` 只补测试链接，生产 `player_app` 原本已正确链接 Timeline。
+- 第二轮 Windows 复验：`configure.ps1` **PASS**（Configuring 4.0 s / Generating 2.0 s）、Debug `build.ps1` **PASS**、QML lint 阶段完成，全量 **60/62 PASS，57.54 s**。两项失败均为 Presentation contract：两个冗余裸 `z: 2` 触发 R5-03 effect-token 门禁，以及测试错误要求 Timeline wrapper 自己读取 generic Slider 的 track-height token。修复删除冗余 z，并把 3px track 断言移回 `Slider.qml` 真正 owner；Seek/VM/CommandBus 和 Figma geometry 均未改变。
+- 用户最终 Windows 复验确认：修复后 **62/62 CTest PASS**，`Player.exe` **正常启动**。产品媒体打开入口仍属于 R7，所以 live-media 产品手工 scrub 尚不可执行；没有把该未执行项写成通过。按 R6 快速框架策略，R6-06 自动化主链、状态机与 startup 已满足收口条件。**R6-06 正式 Complete；下一项 R6-07。**
 
 ### 2026-08-14 — R6-05 Transport Complete
 
@@ -175,7 +183,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 在既有基础 Controls 上补齐最小可访问性元数据，不建立第二套交互状态：internal `ButtonBase` 统一提供 `accessibleName/accessibileDescription` 输入，并映射 `Accessible.Button`、name/description、focusable、pressed、checkable/checked 与 press action；`Accessible.onPressAction` 继续调用既有 `activate()`，因此鼠标、键盘和辅助功能入口共享同一点击/切换链路。
 - `TextButton` / `ToggleButton` 默认从可见 `text` 派生 accessible name，缺少文字时回退既有 tooltip；`IconButton` 默认继承 `ButtonBase` 的 tooltip name，业务 consumer 仍可显式覆写 `accessibleName`。没有根据 `iconId` 猜测本地化名称，避免把资产标识当成用户语义。
 - `Slider` 新增显式 `accessibleName/accessibileDescription` 并映射 `Accessible.Slider`、name/description、focusable；现有 Left/Down、Right/Up、pointer、wheel、normalized value 与 signal 行为不变。R5-10 不提前实现高级 screen-reader value/action 适配，符合任务书“高级 screen reader 验证后续补”的边界。
-- 既有视觉 Focus 真值不改：Button 继续消费已冻结 focus ring 82%，Slider 继续消费 1.5px / 82% focus ring。为自动化验证给既有 Button focus border 增加内部 `objectName=buttonFocusRing`，不改变 geometry/color/z-order 或用户可观察外观。
+- 既有视觉 Focus 真值不改：Button 继续消费已冻结 focus ring 82%，Slider 继续消费 1.5px / 82% focus ring。为自动化验证给既有 Button focus border增加内部 `objectName=buttonFocusRing`，不改变 geometry/color/z-order 或用户可观察外观。
 - 新增独立 `tests/unit/presentation/qml/accessibility/` 模块，`accessibility_controls` 覆盖 Accessible metadata 声明、Text/Icon/Toggle/Slider semantic name、Tab traversal、disabled control skip 与 Button/Slider focus-visible；测试目录独立于既有 Button/Slider tests，避免继续堆积到单个测试文件。
 - 第三版设计任务书的 Accessibility 基线要求 Focus visible、点击目标不因视觉缩小而缩小、Reduce Motion 与可解释键盘导航；现有 R5-06/R5-07 已保留 32/40px Button hit target、32px Slider host、键盘激活/调整和 Reduce Motion，本轮只补缺失的 accessibility metadata 与跨控件 Tab/focus 回归，不修改 Design Token。
 - R5-01 Feature import 门禁保持不变；本轮仅修改 Controls 与 accessibility tests，没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、Feature、配置、数据结构或持久化。新增 CTest 后全量测试数 **50 → 51**。
