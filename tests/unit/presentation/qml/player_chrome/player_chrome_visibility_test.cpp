@@ -252,8 +252,11 @@ void PlayerChromeVisibilityTest::screenIntegratesSingleOscVisibilityOwner()
     QVERIFY(!combined.contains(QStringLiteral("PlaybackCommandBus")));
     QVERIFY(!combined.contains(QStringLiteral("libmpv")));
     QVERIFY(!combined.contains(QStringLiteral("mpv_")));
-    QVERIFY(!combined.contains(QStringLiteral("CursorVisibilityController")));
-    QVERIFY(!combined.contains(QStringLiteral("cursorShape")));
+
+    // R6-10 may consume the chrome visibility result, but the R6-09 owner
+    // itself must remain cursor-agnostic and keep the single inactivity timer.
+    QVERIFY(!controller.contains(QStringLiteral("PlayerCursorVisibilityController")));
+    QVERIFY(!controller.contains(QStringLiteral("cursorShape")));
 }
 
 } // namespace player::presentation::qml
