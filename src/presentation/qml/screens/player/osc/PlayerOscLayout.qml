@@ -64,7 +64,9 @@ Item {
                 topMargin: root.topInset
             }
             height: root.timelineLaneHeight
-            clip: true
+            // Standard Figma places the 10px thumb slightly below the 28px
+            // timeline lane. The OSC surface remains the outer clipping owner.
+            clip: false
         }
 
         OscControlRow {
