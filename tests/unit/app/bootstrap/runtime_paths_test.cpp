@@ -42,7 +42,7 @@ private slots:
     void installedModeUsesStandardLocations();
     void currentProcessExecutableUsesLoadedModulePath();
     void executableFilePathUsesDevelopmentMarkerBeforeGuiApplication();
-    void developmentMarkerWritesLogToProjectRoot();
+    void developmentMarkerWritesLogToParentLogsDirectory();
     void developmentMarkerOverridesPortableMode();
     void invalidDevelopmentMarkerFallsBackToPortableMode();
     void portableModeStaysBesideExecutable();
@@ -119,13 +119,16 @@ void RuntimePathsTest::executableFilePathUsesDevelopmentMarkerBeforeGuiApplicati
         executableDirectory,
         QStringLiteral("Player.exe"));
     const RuntimePaths paths = RuntimePaths::fromExecutableFilePath(executableFilePath);
+    const QString expectedLogDirectory = childPath(
+        temporaryDirectory.path(),
+        QStringLiteral("logs"));
 
     QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
     QCOMPARE(paths.executableDirectory(), executableDirectory);
-    QCOMPARE(paths.logDirectory(), projectDirectory);
+    QCOMPARE(paths.logDirectory(), expectedLogDirectory);
 }
 
-void RuntimePathsTest::developmentMarkerWritesLogToProjectRoot()
+void RuntimePathsTest::developmentMarkerWritesLogToParentLogsDirectory()
 {
     QTemporaryDir temporaryDirectory;
     QVERIFY(temporaryDirectory.isValid());
@@ -146,10 +149,14 @@ void RuntimePathsTest::developmentMarkerWritesLogToProjectRoot()
     const RuntimePaths paths = RuntimePaths::resolve(
         RuntimePaths::Mode::Installed,
         executableDirectory);
+    const QString expectedLogDirectory = childPath(
+        temporaryDirectory.path(),
+        QStringLiteral("logs"));
 
     QCOMPARE(paths.mode(), RuntimePaths::Mode::Installed);
     QCOMPARE(paths.executableDirectory(), executableDirectory);
-    QCOMPARE(paths.logDirectory(), projectDirectory);
+    QCOMPARE(paths.logDirectory(), expectedLogDirectory);
+    QVERIFY(paths.logDirectory() != projectDirectory);
 }
 
 void RuntimePathsTest::developmentMarkerOverridesPortableMode()
@@ -174,7 +181,9 @@ void RuntimePathsTest::developmentMarkerOverridesPortableMode()
     QCOMPARE(detectedMode, RuntimePaths::Mode::Installed);
 
     const RuntimePaths paths = RuntimePaths::resolve(detectedMode, executableDirectory);
-    QCOMPARE(paths.logDirectory(), projectDirectory);
+    QCOMPARE(
+        paths.logDirectory(),
+        childPath(temporaryDirectory.path(), QStringLiteral("logs")));
 }
 
 void RuntimePathsTest::invalidDevelopmentMarkerFallsBackToPortableMode()
