@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-05 均 Complete**；R6-06 Timeline implementation candidate 已提交，新增 scrub/pending/Absolute Seek 主链与 3 个定向 CTest，预期 **59 → 62**；Windows configure/build/QML lint/CTest/startup pending |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-05 均 Complete**；R6-06 Timeline implementation candidate 已提交；Windows configure PASS，首轮 Debug build 因 `application_container_tests` 漏链 Timeline target 失败，已作同源 CMake 修复；build/QML lint/**62 CTest**/startup 待复验 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -110,7 +110,9 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - `ApplicationBootstrap → MainWindow → PlayerScreen → TimelineControls` 通过 initial properties 显式传递 Timeline VM；新增 `features/player/timeline/TimelineControls.qml` 只 import Theme/Controls，复用既有通用 `Slider` pointer/keyboard 状态机，不复制 `MouseArea` 或直接接触 PlaybackSession/libmpv。
 - Timeline 几何重新核对最终 Figma Standard `4:20` 与 Compact `4:63`：继续复用 12/11px Geist Mono timecode、3px track、10px rest thumb、16px hit target 与 26/28px OSC inset。wrapper 的半像素纵向补偿由既有 1px thumb-border token 的一半推导；R6-04 timeline slot 改为 `clip:false` 允许 canonical thumb 略超出 28/26px lane，外层 OSC Surface 仍是裁切 owner，其他 Feature slot 不变。
 - Domain `playback_selectors` 新增 `canSeek()`；新增 `timeline_scrub_session`、`player_timeline_view_model`、`player_timeline_controls` 三个 CTest target，并扩展 selector 与 R6-04 slot contract，预期全量测试数 **59 → 62**。覆盖 drag/cancel/one-commit、stale position、pending target、duration refresh、generation change、non-seekable、unknown duration、seeking event ordering 与立即提交失败。
-- 当前环境无法执行用户锁定的 Windows Qt 6.8.3 / MSVC 2022 x64 / libmpv 0.41.0 链，因此 `configure.ps1`、Debug `build.ps1`、QML lint、**62 项 CTest** 与 `Player.exe` startup 均尚未执行；当前只完成源码、最终 Figma contract、模块边界与 diff 静态审计。产品媒体打开入口仍属于 R7，所以 live-media 产品手工 scrub 也尚不可执行。**R6-06 仍是 implementation candidate，不是 Complete。**
+- 首轮 Windows 锁定环境验证：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 2.0 s）；Debug `build.ps1` 在 `application_container_tests.exe` 链接阶段 **FAILED**。该测试直接编译 `playback_composition.cpp`，但测试 target 仍只链接 R6-05 的 `player_presentation_transport`，遗漏本轮新增的 `player_presentation_timeline`，因此出现 `PlayerTimelineViewModel` ctor / `acceptSnapshot` / `seekRequested` / `rejectPendingSeek` / `staticMetaObject` 的 LNK2019/LNK2001，最终 LNK1120。`player_timeline_view_model_tests.exe` 本身已成功链接；`scripts/test.ps1` 随后因 development runtime marker 未生成而正确阻断，所以 QML lint、62 项 CTest 和 `Player.exe` startup 仍未执行。
+- 同源修复 commit `23f593ed8f26e42dd85bc75aa51e04b4ae6de6b8` 仅在 `tests/CMakeLists.txt` 为 `application_container_tests` 增加 `player_presentation_timeline` 链接。生产 `player_app` 在 `src/presentation/CMakeLists.txt` 原本已经同时链接 Transport 与 Timeline，因此此次修复不改变产品运行链、公共接口或用户可观察行为；当前等待 Windows build/QML lint/62 CTest/startup 复验。
+- 产品媒体打开入口仍属于 R7，所以 live-media 产品手工 scrub 当前仍不可执行；该限制不会被写成已通过。**R6-06 仍是 implementation candidate，不是 Complete。**
 
 ### 2026-08-14 — R6-05 Transport Complete
 
