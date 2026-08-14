@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include <QFile>
+#include <QFileInfo>
 #include <QString>
 #include <QStringList>
 #include <QtTest>
@@ -32,6 +33,7 @@ private slots:
     void headerKeepsPodsIndependent();
     void mediaInfoPrioritizesTitle();
     void windowActionsEmitIntentsOnly();
+    void windowActionGlyphsMatchCanonicalFigmaGeometry();
     void shellOwnsGenericWindowCommands();
 };
 
@@ -47,6 +49,10 @@ void PlayerTopRegionTest::screenInjectsHeaderThroughTopRegionHost()
     QVERIFY(source.contains(QStringLiteral("property string mediaTitle: \"\"")));
     QVERIFY(source.contains(QStringLiteral("property string mediaMetadataText: \"\"")));
     QVERIFY(source.contains(QStringLiteral("property bool windowExpanded: false")));
+    QVERIFY(source.contains(QStringLiteral("readonly property bool headerCompact")));
+    QVERIFY(source.contains(QStringLiteral("leftMargin: SpacingTokens.windowSafeMinimum")));
+    QVERIFY(source.contains(QStringLiteral("rightMargin: SpacingTokens.windowSafeMinimum")));
+    QVERIFY(source.contains(QStringLiteral("LayoutTokens.headerHeightCompact")));
     QVERIFY(source.contains(QStringLiteral("signal minimizeRequested()")));
     QVERIFY(source.contains(QStringLiteral("signal maximizeRestoreRequested()")));
     QVERIFY(source.contains(QStringLiteral("signal closeRequested()")));
@@ -73,12 +79,13 @@ void PlayerTopRegionTest::headerKeepsPodsIndependent()
     QVERIFY(source.contains(QStringLiteral("WindowActionsPod {")));
     QVERIFY(source.contains(QStringLiteral("MediaInfoPod {")));
     QVERIFY(source.contains(QStringLiteral("right: parent.right")));
-    QVERIFY(source.contains(QStringLiteral("left: parent.left")));
+    QVERIFY(source.contains(QStringLiteral("horizontalCenter: parent.horizontalCenter")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.headerInfoWidth")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.headerInfoWidthCompact")));
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.headerActionsWidth")));
     QVERIFY(source.contains(QStringLiteral("height: root.podHeight")));
     QVERIFY(source.contains(QStringLiteral("SpacingTokens.controlAdjacent")));
+    QVERIFY(!source.contains(QStringLiteral("left: parent.left")));
 
     const QStringList forbidden{
         QStringLiteral("IconButton"),
@@ -128,15 +135,18 @@ void PlayerTopRegionTest::windowActionsEmitIntentsOnly()
     QVERIFY2(!source.isEmpty(), qPrintable(sourcePath(path)));
 
     QVERIFY(source.contains(QStringLiteral("LayoutTokens.headerActionsWidth")));
+    QVERIFY(source.contains(QStringLiteral("spacing: LayoutTokens.headerActionGap")));
     QVERIFY(source.contains(QStringLiteral("iconId: \"minimize\"")));
-    QVERIFY(source.contains(
-        QStringLiteral("root.windowExpanded ? \"restore\" : \"maximize\"")));
+    QVERIFY(source.contains(QStringLiteral("iconId: \"maximize\"")));
     QVERIFY(source.contains(QStringLiteral("iconId: \"close\"")));
+    QVERIFY(source.contains(
+        QStringLiteral("root.windowExpanded ? qsTr(\"Restore\") : qsTr(\"Maximize\")")));
     QVERIFY(source.contains(QStringLiteral("signal minimizeRequested()")));
     QVERIFY(source.contains(QStringLiteral("signal maximizeRestoreRequested()")));
     QVERIFY(source.contains(QStringLiteral("signal closeRequested()")));
 
     const QStringList forbidden{
+        QStringLiteral("iconId: \"restore\""),
         QStringLiteral("showMinimized"),
         QStringLiteral("showMaximized"),
         QStringLiteral("showNormal"),
@@ -148,6 +158,38 @@ void PlayerTopRegionTest::windowActionsEmitIntentsOnly()
     for (const QString& token : forbidden) {
         QVERIFY2(!source.contains(token), qPrintable(token));
     }
+}
+
+void PlayerTopRegionTest::windowActionGlyphsMatchCanonicalFigmaGeometry()
+{
+    const QString minimize = readSource(
+        QStringLiteral("src/presentation/qml/assets/icons/minimize.svg"));
+    const QString maximize = readSource(
+        QStringLiteral("src/presentation/qml/assets/icons/maximize.svg"));
+    const QString close = readSource(
+        QStringLiteral("src/presentation/qml/assets/icons/close.svg"));
+
+    QVERIFY(minimize.contains(QStringLiteral(
+        "x1=\"7.75\" y1=\"12.25\" x2=\"14.25\" y2=\"12.25\"")));
+    QVERIFY(maximize.contains(QStringLiteral(
+        "x=\"7.75\" y=\"7.75\" width=\"6.5\" height=\"6.5\" rx=\"0.75\"")));
+    QVERIFY(close.contains(QStringLiteral("d=\"M7 7L15 15M15 7L7 15\"")));
+
+    const QStringList icons{minimize, maximize, close};
+    for (const QString& icon : icons) {
+        QVERIFY(icon.contains(QStringLiteral("width=\"22\" height=\"22\"")));
+        QVERIFY(icon.contains(QStringLiteral("stroke=\"#76707B\"")));
+        QVERIFY(icon.contains(QStringLiteral("stroke-width=\"1.5\"")));
+        QVERIFY(!icon.contains(QStringLiteral("opacity=")));
+    }
+
+    QVERIFY(!QFileInfo::exists(sourcePath(
+        QStringLiteral("src/presentation/qml/assets/icons/restore.svg"))));
+
+    const QString layoutTokens = readSource(
+        QStringLiteral("src/presentation/qml/theme/LayoutTokens.qml"));
+    QVERIFY(layoutTokens.contains(QStringLiteral(
+        "headerActionGap: SizePrimitives.size3")));
 }
 
 void PlayerTopRegionTest::shellOwnsGenericWindowCommands()

@@ -17,6 +17,7 @@ QtObject {
     readonly property int headerInfoWidth: SizePrimitives.size420
     readonly property int headerInfoWidthCompact: SizePrimitives.size360
     readonly property int headerActionsWidth: SizePrimitives.size110
+    readonly property int headerActionGap: SizePrimitives.size3
 
     readonly property int oscHeight: SizePrimitives.size124
     readonly property int oscHeightCompact: SizePrimitives.size106

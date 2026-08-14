@@ -44,7 +44,7 @@ Item {
         id: mediaInfo
 
         anchors {
-            left: parent.left
+            horizontalCenter: parent.horizontalCenter
             verticalCenter: parent.verticalCenter
         }
         width: Math.min(
@@ -52,8 +52,7 @@ Item {
             Math.max(
                 0,
                 root.width
-                    - windowActions.width
-                    - SpacingTokens.controlAdjacent))
+                    - ((windowActions.width + SpacingTokens.controlAdjacent) * 2)))
         height: root.podHeight
         compact: root.compact
         mediaTitle: root.mediaTitle

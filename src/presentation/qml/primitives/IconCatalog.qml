@@ -10,7 +10,6 @@ QtObject {
         "play",
         "playlist",
         "previous",
-        "restore",
         "search",
         "subtitles",
         "volume"
@@ -38,8 +37,6 @@ QtObject {
             return Qt.resolvedUrl("assets/icons/playlist.svg")
         case "previous":
             return Qt.resolvedUrl("assets/icons/previous.svg")
-        case "restore":
-            return Qt.resolvedUrl("assets/icons/restore.svg")
         case "search":
             return Qt.resolvedUrl("assets/icons/search.svg")
         case "subtitles":
@@ -56,7 +53,6 @@ QtObject {
         case "close":
         case "maximize":
         case "minimize":
-        case "restore":
         case "search":
             return "secondary"
         default:

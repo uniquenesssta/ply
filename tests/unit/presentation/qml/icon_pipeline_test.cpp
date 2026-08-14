@@ -115,7 +115,6 @@ Item {
     Icon { id: fullscreenIcon; iconId: "fullscreen" }
     Icon { id: minimizeIcon; iconId: "minimize" }
     Icon { id: maximizeIcon; iconId: "maximize" }
-    Icon { id: restoreIcon; iconId: "restore" }
     Icon { id: closeIcon; iconId: "close" }
     Icon { id: searchIcon; iconId: "search" }
 
@@ -128,7 +127,6 @@ Item {
                                      && fullscreenIcon.known
                                      && minimizeIcon.known
                                      && maximizeIcon.known
-                                     && restoreIcon.known
                                      && closeIcon.known
                                      && searchIcon.known
     readonly property bool allReady: previousIcon.ready
@@ -140,7 +138,6 @@ Item {
                                      && fullscreenIcon.ready
                                      && minimizeIcon.ready
                                      && maximizeIcon.ready
-                                     && restoreIcon.ready
                                      && closeIcon.ready
                                      && searchIcon.ready
     readonly property color previousColor: previousIcon.color
@@ -148,7 +145,6 @@ Item {
     readonly property color closeColor: closeIcon.color
     readonly property color minimizeColor: minimizeIcon.color
     readonly property color maximizeColor: maximizeIcon.color
-    readonly property color restoreColor: restoreIcon.color
     readonly property real previousImplicitWidth: previousIcon.implicitWidth
     readonly property real playImplicitWidth: playIcon.implicitWidth
 }
@@ -177,7 +173,6 @@ Item {
     QCOMPARE(object->property("closeColor").value<QColor>(), secondary);
     QCOMPARE(object->property("minimizeColor").value<QColor>(), secondary);
     QCOMPARE(object->property("maximizeColor").value<QColor>(), secondary);
-    QCOMPARE(object->property("restoreColor").value<QColor>(), secondary);
     QCOMPARE(object->property("previousImplicitWidth").toReal(), qreal(22.0));
     QCOMPARE(object->property("playImplicitWidth").toReal(), qreal(24.0));
 }
@@ -234,7 +229,6 @@ void IconPipelineTest::assetInventoryMatchesContract()
         QStringLiteral("play.svg"),
         QStringLiteral("playlist.svg"),
         QStringLiteral("previous.svg"),
-        QStringLiteral("restore.svg"),
         QStringLiteral("search.svg"),
         QStringLiteral("subtitles.svg"),
         QStringLiteral("volume.svg"),

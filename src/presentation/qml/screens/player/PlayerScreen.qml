@@ -8,6 +8,8 @@ Item {
     property string mediaMetadataText: ""
     property bool windowExpanded: false
 
+    readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
+
     signal minimizeRequested()
     signal maximizeRestoreRequested()
     signal closeRequested()
@@ -26,10 +28,12 @@ Item {
             left: parent.left
             right: parent.right
             topMargin: SpacingTokens.floatingTop
-            leftMargin: SpacingTokens.floatingEdge
-            rightMargin: SpacingTokens.floatingEdge
+            leftMargin: SpacingTokens.windowSafeMinimum
+            rightMargin: SpacingTokens.windowSafeMinimum
         }
-        height: LayoutTokens.headerHeight
+        height: root.headerCompact
+                ? LayoutTokens.headerHeightCompact
+                : LayoutTokens.headerHeight
 
         PlayerFloatingHeader {
             anchors.fill: parent

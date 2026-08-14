@@ -16,7 +16,6 @@ set(PLAYER_ICON_ASSETS
     ../assets/icons/play.svg
     ../assets/icons/playlist.svg
     ../assets/icons/previous.svg
-    ../assets/icons/restore.svg
     ../assets/icons/search.svg
     ../assets/icons/subtitles.svg
     ../assets/icons/volume.svg

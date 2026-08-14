@@ -31,7 +31,7 @@ Panel {
 
     Row {
         anchors.centerIn: parent
-        spacing: SpacingTokens.controlTight
+        spacing: LayoutTokens.headerActionGap
 
         IconButton {
             objectName: "playerWindowMinimizeButton"
@@ -43,7 +43,7 @@ Panel {
 
         IconButton {
             objectName: "playerWindowMaximizeRestoreButton"
-            iconId: root.windowExpanded ? "restore" : "maximize"
+            iconId: "maximize"
             toolTipText: root.windowExpanded ? qsTr("Restore") : qsTr("Maximize")
             accessibleDescription: root.windowExpanded
                                    ? qsTr("Restore the player window")
