@@ -21,6 +21,7 @@ namespace {
 constexpr auto kPortableMarkerFileName = "portable.flag";
 constexpr auto kDevelopmentRootMarkerFileName = ".player-development-root";
 constexpr auto kExpectedDevelopmentRootRoute = "../..";
+constexpr auto kDevelopmentLogDirectoryName = "logs";
 
 QString normalizedPath(QString path)
 {
@@ -91,13 +92,22 @@ QString developmentProjectDirectory(const QString& executableDirectory)
     return projectDirectory;
 }
 
+QString developmentLogDirectory(const QString& projectDirectory)
+{
+    const QString projectParentDirectory = normalizedPath(
+        QDir(projectDirectory).absoluteFilePath(QStringLiteral("..")));
+    return childPath(
+        projectParentDirectory,
+        QString::fromLatin1(kDevelopmentLogDirectoryName));
+}
+
 QString installedLogDirectory(
     const QString& executableDirectory,
     const QString& dataDirectory)
 {
     const QString projectDirectory = developmentProjectDirectory(executableDirectory);
     if (!projectDirectory.isEmpty()) {
-        return projectDirectory;
+        return developmentLogDirectory(projectDirectory);
     }
 
     return childPath(dataDirectory, QStringLiteral("logs"));
