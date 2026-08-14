@@ -42,10 +42,12 @@ Item {
         x: -LayoutTokens.sliderTrackInset
         y: root.compact
            ? ((root.height - height) / 2)
-             + (LayoutTokens.sliderTrackHeight / 2)
+             + LayoutTokens.sliderTrackInset
+             - (LayoutTokens.sliderThumbBorderWidth / 2)
            : root.height
              - LayoutTokens.sliderTrackInset
              - (height / 2)
+             + (LayoutTokens.sliderThumbBorderWidth / 2)
         width: root.width + (LayoutTokens.sliderTrackInset * 2)
         height: LayoutTokens.timelineHitHeight
         value: 0.0
