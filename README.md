@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-05 均 Complete**；R6-05 修复后 Windows Debug build / QML lint PASS、**59/59 CTest PASS（57.65 s）**、`Player.exe` startup PASS；下一项 R6-06 Timeline |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-05 均 Complete**；R6-06 Timeline implementation candidate 已提交，新增 scrub/pending/Absolute Seek 主链与 3 个定向 CTest，预期 **59 → 62**；Windows configure/build/QML lint/CTest/startup pending |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -101,6 +101,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-14 — R6-06 Timeline implementation candidate
+
+- 新增职责独立的 `TimelineScrubSession` 与 `PlayerTimelineViewModel`。Scrub session 只拥有 `Idle / Scrubbing / PendingCommit` 交互状态、MediaGeneration 与 normalized preview；真实 position/duration/seekable/seeking 继续来自 `PlaybackSnapshot.timeline`，没有建立第二套 Playback 真值。
+- Timeline VM 增加 `canSeek/isScrubbing/seekPending/backendSeeking/displayedNormalized/durationSeconds/positionText/durationText` 投影；拖动时 preview 屏蔽后台旧 position，commit 只发一次 absolute target。commit 后冻结 absolute target seconds，即使同媒体 duration 刷新也不会重算成错误目标；现有 mpv mapper/encoder 的 Absolute Seek 已确认走 `absolute+exact`，PendingCommit 只在实际 position 到达冻结 target ±0.75s 后释放，避免 `seeking:true→false` 事件先到造成 thumb 回弹。
+- `PlaybackComposition` 继续复用 R6-05 的同一个 `PlaybackSessionThread`、共享 `PlaybackRequestIdGenerator` 与 `PlaybackCommandBus`，新增 `SeekCommand{absoluteSeconds, SeekMode::Absolute}` 提交；CommandBus 立即拒绝时显式释放 pending preview。具体 SeekCommand 依赖保持在 composition `.cpp`，没有扩散到公共头。
+- `ApplicationBootstrap → MainWindow → PlayerScreen → TimelineControls` 通过 initial properties 显式传递 Timeline VM；新增 `features/player/timeline/TimelineControls.qml` 只 import Theme/Controls，复用既有通用 `Slider` pointer/keyboard 状态机，不复制 `MouseArea` 或直接接触 PlaybackSession/libmpv。
+- Timeline 几何重新核对最终 Figma Standard `4:20` 与 Compact `4:63`：继续复用 12/11px Geist Mono timecode、3px track、10px rest thumb、16px hit target 与 26/28px OSC inset。wrapper 的半像素纵向补偿由既有 1px thumb-border token 的一半推导；R6-04 timeline slot 改为 `clip:false` 允许 canonical thumb 略超出 28/26px lane，外层 OSC Surface 仍是裁切 owner，其他 Feature slot 不变。
+- Domain `playback_selectors` 新增 `canSeek()`；新增 `timeline_scrub_session`、`player_timeline_view_model`、`player_timeline_controls` 三个 CTest target，并扩展 selector 与 R6-04 slot contract，预期全量测试数 **59 → 62**。覆盖 drag/cancel/one-commit、stale position、pending target、duration refresh、generation change、non-seekable、unknown duration、seeking event ordering 与立即提交失败。
+- 当前环境无法执行用户锁定的 Windows Qt 6.8.3 / MSVC 2022 x64 / libmpv 0.41.0 链，因此 `configure.ps1`、Debug `build.ps1`、QML lint、**62 项 CTest** 与 `Player.exe` startup 均尚未执行；当前只完成源码、最终 Figma contract、模块边界与 diff 静态审计。产品媒体打开入口仍属于 R7，所以 live-media 产品手工 scrub 也尚不可执行。**R6-06 仍是 implementation candidate，不是 Complete。**
 
 ### 2026-08-14 — R6-05 Transport Complete
 
