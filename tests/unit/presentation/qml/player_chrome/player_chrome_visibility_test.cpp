@@ -1,16 +1,15 @@
+#include <QCoreApplication>
+#include <QEventLoop>
 #include <QFile>
 #include <QMetaObject>
-#include <QQmlComponent>
-#include <QQmlEngine>
+#include <QQuickItem>
+#include <QQuickView>
 #include <QQmlError>
-#include <QSignalSpy>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
 #include <QVariant>
 #include <QtTest>
-
-#include <memory>
 
 namespace player::presentation::qml {
 namespace {
@@ -34,39 +33,33 @@ QString readSource(const QString& relativePath)
     return QString::fromUtf8(file.readAll());
 }
 
-QString componentDiagnostics(const QQmlComponent& component)
+QString viewDiagnostics(const QQuickView& view)
 {
     QStringList diagnostics;
-    diagnostics.append(
-        QStringLiteral("status=%1 progress=%2")
-            .arg(static_cast<int>(component.status()))
-            .arg(component.progress(), 0, 'f', 3));
-
-    for (const QQmlError& error : component.errors()) {
+    diagnostics.append(QStringLiteral("status=%1").arg(static_cast<int>(view.status())));
+    for (const QQmlError& error : view.errors()) {
         diagnostics.append(error.toString());
     }
     return diagnostics.join(QLatin1Char('\n'));
 }
 
-bool waitForComponentResolution(QQmlComponent& component)
+QQuickItem* createVisibilityController(QQuickView& view)
 {
-    if (component.status() != QQmlComponent::Loading) {
-        return true;
-    }
-
-    QSignalSpy statusSpy(&component, &QQmlComponent::statusChanged);
-    return statusSpy.wait(5000);
-}
-
-std::unique_ptr<QObject> createVisibilityController(QQmlComponent& component)
-{
-    component.loadUrl(QUrl::fromLocalFile(sourcePath(QStringLiteral(
+    view.setResizeMode(QQuickView::SizeRootObjectToView);
+    view.resize(640, 360);
+    view.setSource(QUrl::fromLocalFile(sourcePath(QStringLiteral(
         "src/presentation/qml/features/player/chrome/PlayerChromeVisibilityController.qml"))));
 
-    if (!waitForComponentResolution(component) || !component.isReady()) {
-        return {};
+    if (view.status() != QQuickView::Ready || view.rootObject() == nullptr) {
+        return nullptr;
     }
-    return std::unique_ptr<QObject>(component.create());
+
+    // QML Timer is synchronized with Qt Quick's animation timer. Host the
+    // controller in a real Quick window so the test exercises the same timer
+    // lifecycle as the product instead of a detached QQmlComponent object.
+    view.show();
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+    return view.rootObject();
 }
 
 bool invokeNoArg(QObject* object, const char* method)
@@ -97,10 +90,10 @@ private slots:
 
 void PlayerChromeVisibilityTest::playingInactivityUsesWindowAndFullscreenDelays()
 {
-    QQmlEngine engine;
-    QQmlComponent component(&engine);
-    std::unique_ptr<QObject> controller = createVisibilityController(component);
-    QVERIFY2(controller != nullptr, qPrintable(componentDiagnostics(component)));
+    QQuickView view;
+    QQuickItem* controller = createVisibilityController(view);
+    QVERIFY2(controller != nullptr, qPrintable(viewDiagnostics(view)));
+    QVERIFY(view.isVisible());
 
     QVERIFY(controller->property("chromeVisible").toBool());
     QVERIFY(controller->setProperty("playing", true));
@@ -111,7 +104,7 @@ void PlayerChromeVisibilityTest::playingInactivityUsesWindowAndFullscreenDelays(
         !controller->property("chromeVisible").toBool(),
         kWindowHideCompletionTimeoutMs);
 
-    QVERIFY(invokeActivity(controller.get(), QStringLiteral("test-activity")));
+    QVERIFY(invokeActivity(controller, QStringLiteral("test-activity")));
     QVERIFY(controller->property("chromeVisible").toBool());
     QVERIFY(controller->setProperty("fullScreen", true));
 
@@ -124,45 +117,45 @@ void PlayerChromeVisibilityTest::playingInactivityUsesWindowAndFullscreenDelays(
 
 void PlayerChromeVisibilityTest::pauseScrubPopupAndErrorKeepOscVisible()
 {
-    QQmlEngine engine;
-    QQmlComponent component(&engine);
-    std::unique_ptr<QObject> controller = createVisibilityController(component);
-    QVERIFY2(controller != nullptr, qPrintable(componentDiagnostics(component)));
+    QQuickView view;
+    QQuickItem* controller = createVisibilityController(view);
+    QVERIFY2(controller != nullptr, qPrintable(viewDiagnostics(view)));
+    QVERIFY(view.isVisible());
 
     QVERIFY(controller->setProperty("playing", true));
-    QVERIFY(invokeNoArg(controller.get(), "hideIfEligible"));
+    QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(!controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("scrubbing", true));
     QVERIFY(controller->property("chromeVisible").toBool());
-    QVERIFY(invokeNoArg(controller.get(), "hideIfEligible"));
+    QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("scrubbing", false));
-    QVERIFY(invokeNoArg(controller.get(), "hideIfEligible"));
+    QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(!controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("popupOpen", true));
     QVERIFY(controller->property("chromeVisible").toBool());
-    QVERIFY(invokeNoArg(controller.get(), "hideIfEligible"));
+    QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("popupOpen", false));
-    QVERIFY(invokeNoArg(controller.get(), "hideIfEligible"));
+    QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(!controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("errorVisible", true));
     QVERIFY(controller->property("chromeVisible").toBool());
-    QVERIFY(invokeNoArg(controller.get(), "hideIfEligible"));
+    QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("errorVisible", false));
-    QVERIFY(invokeNoArg(controller.get(), "hideIfEligible"));
+    QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(!controller->property("chromeVisible").toBool());
 
     QVERIFY(controller->setProperty("playing", false));
     QVERIFY(controller->property("chromeVisible").toBool());
-    QVERIFY(invokeNoArg(controller.get(), "hideIfEligible"));
+    QVERIFY(invokeNoArg(controller, "hideIfEligible"));
     QVERIFY(controller->property("chromeVisible").toBool());
 }
 
