@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen、R6-02 Video viewport、R6-03 Floating Header、R6-04 Bottom control region 均 Complete**；R6-04 Windows configure/build/QML lint PASS、**55/55 CTest PASS（53.23 s）**、`Player.exe` 启动验收完成；R6-05 Transport implementation candidate 已提交，Windows validation pending |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-05 均 Complete**；R6-05 修复后 Windows Debug build / QML lint PASS、**59/59 CTest PASS（57.65 s）**、`Player.exe` startup PASS；下一项 R6-06 Timeline |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -102,14 +102,15 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-14 — R6-05 Transport implementation candidate
+### 2026-08-14 — R6-05 Transport Complete
 
-- 新增纯 Domain `playback_selectors.*`，从 `PlaybackSnapshot` 单向投影 `canPlay/canPause/canStop/isPlaying`；新增独立 `PlayerTransportViewModel` 只消费这些 selector 并发出 play/pause/stop intent，不拥有 Playback 状态、不直接访问 PlaybackSession/libmpv。
-- 新增 `PlaybackComposition`，产品启动现在真实创建 `PlaybackSessionThread`、共享 `PlaybackRequestIdGenerator` 与 Transport VM，并建立 `StatePublisher → VM → intent → PlaybackCommandBus` 链。Transport/Timeline/Volume 后续共享 RequestId 生成策略，避免多个 Feature 独立计数导致 RequestTracker duplicate-ID。
-- `QmlBootstrap` 增加 initial-properties 注入边界；VM 由 `ApplicationBootstrap → MainWindow → PlayerScreen → TransportControls` 显式传递，没有新增 QML singleton/service locator。ApplicationContainer shutdown 顺序调整为先销毁 QML，再停止 PlaybackComposition，最后关闭 Logging。
-- 新增 `features/player/transport/TransportControls.qml` 并直接插入 R6-04 Transport slot；按第三版 canonical OSC 使用 Previous / Primary Play / Next，Previous/Next 在 Playlist command/state 尚未存在时保持禁用。Feature QML 继续只 import Theme/Controls。
-- 最终 Figma 当前没有 Pause/Stop canonical glyph/control；候选没有手绘替代资产。Primary control 的 Tooltip/Accessible name 可随 `isPlaying` 切为 Pause，toggle intent 已接通，但视觉 glyph 暂时只能保持 canonical Play；Stop command 已接入 VM/CommandBus，却没有新增与设计不一致的可见 Stop button。该资产缺口在解决前阻止 R6-05 标记 Complete。
-- 新增 `playback_selectors`、`playback_request_ids`、`player_transport_view_model`、`player_transport_controls` 四个 CTest target，并扩展 `application_container` lifecycle；重新 configure 后预期全量测试数 **55 → 59**。Windows configure/build/QML lint/CTest 和产品 startup 尚未执行，当前只完成远端源码、Figma 与模块边界审计，**R6-05 仍是 implementation candidate**。
+- 建立 `PlaybackSnapshot → playback_selectors → PlayerTransportViewModel → QML intent → PlaybackComposition → PlaybackCommandBus → PlaybackSession` 真实 Transport 主链；ViewModel 不拥有播放真值，QML 不直接访问 PlaybackSession/libmpv。`PlaybackComposition` 同时引入共享 `PlaybackRequestIdGenerator`，为后续 Timeline/Volume 共用 RequestId 所有权。
+- 常驻 OSC Transport 按用户确认的最终定义保持 **Previous / Primary Play-Pause Toggle / Next**；Previous/Next 在 R7 Playlist 提供真实 navigation state/command 前保持禁用。Stop 已完整存在于 selector/VM/CommandBus/PlaybackSession 能力链，但不作为常驻 OSC 按钮。
+- 为关闭设计资产缺口，最终 Figma 新增 `D8 / Canonical Transport Assets` Section `745:3` 和唯一 `Icon / Transport / Stop` Component `746:2`（内部 glyph `746:3`）：22×22 canvas、中心 8×8 R1 filled glyph，绑定既有 `icon/primary`；主 OSC `4:20` 的 Previous `4:26` / Play Button `4:28` / Next `4:31` geometry 未改。当前产品没有 Stop 可见 consumer，因此仓库没有新增无使用方的 `stop.svg`。
+- 首轮 Windows `configure.ps1` **PASS**（Configuring 4.4 s / Generating 1.9 s），随后 Debug build 因 `playback_composition.h` 错误前置声明 `TransportAction` 与 canonical `TransportAction : quint8` 冲突而 **FAILED**；`test.ps1` 因 development marker 未生成被正确阻断，没有把未执行测试描述为通过。
+- 修复 commit `2509e25f01481e31efd94a9e1bb6cd7dd65d4e8c` 改为直接引用 canonical `transport_command.h` 并删除重复枚举前置声明，不改变 TransportAction、PlaybackCommand、CommandBus 或用户可观察播放语义。
+- 修复后 Windows Debug `build.ps1` **PASS**，Qt runtime deployment 正常；`scripts/test.ps1` QML lint **PASS**；全量 **59/59 CTest PASS，0 failed，57.65 s**。新增 `playback_selectors`、`playback_request_ids`、`player_transport_controls`、`player_transport_view_model` 与扩展的 `application_container` 全部 PASS；`Player.exe` startup **PASS**，无媒体时 Previous / Play / Next 全部 Disabled 与 Snapshot/VM 状态一致。
+- 产品媒体打开入口仍属于 R7，所以本轮没有伪装成已在产品 UI 中实际载入媒体后手工点击 Play/Pause；真实 `playback_session` WAV 主链已覆盖 load→pause→play→pause→stop，selector/VM/QML 定向测试覆盖本轮映射。按 R6 快速框架策略该项不再阻断，**R6-05 正式 Complete；下一项 R6-06。**
 
 ### 2026-08-14 — R6-04 Bottom control region Complete
 
@@ -152,7 +153,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 新增独立 `player_screen_structure` CTest，静态验证 PlayerScreen 只组合五类 Host、Host 使用正确 z-order/slot、VideoViewport 只包装 VideoSurface、Screen/Host 不出现 PlaybackSession/libmpv/mpv_ 业务词，并强制旧 `PlayerChrome.qml` 不再存在。全量测试数由 **51 → 52**。
 - 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被 `verify-project-layout.ps1` 阻断，原因是旧 scaffold 校验仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake 自动重跑正常，Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且无新增 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS。
 - 同源修复更新 `scripts/verify-project-layout.ps1`：required-files 真值改为 R6-01 五个 Screen Host + `VideoSurface`，旧 `PlayerChrome.qml` 改为 obsolete path；Presentation CMake 校验同步要求五个 Host 已进入 QML module；PlayerScreen composition 校验同步改为新五层结构。没有恢复旧 Chrome，也没有弱化校验。
-- 修复后 `configure.ps1` 在锁定 Windows 环境复验 **PASS**：layout verifier 明确报告 R6-01 PlayerScreen composition 完整，CMake **Configuring 3.7 s / Generating 1.7 s**；此前 build/QML lint/52-test 结果保持有效，因为修复只涉及 verifier 与文档。
+- 修复后 `configure.ps1` 在锁定 Windows 环境复验 **PASS**：layout verifier 明确识别 R6-01 PlayerScreen composition 完整，CMake **Configuring 3.7 s / Generating 1.7 s**；此前 build/QML lint/52-test 结果保持有效，因为修复只涉及 verifier 与文档。
 - 最终手工 basic resize 验证 **PASS**：窗口缩小、放大均正常，内容始终铺满，没有错位或运行时报错；`Player.exe` 再次启动正常。未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-01 正式 Complete；R6-02 未开始。**
 
 ### 2026-08-14 — R5-10 Accessibility baseline / Stage R5 Complete
