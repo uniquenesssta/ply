@@ -51,8 +51,11 @@ double PlayerTimelineViewModel::displayedNormalized() const noexcept
         return 0.0;
     }
 
-    if (scrubSession_.isActive()) {
+    if (scrubSession_.isScrubbing()) {
         return scrubSession_.previewNormalized();
+    }
+    if (scrubSession_.isPendingCommit() && pendingAbsoluteSeconds_.has_value()) {
+        return std::clamp(*pendingAbsoluteSeconds_ / *durationSeconds_, 0.0, 1.0);
     }
 
     if (!actualPositionSeconds_.has_value()) {
@@ -97,6 +100,7 @@ bool PlayerTimelineViewModel::beginScrub(double normalized)
         return false;
     }
 
+    pendingAbsoluteSeconds_.reset();
     pendingSawBackendSeeking_ = false;
     emit stateChanged();
     return true;
@@ -123,10 +127,10 @@ bool PlayerTimelineViewModel::commitScrub(double normalized)
         return false;
     }
 
+    pendingAbsoluteSeconds_ = *committed * *durationSeconds_;
     pendingSawBackendSeeking_ = backendSeeking_;
-    const double absoluteSeconds = *committed * *durationSeconds_;
     emit stateChanged();
-    emit seekRequested(absoluteSeconds);
+    emit seekRequested(*pendingAbsoluteSeconds_);
     return true;
 }
 
@@ -137,6 +141,7 @@ bool PlayerTimelineViewModel::cancelScrub()
     }
 
     (void)scrubSession_.cancel();
+    pendingAbsoluteSeconds_.reset();
     pendingSawBackendSeeking_ = false;
     emit stateChanged();
     return true;
@@ -148,6 +153,7 @@ bool PlayerTimelineViewModel::rejectPendingSeek()
         return false;
     }
 
+    pendingAbsoluteSeconds_.reset();
     pendingSawBackendSeeking_ = false;
     emit stateChanged();
     return true;
@@ -168,6 +174,7 @@ void PlayerTimelineViewModel::acceptSnapshot(
     const auto nextGeneration = snapshot.generation();
     if (nextGeneration != generation_) {
         (void)scrubSession_.cancelIfGenerationChanged(nextGeneration);
+        pendingAbsoluteSeconds_.reset();
         pendingSawBackendSeeking_ = false;
     }
     generation_ = nextGeneration;
@@ -182,14 +189,15 @@ void PlayerTimelineViewModel::acceptSnapshot(
 
     if (!canSeek_) {
         (void)scrubSession_.cancel();
+        pendingAbsoluteSeconds_.reset();
         pendingSawBackendSeeking_ = false;
     } else if (scrubSession_.isPendingCommit()) {
         if (backendSeeking_) {
             pendingSawBackendSeeking_ = true;
         }
 
-        const double targetSeconds =
-            scrubSession_.previewNormalized() * *durationSeconds_;
+        const double targetSeconds = pendingAbsoluteSeconds_.value_or(
+            scrubSession_.previewNormalized() * *durationSeconds_);
         const bool targetObserved = actualPositionSeconds_.has_value()
             && std::abs(*actualPositionSeconds_ - targetSeconds)
                 <= kSeekAcknowledgementToleranceSeconds;
@@ -198,6 +206,7 @@ void PlayerTimelineViewModel::acceptSnapshot(
 
         if (targetObserved || seekCycleCompleted) {
             (void)scrubSession_.acknowledgePending();
+            pendingAbsoluteSeconds_.reset();
             pendingSawBackendSeeking_ = false;
         }
     }
@@ -218,8 +227,14 @@ void PlayerTimelineViewModel::acceptSnapshot(
 
 double PlayerTimelineViewModel::displayedPositionSeconds() const noexcept
 {
-    if (durationSeconds_.has_value() && scrubSession_.isActive()) {
+    if (durationSeconds_.has_value() && scrubSession_.isScrubbing()) {
         return scrubSession_.previewNormalized() * *durationSeconds_;
+    }
+    if (scrubSession_.isPendingCommit() && pendingAbsoluteSeconds_.has_value()) {
+        if (!durationSeconds_.has_value()) {
+            return std::max(0.0, *pendingAbsoluteSeconds_);
+        }
+        return std::clamp(*pendingAbsoluteSeconds_, 0.0, *durationSeconds_);
     }
 
     const double position = actualPositionSeconds_.value_or(0.0);
