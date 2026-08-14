@@ -4,6 +4,14 @@ import Player.Presentation.Theme
 Item {
     id: root
 
+    property string mediaTitle: ""
+    property string mediaMetadataText: ""
+    property bool windowExpanded: false
+
+    signal minimizeRequested()
+    signal maximizeRestoreRequested()
+    signal closeRequested()
+
     objectName: "playerScreen"
 
     VideoViewport {
@@ -22,6 +30,17 @@ Item {
             rightMargin: SpacingTokens.floatingEdge
         }
         height: LayoutTokens.headerHeight
+
+        PlayerFloatingHeader {
+            anchors.fill: parent
+            mediaTitle: root.mediaTitle
+            metadataText: root.mediaMetadataText
+            windowExpanded: root.windowExpanded
+
+            onMinimizeRequested: root.minimizeRequested()
+            onMaximizeRestoreRequested: root.maximizeRestoreRequested()
+            onCloseRequested: root.closeRequested()
+        }
     }
 
     PlayerOverlayStack {

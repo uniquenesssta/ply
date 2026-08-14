@@ -12,6 +12,9 @@ set(PLAYER_QML_FILES
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml
+    qml/features/player/header/PlayerFloatingHeader.qml
+    qml/features/player/header/MediaInfoPod.qml
+    qml/features/player/header/WindowActionsPod.qml
 )
 
 target_sources(
@@ -38,6 +41,9 @@ set_source_files_properties(
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml
+    qml/features/player/header/PlayerFloatingHeader.qml
+    qml/features/player/header/MediaInfoPod.qml
+    qml/features/player/header/WindowActionsPod.qml
     PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 
@@ -51,6 +57,9 @@ qt_add_qml_module(
     DEPENDENCIES
         QtQuick
         Player.Presentation.Theme
+        Player.Presentation.Primitives
+        Player.Presentation.Controls
+        Player.Presentation.Surfaces
     QML_FILES ${PLAYER_QML_FILES}
 )
 
@@ -79,6 +88,9 @@ target_link_libraries(
     player_app
     PRIVATE
         player_presentation_theme
+        player_presentation_primitives
+        player_presentation_controls
+        player_presentation_surfaces
 )
 
 add_custom_target(

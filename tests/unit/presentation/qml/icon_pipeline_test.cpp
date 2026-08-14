@@ -113,6 +113,9 @@ Item {
     Icon { id: subtitlesIcon; iconId: "subtitles" }
     Icon { id: playlistIcon; iconId: "playlist" }
     Icon { id: fullscreenIcon; iconId: "fullscreen" }
+    Icon { id: minimizeIcon; iconId: "minimize" }
+    Icon { id: maximizeIcon; iconId: "maximize" }
+    Icon { id: restoreIcon; iconId: "restore" }
     Icon { id: closeIcon; iconId: "close" }
     Icon { id: searchIcon; iconId: "search" }
 
@@ -123,6 +126,9 @@ Item {
                                      && subtitlesIcon.known
                                      && playlistIcon.known
                                      && fullscreenIcon.known
+                                     && minimizeIcon.known
+                                     && maximizeIcon.known
+                                     && restoreIcon.known
                                      && closeIcon.known
                                      && searchIcon.known
     readonly property bool allReady: previousIcon.ready
@@ -132,11 +138,17 @@ Item {
                                      && subtitlesIcon.ready
                                      && playlistIcon.ready
                                      && fullscreenIcon.ready
+                                     && minimizeIcon.ready
+                                     && maximizeIcon.ready
+                                     && restoreIcon.ready
                                      && closeIcon.ready
                                      && searchIcon.ready
     readonly property color previousColor: previousIcon.color
     readonly property color searchColor: searchIcon.color
     readonly property color closeColor: closeIcon.color
+    readonly property color minimizeColor: minimizeIcon.color
+    readonly property color maximizeColor: maximizeIcon.color
+    readonly property color restoreColor: restoreIcon.color
     readonly property real previousImplicitWidth: previousIcon.implicitWidth
     readonly property real playImplicitWidth: playIcon.implicitWidth
 }
@@ -158,15 +170,14 @@ Item {
     QVERIFY(object->property("allKnown").toBool());
     QTRY_VERIFY_WITH_TIMEOUT(object->property("allReady").toBool(), 5000);
 
-    QCOMPARE(
-        object->property("previousColor").value<QColor>(),
-        QColor(QStringLiteral("#1A1720")));
-    QCOMPARE(
-        object->property("searchColor").value<QColor>(),
-        QColor(QStringLiteral("#76707B")));
-    QCOMPARE(
-        object->property("closeColor").value<QColor>(),
-        QColor(QStringLiteral("#76707B")));
+    const QColor primary(QStringLiteral("#1A1720"));
+    const QColor secondary(QStringLiteral("#76707B"));
+    QCOMPARE(object->property("previousColor").value<QColor>(), primary);
+    QCOMPARE(object->property("searchColor").value<QColor>(), secondary);
+    QCOMPARE(object->property("closeColor").value<QColor>(), secondary);
+    QCOMPARE(object->property("minimizeColor").value<QColor>(), secondary);
+    QCOMPARE(object->property("maximizeColor").value<QColor>(), secondary);
+    QCOMPARE(object->property("restoreColor").value<QColor>(), secondary);
     QCOMPARE(object->property("previousImplicitWidth").toReal(), qreal(22.0));
     QCOMPARE(object->property("playImplicitWidth").toReal(), qreal(24.0));
 }
@@ -217,10 +228,13 @@ void IconPipelineTest::assetInventoryMatchesContract()
     const QStringList expected = {
         QStringLiteral("close.svg"),
         QStringLiteral("fullscreen.svg"),
+        QStringLiteral("maximize.svg"),
+        QStringLiteral("minimize.svg"),
         QStringLiteral("next.svg"),
         QStringLiteral("play.svg"),
         QStringLiteral("playlist.svg"),
         QStringLiteral("previous.svg"),
+        QStringLiteral("restore.svg"),
         QStringLiteral("search.svg"),
         QStringLiteral("subtitles.svg"),
         QStringLiteral("volume.svg"),

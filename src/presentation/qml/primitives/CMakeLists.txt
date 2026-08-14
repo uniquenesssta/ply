@@ -10,10 +10,13 @@ set(PLAYER_PRIMITIVE_QML_FILES
 set(PLAYER_ICON_ASSETS
     ../assets/icons/close.svg
     ../assets/icons/fullscreen.svg
+    ../assets/icons/maximize.svg
+    ../assets/icons/minimize.svg
     ../assets/icons/next.svg
     ../assets/icons/play.svg
     ../assets/icons/playlist.svg
     ../assets/icons/previous.svg
+    ../assets/icons/restore.svg
     ../assets/icons/search.svg
     ../assets/icons/subtitles.svg
     ../assets/icons/volume.svg
@@ -39,6 +42,7 @@ qt_add_qml_module(
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
     NO_PLUGIN
+    NO_GENERATE_EXTRA_QMLDIRS
     DEPENDENCIES
         QtQuick
         QtQuick.Effects
