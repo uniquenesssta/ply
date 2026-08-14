@@ -46,6 +46,7 @@ class PlayerTimelineViewModelTest final : public QObject
 private slots:
     void snapshotProjectsPositionDurationAndTimecodes();
     void scrubPreviewIgnoresBackgroundPositionUntilAcknowledged();
+    void pendingCommitKeepsAbsoluteTargetAcrossDurationRefresh();
     void cancelRestoresActualWithoutSeek();
     void generationChangeCancelsScrub();
     void nonSeekableAndUnknownDurationBlockInteraction();
@@ -103,6 +104,28 @@ void PlayerTimelineViewModelTest::scrubPreviewIgnoresBackgroundPositionUntilAckn
     viewModel.acceptSnapshot(timelineSnapshot(2, 75.2, 100.0, true));
     QVERIFY(!viewModel.seekPending());
     QVERIFY(fuzzyEqual(viewModel.displayedNormalized(), 0.752));
+    QCOMPARE(seekSpy.count(), 1);
+}
+
+void PlayerTimelineViewModelTest::pendingCommitKeepsAbsoluteTargetAcrossDurationRefresh()
+{
+    PlayerTimelineViewModel viewModel;
+    QSignalSpy seekSpy(&viewModel, &PlayerTimelineViewModel::seekRequested);
+
+    viewModel.acceptSnapshot(timelineSnapshot(9, 10.0, 100.0, true));
+    QVERIFY(viewModel.beginScrub(0.1));
+    QVERIFY(viewModel.commitScrub(0.75));
+    QCOMPARE(seekSpy.count(), 1);
+    QVERIFY(fuzzyEqual(seekSpy.at(0).at(0).toDouble(), 75.0));
+
+    viewModel.acceptSnapshot(timelineSnapshot(9, 12.0, 200.0, true));
+    QVERIFY(viewModel.seekPending());
+    QVERIFY(fuzzyEqual(viewModel.displayedNormalized(), 0.375));
+    QCOMPARE(viewModel.positionText(), QStringLiteral("00:01:15"));
+
+    viewModel.acceptSnapshot(timelineSnapshot(9, 75.1, 200.0, true));
+    QVERIFY(!viewModel.seekPending());
+    QVERIFY(fuzzyEqual(viewModel.displayedNormalized(), 75.1 / 200.0));
     QCOMPARE(seekSpy.count(), 1);
 }
 
