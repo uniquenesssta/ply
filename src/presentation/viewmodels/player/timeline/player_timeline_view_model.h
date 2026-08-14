@@ -59,6 +59,7 @@ private:
     player::playback::domain::MediaGeneration generation_;
     std::optional<double> actualPositionSeconds_;
     std::optional<double> durationSeconds_;
+    std::optional<double> pendingAbsoluteSeconds_;
     bool canSeek_ = false;
     bool backendSeeking_ = false;
     bool pendingSawBackendSeeking_ = false;
