@@ -35,4 +35,10 @@ bool canStop(const PlaybackSnapshot& snapshot) noexcept
     return snapshot.transport() != PlaybackTransportState::Stopped;
 }
 
+bool canSeek(const PlaybackSnapshot& snapshot) noexcept
+{
+    return snapshot.lifecycle() == PlaybackLifecycleState::Ready
+        && snapshot.timeline().seekable.value_or(false);
+}
+
 } // namespace player::playback::domain::selectors
