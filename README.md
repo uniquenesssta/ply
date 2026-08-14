@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete**；Windows configure/build/QML lint PASS、**52/52 CTest PASS（52.79 s）**、`Player.exe` startup PASS、basic resize PASS；R6-02 未开始 |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 PlayerScreen 组合骨架 Complete**；R6-02 视频 viewport 实现候选已提交（`6227451`），Windows configure/build/QML lint 与空/音频/视频三态验收待执行；最后已验证基线仍为 **52/52 CTest PASS（52.79 s）** |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -101,6 +101,14 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-14 — R6-02 Video viewport implementation candidate
+
+- `VideoViewport.qml` 新增 `hasMedia` / `hasVideo` 的 presentation 输入契约，默认保持空媒体；`hasMedia && !hasVideo` 映射纯音频，只有 `hasMedia && hasVideo` 才显示 `VideoSurface`。空媒体、纯音频、视频态分别消费既有 `surfaceEmpty` / `surfaceAudio` / `surfaceLetterbox`，没有新增颜色真值或裸色值。
+- `VideoSurface.qml` 继续作为 R4 `MpvVideoItem` 的唯一 QML Render Surface owner；`MpvVideoItem` 仍 `anchors.fill: parent`，未迁移进 `PlayerScreen` / `VideoViewport`。视频 underlay 改为既有 `surfaceLetterbox`，aspect-fit 继续由已验证的 R4/libmpv Render 路径保持正确纵横比，R6-02 不复制第二套 QML 裁切/缩放算法。
+- 在既有 `tests/unit/presentation/qml/player_screen/` 模块中新增职责独立的 `video_viewport_test.cpp` 与 `player_video_viewport` CTest target，静态锁定媒体能力输入、三态 semantic background、VideoSurface 可见性以及 `MpvVideoItem` 不得上移到 viewport 的模块边界；既有 `player_screen_structure` 测试未混入 R6-02 断言。
+- 当前仓库尚无 `PlayerViewModel` / playback presentation composition，因此本提交只建立 `PlaybackSnapshot/media capability` 后续可绑定的 viewport 输入边界，不把未存在的 snapshot→QML live binding 伪装为已接通，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。
+- 本环境已完成远端源码/影响边界复核与候选静态契约检查；由于当前容器无法通过本地 Git 网络解析 GitHub，且未安装 Qt `qmllint`/Windows MSVC/libmpv 运行环境，**Windows configure、Debug build、QML lint、CTest 与空媒体/纯音频/视频三态真实运行验收尚未执行**。因此 R6-02 当前为 implementation candidate，**不得标记 Complete**；需在 Windows 锁定环境运行标准 configure/build/test 以及三态手工验证后收口。
 
 ### 2026-08-14 — R6-01 PlayerScreen composition Complete
 
