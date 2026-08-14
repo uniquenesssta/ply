@@ -124,6 +124,7 @@ target_link_libraries(
         player_playback_application
         player_presentation_transport
         player_presentation_timeline
+        player_presentation_volume
         Qt6::Core
         Qt6::Qml
         Qt6::Test

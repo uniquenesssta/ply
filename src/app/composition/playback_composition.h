@@ -14,6 +14,7 @@ class PlaybackSessionThread;
 namespace player::presentation {
 class PlayerTimelineViewModel;
 class PlayerTransportViewModel;
+class PlayerVolumeViewModel;
 }
 
 namespace player::app {
@@ -33,15 +34,19 @@ public:
 
     [[nodiscard]] player::presentation::PlayerTransportViewModel& transportViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerTimelineViewModel& timelineViewModel() noexcept;
+    [[nodiscard]] player::presentation::PlayerVolumeViewModel& volumeViewModel() noexcept;
 
 private:
     void submitTransport(player::playback::domain::TransportAction action);
     [[nodiscard]] bool submitSeek(double absoluteSeconds);
+    [[nodiscard]] bool submitVolume(double percent);
+    [[nodiscard]] bool submitMuted(bool muted);
 
     std::unique_ptr<player::playback::application::PlaybackSessionThread> playbackThread_;
     std::unique_ptr<player::playback::application::PlaybackRequestIdGenerator> requestIdGenerator_;
     std::unique_ptr<player::presentation::PlayerTransportViewModel> transportViewModel_;
     std::unique_ptr<player::presentation::PlayerTimelineViewModel> timelineViewModel_;
+    std::unique_ptr<player::presentation::PlayerVolumeViewModel> volumeViewModel_;
 };
 
 } // namespace player::app

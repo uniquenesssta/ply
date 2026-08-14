@@ -9,6 +9,7 @@ Item {
     property bool windowExpanded: false
     property var transportViewModel: null
     property var timelineViewModel: null
+    property var volumeViewModel: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property real oscAvailableWidth: Math.max(
@@ -87,6 +88,12 @@ Item {
             transportContent: [
                 TransportControls {
                     viewModel: root.transportViewModel
+                }
+            ]
+            volumeContent: [
+                VolumeControls {
+                    compact: root.oscCompact
+                    viewModel: root.volumeViewModel
                 }
             ]
         }

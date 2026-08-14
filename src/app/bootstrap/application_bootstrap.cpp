@@ -10,6 +10,7 @@
 #include "presentation/qml/types/presentation_type_registration.h"
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
+#include "presentation/viewmodels/player/volume/player_volume_view_model.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -103,6 +104,10 @@ int ApplicationBootstrap::run(
         QStringLiteral("timelineViewModel"),
         QVariant::fromValue(
             static_cast<QObject*>(&playbackComposition.timelineViewModel())));
+    initialProperties.insert(
+        QStringLiteral("volumeViewModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.volumeViewModel())));
     qmlBootstrap.setInitialProperties(initialProperties);
 
     if (!qmlBootstrap.load()) {
