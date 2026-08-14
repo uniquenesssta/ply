@@ -123,6 +123,7 @@ target_link_libraries(
         player_foundation
         player_playback_application
         player_presentation_transport
+        player_presentation_timeline
         Qt6::Core
         Qt6::Qml
         Qt6::Test
