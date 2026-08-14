@@ -62,8 +62,12 @@ $requiredFiles = @(
     "src/presentation/qml/App.qml",
     "src/presentation/qml/shell/MainWindow.qml",
     "src/presentation/qml/screens/player/PlayerScreen.qml",
+    "src/presentation/qml/screens/player/layout/VideoViewport.qml",
+    "src/presentation/qml/screens/player/layout/PlayerTopRegion.qml",
+    "src/presentation/qml/screens/player/layout/PlayerBottomRegion.qml",
+    "src/presentation/qml/screens/player/overlays/PlayerOverlayStack.qml",
+    "src/presentation/qml/screens/player/drawers/PlayerDrawerHost.qml",
     "src/presentation/qml/features/player/video/VideoSurface.qml",
-    "src/presentation/qml/features/player/chrome/PlayerChrome.qml",
     "src/presentation/qml/theme/Theme.qml",
     "tests/CMakeLists.txt",
     "tests/unit/app/bootstrap/graphics_backend/graphics_backend_probe_test.cpp",
@@ -95,7 +99,8 @@ foreach ($obsoletePath in @(
     "cmake/DevelopmentRuntime.cmake",
     "cmake/QtRuntimeDeployment.cmake",
     "src/app/bootstrap/graphics_backend_bootstrap.cpp",
-    "src/app/bootstrap/graphics_backend_bootstrap.h"
+    "src/app/bootstrap/graphics_backend_bootstrap.h",
+    "src/presentation/qml/features/player/chrome/PlayerChrome.qml"
 )) {
     if (Test-Path -LiteralPath (Join-Path $projectRoot $obsoletePath)) {
         throw "Obsolete project file remains in the source tree: $obsoletePath"
@@ -305,11 +310,16 @@ foreach ($fragment in @(
     "qml/App.qml",
     "qml/shell/MainWindow.qml",
     "qml/screens/player/PlayerScreen.qml",
+    "qml/screens/player/layout/VideoViewport.qml",
+    "qml/screens/player/layout/PlayerTopRegion.qml",
+    "qml/screens/player/layout/PlayerBottomRegion.qml",
+    "qml/screens/player/overlays/PlayerOverlayStack.qml",
+    "qml/screens/player/drawers/PlayerDrawerHost.qml",
     "qt_add_qml_module(",
     "URI Player.Presentation"
 )) {
     if (-not $presentationCMake.Contains($fragment)) {
-        throw "Presentation CMake is missing required R1-06 QML shell/module fragment: $fragment"
+        throw "Presentation CMake is missing required QML shell/composition/module fragment: $fragment"
     }
 }
 
@@ -331,11 +341,14 @@ foreach ($fragment in @(
 
 $playerScreenQml = Get-Content -LiteralPath (Join-Path $projectRoot "src/presentation/qml/screens/player/PlayerScreen.qml") -Raw
 foreach ($fragment in @(
-    "VideoSurface",
-    "PlayerChrome"
+    "VideoViewport",
+    "PlayerTopRegion",
+    "PlayerBottomRegion",
+    "PlayerOverlayStack",
+    "PlayerDrawerHost"
 )) {
     if (-not $playerScreenQml.Contains($fragment)) {
-        throw "PlayerScreen.qml must remain a composition-only player shell: $fragment"
+        throw "PlayerScreen.qml is missing required R6-01 composition host: $fragment"
     }
 }
 if ($playerScreenQml -match '(?i)mpv_command|mpv_set_property|mpv_get_property') {
@@ -530,4 +543,4 @@ if ($dependencyVerifier.Contains("it becomes required in Stage R2")) {
     throw "verify-dependencies.ps1 still treats libmpv as optional after R2 started."
 }
 
-Write-Host "Project layout, R2-01 fixed libmpv target/runtime probe, explicit post-build development marker and Qt runtime deployment, stale-test rejection, R1-06 QML shell diagnostics, R1-05 composition root ownership, parent-workspace relative paths, Windows normalization, compatible tool gates, and CMake responsibility boundaries are complete."
+Write-Host "Project layout, R2-01 fixed libmpv target/runtime probe, explicit post-build development marker and Qt runtime deployment, stale-test rejection, R6-01 PlayerScreen composition, R1-06 QML shell diagnostics, R1-05 composition root ownership, parent-workspace relative paths, Windows normalization, compatible tool gates, and CMake responsibility boundaries are complete."
