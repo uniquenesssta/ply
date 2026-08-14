@@ -11,8 +11,6 @@ Item {
                                        && root.targetWindow.visibility === Window.FullScreen
 
     objectName: "fullscreenWindowController"
-    width: 0
-    height: 0
 
     function enterFullscreen() {
         if (root.targetWindow === null || root.fullScreen) {
