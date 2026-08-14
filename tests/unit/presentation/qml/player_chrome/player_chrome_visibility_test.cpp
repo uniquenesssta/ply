@@ -15,6 +15,11 @@
 namespace player::presentation::qml {
 namespace {
 
+constexpr int kWindowPreHideProbeMs = 1700;
+constexpr int kFullscreenPreHideProbeMs = 1200;
+constexpr int kWindowHideCompletionTimeoutMs = 2000;
+constexpr int kFullscreenHideCompletionTimeoutMs = 1800;
+
 QString sourcePath(const QString& relativePath)
 {
     return QStringLiteral(PLAYER_SOURCE_DIR) + QLatin1Char('/') + relativePath;
@@ -53,9 +58,7 @@ bool waitForComponentResolution(QQmlComponent& component)
     return statusSpy.wait(5000);
 }
 
-std::unique_ptr<QObject> createVisibilityController(
-    QQmlEngine& engine,
-    QQmlComponent& component)
+std::unique_ptr<QObject> createVisibilityController(QQmlComponent& component)
 {
     component.loadUrl(QUrl::fromLocalFile(sourcePath(QStringLiteral(
         "src/presentation/qml/features/player/chrome/PlayerChromeVisibilityController.qml"))));
@@ -96,30 +99,34 @@ void PlayerChromeVisibilityTest::playingInactivityUsesWindowAndFullscreenDelays(
 {
     QQmlEngine engine;
     QQmlComponent component(&engine);
-    std::unique_ptr<QObject> controller = createVisibilityController(engine, component);
+    std::unique_ptr<QObject> controller = createVisibilityController(component);
     QVERIFY2(controller != nullptr, qPrintable(componentDiagnostics(component)));
 
     QVERIFY(controller->property("chromeVisible").toBool());
     QVERIFY(controller->setProperty("playing", true));
 
-    QTest::qWait(1700);
+    QTest::qWait(kWindowPreHideProbeMs);
     QVERIFY(controller->property("chromeVisible").toBool());
-    QTRY_VERIFY_WITH_TIMEOUT(!controller->property("chromeVisible").toBool(), 900);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        !controller->property("chromeVisible").toBool(),
+        kWindowHideCompletionTimeoutMs);
 
     QVERIFY(invokeActivity(controller.get(), QStringLiteral("test-activity")));
     QVERIFY(controller->property("chromeVisible").toBool());
     QVERIFY(controller->setProperty("fullScreen", true));
 
-    QTest::qWait(1200);
+    QTest::qWait(kFullscreenPreHideProbeMs);
     QVERIFY(controller->property("chromeVisible").toBool());
-    QTRY_VERIFY_WITH_TIMEOUT(!controller->property("chromeVisible").toBool(), 700);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        !controller->property("chromeVisible").toBool(),
+        kFullscreenHideCompletionTimeoutMs);
 }
 
 void PlayerChromeVisibilityTest::pauseScrubPopupAndErrorKeepOscVisible()
 {
     QQmlEngine engine;
     QQmlComponent component(&engine);
-    std::unique_ptr<QObject> controller = createVisibilityController(engine, component);
+    std::unique_ptr<QObject> controller = createVisibilityController(component);
     QVERIFY2(controller != nullptr, qPrintable(componentDiagnostics(component)));
 
     QVERIFY(controller->setProperty("playing", true));
