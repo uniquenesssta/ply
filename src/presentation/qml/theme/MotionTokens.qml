@@ -27,9 +27,10 @@ QtObject {
     readonly property int controlStateDuration: reduceMotionEnabled ? MotionPrimitives.instant : MotionPrimitives.fast
     readonly property int controlPressDuration: MotionPrimitives.instant
 
-    // Semantic inactivity delay is not a transition duration and remains intact
+    // Semantic inactivity delays are not transition durations and remain intact
     // when Reduce Motion is enabled.
     readonly property int oscHideDelay: 2200
+    readonly property int oscFullscreenHideDelay: 1600
 
     readonly property int enterEasingType: reduceMotionEnabled ? Easing.Linear : Easing.BezierSpline
     readonly property int exitEasingType: reduceMotionEnabled ? Easing.Linear : Easing.BezierSpline
