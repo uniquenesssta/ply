@@ -9,6 +9,10 @@ Item {
     property bool windowExpanded: false
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
+    readonly property real oscAvailableWidth: Math.max(
+        0,
+        root.width - (SpacingTokens.floatingEdge * 2))
+    readonly property bool oscCompact: root.oscAvailableWidth < LayoutTokens.oscMaximumWidth
 
     signal minimizeRequested()
     signal maximizeRestoreRequested()
@@ -60,9 +64,18 @@ Item {
             bottom: parent.bottom
             leftMargin: SpacingTokens.floatingEdge
             rightMargin: SpacingTokens.floatingEdge
-            bottomMargin: SpacingTokens.oscBottom
+            bottomMargin: root.oscCompact
+                          ? SpacingTokens.oscBottomCompact
+                          : SpacingTokens.oscBottom
         }
-        height: LayoutTokens.oscHeight
+        height: root.oscCompact
+                ? LayoutTokens.oscHeightCompact
+                : LayoutTokens.oscHeight
+
+        PlayerOscLayout {
+            anchors.fill: parent
+            compact: root.oscCompact
+        }
     }
 
     PlayerDrawerHost {

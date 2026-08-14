@@ -93,3 +93,35 @@ add_test(
     NAME player_top_region
     COMMAND player_top_region_tests
 )
+
+add_executable(
+    player_bottom_region_tests
+    player_bottom_region_test.cpp
+)
+
+player_apply_compiler_options(player_bottom_region_tests)
+player_enable_compiler_warnings(player_bottom_region_tests)
+player_enable_sanitizers(player_bottom_region_tests)
+player_enable_static_analysis(player_bottom_region_tests)
+
+add_dependencies(
+    player_bottom_region_tests
+    player_qml_lint
+)
+
+target_compile_definitions(
+    player_bottom_region_tests
+    PRIVATE
+        PLAYER_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_link_libraries(
+    player_bottom_region_tests
+    PRIVATE
+        Qt6::Test
+)
+
+add_test(
+    NAME player_bottom_region
+    COMMAND player_bottom_region_tests
+)

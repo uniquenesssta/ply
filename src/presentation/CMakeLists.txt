@@ -12,6 +12,8 @@ set(PLAYER_QML_FILES
     qml/screens/player/header/PlayerFloatingHeader.qml
     qml/screens/player/header/MediaInfoPod.qml
     qml/screens/player/header/WindowActionsPod.qml
+    qml/screens/player/osc/PlayerOscLayout.qml
+    qml/screens/player/osc/OscControlRow.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml
@@ -41,6 +43,8 @@ set_source_files_properties(
     qml/screens/player/header/PlayerFloatingHeader.qml
     qml/screens/player/header/MediaInfoPod.qml
     qml/screens/player/header/WindowActionsPod.qml
+    qml/screens/player/osc/PlayerOscLayout.qml
+    qml/screens/player/osc/OscControlRow.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/video/VideoSurface.qml

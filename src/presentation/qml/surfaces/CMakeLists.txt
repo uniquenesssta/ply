@@ -1,5 +1,6 @@
 set(PLAYER_SURFACE_QML_FILES
     Panel.qml
+    OscSurface.qml
     Drawer.qml
     Popover.qml
     Hud.qml
