@@ -41,6 +41,8 @@ public:
     [[nodiscard]] player::presentation::PlayerStatusViewModel& statusViewModel() noexcept;
     [[nodiscard]] player::presentation::HudMessageQueue& hudMessageQueue() noexcept;
 
+    [[nodiscard]] bool submitMediaLoad(const QString& canonicalSource);
+
 private:
     void submitTransport(player::playback::domain::TransportAction action);
     [[nodiscard]] bool submitSeek(
