@@ -126,7 +126,8 @@ void PlayerMediaOpenTest::mediaCapabilityUsesSnapshotProjection()
 
     QVERIFY(bootstrap.contains(QStringLiteral("playbackComposition.mediaViewModel()")));
     QVERIFY(composition.contains(QStringLiteral("PlayerMediaViewModel::acceptSnapshot")));
-    QVERIFY(mediaViewModel.contains(QStringLiteral("snapshot.streams().video.has_value()")));
+    QVERIFY(mediaViewModel.contains(QStringLiteral("snapshot.capabilities().hasVideoTrack")));
+    QVERIFY(!mediaViewModel.contains(QStringLiteral("snapshot.streams().video.has_value()")));
     QVERIFY(screen.contains(QStringLiteral("hasMedia: root.mediaViewModel !== null")));
     QVERIFY(screen.contains(QStringLiteral("hasVideo: root.mediaViewModel !== null")));
     QVERIFY(!mediaViewModel.contains(QStringLiteral("PlaybackSession")));
