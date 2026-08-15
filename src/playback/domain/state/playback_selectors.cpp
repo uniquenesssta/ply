@@ -37,7 +37,9 @@ bool canStop(const PlaybackSnapshot& snapshot) noexcept
 
 bool canSeek(const PlaybackSnapshot& snapshot) noexcept
 {
-    return snapshot.lifecycle() == PlaybackLifecycleState::Ready
+    const PlaybackLifecycleState lifecycle = snapshot.lifecycle();
+    return (lifecycle == PlaybackLifecycleState::Ready
+            || lifecycle == PlaybackLifecycleState::Ended)
         && snapshot.timeline().seekable.value_or(false);
 }
 
