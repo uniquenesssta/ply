@@ -22,13 +22,14 @@ class TimelineScrubSessionTest final : public QObject
     Q_OBJECT
 
 private slots:
-    void dragCommitKeepsPreviewPending();
+    void dragCommitReturnsPointerSessionToIdle();
     void cancelReturnsToIdle();
     void generationChangeCancelsInteraction();
+    void overlappingBeginIsRejected();
     void invalidInputIsRejectedAndFiniteValuesClamp();
 };
 
-void TimelineScrubSessionTest::dragCommitKeepsPreviewPending()
+void TimelineScrubSessionTest::dragCommitReturnsPointerSessionToIdle()
 {
     TimelineScrubSession session;
     QVERIFY(session.phase() == TimelineScrubPhase::Idle);
@@ -44,11 +45,6 @@ void TimelineScrubSessionTest::dragCommitKeepsPreviewPending()
     const std::optional<double> committed = session.commit(0.75);
     QVERIFY(committed.has_value());
     QVERIFY(fuzzyEqual(*committed, 0.75));
-    QVERIFY(session.isPendingCommit());
-    QVERIFY(session.isActive());
-    QVERIFY(fuzzyEqual(session.previewNormalized(), 0.75));
-
-    QVERIFY(session.acknowledgePending());
     QVERIFY(session.phase() == TimelineScrubPhase::Idle);
     QVERIFY(!session.isActive());
 }
@@ -61,7 +57,6 @@ void TimelineScrubSessionTest::cancelReturnsToIdle()
     QVERIFY(session.cancel());
     QVERIFY(session.phase() == TimelineScrubPhase::Idle);
     QVERIFY(!session.cancel());
-    QVERIFY(!session.acknowledgePending());
 }
 
 void TimelineScrubSessionTest::generationChangeCancelsInteraction()
@@ -72,12 +67,15 @@ void TimelineScrubSessionTest::generationChangeCancelsInteraction()
     QVERIFY(session.isScrubbing());
     QVERIFY(session.cancelIfGenerationChanged(MediaGeneration{5}));
     QVERIFY(!session.isActive());
+}
 
-    QVERIFY(session.begin(MediaGeneration{6}, 0.5));
-    QVERIFY(session.commit(0.7).has_value());
-    QVERIFY(session.isPendingCommit());
-    QVERIFY(session.cancelIfGenerationChanged(MediaGeneration{7}));
-    QVERIFY(!session.isActive());
+void TimelineScrubSessionTest::overlappingBeginIsRejected()
+{
+    TimelineScrubSession session;
+    QVERIFY(session.begin(MediaGeneration{8}, 0.25));
+    QVERIFY(!session.begin(MediaGeneration{8}, 0.75));
+    QVERIFY(session.isScrubbing());
+    QVERIFY(fuzzyEqual(session.previewNormalized(), 0.25));
 }
 
 void TimelineScrubSessionTest::invalidInputIsRejectedAndFiniteValuesClamp()
