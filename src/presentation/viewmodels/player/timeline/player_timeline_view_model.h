@@ -1,7 +1,9 @@
 #pragma once
 
 #include "playback/domain/state/playback_snapshot.h"
+#include "presentation/viewmodels/player/timeline/timeline_relative_seek_coalescer.h"
 #include "presentation/viewmodels/player/timeline/timeline_scrub_session.h"
+#include "presentation/viewmodels/player/timeline/timeline_seek_projection.h"
 
 #include <QObject>
 #include <QString>
@@ -38,6 +40,7 @@ public:
     Q_INVOKABLE bool updateScrub(double normalized);
     Q_INVOKABLE bool commitScrub(double normalized);
     Q_INVOKABLE bool cancelScrub();
+    Q_INVOKABLE bool requestRelativeSeek(double deltaSeconds);
 
     [[nodiscard]] bool rejectPendingSeek();
 
@@ -47,8 +50,10 @@ public slots:
 signals:
     void stateChanged();
     void seekRequested(double absoluteSeconds);
+    void relativeSeekRequested(double deltaSeconds);
 
 private:
+    void flushRelativeSeek(double deltaSeconds);
     [[nodiscard]] double displayedPositionSeconds() const noexcept;
     [[nodiscard]] static QString formatTimecode(double seconds);
     [[nodiscard]] static std::optional<double> sanitizePosition(
@@ -59,10 +64,11 @@ private:
     player::playback::domain::MediaGeneration generation_;
     std::optional<double> actualPositionSeconds_;
     std::optional<double> durationSeconds_;
-    std::optional<double> pendingAbsoluteSeconds_;
     bool canSeek_ = false;
     bool backendSeeking_ = false;
     TimelineScrubSession scrubSession_;
+    TimelineSeekProjection seekProjection_;
+    TimelineRelativeSeekCoalescer relativeSeekCoalescer_;
 };
 
 } // namespace player::presentation
