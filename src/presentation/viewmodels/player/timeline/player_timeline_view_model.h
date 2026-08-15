@@ -1,7 +1,6 @@
 #pragma once
 
 #include "playback/domain/state/playback_snapshot.h"
-#include "presentation/viewmodels/player/timeline/timeline_relative_seek_coalescer.h"
 #include "presentation/viewmodels/player/timeline/timeline_scrub_session.h"
 #include "presentation/viewmodels/player/timeline/timeline_seek_projection.h"
 
@@ -11,6 +10,8 @@
 #include <optional>
 
 namespace player::presentation {
+
+class TimelineRelativeSeekCoalescer;
 
 class PlayerTimelineViewModel final : public QObject
 {
@@ -68,7 +69,7 @@ private:
     bool backendSeeking_ = false;
     TimelineScrubSession scrubSession_;
     TimelineSeekProjection seekProjection_;
-    TimelineRelativeSeekCoalescer relativeSeekCoalescer_;
+    TimelineRelativeSeekCoalescer* relativeSeekCoalescer_ = nullptr;
 };
 
 } // namespace player::presentation
