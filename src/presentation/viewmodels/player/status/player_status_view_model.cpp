@@ -37,6 +37,8 @@ PlayerStatusKind PlayerStatusViewModel::status() const noexcept
 QString PlayerStatusViewModel::statusKey() const
 {
     switch (status_) {
+    case PlayerStatusKind::Empty:
+        return QStringLiteral("empty");
     case PlayerStatusKind::Loading:
         return QStringLiteral("loading");
     case PlayerStatusKind::Buffering:
