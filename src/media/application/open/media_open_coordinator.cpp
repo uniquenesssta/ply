@@ -1,8 +1,9 @@
 #include "media/application/open/media_open_coordinator.h"
 
-#include <QFileInfo>
+#include "media/application/open/local_media_validator.h"
 
 #include <utility>
+#include <variant>
 
 namespace player::media::application {
 
@@ -23,33 +24,13 @@ bool MediaOpenCoordinator::openLocalFile(const QUrl& sourceUrl)
         return false;
     }
 
-    if (!sourceUrl.isLocalFile()) {
-        setError(MediaOpenError::NotLocalFile);
+    LocalMediaValidationResult validation = LocalMediaValidator::validate(sourceUrl);
+    if (const auto* error = std::get_if<MediaOpenError>(&validation)) {
+        setError(*error);
         return false;
     }
 
-    const QFileInfo fileInfo(sourceUrl.toLocalFile());
-    if (!fileInfo.exists()) {
-        setError(MediaOpenError::NotFound);
-        return false;
-    }
-    if (!fileInfo.isFile()) {
-        setError(MediaOpenError::NotRegularFile);
-        return false;
-    }
-    if (!fileInfo.isReadable()) {
-        setError(MediaOpenError::NotReadable);
-        return false;
-    }
-
-    const QString canonicalPath = fileInfo.canonicalFilePath();
-    if (canonicalPath.isEmpty()) {
-        setError(MediaOpenError::CanonicalizationFailed);
-        return false;
-    }
-
-    const player::media::domain::MediaSource source =
-        player::media::domain::MediaSource::localFile(canonicalPath);
+    const auto& source = std::get<player::media::domain::MediaSource>(validation);
     if (!source.isValid() || !submitMedia_ || !submitMedia_(source)) {
         setError(MediaOpenError::SubmissionRejected);
         return false;
