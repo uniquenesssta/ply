@@ -72,9 +72,14 @@ QmlBootstrap& ApplicationContainer::qmlBootstrap() noexcept
 
 void ApplicationContainer::shutdown() noexcept
 {
-    // Destroy UI intents first, then detach application workflows that can
-    // submit playback commands before stopping the playback thread. Keep
-    // logging alive until all bounded-shutdown diagnostics are emitted.
+    // Freeze the R4 render callback before destroying QML, then destroy the
+    // video item/scene graph while the playback-owned mpv core is still alive.
+    // PlaybackComposition::stop() subsequently proves render release before it
+    // is allowed to stop PlaybackSession and destroy that core.
+    if (playbackComposition_ != nullptr) {
+        playbackComposition_->beginVideoRenderShutdown();
+    }
+
     qmlBootstrap_.reset();
     mediaOpenCoordinator_.reset();
 
