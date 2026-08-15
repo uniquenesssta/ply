@@ -8,11 +8,14 @@
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
 
+#include <QByteArray>
+#include <QDataStream>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QStringList>
 #include <QTemporaryDir>
+#include <QUrl>
 #include <QtTest>
 
 #include <memory>
@@ -29,6 +32,47 @@ QStringList sessionLogFiles(const QString& directoryPath)
         QDir::Name);
 }
 
+bool writeSilentWav(const QString& path)
+{
+    constexpr quint32 sampleRate = 8000;
+    constexpr quint16 channels = 1;
+    constexpr quint16 bitsPerSample = 16;
+    constexpr quint32 durationSeconds = 2;
+    constexpr quint16 blockAlign = channels * (bitsPerSample / 8);
+    constexpr quint32 byteRate = sampleRate * blockAlign;
+    constexpr quint32 dataSize = byteRate * durationSeconds;
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        return false;
+    }
+
+    QDataStream stream(&file);
+    stream.setByteOrder(QDataStream::LittleEndian);
+    if (stream.writeRawData("RIFF", 4) != 4) {
+        return false;
+    }
+    stream << quint32(36 + dataSize);
+    if (stream.writeRawData("WAVE", 4) != 4
+        || stream.writeRawData("fmt ", 4) != 4) {
+        return false;
+    }
+    stream << quint32(16);
+    stream << quint16(1);
+    stream << channels;
+    stream << sampleRate;
+    stream << byteRate;
+    stream << blockAlign;
+    stream << bitsPerSample;
+    if (stream.writeRawData("data", 4) != 4) {
+        return false;
+    }
+    stream << dataSize;
+
+    const QByteArray silence(static_cast<qsizetype>(dataSize), '\0');
+    return file.write(silence) == silence.size();
+}
+
 } // namespace
 
 class ApplicationContainerTest final : public QObject
@@ -41,6 +85,7 @@ private slots:
     void adoptsPreStartedLoggingBootstrap();
     void ownsMediaOpenCoordinator();
     void playbackCompositionStartsAndStops();
+    void mediaOpenCoordinatorLoadsLocalWav();
     void shutdownIsIdempotent();
 };
 
@@ -159,9 +204,9 @@ void ApplicationContainerTest::playbackCompositionStartsAndStops()
     QVERIFY(!playback.transportViewModel().canStop());
     QVERIFY(!playback.volumeViewModel().canAdjustVolume());
     QVERIFY(!playback.volumeViewModel().canToggleMute());
-    QVERIFY(!playback.statusViewModel().visible());
+    QVERIFY(playback.statusViewModel().visible());
     QVERIFY(!playback.statusViewModel().errorVisible());
-    QCOMPARE(playback.statusViewModel().statusKey(), QString{});
+    QCOMPARE(playback.statusViewModel().statusKey(), QStringLiteral("empty"));
     QVERIFY(!playback.hudMessageQueue().visible());
     QCOMPARE(playback.hudMessageQueue().messageKey(), QString{});
 
@@ -173,6 +218,35 @@ void ApplicationContainerTest::playbackCompositionStartsAndStops()
     QVERIFY2(playback.stop(&error), qPrintable(error));
     QVERIFY(!playback.isRunning());
     QVERIFY(!playback.hudMessageQueue().visible());
+}
+
+void ApplicationContainerTest::mediaOpenCoordinatorLoadsLocalWav()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    const QString wavPath = temporaryDirectory.filePath(QStringLiteral("local fixture.wav"));
+    QVERIFY(writeSilentWav(wavPath));
+
+    ApplicationContainer container(RuntimePaths::resolve(
+        RuntimePaths::Mode::Portable,
+        temporaryDirectory.path()));
+    PlaybackComposition& playback = container.playbackComposition();
+
+    QString error;
+    QVERIFY2(playback.start(&error), qPrintable(error));
+    QTRY_VERIFY_WITH_TIMEOUT(playback.isRunning(), 1000);
+
+    QVERIFY(container.mediaOpenCoordinator().openLocalFile(QUrl::fromLocalFile(wavPath)));
+    QTRY_VERIFY_WITH_TIMEOUT(
+        playback.transportViewModel().canPlay()
+            || playback.transportViewModel().canPause()
+            || playback.transportViewModel().canStop(),
+        5000);
+    QVERIFY_NE(playback.statusViewModel().statusKey(), QStringLiteral("empty"));
+
+    error.clear();
+    QVERIFY2(playback.stop(&error), qPrintable(error));
 }
 
 void ApplicationContainerTest::shutdownIsIdempotent()
