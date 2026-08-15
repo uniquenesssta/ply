@@ -13,7 +13,12 @@ Item {
     property bool autoHideEnabled: true
     property bool playing: false
     property bool scrubbing: false
+    property bool controlsHovered: false
+    property bool controlsFocused: false
     property bool popupOpen: false
+    property bool menuOpen: false
+    property bool drawerOpen: false
+    property bool modalActive: false
     property bool errorVisible: false
     property bool fullScreen: false
 
@@ -29,7 +34,12 @@ Item {
         return !root.autoHideEnabled
                 || !root.playing
                 || root.scrubbing
+                || root.controlsHovered
+                || root.controlsFocused
                 || root.popupOpen
+                || root.menuOpen
+                || root.drawerOpen
+                || root.modalActive
                 || root.errorVisible
     }
 
@@ -50,12 +60,17 @@ Item {
 
         root.visibilityState = nextState
         console.info(
-            "R6-09 OSC visibility",
+            "R6-14 OSC visibility",
             root.stateName(nextState),
             "reason=" + reason,
             "playing=" + root.playing,
             "scrubbing=" + root.scrubbing,
+            "controlsHovered=" + root.controlsHovered,
+            "controlsFocused=" + root.controlsFocused,
             "popup=" + root.popupOpen,
+            "menu=" + root.menuOpen,
+            "drawer=" + root.drawerOpen,
+            "modal=" + root.modalActive,
             "error=" + root.errorVisible,
             "fullscreen=" + root.fullScreen)
     }
@@ -101,6 +116,14 @@ Item {
         }
     }
 
+    function updateVisibilityLock(active, lockReason, releaseReason) {
+        if (active) {
+            root.notifyActivity(lockReason)
+        } else {
+            root.reevaluatePolicy(releaseReason)
+        }
+    }
+
     Timer {
         id: inactivityTimer
         objectName: "oscInactivityTimer"
@@ -114,27 +137,38 @@ Item {
     }
 
     onPlayingChanged: root.notifyActivity("playback-state")
-    onScrubbingChanged: {
-        if (root.scrubbing) {
-            root.notifyActivity("scrub-lock")
-        } else {
-            root.reevaluatePolicy("scrub-release")
-        }
-    }
-    onPopupOpenChanged: {
-        if (root.popupOpen) {
-            root.notifyActivity("popup-lock")
-        } else {
-            root.reevaluatePolicy("popup-release")
-        }
-    }
-    onErrorVisibleChanged: {
-        if (root.errorVisible) {
-            root.notifyActivity("error-lock")
-        } else {
-            root.reevaluatePolicy("error-release")
-        }
-    }
+    onScrubbingChanged: root.updateVisibilityLock(
+        root.scrubbing,
+        "scrub-lock",
+        "scrub-release")
+    onControlsHoveredChanged: root.updateVisibilityLock(
+        root.controlsHovered,
+        "controls-hover-lock",
+        "controls-hover-release")
+    onControlsFocusedChanged: root.updateVisibilityLock(
+        root.controlsFocused,
+        "controls-focus-lock",
+        "controls-focus-release")
+    onPopupOpenChanged: root.updateVisibilityLock(
+        root.popupOpen,
+        "popup-lock",
+        "popup-release")
+    onMenuOpenChanged: root.updateVisibilityLock(
+        root.menuOpen,
+        "menu-lock",
+        "menu-release")
+    onDrawerOpenChanged: root.updateVisibilityLock(
+        root.drawerOpen,
+        "drawer-lock",
+        "drawer-release")
+    onModalActiveChanged: root.updateVisibilityLock(
+        root.modalActive,
+        "modal-lock",
+        "modal-release")
+    onErrorVisibleChanged: root.updateVisibilityLock(
+        root.errorVisible,
+        "error-lock",
+        "error-release")
     onFullScreenChanged: root.notifyActivity("window-mode")
     onAutoHideEnabledChanged: root.reevaluatePolicy("auto-hide-policy")
 
