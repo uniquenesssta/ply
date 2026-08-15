@@ -12,11 +12,11 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-11 Complete**；R6-11 Windows **69/69 CTest PASS（54.71 s）**、`Player.exe` startup smoke PASS；**R6-12 HUD message queue implementation candidate 已提交，Windows 71-test 验证 pending** |
+| R6 — 播放器主界面与基础交互 | Complete | **R6-01 ~ R6-12 全部 Complete**；最终 Windows configure/build PASS、**6/6 QML lint**、**71/71 CTest PASS（67.05 s）**；`Player.exe` 多次 startup/exit smoke 与按启动会话分日志验证 PASS |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
-R2-01 原“仓库根 `player.log`”落盘缺口已经由 Pre-R6-09 development diagnostics 正式关闭：开发态日志固定自主写入项目根上一级 `logs/player.log`；普通 Installed/Portable 路径规则保持原有语义。
+R2-01 原日志落盘缺口已经由 Pre-R6-09 development diagnostics 正式关闭；当前进一步按启动会话分文件：开发态日志目录仍为项目根上一级 `logs/`，每次 `Player.exe` 启动创建独立 `player-YYYYMMDD-HHmmss.log`，同秒冲突追加 `-02` 等后缀。普通 Installed/Portable 的日志目录规则保持原有语义；单次运行内部仍保留大小轮转，旧 `player.log` 不自动迁移或删除。
 
 ## Technical baseline
 
@@ -102,14 +102,23 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-15 — R6-12 HUD message queue — implementation candidate
+### 2026-08-15 — Per-launch session logging
 
-- 新增职责独立的 `viewmodels/player/hud/HudMessageQueue`，只拥有短反馈的当前消息、有限 pending queue 与**唯一一个 C++ single-shot QTimer**。当前默认 hold policy 为 1200 ms；同类型 Volume/Mute 或 Seek 高频更新直接替换当前/待处理同类并重启当前 hold，异类型只保留最新待处理值，避免连续滚轮/拖动产生历史 HUD 堆积。Queue 不拥有 Playback 状态、OSC inactivity、Status Overlay 或 libmpv 生命周期。
+- 保持 `RuntimePaths → LoggingBootstrap → LogFileSink` 单一日志主链和现有 development / Installed / Portable 目录解析，不创建第二套 logger。新增职责独立的 `log_session_file_name.*`，只负责启动会话文件名与同秒冲突消解；`LogFileSink` 继续负责实际文件写入、4 MiB 单会话大小轮转、线程安全与脱敏。
+- 固定追加 `player.log` 改为每次启动创建 `player-YYYYMMDD-HHmmss.log`；同一秒存在同名文件时使用 `-02`、`-03` 等后缀。旧 `player.log` 不自动删除或迁移，避免破坏用户已有诊断记录。
+- Windows 实机连续启动/退出后实际生成多个独立 session 文件；用户上传的 `player-20260815-163309.log` 与 `player-20260815-163312.log` 各自只包含一次完整启动到 `Application stopping with exit code 0`，没有跨会话追加，也无运行时 WARN/ERROR/CRITICAL。日志目录仍为开发工作区上一级 `F:\QT6-PLAYER\logs\`。
+
+### 2026-08-15 — R6-12 HUD message queue / Stage R6 Complete
+
+- 新增职责独立的 `viewmodels/player/hud/HudMessageQueue`，只拥有短反馈的当前消息、有限 pending queue 与**唯一一个 C++ single-shot QTimer**。默认 hold policy 为 1200 ms；同类型 Volume/Mute 或 Seek 高频更新直接替换当前/待处理同类并重启当前 hold，异类型只保留有限最新待处理值，避免连续滚轮/拖动产生历史 HUD 堆积。Queue 不拥有 Playback 状态、OSC inactivity、Status Overlay 或 libmpv 生命周期。
 - HUD 生产点放在 `PlaybackComposition` 的真实 CommandBus 提交结果之后：Seek、SetVolume、SetMuted 只有 `submit(...) == true` 才进入 HUD；立即拒绝继续走既有 Timeline/Volume pending rollback，**不会显示伪成功反馈**。composition stop 会清空 HUD lifecycle。Volume/Mute 复用 `PlayerVolumeViewModel` 当前 pending/ack 语义，Seek 复用 `PlayerTimelineViewModel.positionText()`，没有复制时间格式化或 Playback 真值。
-- 新增 `screens/player/overlays/hud/PlayerHudOverlay.qml`，复用 R5 已冻结 `Surfaces.Hud` / `ZOrderTokens.hud=70` / HUD show-hide Motion token。HUD 是 `PlayerScreen` 的直接 sibling，而不是放进 z35 的 `PlayerOverlayStack`，因此保持 `Overlay 35 < OSC 40 < HUD 70 < Toast 80 < Dialog 100` 层级；root `enabled:false` 且没有 PointerHandler，短反馈不阻断控制。QML **没有 Timer**，Reduce Motion 继续由现有 MotionTokens 解析。
-- 当前 R6 有真实 producer 的只接入 Volume/Mute 与 Seek；虽然 Domain 已有 speed command，但 R6 尚无真实 Speed presentation action，Track 切换归后续 R8，因此本任务不伪造 Speed/Track 控件或假 command。Queue/Overlay 的职责边界保留后续这些真实 Feature 接入位置。
-- 新增 `player_hud_message_queue` 与 `player_hud_overlay` 两个独立 CTest，并扩展 `application_container` / CMake wiring；测试覆盖 volume clamp/round、同类合并、mute update、Volume↔Seek 排队最新值、clear/timeout、HUD semantic mapping、非阻断/z-order/Motion 边界以及 Bootstrap→MainWindow→PlayerScreen 单一 queue route。全量测试数预期 **69 → 71**。
-- 当前仅完成 implementation candidate 与静态 diff/边界检查；锁定 Windows 环境的重新 configure、Debug build、QML lint、**71/71 CTest** 和 `Player.exe` startup 尚未执行，因此 **R6-12 当前不是 Complete**。没有修改 PlaybackSession、libmpv、Renderer、配置、持久化，也没有开始 R7。
+- `screens/player/overlays/hud/PlayerHudOverlay.qml` 复用 R5 已冻结 `Surfaces.Hud` / `ZOrderTokens.hud=70`，作为 `PlayerScreen` 的直接 sibling 而不是 z35 `PlayerOverlayStack` 子项，因此保持 `Overlay 35 < OSC 40 < HUD 70 < Toast 80 < Dialog 100`。root `enabled:false` 且没有 PointerHandler；QML **没有 Timer**，短反馈不阻断控制。
+- 初始 candidate 的 Windows qmllint/runtime 暴露 Overlay 误用不存在的 `MotionTokens.resolvedDuration` / `commonEasing`。收口修复改为消费既有 `hudShowDuration/hudHideDuration`、enter/exit easing 与 bezier token，没有新增兼容 facade、裸动画参数或 suppression；`player_hud_overlay` 同步增加回归，最终 QML lint 输出中这两个无效 API 已完全消失。
+- 当前 R6 有真实 producer 的只接入 Volume/Mute 与 Seek；虽然 Domain 已有 speed command，但 R6 尚无真实 Speed presentation action，Track 切换归 R8，因此本任务不伪造 Speed/Track 控件或假 command。Queue/Overlay 保留后续真实 Feature 的明确接入边界。
+- 新增 `player_hud_message_queue` 与 `player_hud_overlay` 两个独立 CTest，并扩展 `application_container` / CMake wiring；测试覆盖 volume clamp/round、同类合并、mute update、Volume↔Seek 有限排队、clear/timeout、HUD semantic mapping、非阻断/z-order/Motion、QML 无 Timer以及 Bootstrap→MainWindow→PlayerScreen 单一 queue route。全量测试数 **69 → 71**。
+- 最终 Windows 锁定环境复验：`configure.ps1` **PASS**（Configuring **4.7 s** / Generating **2.3 s**）、Debug build **PASS**、`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **71/71 CTest PASS，0 failed，67.05 s**，其中 `player_hud_overlay` **0.73 s PASS**、`player_hud_message_queue` **6.27 s PASS**，logging/application_container/Status/Chrome/Cursor 以及既有 Playback/Render/Presentation 回归全部保持通过。
+- 随后多次 `Player.exe` startup/exit smoke 均正常；两份最终上传日志均以 exit code 0 结束，进一步确认 HUD Motion 修复没有留下启动期 QML runtime warning，并验证“一次启动 = 一份日志”的诊断行为。
+- 产品媒体打开入口仍属于 R7，因此正式产品 UI 中以真实媒体触发 Volume/Seek HUD 的完整手工矩阵尚不可执行；该项保留到 R7 后回归，不伪装为已手工覆盖。没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、配置、持久化或公共播放接口。**R6-12 正式 Complete；Stage R6 正式 Complete；R7 未开始。**
 
 ### 2026-08-15 — R6-11 Status Overlay Complete
 
