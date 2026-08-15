@@ -4,6 +4,7 @@
 #include "app/bootstrap/qml_bootstrap.h"
 #include "app/composition/playback_composition.h"
 #include "foundation/logging/log_categories.h"
+#include "media/application/open/media_open_coordinator.h"
 
 #include <QLoggingCategory>
 #include <QString>
@@ -25,6 +26,12 @@ ApplicationContainer::ApplicationContainer(
     : runtimePaths_(std::move(runtimePaths))
     , loggingBootstrap_(std::move(loggingBootstrap))
     , playbackComposition_(std::make_unique<PlaybackComposition>())
+    , mediaOpenCoordinator_(
+        std::make_unique<player::media::application::MediaOpenCoordinator>(
+            [this](const player::media::domain::MediaSource& source) {
+                return playbackComposition_ != nullptr
+                    && playbackComposition_->submitMediaLoad(source.location());
+            }))
     , qmlBootstrap_(std::make_unique<QmlBootstrap>())
 {
     if (loggingBootstrap_ == nullptr) {
@@ -52,6 +59,12 @@ PlaybackComposition& ApplicationContainer::playbackComposition() noexcept
     return *playbackComposition_;
 }
 
+player::media::application::MediaOpenCoordinator&
+ApplicationContainer::mediaOpenCoordinator() noexcept
+{
+    return *mediaOpenCoordinator_;
+}
+
 QmlBootstrap& ApplicationContainer::qmlBootstrap() noexcept
 {
     return *qmlBootstrap_;
@@ -59,9 +72,11 @@ QmlBootstrap& ApplicationContainer::qmlBootstrap() noexcept
 
 void ApplicationContainer::shutdown() noexcept
 {
-    // Destroy UI intents first, then stop the playback thread while logging is
-    // still alive so any bounded-shutdown diagnostics remain observable.
+    // Destroy UI intents first, then detach application workflows that can
+    // submit playback commands before stopping the playback thread. Keep
+    // logging alive until all bounded-shutdown diagnostics are emitted.
     qmlBootstrap_.reset();
+    mediaOpenCoordinator_.reset();
 
     if (playbackComposition_ != nullptr) {
         QString diagnostic;
