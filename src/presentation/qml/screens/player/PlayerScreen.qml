@@ -39,6 +39,7 @@ Item {
     readonly property bool oscVisible: chromeVisibilityController.chromeVisible
     readonly property bool cursorHidden: cursorVisibilityController.cursorHidden
 
+    signal openMediaRequested()
     signal minimizeRequested()
     signal maximizeRestoreRequested()
     signal fullscreenToggleRequested()
@@ -152,6 +153,8 @@ Item {
             anchors.fill: parent
             viewModel: root.statusViewModel
             suppressBuffering: root.timelineInteractionActive
+
+            onOpenMediaRequested: root.openMediaRequested()
         }
     }
 
