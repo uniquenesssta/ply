@@ -22,6 +22,7 @@ class PlayerTimelineViewModel final : public QObject
     Q_PROPERTY(bool backendSeeking READ backendSeeking NOTIFY stateChanged)
     Q_PROPERTY(double displayedNormalized READ displayedNormalized NOTIFY stateChanged)
     Q_PROPERTY(double durationSeconds READ durationSeconds NOTIFY stateChanged)
+    Q_PROPERTY(double relativeSeekStepSeconds READ relativeSeekStepSeconds CONSTANT)
     Q_PROPERTY(QString positionText READ positionText NOTIFY stateChanged)
     Q_PROPERTY(QString durationText READ durationText NOTIFY stateChanged)
 
@@ -34,6 +35,7 @@ public:
     [[nodiscard]] bool backendSeeking() const noexcept;
     [[nodiscard]] double displayedNormalized() const noexcept;
     [[nodiscard]] double durationSeconds() const noexcept;
+    [[nodiscard]] double relativeSeekStepSeconds() const noexcept;
     [[nodiscard]] QString positionText() const;
     [[nodiscard]] QString durationText() const;
 
