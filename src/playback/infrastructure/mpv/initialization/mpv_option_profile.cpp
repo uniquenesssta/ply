@@ -10,6 +10,7 @@ QList<MpvOption> productOptions()
     return {
         {QByteArrayLiteral("config"), QByteArrayLiteral("no")},
         {QByteArrayLiteral("vo"), QByteArrayLiteral("libmpv")},
+        {QByteArrayLiteral("keep-open"), QByteArrayLiteral("yes")},
     };
 }
 
