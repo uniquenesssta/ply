@@ -31,6 +31,14 @@ PlayerVideoRenderBinding::PlayerVideoRenderBinding(
         });
 }
 
+PlayerVideoRenderBinding::~PlayerVideoRenderBinding()
+{
+    if (shutdownCoordinator_ != nullptr
+        && !shutdownCoordinator_->snapshot().renderReleased) {
+        qFatal("PlayerVideoRenderBinding cannot be destroyed before video render resources are released.");
+    }
+}
+
 bool PlayerVideoRenderBinding::resetForStart(QString* errorMessage)
 {
     if (errorMessage != nullptr) {
