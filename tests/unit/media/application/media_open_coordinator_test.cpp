@@ -92,7 +92,8 @@ void MediaOpenCoordinatorTest::canonicalizesAndSubmitsExistingFile()
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
 
-    const QString inputPath = directory.filePath(QStringLiteral("fixture media.mp4"));
+    const QString inputPath = directory.filePath(
+        QStringLiteral("fixture \u5A92\u4F53 media.mp4"));
     QFile file(inputPath);
     QVERIFY(file.open(QIODevice::WriteOnly));
     QCOMPARE(file.write("fixture"), qint64{7});
