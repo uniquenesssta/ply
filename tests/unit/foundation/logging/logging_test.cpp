@@ -1,6 +1,7 @@
 #include "foundation/logging/log_categories.h"
 #include "foundation/logging/log_file_sink.h"
 #include "foundation/logging/log_redactor.h"
+#include "foundation/logging/log_session_file_name.h"
 
 #include <QDir>
 #include <QFile>
@@ -38,6 +39,7 @@ class LoggingTest final : public QObject
 
 private slots:
     void redactsSecrets();
+    void formatsTimestampedSessionFileNames();
     void writesThroughQtHandlerAndFlushesOnStop();
     void createsSeparateFileForEachStart();
     void writesFromMultipleThreads();
@@ -55,6 +57,27 @@ void LoggingTest::redactsSecrets()
     QVERIFY(!redacted.contains(QStringLiteral("abc")));
     QVERIFY(!redacted.contains(QStringLiteral("xyz")));
     QVERIFY(redacted.contains(QStringLiteral("<redacted>")));
+}
+
+void LoggingTest::formatsTimestampedSessionFileNames()
+{
+    const QDateTime timestamp = QDateTime::fromString(
+        QStringLiteral("2026-08-15T16:14:07"),
+        Qt::ISODate);
+    QVERIFY(timestamp.isValid());
+
+    QCOMPARE(
+        player::logging::makeLogSessionFileName(
+            QStringLiteral("player.log"),
+            timestamp,
+            1),
+        QStringLiteral("player-20260815-161407.log"));
+    QCOMPARE(
+        player::logging::makeLogSessionFileName(
+            QStringLiteral("player.log"),
+            timestamp,
+            2),
+        QStringLiteral("player-20260815-161407-02.log"));
 }
 
 void LoggingTest::writesThroughQtHandlerAndFlushesOnStop()
