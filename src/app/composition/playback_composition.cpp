@@ -6,6 +6,7 @@
 #include "playback/application/requests/playback_request_id_generator.h"
 #include "playback/application/session/playback_session_thread.h"
 #include "playback/application/state_publisher/state_publisher.h"
+#include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/playback_command.h"
 #include "playback/domain/commands/volume_command.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
@@ -244,6 +245,32 @@ player::presentation::HudMessageQueue&
 PlaybackComposition::hudMessageQueue() noexcept
 {
     return *hudMessageQueue_;
+}
+
+bool PlaybackComposition::submitMediaLoad(const QString& canonicalSource)
+{
+    if (canonicalSource.isEmpty()) {
+        return false;
+    }
+
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction)
+            << "Media open intent ignored because PlaybackCommandBus is unavailable";
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        player::playback::domain::LoadMediaCommand{canonicalSource}};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Media load command submission failed:" << diagnostic;
+        return false;
+    }
+
+    return true;
 }
 
 void PlaybackComposition::submitTransport(TransportAction action)
