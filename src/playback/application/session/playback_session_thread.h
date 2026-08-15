@@ -4,6 +4,7 @@
 #include <QPointer>
 #include <QString>
 #include <QThread>
+#include <QtGlobal>
 
 #include <memory>
 
