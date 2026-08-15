@@ -12,9 +12,9 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | Complete | **R6-01 ~ R6-12 全部 Complete**；最终 Windows configure/build PASS、**6/6 QML lint**、**71/71 CTest PASS（67.05 s）**；`Player.exe` 多次 startup/exit smoke 与按启动会话分日志验证 PASS |
+| R6 — 播放器主界面与基础交互 | Supplemental In Progress | **R6-01 ~ R6-12 Complete**；强制补充任务 `成熟播放器行为补强与验收矩阵.md` 已重新打开 Stage R6；**R6-13 Timeline Interaction State Machine implementation candidate 已提交，Windows 73-test 验证 pending；R6-14 ~ R6-16 尚未开始** |
 
-R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
+R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线；其中追加的 R6-13 ~ R6-16 必须完成后才能再次关闭 Stage R6。
 
 R2-01 原日志落盘缺口已经由 Pre-R6-09 development diagnostics 正式关闭；当前进一步按启动会话分文件：开发态日志目录仍为项目根上一级 `logs/`，每次 `Player.exe` 启动创建独立 `player-YYYYMMDD-HHmmss.log`，同秒冲突追加 `-02` 等后缀。普通 Installed/Portable 的日志目录规则保持原有语义；单次运行内部仍保留大小轮转，旧 `player.log` 不自动迁移或删除。
 
@@ -102,6 +102,19 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-15 — R6-13 Timeline Interaction State Machine — implementation candidate
+
+- 依据跨 Stage 强制补充任务书 `成熟播放器行为补强与验收矩阵.md` 重新打开 R6；本轮只实施 R6-13，不提前进入 R6-14 Controls Visibility、R6-15 Cursor Visibility 或 R6-16 HUD Coalescing。现有 R6-06 Timeline 主链继续复用，不建立第二套 Timeline 或 Playback 真值。
+- Timeline 状态职责重新拆清：`PlaybackSnapshot.timeline.positionSeconds` 仍是只读 actual truth；`TimelineScrubSession` 只拥有 pointer `Idle/Scrubbing` 与拖动 preview；新增 `TimelineSeekProjection` 单独拥有 commit/relative Seek 的 pending target 与 MediaGeneration。拖动期间 actual update 可以进入 Snapshot，但不能抢回 thumb；cancel、generation change、non-seekable/unknown-duration、提交拒绝或已识别的 backend seek failure 都会回到最新 Snapshot truth。
+- `PlayerTimelineViewModel` 新增 relative Seek 主链与固定 **5 s** presentation step；新增 `TimelineRelativeSeekCoalescer` 以**单一 100 ms single-shot QTimer**合并键盘/滚轮高频输入。短 burst 可合成一次请求，持续输入按固定窗口形成有限批次而不是每个 tick 发送 backend command；投影 target 始终限制在 `0..duration`，最终状态仍由 Snapshot acknowledgement 收敛。
+- `TimelineControls.qml` 保持 generic `Slider` 作为 pointer drag owner，但通过新增通用 `Slider.keyboardEnabled` 默认兼容开关关闭 Timeline 内部 normalized 键盘步进；Timeline Feature 自己将 Left/Right/Up/Down 与 Wheel 转成 relative ±5 s intent。QML 仍不接触 PlaybackSession、CommandBus、SeekCommand 或 libmpv。窗口失焦通过 `MainWindow.active → PlayerScreen.windowActive → TimelineControls` 明确取消正在进行的 Scrub 并强制恢复 actual position。
+- Playing、Paused、Buffering 都继续允许真实 seekable Timeline 拖动；Scrubbing 时 Buffering/actual position 更新不夺取 preview。`seekable=false`、无有效 MediaGeneration、unknown/zero/non-finite duration 不能进入有效 Scrubbing/relative Seek。绝对拖动 commit 仍只提交一个 final Absolute Seek；键盘/滚轮走 Relative Seek；二者复用同一个 `PlaybackComposition::submitSeek(seconds, mode)`、共享 RequestId generator 与单一 PlaybackCommandBus。
+- 为实现任务书要求的 `Ended → seek earlier` 且禁止 QML replay hack，产品 mpv profile 新增 `keep-open=yes`，保留 EOF 后最后媒体；Reducer 正式消费 `eof-reached`：Ready+EOF → Ended/Stopped，随后 seek earlier 导致 EOF=false 时恢复 Ready/Paused，MediaGeneration 与 media identity 不重建。新增真实 libmpv `playback_ended_seek` CTest，使用生成 WAV 覆盖 load → play → EOF Ended → Absolute Seek earlier → same-generation Ready/Paused，不用 mock 替代真实 backend。
+- 为补齐“Seek command failure 必须恢复真值并给反馈”，`PlaybackSession → PlaybackSessionThread` 新增只读 tracked-request failure 通知；`PlaybackComposition` 只对 SeekAbsolute/SeekRelative 失败清理 Timeline pending projection，并复用既有 R6-12 `HudMessageQueue` 显示同类 `seekFailed` 结果。没有创建第二套 HUD Timer/queue；立即 CommandBus submission rejection 也走同一 rollback/failure HUD。通用 request timeout 当前仍由既有 30 s timeout monitor 管理，但它尚不携带 request type 回到 Timeline，本候选不把 timeout-specific rollback 伪装为已覆盖。
+- 新增 `timeline_interaction_matrix` 与真实 `playback_ended_seek` 两个 CTest；矩阵覆盖 Playing/Paused/Buffering drag preview、10 次快速 relative Seek 合并、持续 Wheel/keyboard 类输入有限批次、0/末端 clamp、generation switch cancel、Ended seek earlier、rejected seek rollback。同步扩展 scrub/session、selector、reducer、mpv initializer、Timeline QML、HUD queue/overlay 边界测试。预计全量测试数 **71 → 73**。
+- Chapter producer 属于后续 R8 Chapter Feature，本轮不伪造静态 chapter 控件或第二套导航命令；R6-13 只确保未来 chapter action 必须进入现有统一 Seek action/CommandBus 路径。正式产品 UI 当前也仍缺 R7 media-open 入口，因此“真实媒体下鼠标 drag/键盘/Wheel/Chapter”的产品手工矩阵尚不可执行；真实 EOF→seek backend 路径由新增 headless integration 覆盖。
+- 当前仅完成 implementation candidate、官方 mpv keep-open/eof 行为核对与静态 diff/职责审查。锁定 Windows 环境的重新 configure、Debug build、QML lint、**73/73 CTest**、`Player.exe` startup 尚未执行，因此 **R6-13 当前不是 Complete**。没有新增生产依赖，没有修改 Renderer、持久化、Playlist/Track/Chapter Feature，也没有开始 R6-14~R6-16。
+
 ### 2026-08-15 — Per-launch session logging
 
 - 保持 `RuntimePaths → LoggingBootstrap → LogFileSink` 单一日志主链和现有 development / Installed / Portable 目录解析，不创建第二套 logger。新增职责独立的 `log_session_file_name.*`，只负责启动会话文件名与同秒冲突消解；`LogFileSink` 继续负责实际文件写入、4 MiB 单会话大小轮转、线程安全与脱敏。
@@ -118,7 +131,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 新增 `player_hud_message_queue` 与 `player_hud_overlay` 两个独立 CTest，并扩展 `application_container` / CMake wiring；测试覆盖 volume clamp/round、同类合并、mute update、Volume↔Seek 有限排队、clear/timeout、HUD semantic mapping、非阻断/z-order/Motion、QML 无 Timer以及 Bootstrap→MainWindow→PlayerScreen 单一 queue route。全量测试数 **69 → 71**。
 - 最终 Windows 锁定环境复验：`configure.ps1` **PASS**（Configuring **4.7 s** / Generating **2.3 s**）、Debug build **PASS**、`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **71/71 CTest PASS，0 failed，67.05 s**，其中 `player_hud_overlay` **0.73 s PASS**、`player_hud_message_queue` **6.27 s PASS**，logging/application_container/Status/Chrome/Cursor 以及既有 Playback/Render/Presentation 回归全部保持通过。
 - 随后多次 `Player.exe` startup/exit smoke 均正常；两份最终上传日志均以 exit code 0 结束，进一步确认 HUD Motion 修复没有留下启动期 QML runtime warning，并验证“一次启动 = 一份日志”的诊断行为。
-- 产品媒体打开入口仍属于 R7，因此正式产品 UI 中以真实媒体触发 Volume/Seek HUD 的完整手工矩阵尚不可执行；该项保留到 R7 后回归，不伪装为已手工覆盖。没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、配置、持久化或公共播放接口。**R6-12 正式 Complete；Stage R6 正式 Complete；R7 未开始。**
+- 产品媒体打开入口仍属于 R7，因此正式产品 UI 中以真实媒体触发 Volume/Seek HUD 的完整手工矩阵尚不可执行；该项保留到 R7 后回归，不伪装为已手工覆盖。没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、配置、持久化或公共播放接口。**R6-12 正式 Complete；当时 R6-01~R6-12 核心阶段按既有任务书关闭。随后识别到跨 Stage 强制补充的 R6-13~R6-16，因此 Stage R6 当前重新处于 Supplemental In Progress；R7 仍未开始。**
 
 ### 2026-08-15 — R6-11 Status Overlay Complete
 
@@ -138,7 +151,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - `PlayerChromeActivityLayer` 继续拥有 pointer activity sensor，并承担当前窗口 cursor application：隐藏态使用 `Qt.BlankCursor`，可见态恢复为 `undefined`，避免覆盖 Button/其他子控件自己的 cursor semantic。Pointer move/enter 仍先通知 R6-09 Activity policy，OSC 回到 Active 后 Cursor policy 随 `oscVisible` 自动恢复可见。
 - `PlayerScreen` 仅组合 Chrome/Cursor policy：共享 `playbackPlaying`、`timelineInteractionActive`、`popupOpen`、`errorOverlayVisible` 输入，并把 R6-09 `oscVisible` 单向传给 Cursor controller；没有反向依赖、第二套状态真值、PlaybackSession/libmpv 或 R6-11/R6-12 逻辑。
 - 独立 `player_cursor_visibility` CTest 覆盖 Playing+OSC Hidden、OSC wake、Scrub、Popup、Error、suppression、Paused；静态锁定 Cursor controller 无 Timer、R6-09 仍只有一个 Timer、Activity Layer 使用 `Qt.BlankCursor : undefined`。`player_chrome_visibility` 继续独立守住 R6-09 owner 与 Timer contract。
-- 用户锁定 Windows 复验：`configure.ps1` **PASS**（CMake Configuring 4.8 s / Generating 2.2 s）；Debug `build.ps1` 完成 **144/144**，development marker 与 Qt runtime deployment 均 PASS；`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **67/67 CTest PASS，0 failed，54.47 s**，其中 `player_chrome_visibility` **0.37 s PASS**、`player_cursor_visibility` **0.22 s PASS**，既有 Playback/Render/Presentation 回归全部保持通过。随后执行 `Player.exe` startup smoke，PowerShell 未输出 QML/runtime 启动错误。
+- 用户锁定 Windows 复验：`configure.ps1` **PASS**（Configuring 4.8 s / Generating 2.2 s）；Debug `build.ps1` 完成 **144/144**，development marker 与 Qt runtime deployment 均 PASS；`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **67/67 CTest PASS，0 failed，54.47 s**，其中 `player_chrome_visibility` **0.37 s PASS**、`player_cursor_visibility` **0.22 s PASS**，既有 Playback/Render/Presentation 回归全部保持通过。随后执行 `Player.exe` startup smoke，PowerShell 未输出 QML/runtime 启动错误。
 - 构建继续出现已记录的 Qt 6.8.3 `qjsengine.h/qvariant.h` MSVC C4702 system-header warning，没有新增 suppression/白名单，也未形成 build/test 阻断。验证前本地受保护 `.gitignore` 修改与 `r4-04-qml-diagnostics/` 仍保持存在，pull/configure/build/test 未清理或覆盖。
 - 当前产品仍没有 R7 媒体打开入口，因此不能从正式产品 UI 进入真实 Playing 完整手工验证“静置 → OSC Hidden → Cursor Hidden → pointer move → OSC/Cursor restore”；该真实媒体手工矩阵保留到 R7 媒体入口可用后回归，不伪装成已执行。自动化 policy/边界与 startup 已满足本 Atomic Task 收口条件。**R6-10 正式 Complete；R6-11 开始。**
 
@@ -245,7 +258,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 已删除被新结构完整替代的 `features/player/chrome/PlayerChrome.qml`。该旧文件同时拥有顶部和底部占位 UI，继续保留会形成重复路径；删除不改变任何已实现业务操作，因为其中只有框架提示文字和玻璃占位矩形。
 - 目标结构中的 `states/` 本轮没有创建空文件：R6-01 尚无独立状态 owner，Loading/Buffering/Ended/Error selector 属于后续 R6-11；不为了目录形式制造透明转发或推测状态抽象。当前仓库也尚无 `PlayerViewModel`，因此 R6-01 只建立 `PlayerViewModel → PlayerScreen → child features` 链中的 Screen/Host 边界，不把尚未存在的 VM 伪装为已接通。
 - 新增独立 `player_screen_structure` CTest，静态验证 PlayerScreen 只组合五类 Host、Host 使用正确 z-order/slot、VideoViewport 只包装 VideoSurface、Screen/Host 不出现 PlaybackSession/libmpv/mpv_ 业务词，并强制旧 `PlayerChrome.qml` 不再存在。全量测试数由 **51 → 52**。
-- 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被 `verify-project-layout.ps1` 阻断，原因是旧 scaffold 校验仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake自动重跑正常，Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且无新增 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS。
+- 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被旧 scaffold 校验阻断，原因是旧 `verify-project-layout.ps1` 仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake 自动重跑正常，Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且无新增 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS。
 - 同源修复更新 `scripts/verify-project-layout.ps1`：required-files 真值改为 R6-01 五个 Screen Host + `VideoSurface`，旧 `PlayerChrome.qml` 改为 obsolete path；Presentation CMake 校验同步要求五个 Host 已进入 QML module；PlayerScreen composition 校验同步改为新五层结构。没有恢复旧 Chrome，也没有弱化校验。
 - 修复后 `configure.ps1` 在锁定 Windows 环境复验 **PASS**：layout verifier 明确识别 R6-01 PlayerScreen composition 完整，CMake **Configuring 3.7 s / Generating 1.7 s**；此前 build/QML lint/52-test 结果保持有效，因为修复只涉及 verifier 与文档。
 - 最终手工 basic resize 验证 **PASS**：窗口缩小、放大均正常，内容始终铺满，没有错位或运行时报错；`Player.exe` 再次启动正常。未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-01 正式 Complete；R6-02 未开始。**
