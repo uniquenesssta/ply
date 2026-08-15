@@ -43,3 +43,26 @@ add_test(
     NAME player_timeline_view_model
     COMMAND player_timeline_view_model_tests
 )
+
+add_executable(
+    timeline_interaction_matrix_tests
+    timeline_interaction_matrix_test.cpp
+)
+
+player_apply_compiler_options(timeline_interaction_matrix_tests)
+player_enable_compiler_warnings(timeline_interaction_matrix_tests)
+player_enable_sanitizers(timeline_interaction_matrix_tests)
+player_enable_static_analysis(timeline_interaction_matrix_tests)
+
+target_link_libraries(
+    timeline_interaction_matrix_tests
+    PRIVATE
+        player_presentation_timeline
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME timeline_interaction_matrix
+    COMMAND timeline_interaction_matrix_tests
+)
