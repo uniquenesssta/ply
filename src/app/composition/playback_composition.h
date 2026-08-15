@@ -5,6 +5,7 @@
 
 #include <memory>
 
+class QObject;
 class QString;
 
 namespace player::playback::application {
@@ -23,6 +24,8 @@ class PlayerVolumeViewModel;
 
 namespace player::app {
 
+class PlayerVideoRenderBinding;
+
 class PlaybackComposition final
 {
 public:
@@ -35,6 +38,9 @@ public:
     [[nodiscard]] bool start(QString* errorMessage = nullptr);
     [[nodiscard]] bool stop(QString* errorMessage = nullptr);
     [[nodiscard]] bool isRunning() const noexcept;
+
+    [[nodiscard]] bool attachVideoOutput(QObject* qmlRoot, QString* errorMessage = nullptr);
+    void beginVideoRenderShutdown() noexcept;
 
     [[nodiscard]] player::presentation::PlayerTransportViewModel& transportViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerTimelineViewModel& timelineViewModel() noexcept;
@@ -54,6 +60,7 @@ private:
     [[nodiscard]] bool submitMuted(bool muted);
 
     std::unique_ptr<player::playback::application::PlaybackSessionThread> playbackThread_;
+    std::unique_ptr<PlayerVideoRenderBinding> videoRenderBinding_;
     std::unique_ptr<player::playback::application::PlaybackRequestIdGenerator> requestIdGenerator_;
     std::unique_ptr<player::presentation::PlayerTransportViewModel> transportViewModel_;
     std::unique_ptr<player::presentation::PlayerTimelineViewModel> timelineViewModel_;
