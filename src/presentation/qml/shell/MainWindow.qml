@@ -11,6 +11,7 @@ ApplicationWindow {
     property var volumeViewModel: null
     property var statusViewModel: null
     property var hudMessageQueue: null
+    property var mediaOpenCoordinator: null
 
     width: LayoutTokens.windowDefaultWidth
     height: LayoutTokens.windowDefaultHeight
@@ -25,6 +26,16 @@ ApplicationWindow {
         targetWindow: window
     }
 
+    LocalMediaOpenDialog {
+        id: localMediaOpenDialog
+
+        onLocalFileSelected: function(sourceUrl) {
+            if (window.mediaOpenCoordinator !== null) {
+                window.mediaOpenCoordinator.openLocalFile(sourceUrl)
+            }
+        }
+    }
+
     PlayerScreen {
         anchors.fill: parent
         transportViewModel: window.transportViewModel
@@ -37,6 +48,7 @@ ApplicationWindow {
         windowExpanded: window.visibility === Window.Maximized
                         || window.visibility === Window.FullScreen
 
+        onOpenMediaRequested: localMediaOpenDialog.open()
         onMinimizeRequested: window.showMinimized()
         onMaximizeRestoreRequested: {
             if (fullscreenWindowController.fullScreen) {
