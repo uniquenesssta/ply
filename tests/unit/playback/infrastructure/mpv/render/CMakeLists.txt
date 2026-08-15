@@ -295,3 +295,19 @@ set_tests_properties(
         RUN_SERIAL TRUE
         TIMEOUT 90
 )
+
+# These regressions deliberately create/show real QQuickWindow instances and
+# exercise the libmpv OpenGL Render API. Keep them in the default full suite,
+# but give routine iteration a stable exclusion boundary that does not weaken
+# the Atomic Task / Stage closure gate.
+set_tests_properties(
+    mpv_video_renderer
+    mpv_video_resize_dpi_100
+    mpv_video_resize_dpi_125
+    mpv_video_resize_dpi_150
+    mpv_video_resize_dpi_200
+    mpv_video_visibility
+    mpv_video_shutdown
+    PROPERTIES
+        LABELS "windowed-render"
+)
