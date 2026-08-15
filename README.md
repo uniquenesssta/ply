@@ -13,6 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
 | R6 — 播放器主界面与基础交互 | Complete | **R6-01 ~ R6-16 全部 Complete**；最终 Windows Debug build **124/124**、QML lint **6/6**、**76/76 CTest PASS（71.23 s）**、`Player.exe` startup/exit smoke PASS |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 Local File Open implementation candidate 已提交**；Windows configure/build/QML lint/**80-test**/runtime validation pending |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线；其中追加的 R6-13 ~ R6-16 已全部完成，Stage R6 已重新关闭。
 
@@ -60,6 +61,8 @@ src/foundation/                  通用基础设施与稳定值类型
 src/playback/domain/             后端无关的播放命令、事件、状态与规则
 src/playback/application/        PlaybackSession、请求生命周期与应用编排
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
+src/media/domain/                规范化媒体来源值对象
+src/media/application/           媒体打开校验与统一 workflow 编排
 src/presentation/                QML 与 presentation 层
 src/platform/                    平台能力
 src/persistence/                 持久化边界
@@ -102,6 +105,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-15 — R7-01 Local File Open — implementation candidate
+
+- 从已验收 R6 HEAD 创建独立 `agent/r7-stage`。新增 `src/media/domain/MediaSource` 作为规范化媒体来源值对象，并按任务书把 `LocalMediaValidator` 与 `MediaOpenCoordinator` 分离：Validator 只负责本地 URL、存在性、regular-file、可读性与 canonical path 校验；Coordinator 只负责 `validate → MediaSource → submit` workflow，不持有 PlaybackSession、CommandBus、MediaGeneration 或 libmpv 类型。
+- `PlaybackComposition` 只增加窄口 `submitMediaLoad(canonicalSource)`，继续复用既有唯一 `PlaybackCommandBus` 与 `PlaybackRequestIdGenerator` 提交 `LoadMediaCommand`；新 `MediaGeneration`、旧请求 supersession/cancellation 与 stale-event gate 仍完全由 `PlaybackSession::beginMediaLoad()` 负责，没有在 R7 MediaOpen 层复制第二套代际或请求仲裁。
+- 新增 internal `LocalMediaOpenDialog.qml`，使用 Qt 6.8 自带 `QtQuick.Dialogs FileDialog` 的单文件 `OpenFile` 模式；只有 `accepted` 才发出本地 URL，取消没有 handler、没有副作用。`MainWindow` 只打开 picker 并把选中 URL 交给 Coordinator；`PlayerScreen` / Status Overlay 只转发 `openMediaRequested` intent，QML 不接触 PlaybackSession/libmpv。未引入外部生产依赖；`QtQuick.Dialogs` 的锁定 Windows runtime/deployment 仍待本轮验证确认。
+- R7-01 同时补齐正式产品首次启动的 Empty 入口：`PlaybackLifecycleState::Empty → PlayerStatusKind::Empty → EmptyFeedback`，`PlayerStatusViewModel` 初始状态由默认 `PlaybackSnapshot{}` 经同一 selector 得出，不建立额外 `hasMedia` 真值；Empty action 显示“Open media”，Loading/Buffering/Ended/Error 既有优先级和 owner 不变。
+- 自审发现仅完成 load 提交会导致 R6-02 `VideoViewport.hasMedia/hasVideo` 仍停留在占位值、视频可能后台播放但画面隐藏，因此新增职责独立的 `PlayerMediaViewModel`：只读消费同一 `PlaybackSnapshot`，仅在 Ready/Ended 且 source 已建立时投影 `hasMedia`，`hasVideo` 只读取 `snapshot.streams().video`。`ApplicationBootstrap → MainWindow → PlayerScreen → VideoViewport` 显式传递该投影，R4 `VideoSurface/MpvVideoItem` Render owner 与生命周期不变。
+- 新增独立 `media_open_coordinator`、`media_open_playback_integration`、`player_media_open`、`player_media_view_model` 四个 CTest target。前者覆盖 cancel/no-op、非本地、缺失、目录、canonical path 与 submission rejection；真实 integration 使用运行时生成的短 WAV 走 `MediaOpenCoordinator → PlaybackCommandBus → PlaybackSessionThread → libmpv`；Presentation contract 锁定 picker/Coordinator/Validator/Viewport 职责边界。重新 configure 后预计全量测试数 **76 → 80**。
+- 当前仅为 implementation candidate：本环境无法执行用户锁定的 Windows Qt 6.8.3 / MSVC / libmpv 构建链，因此 `configure.ps1`、Debug `build.ps1`、QML lint、**80/80 CTest**、`Player.exe` startup/runtime 及真实视频文件手工打开均尚未执行，**R7-01 不是 Complete，Stage R7 仍为 In Progress**。本轮没有实现 Playlist Domain、拖放、URL、argv、自动下一项或 R7-02 之后任务；没有修改 libmpv adapter、Renderer、Persistence、配置或公共播放数据格式。远端 R7 分支改动不包含本地受保护 `.gitignore` 与 `r4-04-qml-diagnostics/`。
+
 ### 2026-08-15 — R6-16 HUD Coalescing Complete / Stage R6 Complete
 
 - 在既有 R6-12 `HudMessageQueue` 上补强成熟 HUD 合并策略，继续由该对象独占当前消息、pending queue 与**唯一一个 C++ single-shot `QTimer`**；没有新增第二套 HUD queue/Timer、Playback 真值或新的生产依赖。
@@ -142,7 +155,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 依据跨 Stage 强制补充任务书 `成熟播放器行为补强与验收矩阵.md` 重新打开 R6；R6-13 只补强既有 R6-06 Timeline 主链，不建立第二套 Timeline 或 Playback 真值，也未提前进入 R6-14 Controls Visibility、R6-15 Cursor Visibility 或 R6-16 HUD Coalescing。
 - Timeline 状态职责重新拆清：`PlaybackSnapshot.timeline.positionSeconds` 仍是只读 actual truth；`TimelineScrubSession` 只拥有 pointer `Idle/Scrubbing` 与拖动 preview；`TimelineSeekProjection` 单独拥有 commit/relative Seek 的 pending target 与 MediaGeneration。拖动期间 actual update 可以进入 Snapshot，但不能抢回 thumb；cancel、generation change、non-seekable/unknown-duration、提交拒绝或已识别的 backend seek failure 都会回到最新 Snapshot truth。
 - `PlayerTimelineViewModel` 提供 relative Seek 主链与固定 **5 s** presentation step；`TimelineRelativeSeekCoalescer` 以**单一 100 ms single-shot QTimer**合并键盘/滚轮高频输入。短 burst 合成一次请求，持续输入按固定窗口形成有限批次；投影 target 限制在 `0..duration`，最终状态仍由 Snapshot acknowledgement 收敛。
-- `TimelineControls.qml` 保持 generic `Slider` 作为 pointer drag owner，并通过通用 `Slider.keyboardEnabled` 关闭 Timeline 内部 normalized 键盘步进；Timeline Feature 自己将 Left/Right/Up/Down 与 Wheel 转成 relative ±5 s intent。窗口失焦通过 `MainWindow.active → PlayerScreen.windowActive → TimelineControls` 取消正在进行的 Scrub 并恢复 actual position。QML 仍不接触 PlaybackSession、CommandBus、SeekCommand 或 libmpv。
+- `TimelineControls.qml` 保持 generic `Slider` 作为 pointer drag owner，并通过通用 `Slider.keyboardEnabled` 关闭 Timeline 内部 normalized 键盘步进；Timeline Feature 自己将 Left/Right/Up/Down 与 Wheel 转成 relative ±5 s intent。窗口失焦通过 `MainWindow.active → PlayerScreen.windowActive → TimelineControls` 取消正在进行的 Scrub并恢复 actual position。QML 仍不接触 PlaybackSession、CommandBus、SeekCommand 或 libmpv。
 - Playing、Paused、Buffering 都允许真实 seekable Timeline 拖动；Scrubbing 时 Buffering/actual position 更新不夺取 preview。`seekable=false`、无有效 MediaGeneration、unknown/zero/non-finite duration 不能进入有效 Scrubbing/relative Seek。绝对拖动 commit 只提交一个 final Absolute Seek；键盘/滚轮走 Relative Seek；二者复用同一个 `PlaybackComposition::submitSeek(seconds, mode)`、共享 RequestId generator 与单一 PlaybackCommandBus。
 - `Ended → seek earlier` 不使用 QML replay hack：产品 mpv profile 使用 `keep-open=yes` 保留 EOF 后媒体；Reducer 消费 `eof-reached`，Ready+EOF → Ended/Stopped，随后 seek earlier 导致 EOF=false 时恢复 Ready/Paused，MediaGeneration 与 media identity 不重建。真实 libmpv `playback_ended_seek` CTest 使用生成 WAV 覆盖 load → play → EOF Ended → Absolute Seek earlier → same-generation Ready/Paused。
 - Seek 同步提交拒绝以及 tracked backend command failure 都清理 Timeline pending projection并复用既有 R6-12 `HudMessageQueue` 显示 `seekFailed`，没有创建第二套 HUD Timer/queue。通用 request timeout 仍由既有 30 s timeout monitor 管理；timeout-specific request type 回传不属于本次已验证范围，继续作为后续成熟行为矩阵风险项保留。
@@ -159,7 +172,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ### 2026-08-15 — R6-12 HUD message queue / Stage R6 Complete
 
-- 新增职责独立的 `viewmodels/player/hud/HudMessageQueue`，只拥有短反馈的当前消息、有限 pending queue 与**唯一一个 C++ single-shot QTimer**。默认 hold policy 为 1200 ms；同类型 Volume/Mute 或 Seek 高频更新直接替换当前/待处理同类并重启当前 hold，异类型只保留有限最新待处理值，避免连续滚轮/拖动产生历史 HUD 堆积。Queue 不拥有 Playback 状态、OSC inactivity、Status Overlay 或 libmpv 生命周期。
+- 新增职责独立的 `viewmodels/player/hud/HudMessageQueue`，只拥有短反馈的当前消息、有限 pending queue 与**唯一一个 C++ single-shot `QTimer`**。默认 hold policy 为 1200 ms；同类型 Volume/Mute 或 Seek 高频更新直接替换当前/待处理同类并重启当前 hold，异类型只保留有限最新待处理值，避免连续滚轮/拖动产生历史 HUD 堆积。Queue 不拥有 Playback 状态、OSC inactivity、Status Overlay 或 libmpv 生命周期。
 - HUD 生产点放在 `PlaybackComposition` 的真实 CommandBus 提交结果之后：Seek、SetVolume、SetMuted 只有 `submit(...) == true` 才进入 HUD；立即拒绝继续走既有 Timeline/Volume pending rollback，**不会显示伪成功反馈**。composition stop 会清空 HUD lifecycle。Volume/Mute 复用 `PlayerVolumeViewModel` 当前 pending/ack 语义，Seek 复用 `PlayerTimelineViewModel.positionText()`，没有复制时间格式化或 Playback 真值。
 - `screens/player/overlays/hud/PlayerHudOverlay.qml` 复用 R5 已冻结 `Surfaces.Hud` / `ZOrderTokens.hud=70`，作为 `PlayerScreen` 的直接 sibling 而不是 z35 `PlayerOverlayStack` 子项，因此保持 `Overlay 35 < OSC 40 < HUD 70 < Toast 80 < Dialog 100`。root `enabled:false` 且没有 PointerHandler；QML **没有 Timer**，短反馈不阻断控制。
 - 初始 candidate 的 Windows qmllint/runtime 暴露 Overlay 误用不存在的 `MotionTokens.resolvedDuration` / `commonEasing`。收口修复改为消费既有 `hudShowDuration/hudHideDuration`、enter/exit easing 与 bezier token，没有新增兼容 facade、裸动画参数或 suppression；`player_hud_overlay` 同步增加回归，最终 QML lint 输出中这两个无效 API 已完全消失。
