@@ -97,13 +97,13 @@ class PlayerHudOverlayTest final : public QObject
     Q_OBJECT
 
 private slots:
-    void loadsVolumeSeekMuteAndFailureSemantics();
+    void loadsVolumeSeekMuteFailureSpeedAndTrackSemantics();
     void hiddenQueueKeepsHudSemanticallyHidden();
     void overlayBoundaryStaysFocused();
     void playerScreenAndBootstrapRouteSingleQueue();
 };
 
-void PlayerHudOverlayTest::loadsVolumeSeekMuteAndFailureSemantics()
+void PlayerHudOverlayTest::loadsVolumeSeekMuteFailureSpeedAndTrackSemantics()
 {
     struct Case final {
         QString key;
@@ -117,6 +117,8 @@ void PlayerHudOverlayTest::loadsVolumeSeekMuteAndFailureSemantics()
         {QStringLiteral("seek"), QStringLiteral("01:23"), QStringLiteral("Seek"), QStringLiteral("01:23")},
         {QStringLiteral("muted"), QString{}, QStringLiteral("Muted"), QStringLiteral("Muted")},
         {QStringLiteral("seekFailed"), QString{}, QStringLiteral("Seek failed"), QStringLiteral("Seek failed")},
+        {QStringLiteral("speed"), QStringLiteral("1.25×"), QStringLiteral("Speed"), QStringLiteral("1.25×")},
+        {QStringLiteral("track"), QStringLiteral("English"), QStringLiteral("Track"), QStringLiteral("English")},
     };
 
     for (const Case& testCase : cases) {
@@ -160,6 +162,8 @@ void PlayerHudOverlayTest::overlayBoundaryStaysFocused()
     QVERIFY(source.contains(QStringLiteral("OpacityTokens.visible")));
     QVERIFY(source.contains(QStringLiteral("OpacityTokens.hidden")));
     QVERIFY(source.contains(QStringLiteral("case \"seekFailed\"")));
+    QVERIFY(source.contains(QStringLiteral("case \"speed\"")));
+    QVERIFY(source.contains(QStringLiteral("case \"track\"")));
     QVERIFY(!source.contains(QStringLiteral("MotionTokens.resolvedDuration")));
     QVERIFY(!source.contains(QStringLiteral("MotionTokens.commonEasing")));
 
@@ -200,6 +204,8 @@ void PlayerHudOverlayTest::playerScreenAndBootstrapRouteSingleQueue()
     QVERIFY(composition.contains(QStringLiteral("hudMessageQueue_->showSeek")));
     QVERIFY(composition.contains(QStringLiteral("hudMessageQueue_->showSeekFailure")));
     QVERIFY(composition.contains(QStringLiteral("hudMessageQueue_->showVolume")));
+    QVERIFY(!composition.contains(QStringLiteral("hudMessageQueue_->showSpeed")));
+    QVERIFY(!composition.contains(QStringLiteral("hudMessageQueue_->showTrackChange")));
     QVERIFY(composition.contains(QStringLiteral(
         "submitSeek(absoluteSeconds, SeekMode::Absolute)")));
     QVERIFY(composition.contains(QStringLiteral(
