@@ -4,9 +4,13 @@ target_sources(
     player_presentation_timeline
     PRIVATE
         timeline_scrub_session.cpp
+        timeline_seek_projection.cpp
+        timeline_relative_seek_coalescer.cpp
         player_timeline_view_model.cpp
     PUBLIC
         timeline_scrub_session.h
+        timeline_seek_projection.h
+        timeline_relative_seek_coalescer.h
         player_timeline_view_model.h
 )
 
