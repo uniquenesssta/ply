@@ -10,6 +10,7 @@
 #include <QtTest>
 
 #include <memory>
+#include <utility>
 
 namespace player::presentation::qml {
 namespace {
