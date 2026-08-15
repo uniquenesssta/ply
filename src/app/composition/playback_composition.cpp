@@ -1,5 +1,6 @@
 #include "app/composition/playback_composition.h"
 
+#include "app/composition/render/player_video_render_binding.h"
 #include "foundation/logging/log_categories.h"
 #include "playback/application/command_bus/playback_command_bus.h"
 #include "playback/application/requests/playback_request.h"
@@ -62,6 +63,8 @@ bool isSeekRequestType(quint8 requestType) noexcept
 PlaybackComposition::PlaybackComposition()
     : playbackThread_(
         std::make_unique<player::playback::application::PlaybackSessionThread>())
+    , videoRenderBinding_(
+        std::make_unique<PlayerVideoRenderBinding>(*playbackThread_))
     , requestIdGenerator_(
         std::make_unique<player::playback::application::PlaybackRequestIdGenerator>())
     , transportViewModel_(
@@ -211,11 +214,26 @@ PlaybackComposition::~PlaybackComposition()
 
 bool PlaybackComposition::start(QString* errorMessage)
 {
+    if (playbackThread_->isRunning()) {
+        if (errorMessage != nullptr) {
+            errorMessage->clear();
+        }
+        return true;
+    }
+
+    if (!videoRenderBinding_->resetForStart(errorMessage)) {
+        return false;
+    }
     return playbackThread_->start(errorMessage);
 }
 
 bool PlaybackComposition::stop(QString* errorMessage)
 {
+    beginVideoRenderShutdown();
+    if (!videoRenderBinding_->waitForRenderRelease(errorMessage)) {
+        return false;
+    }
+
     hudMessageQueue_->clear();
     return playbackThread_->stop(errorMessage);
 }
@@ -223,6 +241,16 @@ bool PlaybackComposition::stop(QString* errorMessage)
 bool PlaybackComposition::isRunning() const noexcept
 {
     return playbackThread_->isRunning();
+}
+
+bool PlaybackComposition::attachVideoOutput(QObject* qmlRoot, QString* errorMessage)
+{
+    return videoRenderBinding_->attachRoot(qmlRoot, errorMessage);
+}
+
+void PlaybackComposition::beginVideoRenderShutdown() noexcept
+{
+    videoRenderBinding_->beginShutdown();
 }
 
 player::presentation::PlayerTransportViewModel&
