@@ -104,6 +104,11 @@ player_enable_compiler_warnings(player_bottom_region_tests)
 player_enable_sanitizers(player_bottom_region_tests)
 player_enable_static_analysis(player_bottom_region_tests)
 
+add_dependencies(
+    player_bottom_region_tests
+    player_qml_lint
+)
+
 target_compile_definitions(
     player_bottom_region_tests
     PRIVATE
