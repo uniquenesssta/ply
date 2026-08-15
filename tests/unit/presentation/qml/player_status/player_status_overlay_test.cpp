@@ -80,16 +80,18 @@ std::unique_ptr<QObject> createOverlay(
         return nullptr;
     }
 
-    std::unique_ptr<QObject> object(component.create());
+    QVariantMap initialProperties;
+    initialProperties.insert(
+        QStringLiteral("viewModel"),
+        QVariant::fromValue(static_cast<QObject*>(&viewModel)));
+    initialProperties.insert(QStringLiteral("suppressBuffering"), suppressBuffering);
+
+    std::unique_ptr<QObject> object(component.createWithInitialProperties(initialProperties));
     if (!object) {
         qWarning().noquote() << diagnostics(component);
         return nullptr;
     }
 
-    object->setProperty(
-        "viewModel",
-        QVariant::fromValue(static_cast<QObject*>(&viewModel)));
-    object->setProperty("suppressBuffering", suppressBuffering);
     QCoreApplication::processEvents();
     return object;
 }
