@@ -192,6 +192,8 @@ void CursorVisibilityPolicyTest::policyIntegrationStaysWindowLocalAndTimerFree()
         "src/presentation/qml/features/player/chrome/PlayerCursorVisibilityController.qml"));
     const QString activityLayer = readSource(QStringLiteral(
         "src/presentation/qml/features/player/chrome/PlayerChromeActivityLayer.qml"));
+    const QString volumeControls = readSource(QStringLiteral(
+        "src/presentation/qml/features/player/volume/VolumeControls.qml"));
     const QString screen = readSource(QStringLiteral(
         "src/presentation/qml/screens/player/PlayerScreen.qml"));
     const QString mainWindow = readSource(QStringLiteral(
@@ -199,6 +201,7 @@ void CursorVisibilityPolicyTest::policyIntegrationStaysWindowLocalAndTimerFree()
 
     QVERIFY(!cursorController.isEmpty());
     QVERIFY(!activityLayer.isEmpty());
+    QVERIFY(!volumeControls.isEmpty());
     QVERIFY(!screen.isEmpty());
     QVERIFY(!mainWindow.isEmpty());
 
@@ -217,8 +220,14 @@ void CursorVisibilityPolicyTest::policyIntegrationStaysWindowLocalAndTimerFree()
         "readonly property bool pointerInside: pointerHover.hovered")));
     QVERIFY(activityLayer.contains(QStringLiteral(
         "cursorShape: root.cursorHidden ? Qt.BlankCursor : undefined")));
+    QVERIFY(volumeControls.contains(QStringLiteral(
+        "readonly property bool interactionActive: volumeSlider.pressed")));
 
-    QVERIFY(screen.contains(QStringLiteral("dragActive: root.dragActive")));
+    QVERIFY(screen.contains(QStringLiteral(
+        "readonly property bool controlsDragActive: root.dragActive")));
+    QVERIFY(screen.contains(QStringLiteral("|| volumeControls.interactionActive")));
+    QVERIFY(screen.contains(QStringLiteral("dragActive: root.controlsDragActive")));
+    QVERIFY(screen.contains(QStringLiteral("id: volumeControls")));
     QVERIFY(screen.contains(QStringLiteral("menuOpen: root.menuOpen")));
     QVERIFY(screen.contains(QStringLiteral("drawerOpen: root.drawerOpen")));
     QVERIFY(screen.contains(QStringLiteral("modalActive: root.modalActive")));
@@ -232,13 +241,14 @@ void CursorVisibilityPolicyTest::policyIntegrationStaysWindowLocalAndTimerFree()
         "cursorVisibilityController.notifyActivity(reason)")));
     QVERIFY(mainWindow.contains(QStringLiteral("windowActive: window.active")));
 
-    const QString combined = cursorController + activityLayer + screen;
+    const QString combined = cursorController + activityLayer + volumeControls + screen;
     QVERIFY(!combined.contains(QStringLiteral("setOverrideCursor")));
     QVERIFY(!combined.contains(QStringLiteral("restoreOverrideCursor")));
     QVERIFY(!combined.contains(QStringLiteral("QGuiApplication")));
     QVERIFY(!combined.contains(QStringLiteral("Component.onDestruction")));
     QVERIFY(!cursorController.contains(QStringLiteral("Timer {")));
     QVERIFY(!activityLayer.contains(QStringLiteral("Timer {")));
+    QVERIFY(!volumeControls.contains(QStringLiteral("Timer {")));
     QVERIFY(!combined.contains(QStringLiteral("PlaybackSession")));
     QVERIFY(!combined.contains(QStringLiteral("PlaybackCommandBus")));
     QVERIFY(!combined.contains(QStringLiteral("libmpv")));
