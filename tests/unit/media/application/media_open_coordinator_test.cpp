@@ -1,6 +1,7 @@
 #include "media/application/open/media_open_coordinator.h"
 
 #include <QFile>
+#include <QFileInfo>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QUrl>
