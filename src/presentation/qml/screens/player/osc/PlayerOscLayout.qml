@@ -2,7 +2,7 @@ import QtQuick
 import Player.Presentation.Surfaces
 import Player.Presentation.Theme
 
-Item {
+FocusScope {
     id: root
 
     property bool compact: false
@@ -16,6 +16,8 @@ Item {
     readonly property Item transportItem: controlRow.transportItem
     readonly property Item volumeItem: controlRow.volumeItem
     readonly property Item utilityItem: controlRow.utilityItem
+    readonly property bool controlsHovered: surfaceHover.hovered
+    readonly property bool controlsFocused: root.activeFocus
     readonly property int maximumSurfaceWidth: root.compact
                                                 ? LayoutTokens.oscMaximumWidthCompact
                                                 : LayoutTokens.oscMaximumWidth
@@ -53,6 +55,11 @@ Item {
         width: root.surfaceWidth
         height: root.implicitHeight
         compact: root.compact
+
+        HoverHandler {
+            id: surfaceHover
+            objectName: "playerOscSurfaceHoverHandler"
+        }
 
         Item {
             id: timelineHost
