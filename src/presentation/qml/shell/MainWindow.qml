@@ -47,6 +47,7 @@ ApplicationWindow {
         hudMessageQueue: window.hudMessageQueue
         fullScreen: fullscreenWindowController.fullScreen
         windowActive: window.active
+        modalActive: localMediaOpenDialog.visible
         windowExpanded: window.visibility === Window.Maximized
                         || window.visibility === Window.FullScreen
 
