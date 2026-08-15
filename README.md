@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-10 Complete**；R6-10 Windows **67/67 CTest PASS（54.47 s）**；**R6-11 Status Overlay implementation candidate 已提交，新增两项测试后预期 69-test Windows 验证 pending** |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-11 Complete**；R6-11 Windows **69/69 CTest PASS（54.71 s）**、`Player.exe` startup smoke PASS；**R6-12 尚未开始** |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -102,14 +102,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-15 — R6-11 Status Overlay — implementation candidate
+### 2026-08-15 — R6-11 Status Overlay Complete
 
 - 新增独立 `viewmodels/player/status/`：`PlayerStatusKind` selector 只把 `PlaybackSnapshot` 投影为媒体状态，不拥有第二套 Playback 真值；优先规则为 `Failed → Error`、`Opening → Loading`、`Ended → Ended`、`Ready + buffering.active + transport != Paused → Buffering`，其余为 None。这样 Opening 的 Buffering 信号不会覆盖 Loading，用户主动 Paused 也不会被误显示成 Buffering。
 - `PlayerStatusViewModel` 仅发布 `statusKey/visible/errorVisible/bufferingPercent`；Buffering percent 只在真实 Buffering 状态读取并限制到 0..100，未知值为 -1。该 VM 接入既有 `StatePublisher::snapshotPublished`，由 `ApplicationBootstrap → MainWindow → PlayerScreen` 显式传递，没有 command 提交、service locator 或 libmpv 依赖。
 - `PlayerScreen` 原 R6-09/R6-10 `errorOverlayVisible` 占位值已收敛为 `statusViewModel.errorVisible` 的只读投影，因此 Error Overlay、OSC auto-hide lock 与 Cursor restore 使用同一真实状态来源，不再形成重复 Error state owner。
 - 新增 `screens/player/overlays/status/PlayerStatusOverlay.qml`，只组合当前媒体状态；复用既有轻量 `LoadingFeedback/ErrorFeedback`，并在 `Player.Presentation.Feedback` 增加同职责的 `BufferingFeedback/EndedFeedback`。状态层不创建大型 Spinner 卡片、红色错误框或第二套 Surface；Error 只显示用户可理解的通用文案，不把 backend diagnostic/error code 暴露到 UI。
 - Timeline `isScrubbing || seekPending` 时仅抑制 Buffering Overlay，确保 Seeking preview 不被 Buffering 覆盖；Loading/Ended/Error 不受该 suppression。R6-11 不创建 Timer、Toast、Dialog、Replay/Retry command 或 HUD queue，**R6-12 HUD owner 未提前实现**。
-- 新增独立 `player_status_view_model`、`player_status_overlay` 两个 CTest，扩展 `feedback_controls` 与 `application_container`；预期全量测试 **67 → 69**。当前仅完成代码、设计任务书与静态边界审查，锁定 Windows configure/build/QML lint/**69/69 CTest**/`Player.exe` startup 尚未执行，因此 **R6-11 不是 Complete**。产品媒体打开入口仍属于 R7，真实媒体四态手工切换需在媒体入口可用后回归。
+- 新增独立 `player_status_view_model`、`player_status_overlay` 两个 CTest，扩展 `feedback_controls` 与 `application_container`；全量测试 **67 → 69**。首轮 Windows 回归为 **67/69**：旧 `player_cursor_visibility` 仍禁止 Screen 组合新的 Status Overlay，且 `player_status_overlay` 把脱离 Window/Scene 的 root `visible` 当成业务可见性；两处测试契约修正后第二轮为 **68/69**。剩余失败来自测试 helper 在 `component.create()` 后依次写入 `viewModel` 与 `suppressBuffering`，导致 BufferingFeedback 曾瞬时实例化；最终改为 `createWithInitialProperties()` 原子注入初始属性，保留“suppression 生效时 BufferingFeedback 不应实例化”的强断言，生产 Overlay/selector/VM 均未为测试放宽。
+- 最终 Windows 复验：Debug `build.ps1` **PASS**，development marker 与 Qt runtime deployment PASS；`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **69/69 CTest PASS，0 failed，54.71 s**，其中 `player_status_overlay`、`player_status_view_model`、R6-09 `player_chrome_visibility` 与 R6-10 `player_cursor_visibility` 均 PASS。随后 `Player.exe` startup smoke **PASS**，窗口正常打开。测试环境仍会出现已记录的字体目录 warning，未新增 suppression 或字体依赖。
+- 产品媒体打开入口仍属于 R7，因此真实媒体 Loading/Buffering/Ended/Error 的产品手工切换尚不可执行；该项保留到媒体入口可用后回归，不伪装为已覆盖。**R6-11 正式 Complete；R6-12 尚未开始。**
 
 ### 2026-08-15 — R6-10 Cursor hiding Complete
 
