@@ -4,6 +4,7 @@ add_subdirectory(qml)
 add_subdirectory(viewmodels/player/transport)
 add_subdirectory(viewmodels/player/timeline)
 add_subdirectory(viewmodels/player/volume)
+add_subdirectory(viewmodels/player/status)
 
 set(PLAYER_QML_FILES
     qml/App.qml
@@ -20,6 +21,7 @@ set(PLAYER_QML_FILES
     qml/screens/player/osc/PlayerOscLayout.qml
     qml/screens/player/osc/OscControlRow.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
+    qml/screens/player/overlays/status/PlayerStatusOverlay.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
@@ -61,6 +63,7 @@ set_source_files_properties(
     qml/screens/player/osc/PlayerOscLayout.qml
     qml/screens/player/osc/OscControlRow.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
+    qml/screens/player/overlays/status/PlayerStatusOverlay.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
@@ -87,6 +90,7 @@ qt_add_qml_module(
         Player.Presentation.Primitives
         Player.Presentation.Controls
         Player.Presentation.Surfaces
+        Player.Presentation.Feedback
     QML_FILES ${PLAYER_QML_FILES}
 )
 
@@ -118,9 +122,11 @@ target_link_libraries(
         player_presentation_primitives
         player_presentation_controls
         player_presentation_surfaces
+        player_presentation_feedback
         player_presentation_transport
         player_presentation_timeline
         player_presentation_volume
+        player_presentation_status
 )
 
 add_custom_target(
