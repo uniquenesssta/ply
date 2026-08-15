@@ -98,6 +98,8 @@ add_executable(
     ../src/app/composition/application_container.h
     ../src/app/composition/playback_composition.cpp
     ../src/app/composition/playback_composition.h
+    ../src/app/composition/render/player_video_render_binding.cpp
+    ../src/app/composition/render/player_video_render_binding.h
     ../src/app/bootstrap/logging_bootstrap.cpp
     ../src/app/bootstrap/logging_bootstrap.h
     ../src/app/bootstrap/qml_bootstrap.cpp
@@ -121,6 +123,7 @@ target_link_libraries(
     application_container_tests
     PRIVATE
         player_foundation
+        player_mpv_infrastructure
         player_playback_application
         player_media_application
         player_presentation_transport
@@ -407,6 +410,7 @@ add_test(
     COMMAND mpv_runtime_probe_tests
 )
 
+add_subdirectory(unit/app/composition/render)
 add_subdirectory(unit/media)
 add_subdirectory(unit/playback/domain)
 add_subdirectory(unit/playback/application)
