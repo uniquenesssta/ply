@@ -75,6 +75,7 @@ private slots:
     void mediaAxesUpdateIndependently();
     void unavailablePauseAndBufferingDoNotInventState();
     void eofMarksEndedWithoutDiscardingMediaIdentity();
+    void eofPropertyMarksEndedAndSeekBackRecoversPaused();
     void stopClearsMediaScopedStateButPreservesControls();
     void redirectReopensAndDropsOldMediaDetails();
     void mediaFailureClearsStaleMediaStateAndKeepsSource();
@@ -285,6 +286,38 @@ void PlaybackReducerTest::eofMarksEndedWithoutDiscardingMediaIdentity()
     QVERIFY(!next.failure().has_value());
 }
 
+void PlaybackReducerTest::eofPropertyMarksEndedAndSeekBackRecoversPaused()
+{
+    PlaybackSnapshot snapshot = reducePlaybackSnapshot(
+        populatedSnapshot(),
+        makePlaybackEvent(EofReachedChangedEvent{true}));
+
+    QVERIFY(snapshot.lifecycle() == PlaybackLifecycleState::Ended);
+    QVERIFY(snapshot.transport() == PlaybackTransportState::Stopped);
+    QCOMPARE(*snapshot.media().source, QStringLiteral("next.mp4"));
+    QCOMPARE(*snapshot.media().title, QStringLiteral("Old title"));
+    QCOMPARE(*snapshot.timeline().positionSeconds, 120.0);
+    QCOMPARE(*snapshot.timeline().durationSeconds, 120.0);
+    QVERIFY(*snapshot.timeline().seekable);
+    QVERIFY(!snapshot.failure().has_value());
+
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(PositionChangedEvent{95.0}));
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(EofReachedChangedEvent{false}));
+
+    QVERIFY(snapshot.lifecycle() == PlaybackLifecycleState::Ready);
+    QVERIFY(snapshot.transport() == PlaybackTransportState::Paused);
+    QCOMPARE(*snapshot.media().source, QStringLiteral("next.mp4"));
+    QCOMPARE(*snapshot.media().title, QStringLiteral("Old title"));
+    QCOMPARE(*snapshot.timeline().positionSeconds, 95.0);
+    QCOMPARE(*snapshot.timeline().durationSeconds, 120.0);
+    QVERIFY(*snapshot.timeline().seekable);
+    QVERIFY(!snapshot.failure().has_value());
+}
+
 void PlaybackReducerTest::stopClearsMediaScopedStateButPreservesControls()
 {
     const PlaybackSnapshot next = reducePlaybackSnapshot(
@@ -376,9 +409,6 @@ void PlaybackReducerTest::requestAndObservationEventsDoNotOwnSnapshotState()
     PlaybackSnapshot next = reducePlaybackSnapshot(
         current,
         makePlaybackEvent(CoreIdleChangedEvent{true}));
-    next = reducePlaybackSnapshot(
-        next,
-        makePlaybackEvent(EofReachedChangedEvent{true}));
     next = reducePlaybackSnapshot(
         next,
         makePlaybackEvent(CommandReplyEvent{
