@@ -5,6 +5,7 @@
 #include <QMetaObject>
 #include <QQuickFramebufferObject>
 #include <QSizeF>
+#include <QtGlobal>
 
 #include <memory>
 
@@ -36,6 +37,7 @@ public:
     [[nodiscard]] Renderer* createRenderer() const override;
     [[nodiscard]] MpvVideoPresentationState presentationState() const noexcept;
 
+    void setRenderCoreAddress(quintptr coreAddress) noexcept;
     void setRenderCoreHandle(mpv_handle* coreHandle) noexcept;
     [[nodiscard]] mpv_handle* renderCoreHandle() const noexcept;
     [[nodiscard]] std::shared_ptr<const MpvRenderVisibilityPolicy> renderVisibilityPolicy() const noexcept;
