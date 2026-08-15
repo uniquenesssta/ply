@@ -9,9 +9,11 @@ Item {
     id: root
 
     property var viewModel: null
+    property bool suppressed: false
 
     readonly property bool hudVisible: root.viewModel !== null
                                        && root.viewModel.visible
+                                       && !root.suppressed
     readonly property string messageKey: root.viewModel !== null
                                          ? root.viewModel.messageKey
                                          : ""
