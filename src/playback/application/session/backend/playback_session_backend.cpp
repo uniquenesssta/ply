@@ -182,9 +182,11 @@ bool PlaybackSessionBackend::isReady() const noexcept
         && commandExecutor_ != nullptr;
 }
 
-mpv_handle* PlaybackSessionBackend::renderCoreHandle() noexcept
+quintptr PlaybackSessionBackend::renderCoreAddress() noexcept
 {
-    return isReady() && handle_ != nullptr ? handle_->nativeHandle() : nullptr;
+    return isReady() && handle_ != nullptr
+        ? reinterpret_cast<quintptr>(handle_->nativeHandle())
+        : quintptr{0};
 }
 
 bool PlaybackSessionBackend::submit(
