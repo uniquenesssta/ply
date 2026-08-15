@@ -34,6 +34,7 @@ signals:
     void ready();
     void startupFailed(const QString& diagnostic);
     void snapshotCommitted(const player::playback::domain::PlaybackSnapshot& snapshot);
+    void requestFailed(quint8 requestType, const QString& diagnostic);
     void invariantViolationDetected(int violationCount);
     void stopped();
 
