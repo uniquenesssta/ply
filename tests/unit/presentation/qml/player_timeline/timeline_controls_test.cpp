@@ -134,7 +134,13 @@ void TimelineControlsTest::compositionRoutesAbsoluteAndRelativeSeekThroughShared
 {
     const QString composition = readSource(QStringLiteral(
         "src/app/composition/playback_composition.cpp"));
+    const QString session = readSource(QStringLiteral(
+        "src/playback/application/session/playback_session.cpp"));
+    const QString sessionThread = readSource(QStringLiteral(
+        "src/playback/application/session/playback_session_thread.cpp"));
     QVERIFY(!composition.isEmpty());
+    QVERIFY(!session.isEmpty());
+    QVERIFY(!sessionThread.isEmpty());
 
     QVERIFY(composition.contains(QStringLiteral(
         "&player::presentation::PlayerTimelineViewModel::seekRequested")));
@@ -148,6 +154,11 @@ void TimelineControlsTest::compositionRoutesAbsoluteAndRelativeSeekThroughShared
     QVERIFY(composition.contains(QStringLiteral("SeekCommand{seconds, mode}")));
     QVERIFY(composition.contains(QStringLiteral("bus->submit(command")));
     QVERIFY(composition.contains(QStringLiteral("rejectPendingSeek()")));
+    QVERIFY(composition.contains(QStringLiteral("PlaybackSessionThread::requestFailed")));
+    QVERIFY(composition.contains(QStringLiteral("isSeekRequestType(requestType)")));
+    QVERIFY(composition.contains(QStringLiteral("hudMessageQueue_->showSeekFailure()")));
+    QVERIFY(session.contains(QStringLiteral("emit requestFailed(")));
+    QVERIFY(sessionThread.contains(QStringLiteral("&PlaybackSession::requestFailed")));
 }
 
 } // namespace player::presentation::qml
