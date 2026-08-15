@@ -146,8 +146,11 @@ void PlayerStatusOverlayTest::emptyActionRoutesOpenIntent()
     std::unique_ptr<QObject> overlay = createOverlay(engine, viewModel);
     QVERIFY(overlay != nullptr);
 
+    QTRY_VERIFY_WITH_TIMEOUT(
+        overlay->findChild<QObject*>(QStringLiteral("playerEmptyFeedback")) != nullptr,
+        1000);
     QObject* emptyFeedback = overlay->findChild<QObject*>(QStringLiteral("playerEmptyFeedback"));
-    QTRY_VERIFY_WITH_TIMEOUT(emptyFeedback != nullptr, 1000);
+    QVERIFY(emptyFeedback != nullptr);
 
     QSignalSpy openSpy(overlay.get(), SIGNAL(openMediaRequested()));
     QVERIFY(QMetaObject::invokeMethod(emptyFeedback, "actionTriggered"));
