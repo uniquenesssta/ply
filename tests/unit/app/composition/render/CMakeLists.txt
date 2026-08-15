@@ -27,6 +27,8 @@ target_link_libraries(
         Qt6::Test
 )
 
+player_stage_libmpv_runtime(player_video_render_binding_tests)
+
 add_test(
     NAME player_video_render_binding
     COMMAND player_video_render_binding_tests
