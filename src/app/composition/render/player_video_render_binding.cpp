@@ -22,11 +22,11 @@ PlayerVideoRenderBinding::PlayerVideoRenderBinding(
         &playbackThread,
         &player::playback::application::PlaybackSessionThread::renderCoreReady,
         this,
-        [this](quintptr nativeHandle) {
+        [this](quintptr coreAddress) {
             if (shutdownStarted_) {
                 return;
             }
-            coreAddress_ = nativeHandle;
+            coreAddress_ = coreAddress;
             bindCoreIfReady();
         });
 }
@@ -160,8 +160,7 @@ void PlayerVideoRenderBinding::bindCoreIfReady() noexcept
         return;
     }
 
-    videoItem_->setRenderCoreHandle(
-        reinterpret_cast<mpv_handle*>(coreAddress_));
+    videoItem_->setRenderCoreAddress(coreAddress_);
 }
 
 } // namespace player::app
