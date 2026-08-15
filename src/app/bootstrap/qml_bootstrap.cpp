@@ -4,6 +4,7 @@
 
 #include <QList>
 #include <QLoggingCategory>
+#include <QObject>
 #include <QQmlEngine>
 #include <QQmlError>
 
@@ -45,6 +46,11 @@ bool QmlBootstrap::load()
     }
 
     return true;
+}
+
+QObject* QmlBootstrap::rootObject() const noexcept
+{
+    return engine_.rootObjects().isEmpty() ? nullptr : engine_.rootObjects().constFirst();
 }
 
 const QString& QmlBootstrap::lastError() const noexcept
