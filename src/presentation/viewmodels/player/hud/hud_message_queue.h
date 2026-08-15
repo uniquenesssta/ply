@@ -28,19 +28,30 @@ public:
     void showVolume(double volumePercent, bool muted);
     void showSeek(const QString& positionText);
     void showSeekFailure();
+    void showSpeed(const QString& speedText);
+    void showTrackChange(const QString& trackText);
     void clear();
 
 signals:
     void stateChanged();
 
 private:
-    enum class MessageKind {
+    enum class CoalescingKey {
         Volume,
         Seek,
+        Speed,
+        Track,
+        Important,
+    };
+
+    enum class Priority {
+        Transient,
+        Important,
     };
 
     struct Message final {
-        MessageKind kind = MessageKind::Volume;
+        CoalescingKey coalescingKey = CoalescingKey::Volume;
+        Priority priority = Priority::Transient;
         QString key;
         QString value;
     };
@@ -51,7 +62,11 @@ private:
     void present(Message message);
     void advance();
     void restartTimer();
-    void removePending(MessageKind kind);
+    void removePending(CoalescingKey coalescingKey);
+    void discardPendingBelow(Priority priority);
+    void pushPending(Message message);
+
+    [[nodiscard]] static bool outranks(Priority candidate, Priority current) noexcept;
 
     QTimer holdTimer_;
     std::optional<Message> current_;
