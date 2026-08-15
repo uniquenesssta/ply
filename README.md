@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | Supplemental In Progress | **R6-01 ~ R6-13 Complete**；**R6-14 Controls Visibility Policy implementation candidate 已提交，Windows 74-test 验证 pending**；R6-15 ~ R6-16 尚未开始 |
+| R6 — 播放器主界面与基础交互 | Supplemental In Progress | **R6-01 ~ R6-14 Complete**；**R6-15 Cursor Visibility Policy implementation candidate 已提交，Windows 75-test 验证 pending**；R6-16 尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线；其中追加的 R6-13 ~ R6-16 必须完成后才能再次关闭 Stage R6。
 
@@ -102,17 +102,28 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-15 — R6-14 Controls Visibility Policy — implementation candidate
+### 2026-08-15 — R6-15 Cursor Visibility Policy — implementation candidate
+
+- 在既有 R6-10 `PlayerCursorVisibilityController` 上补强成熟 Cursor Policy，继续让 Cursor 独立消费 R6-14 的 `oscVisible` 结果而**不拥有 inactivity Timer**；控制栏 inactivity 仍只有 `PlayerChromeVisibilityController` 的单一 Timer，Cursor 没有复制 2200/1600 ms 超时或建立第二套 Playback 真值。
+- Cursor 隐藏条件收敛为：Playing + OSC Hidden + Window active + pointer 位于播放器窗口内，并且不存在 Scrub/Drag、Popup/Menu/Drawer/Modal、Error、显式 suppression 或窗口恢复锁。窗口失焦、重新激活、pointer leave/re-enter 都先恢复可见，并要求后续真实 pointer activity 释放恢复锁，避免窗口重新获得焦点时瞬时重新隐藏。
+- `PlayerChromeActivityLayer` 继续是窗口级 pointer sensor 和 `Qt.BlankCursor : undefined` 的唯一应用点，只新增只读 `pointerInside` 投影；pointer activity 先通知 Chrome 使控制栏恢复/刷新 inactivity，再通知 Cursor 释放 restore latch，没有全局 `QGuiApplication::setOverrideCursor()` 或 shutdown 时“恢复系统全局鼠标”的副作用路径。
+- Timeline drag 继续复用既有 `timelineInteractionActive`；当前已经存在的 Volume Slider drag 不再只靠未来占位输入，`VolumeControls` 仅把既有 `volumeSlider.pressed` 暴露为只读 `interactionActive`，`PlayerScreen.controlsDragActive` 将其与显式外部 `dragActive` 合并后交给同一 Cursor Policy。没有把 Slider 状态机复制进 Cursor controller。
+- R6-14 已建立的 `popupOpen/menuOpen/drawerOpen/modalActive` presentation 边界继续复用；当前 R6 尚无真实 Menu/Inspector Drawer/Modal producer，本任务不创建假弹层或第二套 opened state。Focus within controls 仍通过 R6-14 保持 OSC visible，从而自然阻止 Cursor Hidden；R6-15 不复制 Focus owner。
+- 新增独立 `player_cursor_visibility_policy` CTest，覆盖 Scrub/Drag/Popup/Menu/Drawer/Modal/Error/suppression 强制可见、pointer leave/re-enter、focus loss/activation restore、快速 10 次 activation 循环、单 Timer owner、window-local cursor application 与 Volume live drag route；既有 `player_cursor_visibility` 继续作为 R6-10 回归门禁。重新 configure 后预计全量测试数 **74 → 75**。
+- 当前仅为 implementation candidate：本环境无法执行用户锁定的 Windows Qt 6.8.3 / MSVC / libmpv 构建链，因此 `configure.ps1`、Debug `build.ps1`、6-module QML lint、**75/75 CTest** 与 `Player.exe` startup/runtime 尚未执行，**R6-15 不是 Complete**。产品媒体打开入口仍属于 R7，真实 Playing 下的 idle hide / window leave / focus restore / drag 交叉手工矩阵继续保留到入口可用后回归，不伪装为已手工验证。
+
+### 2026-08-15 — R6-14 Controls Visibility Policy Complete
 
 - 在既有 R6-09 `PlayerChromeVisibilityController` 上补强成熟显隐策略，继续由它独占 `Hidden / Rest / Active` 与**唯一一个** `oscInactivityTimer`；没有建立第二套 controls visibility state、第二个 inactivity Timer 或新的 Playback 真值。R6-09 已验证的同步决策继续直接读取 `isVisibilityLocked()` primitive inputs，避免重新引入派生 binding 求值顺序竞态。
 - visibility lock 现在显式覆盖：无媒体/Paused（由 `!playing` 表达）、Timeline Scrubbing/Pending、鼠标位于实际 OSC Surface、播放器控件键盘 focus、Popup、Menu、Drawer、Modal 与 Error。任一 lock 激活都会把 Hidden 恢复为可见并停止 Timer；lock 释放后重新按当前 Windowed/Fullscreen delay 计算 inactivity，而不是沿用已经过期的 timeout。
 - `PlayerOscLayout` 升级为 `FocusScope`，只暴露 `controlsFocused` 与实际 `OscSurface` 范围内的 `controlsHovered`；hover 使用被动 `HoverHandler`，没有 MouseArea、Timer 或业务命令。`PlayerTopRegion` 同样只通过 `FocusScope.activeFocus` 暴露 Header/Window Actions 的键盘 focus。显隐规则仍全部集中在 Chrome controller，布局/Host 不自行决定何时隐藏。
 - `PlayerScreen` 继续作为组合层：把 OSC hover、Top/OSC focus、既有 `popupOpen` 以及新增的 `menuOpen/drawerOpen/modalActive` presentation 输入传给同一 controller。当前 R6 尚没有真实 Menu/Inspector Drawer/Modal producer，因此这些只是后续 Feature 的显式接入边界，本任务不创建静态假控件、假 opened state 或第二套 Overlay owner。
 - Pointer move/enter 仍复用既有 `PlayerChromeActivityLayer → notifyActivity()`；有效活动会进入 Active 并刷新同一 inactivity window。Windowed 仍为 **2200 ms**、Fullscreen **1600 ms**，切换窗口模式只改变该 Timer 的 interval。新增回归还要求快速 pause/play 往返 10 次始终只有同一个 Timer owner。
-- R6-15 Cursor Policy 未提前实现：`PlayerCursorVisibilityController` 源码与其 Timer ownership 均未修改；R6-14 新增 lock 通过保持 `oscVisible=true` 间接阻止 cursor 进入 Hidden，Menu/Drawer/Modal/focus-loss 等 cursor 自身的完整恢复策略仍由 R6-15 收口。
-- 新增独立 `player_controls_visibility_policy` CTest，覆盖 Scrub、OSC hover、control focus、Popup/Menu/Drawer/Modal、Error、Paused lock；lock release 重算 timeout；pointer wake；Windowed/Fullscreen 单 Timer；快速 pause/play 单 owner；以及 PlayerScreen/OSC/Header 的模块边界。全量测试数预计 **73 → 74**，既有 `player_chrome_visibility` 与 `player_cursor_visibility` 继续作为 R6-09/R6-10 回归门禁。
-- 本轮只修改 Presentation QML 与对应测试/CMake，没有修改 PlaybackSession、CommandBus、libmpv、Renderer、持久化、配置或公共播放接口，也没有开始 R6-15/R6-16。最终 diff 已限制在 Chrome policy、Screen composition、Top/OSC interaction projection 与新测试范围。
-- 当前仅为 implementation candidate：锁定 Windows 环境的重新 configure、Debug build、6-module QML lint、**74/74 CTest** 与 `Player.exe` startup 尚未执行，因此 **R6-14 不是 Complete**。产品媒体打开入口仍属于 R7，所以真实 Playing 媒体下的 inactivity/hover/focus/Popup/Drawer 手工矩阵继续保留到入口存在后回归，不伪装为已手工验证。
+- R6-15 Cursor Policy 未提前实现：R6-14 只通过保持 `oscVisible=true` 间接阻止 cursor 进入 Hidden，Menu/Drawer/Modal/focus-loss 等 cursor 自身的完整恢复策略继续归 R6-15 收口。
+- 新增独立 `player_controls_visibility_policy` CTest，覆盖 Scrub、OSC hover、control focus、Popup/Menu/Drawer/Modal、Error、Paused lock；lock release 重算 timeout；pointer wake；Windowed/Fullscreen 单 Timer；快速 pause/play 单 owner；以及 PlayerScreen/OSC/Header 的模块边界。既有 `player_chrome_visibility` 与 `player_cursor_visibility` 继续作为 R6-09/R6-10 回归门禁。
+- Windows 锁定环境最终验收：`configure.ps1` **PASS**（Configuring **4.7 s** / Generating **2.4 s**）；Debug `build.ps1` 完成 **107/107**；`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **74/74 CTest PASS，0 failed，66.46 s**，其中 `player_controls_visibility_policy` **0.46 s PASS**、`player_chrome_visibility` **0.28 s PASS**、`player_cursor_visibility` **0.12 s PASS**，既有 Playback/Render/Presentation 回归全部保持通过。
+- 随后执行 `Player.exe` startup/exit smoke；`player-20260815-183234.log` 仅包含 INFO，记录 libmpv 0.41.0 / FFmpeg 8.0.3、NVIDIA OpenGL 4.6 初始化、`R6-14 OSC visibility Active reason=pointer-enter` 以及 `Application stopping with exit code 0`，未见 WARN/ERROR/CRITICAL。验证前本地受保护 `.gitignore` 修改与 `r4-04-qml-diagnostics/` 保持存在，没有 reset/clean 或覆盖。
+- 产品媒体打开入口仍属于 R7，因此真实 Playing 媒体下的 inactivity/hover/focus/Popup/Drawer 手工矩阵当前仍不可执行；该项继续保留到 R7 媒体入口可用后回归，不伪装为已手工覆盖。**R6-14 正式 Complete；Stage R6 仍为 Supplemental In Progress；下一补充任务 R6-15。**
 
 ### 2026-08-15 — R6-13 Timeline Interaction State Machine Complete
 
@@ -357,7 +368,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ### 2026-08-13 — R5-03 Complete
 
-- Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token 已建立；Reduce Motion 统一将 transition duration 降为 0 并切换 Linear easing，OSC inactivity hide-delay 继续保持 **2200 ms**。
+- Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token 已建立；Reduce Motion 统一将 transition duration 降为 0并切换 Linear easing，OSC inactivity hide-delay 继续保持 **2200 ms**。
 - 新增 `theme_effect_tokens` 合同测试与产品 QML raw radius/z/opacity/duration 回流门禁。
 - 锁定 Windows 环境实测已确认：configure、Debug build、无 warning `player_qml_lint`、**44/44 CTest PASS（49.52 s）** 与 `Player.exe` 启动 smoke 均通过。当前仍是播放器骨架界面；Panel/Popover/HUD 等实际 Surface 消费属于 R5-08。**R5-03 正式 Complete。**
 
