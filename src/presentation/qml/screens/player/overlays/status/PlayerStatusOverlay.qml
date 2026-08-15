@@ -1,0 +1,87 @@
+import QtQuick
+import Player.Presentation.Feedback
+
+Item {
+    id: root
+
+    property var viewModel: null
+    property bool suppressBuffering: false
+
+    readonly property string statusKey: root.viewModel !== null
+                                        ? root.viewModel.statusKey
+                                        : ""
+    readonly property int bufferingPercent: root.viewModel !== null
+                                            ? root.viewModel.bufferingPercent
+                                            : -1
+    readonly property bool bufferingSuppressed: root.statusKey === "buffering"
+                                                && root.suppressBuffering
+    readonly property bool statusVisible: root.viewModel !== null
+                                          && root.viewModel.visible
+                                          && !root.bufferingSuppressed
+
+    objectName: "playerStatusOverlay"
+    visible: root.statusVisible
+
+    Loader {
+        id: statusLoader
+        objectName: "playerStatusLoader"
+        anchors.centerIn: parent
+        active: root.statusVisible
+        sourceComponent: {
+            switch (root.statusKey) {
+            case "loading":
+                return loadingComponent
+            case "buffering":
+                return bufferingComponent
+            case "ended":
+                return endedComponent
+            case "error":
+                return errorComponent
+            default:
+                return null
+            }
+        }
+    }
+
+    Component {
+        id: loadingComponent
+
+        LoadingFeedback {
+            objectName: "playerLoadingFeedback"
+            title: qsTr("Loading media")
+            detail: qsTr("Preparing playback")
+        }
+    }
+
+    Component {
+        id: bufferingComponent
+
+        BufferingFeedback {
+            objectName: "playerBufferingFeedback"
+            title: qsTr("Buffering")
+            detail: root.bufferingPercent >= 0
+                    ? qsTr("%1% buffered").arg(root.bufferingPercent)
+                    : qsTr("Waiting for more data")
+        }
+    }
+
+    Component {
+        id: endedComponent
+
+        EndedFeedback {
+            objectName: "playerEndedFeedback"
+            title: qsTr("Playback finished")
+            detail: qsTr("The media has ended")
+        }
+    }
+
+    Component {
+        id: errorComponent
+
+        ErrorFeedback {
+            objectName: "playerErrorFeedback"
+            title: qsTr("Playback unavailable")
+            detail: qsTr("The media could not be played")
+        }
+    }
+}
