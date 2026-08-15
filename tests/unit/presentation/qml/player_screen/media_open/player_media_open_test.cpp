@@ -25,6 +25,7 @@ private slots:
     void mainWindowRoutesIntentThroughCoordinator();
     void playbackScreenAndOverlayRemainPresentationOnly();
     void bootstrapInjectsSingleCoordinatorBoundary();
+    void localValidationAndCoordinationStaySeparated();
 };
 
 void PlayerMediaOpenTest::nativePickerOnlyPublishesAcceptedLocalSelection()
@@ -97,6 +98,27 @@ void PlayerMediaOpenTest::bootstrapInjectsSingleCoordinatorBoundary()
     QVERIFY(container.contains(QStringLiteral("submitMediaLoad(source.location())")));
     QVERIFY(composition.contains(QStringLiteral("LoadMediaCommand{canonicalSource}")));
     QVERIFY(composition.contains(QStringLiteral("playbackThread_->commandBus()")));
+}
+
+void PlayerMediaOpenTest::localValidationAndCoordinationStaySeparated()
+{
+    const QString coordinator = readSource(QStringLiteral(
+        "src/media/application/open/media_open_coordinator.cpp"));
+    const QString validator = readSource(QStringLiteral(
+        "src/media/application/open/local_media_validator.cpp"));
+    QVERIFY(!coordinator.isEmpty());
+    QVERIFY(!validator.isEmpty());
+
+    QVERIFY(coordinator.contains(QStringLiteral("LocalMediaValidator::validate")));
+    QVERIFY(!coordinator.contains(QStringLiteral("QFileInfo")));
+    QVERIFY(validator.contains(QStringLiteral("QFileInfo")));
+    QVERIFY(validator.contains(QStringLiteral("canonicalFilePath")));
+
+    for (const QString* source : {&coordinator, &validator}) {
+        QVERIFY(!source->contains(QStringLiteral("PlaybackSession")));
+        QVERIFY(!source->contains(QStringLiteral("libmpv"), Qt::CaseInsensitive));
+        QVERIFY(!source->contains(QStringLiteral("mpv_"), Qt::CaseInsensitive));
+    }
 }
 
 } // namespace player::presentation::qml
