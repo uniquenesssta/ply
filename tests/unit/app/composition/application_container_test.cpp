@@ -2,6 +2,7 @@
 
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/composition/playback_composition.h"
+#include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
 
@@ -129,6 +130,9 @@ void ApplicationContainerTest::playbackCompositionStartsAndStops()
     QVERIFY(!playback.transportViewModel().canStop());
     QVERIFY(!playback.volumeViewModel().canAdjustVolume());
     QVERIFY(!playback.volumeViewModel().canToggleMute());
+    QVERIFY(!playback.statusViewModel().visible());
+    QVERIFY(!playback.statusViewModel().errorVisible());
+    QCOMPARE(playback.statusViewModel().statusKey(), QString{});
 
     QString error;
     QVERIFY2(playback.start(&error), qPrintable(error));
