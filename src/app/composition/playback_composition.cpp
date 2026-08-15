@@ -10,6 +10,7 @@
 #include "playback/domain/commands/playback_command.h"
 #include "playback/domain/commands/volume_command.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
+#include "presentation/viewmodels/player/media/player_media_view_model.h"
 #include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
@@ -71,6 +72,8 @@ PlaybackComposition::PlaybackComposition()
         std::make_unique<player::presentation::PlayerVolumeViewModel>())
     , statusViewModel_(
         std::make_unique<player::presentation::PlayerStatusViewModel>())
+    , mediaViewModel_(
+        std::make_unique<player::presentation::PlayerMediaViewModel>())
     , hudMessageQueue_(
         std::make_unique<player::presentation::HudMessageQueue>())
 {
@@ -95,6 +98,11 @@ PlaybackComposition::PlaybackComposition()
         &player::playback::application::StatePublisher::snapshotPublished,
         statusViewModel_.get(),
         &player::presentation::PlayerStatusViewModel::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        mediaViewModel_.get(),
+        &player::presentation::PlayerMediaViewModel::acceptSnapshot);
 
     QObject::connect(
         playbackThread_.get(),
@@ -239,6 +247,12 @@ player::presentation::PlayerStatusViewModel&
 PlaybackComposition::statusViewModel() noexcept
 {
     return *statusViewModel_;
+}
+
+player::presentation::PlayerMediaViewModel&
+PlaybackComposition::mediaViewModel() noexcept
+{
+    return *mediaViewModel_;
 }
 
 player::presentation::HudMessageQueue&
