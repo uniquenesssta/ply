@@ -56,7 +56,7 @@ class PlayerStatusViewModelTest final : public QObject
     Q_OBJECT
 
 private slots:
-    void emptyHasNoOverlay();
+    void emptyProjectsEmpty();
     void loadingDominatesOpeningBuffering();
     void playingBufferingPublishesRoundedProgress();
     void pausedSuppressesBuffering();
@@ -65,7 +65,7 @@ private slots:
     void irrelevantSnapshotDoesNotEmit();
 };
 
-void PlayerStatusViewModelTest::emptyHasNoOverlay()
+void PlayerStatusViewModelTest::emptyProjectsEmpty()
 {
     using namespace player::playback::domain;
 
@@ -74,9 +74,9 @@ void PlayerStatusViewModelTest::emptyHasNoOverlay()
         PlaybackLifecycleState::Empty,
         PlaybackTransportState::Idle));
 
-    compareStatus(viewModel, PlayerStatusKind::None);
-    QCOMPARE(viewModel.statusKey(), QString{});
-    QVERIFY(!viewModel.visible());
+    compareStatus(viewModel, PlayerStatusKind::Empty);
+    QCOMPARE(viewModel.statusKey(), QStringLiteral("empty"));
+    QVERIFY(viewModel.visible());
     QVERIFY(!viewModel.errorVisible());
     QCOMPARE(viewModel.bufferingPercent(), -1);
 }
