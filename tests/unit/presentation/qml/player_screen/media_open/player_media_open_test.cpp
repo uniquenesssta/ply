@@ -27,6 +27,7 @@ private slots:
     void bootstrapInjectsSingleCoordinatorBoundary();
     void mediaCapabilityUsesSnapshotProjection();
     void localValidationAndCoordinationStaySeparated();
+    void productVideoOutputUsesExistingRenderBoundary();
 };
 
 void PlayerMediaOpenTest::nativePickerOnlyPublishesAcceptedLocalSelection()
@@ -151,6 +152,38 @@ void PlayerMediaOpenTest::localValidationAndCoordinationStaySeparated()
         QVERIFY(!source->contains(QStringLiteral("libmpv"), Qt::CaseInsensitive));
         QVERIFY(!source->contains(QStringLiteral("mpv_"), Qt::CaseInsensitive));
     }
+}
+
+void PlayerMediaOpenTest::productVideoOutputUsesExistingRenderBoundary()
+{
+    const QString bootstrap = readSource(QStringLiteral(
+        "src/app/bootstrap/application_bootstrap.cpp"));
+    const QString container = readSource(QStringLiteral(
+        "src/app/composition/application_container.cpp"));
+    const QString binding = readSource(QStringLiteral(
+        "src/app/composition/render/player_video_render_binding.cpp"));
+    QVERIFY(!bootstrap.isEmpty());
+    QVERIFY(!container.isEmpty());
+    QVERIFY(!binding.isEmpty());
+
+    QVERIFY(bootstrap.contains(QStringLiteral("playbackComposition.attachVideoOutput(")));
+    QVERIFY(bootstrap.contains(QStringLiteral("qmlBootstrap.rootObject()")));
+
+    const qsizetype beginShutdown = container.indexOf(
+        QStringLiteral("playbackComposition_->beginVideoRenderShutdown()"));
+    const qsizetype destroyQml = container.indexOf(QStringLiteral("qmlBootstrap_.reset()"));
+    const qsizetype stopPlayback = container.indexOf(QStringLiteral("playbackComposition_->stop(&diagnostic)"));
+    QVERIFY(beginShutdown >= 0);
+    QVERIFY(destroyQml > beginShutdown);
+    QVERIFY(stopPlayback > destroyQml);
+
+    QVERIFY(binding.contains(QStringLiteral("findChild<")));
+    QVERIFY(binding.contains(QStringLiteral("mpvVideoItem")));
+    QVERIFY(binding.contains(QStringLiteral("setRenderCoreHandle(")));
+    QVERIFY(binding.contains(QStringLiteral("beginRenderShutdown()")));
+    QVERIFY(binding.contains(QStringLiteral("waitForRenderRelease(")));
+    QVERIFY(!binding.contains(QStringLiteral("MpvRenderContext")));
+    QVERIFY(!binding.contains(QStringLiteral("mpv_render_context_create")));
 }
 
 } // namespace player::presentation::qml
