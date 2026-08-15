@@ -29,6 +29,7 @@ class MpvInitializerTest final : public QObject
 private slots:
     void productProfileDisablesUserConfig();
     void productProfileSelectsLibMpvRenderOutput();
+    void productProfileKeepsFinalMediaSeekable();
     void productInitializationSucceeds();
     void repeatedProductInitializationIsIdempotent();
     void invalidOptionFailsAndClosesHandle();
@@ -47,6 +48,13 @@ void MpvInitializerTest::productProfileSelectsLibMpvRenderOutput()
     const MpvOptionProfile profile = MpvOptionProfile::productDefaults();
 
     QCOMPARE(optionValue(profile, QByteArrayLiteral("vo")), QByteArrayLiteral("libmpv"));
+}
+
+void MpvInitializerTest::productProfileKeepsFinalMediaSeekable()
+{
+    const MpvOptionProfile profile = MpvOptionProfile::productDefaults();
+
+    QCOMPARE(optionValue(profile, QByteArrayLiteral("keep-open")), QByteArrayLiteral("yes"));
 }
 
 void MpvInitializerTest::productInitializationSucceeds()
