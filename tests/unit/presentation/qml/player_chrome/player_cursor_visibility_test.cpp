@@ -1,12 +1,14 @@
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QFile>
+#include <QMetaObject>
 #include <QQuickItem>
 #include <QQuickView>
 #include <QQmlError>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
+#include <QVariant>
 #include <QtTest>
 
 namespace player::presentation::qml {
@@ -52,6 +54,14 @@ QQuickItem* createCursorController(QQuickView& view)
     return view.rootObject();
 }
 
+bool notifyActivity(QQuickItem* controller, const QString& reason)
+{
+    return QMetaObject::invokeMethod(
+        controller,
+        "notifyActivity",
+        Q_ARG(QVariant, QVariant(reason)));
+}
+
 } // namespace
 
 class PlayerCursorVisibilityTest final : public QObject
@@ -72,6 +82,8 @@ void PlayerCursorVisibilityTest::cursorFollowsOscVisibilityAndInteractionLocks()
     QVERIFY(!controller->property("cursorHidden").toBool());
 
     QVERIFY(controller->setProperty("playing", true));
+    QVERIFY(controller->setProperty("pointerInside", true));
+    QVERIFY(notifyActivity(controller, QStringLiteral("test-setup")));
     QVERIFY(!controller->property("cursorHidden").toBool());
 
     QVERIFY(controller->setProperty("oscVisible", false));
@@ -133,7 +145,7 @@ void PlayerCursorVisibilityTest::screenIntegratesCursorPolicyWithoutSecondTimer(
     QVERIFY(cursorController.contains(QStringLiteral("&& !root.popupOpen")));
     QVERIFY(cursorController.contains(QStringLiteral("&& !root.errorVisible")));
     QVERIFY(cursorController.contains(QStringLiteral("&& !root.cursorHideSuppressed")));
-    QVERIFY(cursorController.contains(QStringLiteral("R6-10 cursor visibility")));
+    QVERIFY(cursorController.contains(QStringLiteral("R6-15 cursor visibility")));
     QVERIFY(!cursorController.contains(QStringLiteral("oscHideDelay")));
     QVERIFY(!cursorController.contains(QStringLiteral("oscFullscreenHideDelay")));
 
