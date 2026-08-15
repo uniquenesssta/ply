@@ -10,6 +10,9 @@ Item {
     property bool windowActive: true
     property bool fullScreen: false
     property bool popupOpen: false
+    property bool menuOpen: false
+    property bool drawerOpen: false
+    property bool modalActive: false
     property bool cursorHideSuppressed: false
     property var transportViewModel: null
     property var timelineViewModel: null
@@ -26,6 +29,9 @@ Item {
                                                           || root.timelineViewModel.seekPending)
     readonly property bool errorOverlayVisible: root.statusViewModel !== null
                                                 && root.statusViewModel.errorVisible
+    readonly property bool chromeControlsHovered: playerOscLayout.controlsHovered
+    readonly property bool chromeControlsFocused: topRegion.controlsFocused
+                                                  || playerOscLayout.controlsFocused
     readonly property bool oscVisible: chromeVisibilityController.chromeVisible
     readonly property bool cursorHidden: cursorVisibilityController.cursorHidden
 
@@ -55,7 +61,12 @@ Item {
 
         playing: root.playbackPlaying
         scrubbing: root.timelineInteractionActive
+        controlsHovered: root.chromeControlsHovered
+        controlsFocused: root.chromeControlsFocused
         popupOpen: root.popupOpen
+        menuOpen: root.menuOpen
+        drawerOpen: root.drawerOpen
+        modalActive: root.modalActive
         errorVisible: root.errorOverlayVisible
         fullScreen: root.fullScreen
     }
@@ -161,6 +172,8 @@ Item {
         enabled: root.oscVisible
 
         PlayerOscLayout {
+            id: playerOscLayout
+
             anchors.fill: parent
             compact: root.oscCompact
             timelineContent: [
