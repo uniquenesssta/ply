@@ -12,6 +12,7 @@ class PlaybackSessionThread;
 }
 
 namespace player::presentation {
+class PlayerStatusViewModel;
 class PlayerTimelineViewModel;
 class PlayerTransportViewModel;
 class PlayerVolumeViewModel;
@@ -35,6 +36,7 @@ public:
     [[nodiscard]] player::presentation::PlayerTransportViewModel& transportViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerTimelineViewModel& timelineViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerVolumeViewModel& volumeViewModel() noexcept;
+    [[nodiscard]] player::presentation::PlayerStatusViewModel& statusViewModel() noexcept;
 
 private:
     void submitTransport(player::playback::domain::TransportAction action);
@@ -47,6 +49,7 @@ private:
     std::unique_ptr<player::presentation::PlayerTransportViewModel> transportViewModel_;
     std::unique_ptr<player::presentation::PlayerTimelineViewModel> timelineViewModel_;
     std::unique_ptr<player::presentation::PlayerVolumeViewModel> volumeViewModel_;
+    std::unique_ptr<player::presentation::PlayerStatusViewModel> statusViewModel_;
 };
 
 } // namespace player::app
