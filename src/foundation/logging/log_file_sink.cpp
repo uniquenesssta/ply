@@ -1,6 +1,7 @@
 #include "foundation/logging/log_file_sink.h"
 
 #include "foundation/logging/log_redactor.h"
+#include "foundation/logging/log_session_file_name.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -11,6 +12,11 @@
 #include <utility>
 
 namespace player::logging {
+namespace {
+
+constexpr int kMaximumSessionFileNameAttempts = 999;
+
+} // namespace
 
 QMutex LogFileSink::s_handlerMutex;
 LogFileSink* LogFileSink::s_activeSink = nullptr;
@@ -63,7 +69,7 @@ bool LogFileSink::start(QString* errorMessage)
 
     {
         QMutexLocker locker(&m_mutex);
-        if (!openFileLocked(errorMessage)) {
+        if (!openNewSessionFileLocked(errorMessage)) {
             return false;
         }
     }
@@ -125,7 +131,8 @@ bool LogFileSink::isActive() const
 
 QString LogFileSink::currentLogFilePath() const
 {
-    return QDir(m_options.directory).filePath(m_options.fileName);
+    QMutexLocker locker(&m_mutex);
+    return m_currentLogFilePath;
 }
 
 QString LogFileSink::lastError() const
@@ -170,7 +177,7 @@ void LogFileSink::writeMessage(
 
     if (!rotateIfNeededLocked(encoded.size())) {
         // Rotation failure is stored in lastError. Keep logging to the active
-        // file when it can be reopened instead of recursively logging errors.
+        // session file when it can be reopened instead of recursively logging errors.
     }
 
     if (m_file.write(encoded) != encoded.size()) {
@@ -178,15 +185,65 @@ void LogFileSink::writeMessage(
     }
 }
 
-bool LogFileSink::openFileLocked(QString* errorMessage)
+bool LogFileSink::openNewSessionFileLocked(QString* errorMessage)
 {
-    m_file.setFileName(currentLogFilePath());
+    const QDateTime sessionStartedAt = QDateTime::currentDateTime();
+    const QDir directory(m_options.directory);
 
-    if (!m_file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+    for (int sequence = 1; sequence <= kMaximumSessionFileNameAttempts; ++sequence) {
+        const QString candidatePath = directory.filePath(
+            makeLogSessionFileName(m_options.fileName, sessionStartedAt, sequence));
+        if (QFileInfo::exists(candidatePath)) {
+            continue;
+        }
+
+        m_file.setFileName(candidatePath);
+        if (m_file.open(QIODevice::WriteOnly | QIODevice::NewOnly | QIODevice::Text)) {
+            m_currentLogFilePath = candidatePath;
+            m_lastError.clear();
+            return true;
+        }
+
+        if (QFileInfo::exists(candidatePath)) {
+            continue;
+        }
+
+        setLastErrorLocked(m_file.errorString());
+        if (errorMessage != nullptr) {
+            *errorMessage = QStringLiteral("Unable to create log session file '%1': %2")
+                                .arg(candidatePath, m_lastError);
+        }
+        return false;
+    }
+
+    setLastErrorLocked(QStringLiteral("Unable to allocate a unique log session file name."));
+    if (errorMessage != nullptr) {
+        *errorMessage = m_lastError;
+    }
+    return false;
+}
+
+bool LogFileSink::openCurrentFileLocked(
+    bool appendExisting,
+    QString* errorMessage)
+{
+    if (m_currentLogFilePath.isEmpty()) {
+        setLastErrorLocked(QStringLiteral("Current log session file path is empty."));
+        if (errorMessage != nullptr) {
+            *errorMessage = m_lastError;
+        }
+        return false;
+    }
+
+    m_file.setFileName(m_currentLogFilePath);
+    QIODevice::OpenMode mode = QIODevice::WriteOnly | QIODevice::Text;
+    mode |= appendExisting ? QIODevice::Append : QIODevice::NewOnly;
+
+    if (!m_file.open(mode)) {
         setLastErrorLocked(m_file.errorString());
         if (errorMessage != nullptr) {
             *errorMessage = QStringLiteral("Unable to open log file '%1': %2")
-                .arg(m_file.fileName(), m_lastError);
+                                .arg(m_file.fileName(), m_lastError);
         }
         return false;
     }
@@ -205,50 +262,46 @@ bool LogFileSink::rotateIfNeededLocked(qint64 incomingBytes)
 
 bool LogFileSink::rotateLocked()
 {
-    const QString activePath = currentLogFilePath();
+    const QString activePath = m_currentLogFilePath;
 
     if (m_file.isOpen()) {
         m_file.flush();
         m_file.close();
     }
 
-    QDir directory(m_options.directory);
-
     if (m_options.maxArchives == 0) {
         if (!QFile::remove(activePath) && QFileInfo::exists(activePath)) {
             setLastErrorLocked(QStringLiteral("Unable to remove log file during rotation: %1").arg(activePath));
-            return openFileLocked(nullptr);
+            return openCurrentFileLocked(true, nullptr);
         }
     }
     else {
-        const QString oldestPath = directory.filePath(
-            QStringLiteral("%1.%2").arg(m_options.fileName).arg(m_options.maxArchives));
+        const QString oldestPath = QStringLiteral("%1.%2")
+                                       .arg(activePath)
+                                       .arg(m_options.maxArchives);
         if (QFileInfo::exists(oldestPath) && !QFile::remove(oldestPath)) {
             setLastErrorLocked(QStringLiteral("Unable to remove oldest log archive: %1").arg(oldestPath));
-            return openFileLocked(nullptr);
+            return openCurrentFileLocked(true, nullptr);
         }
 
         for (int index = m_options.maxArchives - 1; index >= 1; --index) {
-            const QString source = directory.filePath(
-                QStringLiteral("%1.%2").arg(m_options.fileName).arg(index));
-            const QString destination = directory.filePath(
-                QStringLiteral("%1.%2").arg(m_options.fileName).arg(index + 1));
+            const QString source = QStringLiteral("%1.%2").arg(activePath).arg(index);
+            const QString destination = QStringLiteral("%1.%2").arg(activePath).arg(index + 1);
 
             if (QFileInfo::exists(source) && !QFile::rename(source, destination)) {
                 setLastErrorLocked(QStringLiteral("Unable to rotate log archive: %1").arg(source));
-                return openFileLocked(nullptr);
+                return openCurrentFileLocked(true, nullptr);
             }
         }
 
-        const QString firstArchive = directory.filePath(
-            QStringLiteral("%1.1").arg(m_options.fileName));
+        const QString firstArchive = QStringLiteral("%1.1").arg(activePath);
         if (QFileInfo::exists(activePath) && !QFile::rename(activePath, firstArchive)) {
             setLastErrorLocked(QStringLiteral("Unable to rotate active log file: %1").arg(activePath));
-            return openFileLocked(nullptr);
+            return openCurrentFileLocked(true, nullptr);
         }
     }
 
-    return openFileLocked(nullptr);
+    return openCurrentFileLocked(false, nullptr);
 }
 
 void LogFileSink::setLastErrorLocked(QString message)
