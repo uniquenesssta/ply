@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | Supplemental In Progress | **R6-01 ~ R6-14 Complete**；**R6-15 Cursor Visibility Policy implementation candidate 已提交，Windows 75-test 验证 pending**；R6-16 尚未开始 |
+| R6 — 播放器主界面与基础交互 | Supplemental In Progress | **R6-01 ~ R6-15 Complete**；R6-16 HUD Coalescing 尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线；其中追加的 R6-13 ~ R6-16 必须完成后才能再次关闭 Stage R6。
 
@@ -102,15 +102,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-15 — R6-15 Cursor Visibility Policy — implementation candidate
+### 2026-08-15 — R6-15 Cursor Visibility Policy Complete
 
 - 在既有 R6-10 `PlayerCursorVisibilityController` 上补强成熟 Cursor Policy，继续让 Cursor 独立消费 R6-14 的 `oscVisible` 结果而**不拥有 inactivity Timer**；控制栏 inactivity 仍只有 `PlayerChromeVisibilityController` 的单一 Timer，Cursor 没有复制 2200/1600 ms 超时或建立第二套 Playback 真值。
 - Cursor 隐藏条件收敛为：Playing + OSC Hidden + Window active + pointer 位于播放器窗口内，并且不存在 Scrub/Drag、Popup/Menu/Drawer/Modal、Error、显式 suppression 或窗口恢复锁。窗口失焦、重新激活、pointer leave/re-enter 都先恢复可见，并要求后续真实 pointer activity 释放恢复锁，避免窗口重新获得焦点时瞬时重新隐藏。
 - `PlayerChromeActivityLayer` 继续是窗口级 pointer sensor 和 `Qt.BlankCursor : undefined` 的唯一应用点，只新增只读 `pointerInside` 投影；pointer activity 先通知 Chrome 使控制栏恢复/刷新 inactivity，再通知 Cursor 释放 restore latch，没有全局 `QGuiApplication::setOverrideCursor()` 或 shutdown 时“恢复系统全局鼠标”的副作用路径。
 - Timeline drag 继续复用既有 `timelineInteractionActive`；当前已经存在的 Volume Slider drag 不再只靠未来占位输入，`VolumeControls` 仅把既有 `volumeSlider.pressed` 暴露为只读 `interactionActive`，`PlayerScreen.controlsDragActive` 将其与显式外部 `dragActive` 合并后交给同一 Cursor Policy。没有把 Slider 状态机复制进 Cursor controller。
 - R6-14 已建立的 `popupOpen/menuOpen/drawerOpen/modalActive` presentation 边界继续复用；当前 R6 尚无真实 Menu/Inspector Drawer/Modal producer，本任务不创建假弹层或第二套 opened state。Focus within controls 仍通过 R6-14 保持 OSC visible，从而自然阻止 Cursor Hidden；R6-15 不复制 Focus owner。
-- 新增独立 `player_cursor_visibility_policy` CTest，覆盖 Scrub/Drag/Popup/Menu/Drawer/Modal/Error/suppression 强制可见、pointer leave/re-enter、focus loss/activation restore、快速 10 次 activation 循环、单 Timer owner、window-local cursor application 与 Volume live drag route；既有 `player_cursor_visibility` 继续作为 R6-10 回归门禁。重新 configure 后预计全量测试数 **74 → 75**。
-- 当前仅为 implementation candidate：本环境无法执行用户锁定的 Windows Qt 6.8.3 / MSVC / libmpv 构建链，因此 `configure.ps1`、Debug `build.ps1`、6-module QML lint、**75/75 CTest** 与 `Player.exe` startup/runtime 尚未执行，**R6-15 不是 Complete**。产品媒体打开入口仍属于 R7，真实 Playing 下的 idle hide / window leave / focus restore / drag 交叉手工矩阵继续保留到入口可用后回归，不伪装为已手工验证。
+- 新增独立 `player_cursor_visibility_policy` CTest，覆盖 Scrub/Drag/Popup/Menu/Drawer/Modal/Error/suppression 强制可见、pointer leave/re-enter、focus loss/activation restore、快速 10 次 activation 循环、单 Timer owner、window-local cursor application 与 Volume live drag route；既有 `player_cursor_visibility` 继续作为 R6-10 回归门禁。Windows 锁定环境最终验收：`configure.ps1` **PASS**（Configuring **4.8 s** / Generating **2.3 s**）；Debug `build.ps1` 完成 **112/112**，development runtime root marker 与 Qt runtime deployment PASS；`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **75/75 CTest PASS，0 failed，66.75 s**。其中 `player_chrome_visibility` **0.27 s PASS**、`player_controls_visibility_policy` **0.28 s PASS**、`player_cursor_visibility` **0.22 s PASS**、`player_cursor_visibility_policy` **0.30 s PASS**，既有 Playback/Render/Presentation 回归全部保持通过。
+- 随后执行 `Player.exe` startup/exit smoke；`player-20260815-185721.log` 仅包含 INFO，记录 libmpv 0.41.0 / FFmpeg 8.0.3、NVIDIA OpenGL 4.6 初始化、window deactivation/activation 以及 pointer enter/move/leave 的 R6-15 cursor restore 状态，并以 `Application stopping with exit code 0` 正常结束，未见 WARN/ERROR/CRITICAL。Build 仍出现 Qt 6.8.3 `qjsprimitivevalue.h/qjsengine.h/qvariant.h` 的 MSVC C4702 system-header warning，没有新增 suppression/白名单，也未形成 build/test/runtime 阻断。
+- 产品媒体打开入口仍属于 R7，因此真实 Playing 下的 idle hide / window leave / focus restore / scrub / volume drag / popup 交叉手工矩阵当前仍不可执行；该项继续保留到 R7 媒体入口可用后回归，不伪装为已手工覆盖。验证前后本地受保护 `.gitignore` 修改与 `r4-04-qml-diagnostics/` 保持存在，没有 reset/clean 或覆盖。**R6-15 正式 Complete；Stage R6 仍为 Supplemental In Progress；下一补充任务 R6-16 HUD Coalescing。**
 
 ### 2026-08-15 — R6-14 Controls Visibility Policy Complete
 
@@ -368,7 +369,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ### 2026-08-13 — R5-03 Complete
 
-- Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token 已建立；Reduce Motion 统一将 transition duration 降为 0并切换 Linear easing，OSC inactivity hide-delay 继续保持 **2200 ms**。
+- Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token 已建立；Reduce Motion 统一将 transition duration 降为 0 并切换 Linear easing，OSC inactivity hide-delay 继续保持 **2200 ms**。
 - 新增 `theme_effect_tokens` 合同测试与产品 QML raw radius/z/opacity/duration 回流门禁。
 - 锁定 Windows 环境实测已确认：configure、Debug build、无 warning `player_qml_lint`、**44/44 CTest PASS（49.52 s）** 与 `Player.exe` 启动 smoke 均通过。当前仍是播放器骨架界面；Panel/Popover/HUD 等实际 Surface 消费属于 R5-08。**R5-03 正式 Complete。**
 
