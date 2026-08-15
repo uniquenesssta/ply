@@ -38,6 +38,7 @@ class PlayerMediaViewModelTest final : public QObject
 private slots:
     void emptyStartsWithoutMedia();
     void openingDoesNotExposeUnestablishedMedia();
+    void readyWithoutSourceDoesNotExposeMedia();
     void readyAudioProjectsMediaWithoutVideo();
     void readyVideoProjectsVisibleVideo();
     void endedKeepsMediaProjection();
@@ -58,6 +59,21 @@ void PlayerMediaViewModelTest::openingDoesNotExposeUnestablishedMedia()
 
     PlayerMediaViewModel viewModel;
     viewModel.acceptSnapshot(makeSnapshot(PlaybackLifecycleState::Opening, true));
+    QVERIFY(!viewModel.hasMedia());
+    QVERIFY(!viewModel.hasVideo());
+}
+
+void PlayerMediaViewModelTest::readyWithoutSourceDoesNotExposeMedia()
+{
+    using namespace player::playback::domain;
+
+    PlaybackSnapshotState state;
+    state.lifecycle = PlaybackLifecycleState::Ready;
+    state.generation = MediaGeneration{1};
+    state.streams.video = VideoStreamInfo{};
+
+    PlayerMediaViewModel viewModel;
+    viewModel.acceptSnapshot(PlaybackSnapshot{state});
     QVERIFY(!viewModel.hasMedia());
     QVERIFY(!viewModel.hasVideo());
 }
