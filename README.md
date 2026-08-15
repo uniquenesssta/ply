@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-11 Complete**；R6-11 Windows **69/69 CTest PASS（54.71 s）**、`Player.exe` startup smoke PASS；**R6-12 尚未开始** |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-11 Complete**；R6-11 Windows **69/69 CTest PASS（54.71 s）**、`Player.exe` startup smoke PASS；**R6-12 HUD message queue implementation candidate 已提交，Windows 71-test 验证 pending** |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -102,6 +102,15 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-15 — R6-12 HUD message queue — implementation candidate
+
+- 新增职责独立的 `viewmodels/player/hud/HudMessageQueue`，只拥有短反馈的当前消息、有限 pending queue 与**唯一一个 C++ single-shot QTimer**。当前默认 hold policy 为 1200 ms；同类型 Volume/Mute 或 Seek 高频更新直接替换当前/待处理同类并重启当前 hold，异类型只保留最新待处理值，避免连续滚轮/拖动产生历史 HUD 堆积。Queue 不拥有 Playback 状态、OSC inactivity、Status Overlay 或 libmpv 生命周期。
+- HUD 生产点放在 `PlaybackComposition` 的真实 CommandBus 提交结果之后：Seek、SetVolume、SetMuted 只有 `submit(...) == true` 才进入 HUD；立即拒绝继续走既有 Timeline/Volume pending rollback，**不会显示伪成功反馈**。composition stop 会清空 HUD lifecycle。Volume/Mute 复用 `PlayerVolumeViewModel` 当前 pending/ack 语义，Seek 复用 `PlayerTimelineViewModel.positionText()`，没有复制时间格式化或 Playback 真值。
+- 新增 `screens/player/overlays/hud/PlayerHudOverlay.qml`，复用 R5 已冻结 `Surfaces.Hud` / `ZOrderTokens.hud=70` / HUD show-hide Motion token。HUD 是 `PlayerScreen` 的直接 sibling，而不是放进 z35 的 `PlayerOverlayStack`，因此保持 `Overlay 35 < OSC 40 < HUD 70 < Toast 80 < Dialog 100` 层级；root `enabled:false` 且没有 PointerHandler，短反馈不阻断控制。QML **没有 Timer**，Reduce Motion 继续由现有 MotionTokens 解析。
+- 当前 R6 有真实 producer 的只接入 Volume/Mute 与 Seek；虽然 Domain 已有 speed command，但 R6 尚无真实 Speed presentation action，Track 切换归后续 R8，因此本任务不伪造 Speed/Track 控件或假 command。Queue/Overlay 的职责边界保留后续这些真实 Feature 接入位置。
+- 新增 `player_hud_message_queue` 与 `player_hud_overlay` 两个独立 CTest，并扩展 `application_container` / CMake wiring；测试覆盖 volume clamp/round、同类合并、mute update、Volume↔Seek 排队最新值、clear/timeout、HUD semantic mapping、非阻断/z-order/Motion 边界以及 Bootstrap→MainWindow→PlayerScreen 单一 queue route。全量测试数预期 **69 → 71**。
+- 当前仅完成 implementation candidate 与静态 diff/边界检查；锁定 Windows 环境的重新 configure、Debug build、QML lint、**71/71 CTest** 和 `Player.exe` startup 尚未执行，因此 **R6-12 当前不是 Complete**。没有修改 PlaybackSession、libmpv、Renderer、配置、持久化，也没有开始 R7。
+
 ### 2026-08-15 — R6-11 Status Overlay Complete
 
 - 新增独立 `viewmodels/player/status/`：`PlayerStatusKind` selector 只把 `PlaybackSnapshot` 投影为媒体状态，不拥有第二套 Playback 真值；优先规则为 `Failed → Error`、`Opening → Loading`、`Ended → Ended`、`Ready + buffering.active + transport != Paused → Buffering`，其余为 None。这样 Opening 的 Buffering 信号不会覆盖 Loading，用户主动 Paused 也不会被误显示成 Buffering。
@@ -175,7 +184,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - Timeline 几何重新核对最终 Figma Standard `4:20` 与 Compact `4:63`：继续复用 12/11px Geist Mono timecode、3px track、10px rest thumb、16px hit target 与 26/28px OSC inset。wrapper 的半像素纵向补偿由既有 1px thumb-border token 的一半推导；R6-04 timeline slot 改为 `clip:false` 允许 canonical thumb 略超出 28/26px lane，外层 OSC Surface 仍是裁切 owner，其他 Feature slot 不变。
 - Domain `playback_selectors` 新增 `canSeek()`；新增 `timeline_scrub_session`、`player_timeline_view_model`、`player_timeline_controls` 三个 CTest target，并扩展 selector 与 R6-04 slot contract，测试总数 **59 → 62**。覆盖 drag/cancel/one-commit、stale position、pending target、duration refresh、generation change、non-seekable、unknown duration、seeking event ordering 与立即提交失败。
 - 首轮 Windows 锁定环境验证：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 2.0 s）；Debug `build.ps1` 在 `application_container_tests.exe` 链接阶段 **FAILED**，根因是测试 target 遗漏 `player_presentation_timeline`。同源修复 commit `23f593ed8f26e42dd85bc75aa51e04b4ae6de6b8` 只补测试链接，生产 `player_app` 原本已正确链接 Timeline。
-- 第二轮 Windows 复验：`configure.ps1` **PASS**（Configuring 4.0 s / Generating 2.0 s）、Debug `build.ps1` **PASS**、QML lint 阶段完成，全量 **60/62 PASS，57.54 s**。两项失败均为 Presentation contract：两个冗余裸 `z: 2` 触发 R5-03 effect-token 门禁，以及测试错误要求 Timeline wrapper 自己读取 generic Slider 的 track-height token。修复删除冗余 z，并把 3px track 断言移回 `Slider.qml` 真正 owner；Seek/VM/CommandBus 和 Figma geometry 均未改变。
+- 第二轮 Windows 复验：`configure.ps1` **PASS**（Configuring 4.0 s / Generating 2.0 s）、Debug `build.ps1` **PASS**、QML lint 阶段完成，全量 **60/62 PASS，57.54 s**。两项失败均为 Presentation contract：两个冗余裸 `z: 2` 触发 R5-03 effect-token 门禁，以及旧测试错误要求 Timeline wrapper 自己读取 generic Slider 的 track-height token。修复删除冗余 z，并把 3px track 断言移回 `Slider.qml` 真正 owner；Seek/VM/CommandBus 和 Figma geometry 均未改变。
 - 用户最终 Windows 复验确认：修复后 **62/62 CTest PASS**，`Player.exe` **正常启动**。产品媒体打开入口仍属于 R7，所以 live-media 产品手工 scrub 尚不可执行；没有把该未执行项写成通过。按 R6 快速框架策略，R6-06 自动化主链、状态机与 startup 已满足本 Atomic Task 收口条件。**R6-06 正式 Complete；下一项 R6-07。**
 
 ### 2026-08-14 — R6-05 Transport Complete
@@ -296,7 +305,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ### 2026-08-13 — R5-05 Typography primitives Complete
 
-- 重新读取第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 本地 Text Styles；现有 `TypographyTokens` 的 Inter / Noto Sans SC / Geist Mono、字号和字重已经与最终设计一致，因此 R5-05 不复制或改写字体真值。
+- 重新核对第三版最终 Figma `KIOxfwTvQJlcVLinkeJAxY` 本地 Text Styles；现有 `TypographyTokens` 的 Inter / Noto Sans SC / Geist Mono、字号和字重已经与最终设计一致，因此 R5-05 不复制或改写字体真值。
 - 新增 `primitives/text/TitleText.qml`、`BodyText.qml`、`CaptionText.qml`、`TimecodeText.qml`。四类 primitive 分别消费既有 semantic typography/color token，并覆盖 Inspector/Media 标题、Supporting/Control 正文、Meta/Technical/Strong 说明和 M/S/XS Timecode 变体；标题和说明默认单行右侧 ellipsis，Timecode 固定单行并使用 Geist Mono 语义字体。
 - 首轮 Windows configure/build 均 PASS；`typography_primitives` 自身 PASS，但全量回归为 **45/46 PASS**。唯一失败是既有 `qml_module_boundaries`：候选把 `PlayerChrome` 直接改为 `import Player.Presentation.Primitives`，违反 R5-01 已冻结的 Feature 仅直接消费 Theme/Controls 的边界。
 - 修复没有放宽 R5-01 门禁：撤回 `PlayerChrome → Primitives` 直接依赖并恢复既有 Theme/TypographyTokens 消费，同时删除错误新增的“所有产品 QML 必须直接使用 typography primitive”扫描；`typography_primitives` 继续独立验证 semantic style、长标题 ellipsis 与 Geist Mono Timecode 契约，供后续 Controls/Surfaces 组合使用。
