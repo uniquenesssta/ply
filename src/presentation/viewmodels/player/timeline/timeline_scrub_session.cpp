@@ -20,11 +20,6 @@ bool TimelineScrubSession::isScrubbing() const noexcept
     return phase_ == TimelineScrubPhase::Scrubbing;
 }
 
-bool TimelineScrubSession::isPendingCommit() const noexcept
-{
-    return phase_ == TimelineScrubPhase::PendingCommit;
-}
-
 double TimelineScrubSession::previewNormalized() const noexcept
 {
     return previewNormalized_;
@@ -39,7 +34,7 @@ bool TimelineScrubSession::begin(
     player::playback::domain::MediaGeneration generation,
     double normalized) noexcept
 {
-    if (!generation.isValid() || !isValidNormalized(normalized)) {
+    if (isActive() || !generation.isValid() || !isValidNormalized(normalized)) {
         return false;
     }
 
@@ -65,9 +60,9 @@ std::optional<double> TimelineScrubSession::commit(double normalized) noexcept
         return std::nullopt;
     }
 
-    previewNormalized_ = clampNormalized(normalized);
-    phase_ = TimelineScrubPhase::PendingCommit;
-    return previewNormalized_;
+    const double committed = clampNormalized(normalized);
+    reset();
+    return committed;
 }
 
 bool TimelineScrubSession::cancel() noexcept
@@ -84,16 +79,6 @@ bool TimelineScrubSession::cancelIfGenerationChanged(
     player::playback::domain::MediaGeneration generation) noexcept
 {
     if (!isActive() || generation == generation_) {
-        return false;
-    }
-
-    reset();
-    return true;
-}
-
-bool TimelineScrubSession::acknowledgePending() noexcept
-{
-    if (!isPendingCommit()) {
         return false;
     }
 
