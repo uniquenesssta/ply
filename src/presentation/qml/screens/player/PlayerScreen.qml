@@ -159,6 +159,7 @@ Item {
         id: hudOverlay
         anchors.fill: parent
         viewModel: root.hudMessageQueue
+        suppressed: root.errorOverlayVisible
     }
 
     PlayerBottomRegion {
