@@ -1,5 +1,6 @@
 #include <QFile>
 #include <QGuiApplication>
+#include <QMetaObject>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
@@ -104,6 +105,7 @@ class PlayerStatusOverlayTest final : public QObject
 
 private slots:
     void loadsEachStatusRole();
+    void emptyActionRoutesOpenIntent();
     void bufferingCanBeSuppressedByTimelineInteraction();
     void overlayBoundaryStaysFocused();
     void playerScreenRoutesStatusWithoutDuplicateErrorState();
@@ -118,6 +120,7 @@ void PlayerStatusOverlayTest::loadsEachStatusRole()
     };
 
     const QList<Case> cases{
+        {QStringLiteral("empty"), QStringLiteral("playerEmptyFeedback"), -1},
         {QStringLiteral("loading"), QStringLiteral("playerLoadingFeedback"), -1},
         {QStringLiteral("buffering"), QStringLiteral("playerBufferingFeedback"), 42},
         {QStringLiteral("ended"), QStringLiteral("playerEndedFeedback"), -1},
@@ -136,6 +139,21 @@ void PlayerStatusOverlayTest::loadsEachStatusRole()
     }
 }
 
+void PlayerStatusOverlayTest::emptyActionRoutesOpenIntent()
+{
+    QQmlEngine engine;
+    StatusStub viewModel(QStringLiteral("empty"), true);
+    std::unique_ptr<QObject> overlay = createOverlay(engine, viewModel);
+    QVERIFY(overlay != nullptr);
+
+    QObject* emptyFeedback = overlay->findChild<QObject*>(QStringLiteral("playerEmptyFeedback"));
+    QTRY_VERIFY_WITH_TIMEOUT(emptyFeedback != nullptr, 1000);
+
+    QSignalSpy openSpy(overlay.get(), SIGNAL(openMediaRequested()));
+    QVERIFY(QMetaObject::invokeMethod(emptyFeedback, "actionTriggered"));
+    QCOMPARE(openSpy.count(), 1);
+}
+
 void PlayerStatusOverlayTest::bufferingCanBeSuppressedByTimelineInteraction()
 {
     QQmlEngine engine;
@@ -152,14 +170,18 @@ void PlayerStatusOverlayTest::overlayBoundaryStaysFocused()
         "src/presentation/qml/screens/player/overlays/status/PlayerStatusOverlay.qml"));
     QVERIFY(!source.isEmpty());
 
+    QVERIFY(source.contains(QStringLiteral("EmptyFeedback")));
     QVERIFY(source.contains(QStringLiteral("LoadingFeedback")));
     QVERIFY(source.contains(QStringLiteral("BufferingFeedback")));
     QVERIFY(source.contains(QStringLiteral("EndedFeedback")));
     QVERIFY(source.contains(QStringLiteral("ErrorFeedback")));
+    QVERIFY(source.contains(QStringLiteral("signal openMediaRequested()")));
+    QVERIFY(source.contains(QStringLiteral("onActionTriggered: root.openMediaRequested()")));
     QVERIFY(source.contains(QStringLiteral("suppressBuffering")));
     QVERIFY(source.contains(QStringLiteral("visible: root.statusVisible")));
     QVERIFY(source.contains(QStringLiteral("active: root.statusVisible")));
 
+    QVERIFY(!source.contains(QStringLiteral("FileDialog")));
     QVERIFY(!source.contains(QStringLiteral("Timer {")));
     QVERIFY(!source.contains(QStringLiteral("Toast")));
     QVERIFY(!source.contains(QStringLiteral("Hud"), Qt::CaseInsensitive));
@@ -178,10 +200,13 @@ void PlayerStatusOverlayTest::playerScreenRoutesStatusWithoutDuplicateErrorState
     QVERIFY(source.contains(QStringLiteral("property var statusViewModel: null")));
     QVERIFY(source.contains(QStringLiteral("readonly property bool errorOverlayVisible")));
     QVERIFY(source.contains(QStringLiteral("root.statusViewModel.errorVisible")));
+    QVERIFY(source.contains(QStringLiteral("signal openMediaRequested()")));
     QVERIFY(source.contains(QStringLiteral("PlayerStatusOverlay {")));
     QVERIFY(source.contains(QStringLiteral("viewModel: root.statusViewModel")));
     QVERIFY(source.contains(QStringLiteral("suppressBuffering: root.timelineInteractionActive")));
+    QVERIFY(source.contains(QStringLiteral("onOpenMediaRequested: root.openMediaRequested()")));
     QVERIFY(!source.contains(QStringLiteral("property bool errorOverlayVisible: false")));
+    QVERIFY(!source.contains(QStringLiteral("FileDialog")));
 }
 
 } // namespace player::presentation::qml
