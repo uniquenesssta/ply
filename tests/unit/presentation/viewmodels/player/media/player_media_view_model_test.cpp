@@ -12,7 +12,8 @@ namespace {
 
 player::playback::domain::PlaybackSnapshot makeSnapshot(
     player::playback::domain::PlaybackLifecycleState lifecycle,
-    bool withVideo = false)
+    bool withVideoTrack = false,
+    bool withVideoParams = false)
 {
     using namespace player::playback::domain;
 
@@ -23,7 +24,8 @@ player::playback::domain::PlaybackSnapshot makeSnapshot(
         state.generation = MediaGeneration{1};
         state.media.source = QStringLiteral("fixture://media");
     }
-    if (withVideo) {
+    state.capabilities.hasVideoTrack = withVideoTrack;
+    if (withVideoParams) {
         state.streams.video = VideoStreamInfo{};
     }
     return PlaybackSnapshot{state};
@@ -40,7 +42,8 @@ private slots:
     void openingDoesNotExposeUnestablishedMedia();
     void readyWithoutSourceDoesNotExposeMedia();
     void readyAudioProjectsMediaWithoutVideo();
-    void readyVideoProjectsVisibleVideo();
+    void readyVideoTrackProjectsVisibleVideoBeforeVideoParams();
+    void videoParamsDoNotReplaceVideoTrackCapability();
     void endedKeepsMediaProjection();
     void failedClearsViewportProjection();
     void unchangedProjectionDoesNotEmit();
@@ -70,7 +73,7 @@ void PlayerMediaViewModelTest::readyWithoutSourceDoesNotExposeMedia()
     PlaybackSnapshotState state;
     state.lifecycle = PlaybackLifecycleState::Ready;
     state.generation = MediaGeneration{1};
-    state.streams.video = VideoStreamInfo{};
+    state.capabilities.hasVideoTrack = true;
 
     PlayerMediaViewModel viewModel;
     viewModel.acceptSnapshot(PlaybackSnapshot{state});
@@ -88,7 +91,7 @@ void PlayerMediaViewModelTest::readyAudioProjectsMediaWithoutVideo()
     QVERIFY(!viewModel.hasVideo());
 }
 
-void PlayerMediaViewModelTest::readyVideoProjectsVisibleVideo()
+void PlayerMediaViewModelTest::readyVideoTrackProjectsVisibleVideoBeforeVideoParams()
 {
     using player::playback::domain::PlaybackLifecycleState;
 
@@ -96,6 +99,19 @@ void PlayerMediaViewModelTest::readyVideoProjectsVisibleVideo()
     viewModel.acceptSnapshot(makeSnapshot(PlaybackLifecycleState::Ready, true));
     QVERIFY(viewModel.hasMedia());
     QVERIFY(viewModel.hasVideo());
+}
+
+void PlayerMediaViewModelTest::videoParamsDoNotReplaceVideoTrackCapability()
+{
+    using player::playback::domain::PlaybackLifecycleState;
+
+    PlayerMediaViewModel viewModel;
+    viewModel.acceptSnapshot(makeSnapshot(
+        PlaybackLifecycleState::Ready,
+        false,
+        true));
+    QVERIFY(viewModel.hasMedia());
+    QVERIFY(!viewModel.hasVideo());
 }
 
 void PlayerMediaViewModelTest::endedKeepsMediaProjection()
