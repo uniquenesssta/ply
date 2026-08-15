@@ -28,6 +28,36 @@ add_test(
 )
 
 add_executable(
+    playback_ended_seek_application_tests
+    playback_ended_seek_test.cpp
+    fixtures/session_test_media.cpp
+    fixtures/session_test_media.h
+    support/playback_session_test_harness.cpp
+    support/playback_session_test_harness.h
+)
+
+player_apply_compiler_options(playback_ended_seek_application_tests)
+player_enable_compiler_warnings(playback_ended_seek_application_tests)
+player_enable_sanitizers(playback_ended_seek_application_tests)
+player_enable_static_analysis(playback_ended_seek_application_tests)
+
+target_link_libraries(
+    playback_ended_seek_application_tests
+    PRIVATE
+        player_playback_application
+        Qt6::Core
+        Qt6::Test
+)
+
+player_stage_libmpv_runtime(playback_ended_seek_application_tests)
+
+add_test(
+    NAME playback_ended_seek
+    COMMAND playback_ended_seek_application_tests
+)
+set_tests_properties(playback_ended_seek PROPERTIES TIMEOUT 30)
+
+add_executable(
     playback_shutdown_application_tests
     playback_shutdown_test.cpp
     fixtures/session_test_media.cpp
