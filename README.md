@@ -94,6 +94,15 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
+日常迭代可使用快速验证；它仍执行依赖检查、测试构建和所有非 `windowed-render` CTest，但跳过会真实创建/显示 `QQuickWindow` 的 R4 Render/DPI/visibility/shutdown 回归。若刚刚已经单独执行并通过 `build.ps1`，可同时使用 `-SkipBuild` 避免重复增量构建：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick
+powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
+```
+
+无参数 `scripts\test.ps1` 的完整验收语义保持不变；`-Quick` **不能**替代 Atomic Task / Stage 收口、Render 相关修改或发布前的完整回归。
+
 Release 构建：
 
 ```powershell
@@ -104,6 +113,11 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-16 — Developer quick validation path — candidate
+
+- `scripts/test.ps1` 新增显式 `-Quick` / `-SkipBuild`，默认无参数路径仍执行原完整 CTest gate。`-Quick` 仅通过 CTest label 排除 R4 已稳定且会真实创建/显示窗口的 `mpv_video_renderer`、4 档 `mpv_video_resize_dpi_*`、`mpv_video_visibility`、`mpv_video_shutdown`；Playback、Reducer、Media/R7、Presentation/ViewModel/QML contract、HUD 等其余测试仍执行。没有删除、skip 或放宽任何测试本身，也没有改用 offscreen 平台冒充真实 OpenGL windowed 验证。
+- `-SkipBuild` 只在调用者明确指定时跳过 `test.ps1` 内部的重复 `cmake --build`，用于已经刚执行过 `scripts/build.ps1` 的迭代链；脚本仍要求 development runtime marker 和现有测试产物。历史实测表明 `mpv_video_visibility` 单项约 23 秒、`mpv_video_shutdown` 约 5.5 秒，快速模式预期可消除主要闪窗并显著缩短固定测试耗时，但该新模式尚未在 Windows 锁定环境实际执行，因此不记录具体通过数或耗时；正式收口仍必须运行无参数完整 `test.ps1`。
 
 ### 2026-08-15 — R7-01 Local File Open — implementation candidate
 
@@ -177,7 +191,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ### 2026-08-15 — R6-12 HUD message queue / Stage R6 Complete
 
-- 新增职责独立的 `viewmodels/player/hud/HudMessageQueue`，只拥有短反馈的当前消息、有限 pending queue 与**唯一一个 C++ single-shot QTimer**。默认 hold policy 为 1200 ms；同类型 Volume/Mute 或 Seek 高频更新直接替换当前/待处理同类并重启当前 hold，异类型只保留有限最新待处理值，避免连续滚轮/拖动产生历史 HUD 堆积。Queue 不拥有 Playback 状态、OSC inactivity、Status Overlay 或 libmpv 生命周期。
+- 新增职责独立的 `viewmodels/player/hud/HudMessageQueue`，只拥有短反馈的当前消息、有限 pending queue 与**唯一一个 C++ single-shot `QTimer`**。默认 hold policy 为 1200 ms；同类型 Volume/Mute 或 Seek 高频更新直接替换当前/待处理同类并重启当前 hold，异类型只保留有限最新待处理值，避免连续滚轮/拖动产生历史 HUD 堆积。Queue 不拥有 Playback 状态、OSC inactivity、Status Overlay 或 libmpv 生命周期。
 - HUD 生产点放在 `PlaybackComposition` 的真实 CommandBus 提交结果之后：Seek、SetVolume、SetMuted 只有 `submit(...) == true` 才进入 HUD；立即拒绝继续走既有 Timeline/Volume pending rollback，**不会显示伪成功反馈**。composition stop 会清空 HUD lifecycle。Volume/Mute 复用 `PlayerVolumeViewModel` 当前 pending/ack 语义，Seek 复用 `PlayerTimelineViewModel.positionText()`，没有复制时间格式化或 Playback 真值。
 - `screens/player/overlays/hud/PlayerHudOverlay.qml` 复用 R5 已冻结 `Surfaces.Hud` / `ZOrderTokens.hud=70`，作为 `PlayerScreen` 的直接 sibling 而不是 z35 `PlayerOverlayStack` 子项，因此保持 `Overlay 35 < OSC 40 < HUD 70 < Toast 80 < Dialog 100`。root `enabled:false` 且没有 PointerHandler；QML **没有 Timer**，短反馈不阻断控制。
 - 初始 candidate 的 Windows qmllint/runtime 暴露 Overlay 误用不存在的 `MotionTokens.resolvedDuration` / `commonEasing`。收口修复改为消费既有 `hudShowDuration/hudHideDuration`、enter/exit easing 与 bezier token，没有新增兼容 facade、裸动画参数或 suppression；`player_hud_overlay` 同步增加回归，最终 QML lint 输出中这两个无效 API 已完全消失。
@@ -325,7 +339,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 既有视觉 Focus 真值不改：Button 继续消费已冻结 focus ring 82%，Slider 继续消费 1.5px / 82% focus ring。为自动化验证给既有 Button focus border增加内部 `objectName=buttonFocusRing`，不改变 geometry/color/z-order 或用户可观察外观。
 - 新增独立 `tests/unit/presentation/qml/accessibility/` 模块，`accessibility_controls` 覆盖 Accessible metadata 声明、Text/Icon/Toggle/Slider semantic name、Tab traversal、disabled control skip 与 Button/Slider focus-visible；测试目录独立于既有 Button/Slider tests，避免继续堆积到单个测试文件。
 - 第三版设计任务书的 Accessibility 基线要求 Focus visible、点击目标不因视觉缩小而缩小、Reduce Motion 与可解释键盘导航；现有 R5-06/R5-07 已保留 32/40px Button hit target、32px Slider host、键盘激活/调整和 Reduce Motion，本轮只补缺失的 accessibility metadata 与跨控件 Tab/focus 回归，不修改 Design Token。
-- R5-01 Feature import 门禁保持不变；本轮仅修改 Controls 与 accessibility tests，没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、Feature、配置、数据结构或持久化。新增 CTest 后全量测试数 **50 → 51**。
+- R5-01 Feature import门禁保持不变；本轮仅修改 Controls 与 accessibility tests，没有新增生产依赖，也没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、Feature、配置、数据结构或持久化。新增 CTest 后全量测试数 **50 → 51**。
 - 首轮锁定 Windows 验证：configure **PASS**（Configuring 5.9 s / Generating 1.8 s）、Debug build **PASS**；build 继续出现已记录的 Qt 6.8.3 `qvariant.h` 生成代码路径 MSVC C4702 warning。CTest 为 **50/51 PASS，1 failed，63.00 s**，唯一失败 `accessibility_controls::tabNavigationKeepsFocusVisible`；Accessible metadata、semantic names、Button Tab focus、disabled skip 均 PASS。失败现场已确认 Slider 获得 `activeFocus` 且 focus border width > 0，但测试在同一时刻同步读取 `opacity`，而 Slider 的 focus opacity 由既有 `Behavior on opacity / NumberAnimation` 过渡，因此读到动画起点 0。
 - 修复严格限定在测试时序：将 Slider focus opacity 的同步 `QVERIFY` 改为 `QTRY_VERIFY_WITH_TIMEOUT(..., 1000)`，等待既有 Focus 动画进入可见状态；生产 `Slider.qml`、Motion token、Focus 视觉、公共 API 与交互行为均未修改。
 - 修正后锁定 Windows 复验：Debug build **PASS**；`scripts/test.ps1` 的 QML lint 门禁完成；全量 **51/51 CTest PASS，0 failed，53.29 s**，其中 `accessibility_controls`、`feedback_controls` 以及全部既有 49 项回归均 PASS；`Player.exe` 实际启动 smoke **PASS**，无 QML/运行时错误输出。MSVC `/showIncludes` 中文控制台编码乱码继续存在，但没有形成 compiler warning/error 或测试失败；字体目录 warning 仍属于 R5-05 已记录的字体未捆绑限制。
