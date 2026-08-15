@@ -1,7 +1,7 @@
 import QtQuick
 import Player.Presentation.Theme
 
-Item {
+FocusScope {
     id: root
 
     objectName: "playerTopRegion"
@@ -9,6 +9,7 @@ Item {
 
     default property alias content: contentHost.data
     readonly property Item contentItem: contentHost
+    readonly property bool controlsFocused: root.activeFocus
 
     Item {
         id: contentHost
