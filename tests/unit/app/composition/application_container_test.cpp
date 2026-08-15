@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QStringList>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -17,6 +18,17 @@
 #include <utility>
 
 namespace player::app {
+namespace {
+
+QStringList sessionLogFiles(const QString& directoryPath)
+{
+    return QDir(directoryPath).entryList(
+        {QStringLiteral("player-*.log")},
+        QDir::Files,
+        QDir::Name);
+}
+
+} // namespace
 
 class ApplicationContainerTest final : public QObject
 {
@@ -83,8 +95,11 @@ void ApplicationContainerTest::loggingBootstrapCreatesResolvedDevelopmentLog()
         container.loggingBootstrap().start(container.runtimePaths(), &error),
         qPrintable(error));
 
-    const QString logPath = QDir(expectedLogDirectory).filePath(QStringLiteral("player.log"));
-    QVERIFY2(QFileInfo(logPath).isFile(), qPrintable(logPath));
+    const QStringList logs = sessionLogFiles(expectedLogDirectory);
+    QCOMPARE(logs.size(), 1);
+    QVERIFY2(
+        QFileInfo(QDir(expectedLogDirectory).filePath(logs.constFirst())).isFile(),
+        qPrintable(expectedLogDirectory));
 
     container.shutdown();
 }
@@ -101,9 +116,7 @@ void ApplicationContainerTest::adoptsPreStartedLoggingBootstrap()
 
     QString error;
     QVERIFY2(loggingBootstrap->start(runtimePaths, &error), qPrintable(error));
-    QVERIFY2(
-        QFileInfo(QDir(runtimePaths.logDirectory()).filePath(QStringLiteral("player.log"))).isFile(),
-        qPrintable(runtimePaths.logDirectory()));
+    QCOMPARE(sessionLogFiles(runtimePaths.logDirectory()).size(), 1);
 
     ApplicationContainer container(runtimePaths, std::move(loggingBootstrap));
 
@@ -111,6 +124,7 @@ void ApplicationContainerTest::adoptsPreStartedLoggingBootstrap()
     QVERIFY2(
         container.loggingBootstrap().start(container.runtimePaths(), &error),
         qPrintable(error));
+    QCOMPARE(sessionLogFiles(runtimePaths.logDirectory()).size(), 1);
 
     container.shutdown();
 }
