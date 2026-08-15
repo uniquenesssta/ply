@@ -95,6 +95,8 @@ Item {
     Toast { objectName: "toast"; title: "Saved"; message: "Done" }
     ErrorFeedback { objectName: "error"; title: "Error"; detail: "Failed"; actionText: "Retry" }
     LoadingFeedback { objectName: "loading"; title: "Loading"; detail: "Please wait" }
+    BufferingFeedback { objectName: "buffering"; title: "Buffering"; detail: "Waiting for data" }
+    EndedFeedback { objectName: "ended"; title: "Finished"; detail: "Playback ended" }
     EmptyFeedback { objectName: "empty"; title: "Empty"; detail: "Open media"; actionText: "Open" }
 }
 )QML"), QUrl(QStringLiteral("qrc:/FeedbackRoles.qml")));
@@ -107,23 +109,33 @@ Item {
     QObject* toast = object->findChild<QObject*>(QStringLiteral("toast"));
     QObject* error = object->findChild<QObject*>(QStringLiteral("error"));
     QObject* loading = object->findChild<QObject*>(QStringLiteral("loading"));
+    QObject* buffering = object->findChild<QObject*>(QStringLiteral("buffering"));
+    QObject* ended = object->findChild<QObject*>(QStringLiteral("ended"));
     QObject* empty = object->findChild<QObject*>(QStringLiteral("empty"));
-    QVERIFY(toast && error && loading && empty);
+    QVERIFY(toast && error && loading && buffering && ended && empty);
 
     QCOMPARE(toast->property("feedbackRole").toString(), QStringLiteral("toast"));
     QCOMPARE(error->property("feedbackRole").toString(), QStringLiteral("error"));
     QCOMPARE(loading->property("feedbackRole").toString(), QStringLiteral("loading"));
+    QCOMPARE(buffering->property("feedbackRole").toString(), QStringLiteral("buffering"));
+    QCOMPARE(ended->property("feedbackRole").toString(), QStringLiteral("ended"));
     QCOMPARE(empty->property("feedbackRole").toString(), QStringLiteral("empty"));
 
     QVERIFY(toast->property("tone").isValid());
     QVERIFY(error->property("actionText").isValid());
     QVERIFY(!loading->property("actionText").isValid());
+    QVERIFY(!buffering->property("actionText").isValid());
+    QVERIFY(!ended->property("actionText").isValid());
     QVERIFY(empty->property("actionText").isValid());
     QVERIFY(error->findChild<QObject*>(QStringLiteral("feedbackAction")) != nullptr);
     QVERIFY(loading->findChild<QObject*>(QStringLiteral("feedbackAction")) == nullptr);
+    QVERIFY(buffering->findChild<QObject*>(QStringLiteral("feedbackAction")) == nullptr);
+    QVERIFY(ended->findChild<QObject*>(QStringLiteral("feedbackAction")) == nullptr);
     QVERIFY(empty->findChild<QObject*>(QStringLiteral("feedbackAction")) != nullptr);
     QVERIFY(closeEnough(error->property("z").toDouble(), 35.0));
     QVERIFY(closeEnough(loading->property("z").toDouble(), 35.0));
+    QVERIFY(closeEnough(buffering->property("z").toDouble(), 35.0));
+    QVERIFY(closeEnough(ended->property("z").toDouble(), 35.0));
     QVERIFY(closeEnough(empty->property("z").toDouble(), 35.0));
 }
 
