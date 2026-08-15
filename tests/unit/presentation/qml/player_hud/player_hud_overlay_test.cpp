@@ -68,7 +68,10 @@ private:
     QString valueText_;
 };
 
-std::unique_ptr<QObject> createOverlay(QQmlEngine& engine, HudStub& viewModel)
+std::unique_ptr<QObject> createOverlay(
+    QQmlEngine& engine,
+    HudStub& viewModel,
+    bool suppressed = false)
 {
     const QString path = QStringLiteral(
         PLAYER_SOURCE_DIR "/src/presentation/qml/screens/player/overlays/hud/PlayerHudOverlay.qml");
@@ -81,6 +84,7 @@ std::unique_ptr<QObject> createOverlay(QQmlEngine& engine, HudStub& viewModel)
     const QVariantMap initialProperties{
         {QStringLiteral("viewModel"),
          QVariant::fromValue(static_cast<QObject*>(&viewModel))},
+        {QStringLiteral("suppressed"), suppressed},
     };
     std::unique_ptr<QObject> object(
         component.createWithInitialProperties(initialProperties));
@@ -99,6 +103,7 @@ class PlayerHudOverlayTest final : public QObject
 private slots:
     void loadsVolumeSeekMuteFailureSpeedAndTrackSemantics();
     void hiddenQueueKeepsHudSemanticallyHidden();
+    void fatalErrorSuppressionKeepsHudSemanticallyHidden();
     void overlayBoundaryStaysFocused();
     void playerScreenAndBootstrapRouteSingleQueue();
 };
@@ -144,12 +149,24 @@ void PlayerHudOverlayTest::hiddenQueueKeepsHudSemanticallyHidden()
     QVERIFY(!overlay->property("hudVisible").toBool());
 }
 
+void PlayerHudOverlayTest::fatalErrorSuppressionKeepsHudSemanticallyHidden()
+{
+    QQmlEngine engine;
+    HudStub viewModel(true, QStringLiteral("volume"), QStringLiteral("50%"));
+    std::unique_ptr<QObject> overlay = createOverlay(engine, viewModel, true);
+    QVERIFY(overlay != nullptr);
+    QVERIFY(overlay->property("suppressed").toBool());
+    QVERIFY(!overlay->property("hudVisible").toBool());
+}
+
 void PlayerHudOverlayTest::overlayBoundaryStaysFocused()
 {
     const QString source = readSource(QStringLiteral(
         "src/presentation/qml/screens/player/overlays/hud/PlayerHudOverlay.qml"));
     QVERIFY(!source.isEmpty());
 
+    QVERIFY(source.contains(QStringLiteral("property bool suppressed: false")));
+    QVERIFY(source.contains(QStringLiteral("&& !root.suppressed")));
     QVERIFY(source.contains(QStringLiteral("Hud {")));
     QVERIFY(source.contains(QStringLiteral("z: ZOrderTokens.hud")));
     QVERIFY(source.contains(QStringLiteral("enabled: false")));
@@ -195,6 +212,7 @@ void PlayerHudOverlayTest::playerScreenAndBootstrapRouteSingleQueue()
     QVERIFY(screen.contains(QStringLiteral("\n    PlayerHudOverlay {\n")));
     QVERIFY(!screen.contains(QStringLiteral("\n        PlayerHudOverlay {\n")));
     QVERIFY(screen.contains(QStringLiteral("viewModel: root.hudMessageQueue")));
+    QVERIFY(screen.contains(QStringLiteral("suppressed: root.errorOverlayVisible")));
 
     QVERIFY(window.contains(QStringLiteral("property var hudMessageQueue: null")));
     QVERIFY(window.contains(QStringLiteral("hudMessageQueue: window.hudMessageQueue")));
