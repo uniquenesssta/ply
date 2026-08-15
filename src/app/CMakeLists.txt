@@ -27,4 +27,5 @@ target_link_libraries(
         player_foundation
         player_mpv_infrastructure
         player_playback_application
+        player_media_application
 )
