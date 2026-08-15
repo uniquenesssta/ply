@@ -97,13 +97,13 @@ class PlayerHudOverlayTest final : public QObject
     Q_OBJECT
 
 private slots:
-    void loadsVolumeSeekAndMuteSemantics();
+    void loadsVolumeSeekMuteAndFailureSemantics();
     void hiddenQueueKeepsHudSemanticallyHidden();
     void overlayBoundaryStaysFocused();
     void playerScreenAndBootstrapRouteSingleQueue();
 };
 
-void PlayerHudOverlayTest::loadsVolumeSeekAndMuteSemantics()
+void PlayerHudOverlayTest::loadsVolumeSeekMuteAndFailureSemantics()
 {
     struct Case final {
         QString key;
@@ -116,6 +116,7 @@ void PlayerHudOverlayTest::loadsVolumeSeekAndMuteSemantics()
         {QStringLiteral("volume"), QStringLiteral("42%"), QStringLiteral("Volume"), QStringLiteral("42%")},
         {QStringLiteral("seek"), QStringLiteral("01:23"), QStringLiteral("Seek"), QStringLiteral("01:23")},
         {QStringLiteral("muted"), QString{}, QStringLiteral("Muted"), QStringLiteral("Muted")},
+        {QStringLiteral("seekFailed"), QString{}, QStringLiteral("Seek failed"), QStringLiteral("Seek failed")},
     };
 
     for (const Case& testCase : cases) {
@@ -158,6 +159,7 @@ void PlayerHudOverlayTest::overlayBoundaryStaysFocused()
     QVERIFY(source.contains(QStringLiteral("MotionTokens.exitBezier")));
     QVERIFY(source.contains(QStringLiteral("OpacityTokens.visible")));
     QVERIFY(source.contains(QStringLiteral("OpacityTokens.hidden")));
+    QVERIFY(source.contains(QStringLiteral("case \"seekFailed\"")));
     QVERIFY(!source.contains(QStringLiteral("MotionTokens.resolvedDuration")));
     QVERIFY(!source.contains(QStringLiteral("MotionTokens.commonEasing")));
 
@@ -196,8 +198,12 @@ void PlayerHudOverlayTest::playerScreenAndBootstrapRouteSingleQueue()
     QVERIFY(bootstrap.contains(QStringLiteral("playbackComposition.hudMessageQueue()")));
 
     QVERIFY(composition.contains(QStringLiteral("hudMessageQueue_->showSeek")));
+    QVERIFY(composition.contains(QStringLiteral("hudMessageQueue_->showSeekFailure")));
     QVERIFY(composition.contains(QStringLiteral("hudMessageQueue_->showVolume")));
-    QVERIFY(composition.contains(QStringLiteral("if (!submitSeek(absoluteSeconds))")));
+    QVERIFY(composition.contains(QStringLiteral(
+        "submitSeek(absoluteSeconds, SeekMode::Absolute)")));
+    QVERIFY(composition.contains(QStringLiteral(
+        "submitSeek(deltaSeconds, SeekMode::Relative)")));
     QVERIFY(composition.contains(QStringLiteral("if (!submitVolume(percent))")));
     QVERIFY(composition.contains(QStringLiteral("if (!submitMuted(muted))")));
 }
