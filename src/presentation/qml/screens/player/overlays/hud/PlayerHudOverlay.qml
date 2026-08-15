@@ -37,16 +37,20 @@ Item {
     objectName: "playerHudOverlay"
     enabled: false
     z: ZOrderTokens.hud
-    opacity: root.hudVisible ? 1.0 : 0.0
-    visible: root.hudVisible || root.opacity > 0.001
+    opacity: root.hudVisible ? OpacityTokens.visible : OpacityTokens.hidden
+    visible: root.hudVisible || root.opacity > OpacityTokens.hidden
 
     Behavior on opacity {
         NumberAnimation {
-            duration: MotionTokens.resolvedDuration(
-                          root.hudVisible
-                          ? MotionTokens.hudShowDuration
-                          : MotionTokens.hudHideDuration)
-            easing.type: MotionTokens.commonEasing
+            duration: root.hudVisible
+                      ? MotionTokens.hudShowDuration
+                      : MotionTokens.hudHideDuration
+            easing.type: root.hudVisible
+                         ? MotionTokens.enterEasingType
+                         : MotionTokens.exitEasingType
+            easing.bezierCurve: root.hudVisible
+                                ? MotionTokens.enterBezier
+                                : MotionTokens.exitBezier
         }
     }
 
