@@ -37,7 +37,7 @@ void HudMessageQueue::showVolume(double volumePercent, bool muted)
 
     const double clamped = std::clamp(volumePercent, 0.0, 100.0);
     Message message;
-    message.kind = MessageKind::Volume;
+    message.coalescingKey = CoalescingKey::Volume;
     message.key = muted ? QStringLiteral("muted") : QStringLiteral("volume");
     message.value = muted
         ? QString{}
@@ -53,7 +53,7 @@ void HudMessageQueue::showSeek(const QString& positionText)
     }
 
     Message message;
-    message.kind = MessageKind::Seek;
+    message.coalescingKey = CoalescingKey::Seek;
     message.key = QStringLiteral("seek");
     message.value = normalized;
     enqueueOrUpdate(std::move(message));
@@ -62,8 +62,37 @@ void HudMessageQueue::showSeek(const QString& positionText)
 void HudMessageQueue::showSeekFailure()
 {
     Message message;
-    message.kind = MessageKind::Seek;
+    message.coalescingKey = CoalescingKey::Important;
+    message.priority = Priority::Important;
     message.key = QStringLiteral("seekFailed");
+    enqueueOrUpdate(std::move(message));
+}
+
+void HudMessageQueue::showSpeed(const QString& speedText)
+{
+    const QString normalized = speedText.trimmed();
+    if (normalized.isEmpty()) {
+        return;
+    }
+
+    Message message;
+    message.coalescingKey = CoalescingKey::Speed;
+    message.key = QStringLiteral("speed");
+    message.value = normalized;
+    enqueueOrUpdate(std::move(message));
+}
+
+void HudMessageQueue::showTrackChange(const QString& trackText)
+{
+    const QString normalized = trackText.trimmed();
+    if (normalized.isEmpty()) {
+        return;
+    }
+
+    Message message;
+    message.coalescingKey = CoalescingKey::Track;
+    message.key = QStringLiteral("track");
+    message.value = normalized;
     enqueueOrUpdate(std::move(message));
 }
 
@@ -86,11 +115,18 @@ void HudMessageQueue::enqueueOrUpdate(Message message)
         return;
     }
 
-    if (current_->kind == message.kind) {
-        removePending(message.kind);
+    if (current_->coalescingKey == message.coalescingKey) {
+        removePending(message.coalescingKey);
         current_ = std::move(message);
         restartTimer();
         emit stateChanged();
+        return;
+    }
+
+    if (outranks(message.priority, current_->priority)) {
+        removePending(message.coalescingKey);
+        discardPendingBelow(message.priority);
+        present(std::move(message));
         return;
     }
 
@@ -98,17 +134,14 @@ void HudMessageQueue::enqueueOrUpdate(Message message)
         pending_.begin(),
         pending_.end(),
         [&message](const Message& pending) {
-            return pending.kind == message.kind;
+            return pending.coalescingKey == message.coalescingKey;
         });
     if (pendingIt != pending_.end()) {
         *pendingIt = std::move(message);
         return;
     }
 
-    if (static_cast<qsizetype>(pending_.size()) >= kMaximumPendingMessages) {
-        pending_.pop_front();
-    }
-    pending_.push_back(std::move(message));
+    pushPending(std::move(message));
 }
 
 void HudMessageQueue::present(Message message)
@@ -138,13 +171,65 @@ void HudMessageQueue::restartTimer()
     holdTimer_.start(holdDurationMs());
 }
 
-void HudMessageQueue::removePending(MessageKind kind)
+void HudMessageQueue::removePending(CoalescingKey coalescingKey)
 {
     std::erase_if(
         pending_,
-        [kind](const Message& message) {
-            return message.kind == kind;
+        [coalescingKey](const Message& message) {
+            return message.coalescingKey == coalescingKey;
         });
+}
+
+void HudMessageQueue::discardPendingBelow(Priority priority)
+{
+    std::erase_if(
+        pending_,
+        [priority](const Message& message) {
+            return outranks(priority, message.priority);
+        });
+}
+
+void HudMessageQueue::pushPending(Message message)
+{
+    if (static_cast<qsizetype>(pending_.size()) < kMaximumPendingMessages) {
+        pending_.push_back(std::move(message));
+        return;
+    }
+
+    const auto lowerPriorityIt = std::find_if(
+        pending_.begin(),
+        pending_.end(),
+        [&message](const Message& pending) {
+            return outranks(message.priority, pending.priority);
+        });
+    if (lowerPriorityIt != pending_.end()) {
+        pending_.erase(lowerPriorityIt);
+        pending_.push_back(std::move(message));
+        return;
+    }
+
+    if (message.priority == Priority::Transient) {
+        const auto transientIt = std::find_if(
+            pending_.begin(),
+            pending_.end(),
+            [](const Message& pending) {
+                return pending.priority == Priority::Transient;
+            });
+        if (transientIt == pending_.end()) {
+            return;
+        }
+        pending_.erase(transientIt);
+        pending_.push_back(std::move(message));
+        return;
+    }
+
+    pending_.pop_front();
+    pending_.push_back(std::move(message));
+}
+
+bool HudMessageQueue::outranks(Priority candidate, Priority current) noexcept
+{
+    return static_cast<int>(candidate) > static_cast<int>(current);
 }
 
 } // namespace player::presentation
