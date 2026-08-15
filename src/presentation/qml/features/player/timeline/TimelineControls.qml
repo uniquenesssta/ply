@@ -7,9 +7,19 @@ Item {
 
     property var viewModel: null
     property bool compact: false
+    property bool windowActive: true
 
     readonly property bool timelineEnabled: root.viewModel !== null
                                             && root.viewModel.canSeek
+    readonly property string interactionState: !root.timelineEnabled
+                                               ? "Disabled"
+                                               : root.viewModel.isScrubbing
+                                                 ? "Scrubbing"
+                                                 : root.viewModel.seekPending
+                                                   ? "CommitPending"
+                                                   : timelineSlider.hovered
+                                                     ? "Hovering"
+                                                     : "Idle"
     readonly property font currentTimeFont: root.compact
                                              ? TypographyTokens.timecodeSmallPrimary
                                              : TypographyTokens.timecodeMediumPrimary
@@ -22,8 +32,8 @@ Item {
                     ? LayoutTokens.oscTimelineLaneHeightCompact
                     : LayoutTokens.oscTimelineLaneHeight
 
-    function syncSliderFromViewModel() {
-        if (timelineSlider.pressed) {
+    function syncSliderFromViewModel(force) {
+        if (timelineSlider.pressed && !force) {
             return
         }
 
@@ -32,6 +42,27 @@ Item {
                          : 0.0
         if (Math.abs(timelineSlider.value - normalized) > 0.0000001) {
             timelineSlider.value = normalized
+        }
+    }
+
+    function requestRelativeSeek(direction) {
+        if (!root.timelineEnabled || root.viewModel === null || direction === 0) {
+            return false
+        }
+
+        return root.viewModel.requestRelativeSeek(
+            direction * root.viewModel.relativeSeekStepSeconds)
+    }
+
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Down) {
+            if (root.requestRelativeSeek(-1)) {
+                event.accepted = true
+            }
+        } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Up) {
+            if (root.requestRelativeSeek(1)) {
+                event.accepted = true
+            }
         }
     }
 
@@ -53,6 +84,7 @@ Item {
         value: 0.0
         stepSize: 0.001
         showValue: false
+        keyboardEnabled: false
         wheelEnabled: false
         enabled: root.timelineEnabled
         accessibleName: qsTr("Timeline")
@@ -79,6 +111,29 @@ Item {
                 root.viewModel.cancelScrub()
             }
             Qt.callLater(root.syncSliderFromViewModel)
+        }
+    }
+
+    WheelHandler {
+        id: relativeSeekWheel
+
+        target: null
+        enabled: root.timelineEnabled
+        onWheel: function(event) {
+            let delta = event.angleDelta.y
+            if (delta === 0) {
+                delta = event.pixelDelta.y
+            }
+            if (event.inverted) {
+                delta = -delta
+            }
+            if (delta === 0) {
+                return
+            }
+
+            if (root.requestRelativeSeek(delta > 0 ? 1 : -1)) {
+                event.accepted = true
+            }
         }
     }
 
@@ -117,10 +172,18 @@ Item {
         target: root.viewModel
 
         function onStateChanged() {
-            root.syncSliderFromViewModel()
+            root.syncSliderFromViewModel(false)
         }
     }
 
-    onViewModelChanged: root.syncSliderFromViewModel()
-    Component.onCompleted: root.syncSliderFromViewModel()
+    onWindowActiveChanged: {
+        if (!root.windowActive
+                && root.viewModel !== null
+                && root.viewModel.isScrubbing) {
+            root.viewModel.cancelScrub()
+            root.syncSliderFromViewModel(true)
+        }
+    }
+    onViewModelChanged: root.syncSliderFromViewModel(false)
+    Component.onCompleted: root.syncSliderFromViewModel(false)
 }
