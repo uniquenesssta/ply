@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | Supplemental In Progress | **R6-01 ~ R6-15 Complete**；R6-16 HUD Coalescing 尚未开始 |
+| R6 — 播放器主界面与基础交互 | Supplemental In Progress | **R6-01 ~ R6-15 Complete**；**R6-16 HUD Coalescing implementation candidate 已提交，Windows 76-test 验证 pending** |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线；其中追加的 R6-13 ~ R6-16 必须完成后才能再次关闭 Stage R6。
 
@@ -101,6 +101,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-15 — R6-16 HUD Coalescing — implementation candidate
+
+- 在既有 R6-12 `HudMessageQueue` 上补强成熟 HUD 合并策略，继续由该对象独占当前消息、pending queue 与**唯一一个 C++ single-shot `QTimer`**；没有新增第二套 HUD queue/Timer、Playback 真值或新的生产依赖。
+- 原隐式 `MessageKind` 收敛为明确 `CoalescingKey + Priority`：Volume/Mute 共用 Volume key；Seek 连续结果共用 Seek key；Speed 连续 +/- 共用 Speed key；Track change 使用独立 Track key，因此 Track 不会与 Volume 合并。相同 key 更新当前或 pending 的最新值，不追加历史重复消息。
+- `seekFailed` 作为当前已有的重要 HUD 反馈提升为 Important priority：它可以立即抢占 transient HUD，并清理已经排队的低优先级旧反馈；Important 正在显示时，后续 Volume/Seek/Speed/Track 只能进入 bounded pending，不能覆盖当前重要反馈。Fatal Playback Error 仍由 R6-11 Status Overlay 负责，本任务不复制 Error owner 或把错误状态再塞进 HUD。
+- pending queue 保持硬上限 **3**；满队列时优先淘汰最旧 transient，低优先级新消息不能挤掉重要 pending，从策略上禁止无限积压。`clear()` 仍统一停止唯一 hold timer 并清空 current/pending，composition shutdown 语义不变。
+- `PlayerHudOverlay` 只补齐 `speed` / `track` 的展示 label，继续复用既有 `Surfaces.Hud`、Typography、Motion 与 z70；没有新增图标资产、QML Timer、Toast/Dialog 或业务命令。当前真实 producer 仍只有成功提交后的 Volume/Mute、Seek 与 Seek failure；Speed 虽有 Domain command 但 R6 尚无 Presentation action，Track selection 属于 R8，因此 `PlaybackComposition` 明确不接入 `showSpeed/showTrackChange`，不伪造未来功能。
+- 新增独立 `player_hud_coalescing_policy` CTest，覆盖 Speed burst 合并、Track 与 Volume 分离、Important 抢占与低优先级不可覆盖、bounded pending 淘汰最旧 transient、空未来消息忽略；既有 `player_hud_message_queue` 与 `player_hud_overlay` 继续作为 R6-12 回归门禁。重新 configure 后预计全量测试数 **75 → 76**。
+- 当前仅为 implementation candidate：本环境无法执行用户锁定的 Windows Qt 6.8.3 / MSVC / libmpv 构建链，因此 `configure.ps1`、Debug `build.ps1`、6-module QML lint、**76/76 CTest** 与 `Player.exe` startup/runtime 尚未执行，**R6-16 不是 Complete，Stage R6 也尚未再次关闭**。本轮只修改 Presentation HUD VM/QML 与对应测试/CMake；没有修改 PlaybackSession、CommandBus、libmpv、Renderer、持久化、配置或公共播放语义。
 
 ### 2026-08-15 — R6-15 Cursor Visibility Policy Complete
 
@@ -261,7 +271,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - `WindowActionsPod` 只发出 intent，真正 Qt 通用窗口操作由 `MainWindow.qml` 统一执行 `showMinimized()` / `showMaximized()` / `showNormal()` / `close()`；没有加入 `Qt.FramelessWindowHint`、Win32 native event、hit-test、resize 或 Snap。R10-04 仍是无边框窗口与 Windows hit-test 的唯一任务，因此当前中间阶段**仍保留系统原生标题栏，原生窗口按钮与 Floating Header actions 会暂时共存**，本任务不提前消除它。
 - 当前仓库仍没有 `PlayerViewModel` / playback presentation composition，所以 `mediaTitle` / `mediaMetadataText` 只是后续可绑定的数据边界，未伪装成 `PlaybackSnapshot → Header` live binding；应用默认没有媒体 identity 时只显示 Window Actions。R6-03 不创建静态假媒体标题，也不把 PlaybackSession/libmpv 引入 QML。
 - 新增职责独立的 `player_top_region` CTest target，静态锁定 Host→Header→POD 模块边界、居中/Compact/无标题优先级、Window intent owner、R10 native-window 禁区以及 Figma canonical window glyph geometry；既有 `icon_pipeline` 同步纳入新增 Minimize/Maximize 资产并继续禁止产品 QML 绕过 Icon primitive。
-- 用户锁定 Windows 环境最终验证：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 1.8 s）；Debug `build.ps1` **PASS**；`scripts/test.ps1` 的 QML lint 门禁完成；全量 **54/54 CTest PASS，0 failed，54.36 s**，新增 `player_top_region` **0.11 s PASS**，既有 R2–R6-02 全部回归保持 PASS。构建日志中的 MSVC `/showIncludes` 中文乱码仍只是控制台编码显示，`WrapVulkanHeaders` 未找到在固定 OpenGL backend 下没有形成阻断。
+- 用户锁定 Windows 环境最终验证：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 1.8 s）；Debug build **PASS**；`scripts/test.ps1` 的 QML lint 门禁完成；全量 **54/54 CTest PASS，0 failed，54.36 s**，新增 `player_top_region` **0.11 s PASS**，既有 R2–R6-02 全部回归保持 PASS。构建日志中的 MSVC `/showIncludes` 中文乱码仍只是控制台编码显示，`WrapVulkanHeaders` 未找到在固定 OpenGL backend 下没有形成阻断。
 - `Player.exe` 实机手工验收 **PASS**：启动正常；Floating Window Actions 的最小化、最大化、恢复、关闭全部正常；窗口缩放后 Header/Actions 无错位。当前产品仍无媒体打开入口，因此实际长媒体标题/metadata 没有进行产品运行手工展示；其单行 ellipsis 与无标题降级由既有 `TitleText` contract 和 R6-03 定向测试锁定。真实 fullscreen 进入/退出/Esc/双击交互仍属于 R6-08，不在 R6-03 冒充已完成。
 - 本地验证前已有受保护内容 `.gitignore`、`r4-04-qml-diagnostics/` 与 R4-09 1080p/4K JSON；pull/build/test 未覆盖、删除或清理这些内容。没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-03 正式 Complete；下一项 R6-04。**
 
@@ -271,7 +281,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - `VideoSurface.qml` 继续作为 R4 `MpvVideoItem` 的唯一 QML Render Surface owner；`MpvVideoItem` 仍 `anchors.fill: parent`，未迁移进 `PlayerScreen` / `VideoViewport`。视频 underlay 改为既有 `surfaceLetterbox`，aspect-fit 继续由已验证的 R4/libmpv Render 路径保持正确纵横比，R6-02 不复制第二套 QML 裁切/缩放算法。
 - 在既有 `tests/unit/presentation/qml/player_screen/` 模块中新增职责独立的 `video_viewport_test.cpp` 与 `player_video_viewport` CTest target，锁定媒体能力输入、空媒体/纯音频/视频三态 semantic background、VideoSurface 可见性以及 `MpvVideoItem` 不得上移到 viewport 的模块边界；既有 `player_screen_structure` 测试未混入 R6-02 断言。
 - 当前仓库尚无 `PlayerViewModel` / playback presentation composition，因此本任务建立的是 `PlaybackSnapshot/media capability` 后续绑定所需的 viewport presentation 边界，不提前把 ViewModel/CommandBus/PlaybackSession composition 塞进 R6-02；没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。
-- 用户 Windows 锁定环境实测：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 1.8 s）；Debug `build.ps1` **PASS**，新增 `player_video_viewport_tests.exe` 正常编译链接并完成 Qt runtime deployment；`scripts/test.ps1` 的 QML lint 门禁完成，全量 **53/53 CTest PASS，0 failed，53.38 s**，新增 `player_video_viewport` PASS，既有 R2–R6-01 全部回归保持 PASS。构建日志中的 `/showIncludes` 中文乱码是已知控制台编码显示问题；`WrapVulkanHeaders` 未找到在当前固定 OpenGL backend 下未形成阻断。
+- 用户 Windows 锁定环境实测：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 1.8 s）；Debug build **PASS**，新增 `player_video_viewport_tests.exe` 正常编译链接并完成 Qt runtime deployment；`scripts/test.ps1` 的 QML lint 门禁完成，全量 **53/53 CTest PASS，0 failed，53.38 s**，新增 `player_video_viewport` PASS，既有 R2–R6-01 全部回归保持 PASS。构建中的 `/showIncludes` 中文乱码是已知控制台编码显示问题；`WrapVulkanHeaders` 未找到在当前固定 OpenGL backend 下未形成阻断。
 - 本地验证前工作区已有受保护内容：`.gitignore` 修改，以及 `r4-04-qml-diagnostics/`、R4-09 1080p/4K JSON 文件；本任务 pull/build/test 均未覆盖、删除或清理这些文件。**R6-02 正式 Complete；R6-03 未开始。**
 
 ### 2026-08-14 — R6-01 PlayerScreen composition Complete
