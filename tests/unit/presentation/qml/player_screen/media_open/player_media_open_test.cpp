@@ -33,13 +33,17 @@ void PlayerMediaOpenTest::nativePickerOnlyPublishesAcceptedLocalSelection()
 {
     const QString source = readSource(QStringLiteral(
         "src/presentation/qml/features/player/mediaopen/LocalMediaOpenDialog.qml"));
+    const QString presentationCmake = readSource(QStringLiteral(
+        "src/presentation/CMakeLists.txt"));
     QVERIFY(!source.isEmpty());
+    QVERIFY(!presentationCmake.isEmpty());
 
     QVERIFY(source.contains(QStringLiteral("import QtQuick.Dialogs")));
     QVERIFY(source.contains(QStringLiteral("FileDialog {")));
     QVERIFY(source.contains(QStringLiteral("fileMode: FileDialog.OpenFile")));
     QVERIFY(source.contains(QStringLiteral("signal localFileSelected(url sourceUrl)")));
     QVERIFY(source.contains(QStringLiteral("onAccepted: root.localFileSelected(root.selectedFile)")));
+    QVERIFY(presentationCmake.contains(QStringLiteral("QtQuick.Dialogs")));
     QVERIFY(!source.contains(QStringLiteral("onRejected")));
     QVERIFY(!source.contains(QStringLiteral("PlaybackSession")));
     QVERIFY(!source.contains(QStringLiteral("libmpv"), Qt::CaseInsensitive));
@@ -79,7 +83,7 @@ void PlayerMediaOpenTest::playbackScreenAndOverlayRemainPresentationOnly()
 
     QVERIFY(overlay.contains(QStringLiteral("EmptyFeedback")));
     QVERIFY(overlay.contains(QStringLiteral("signal openMediaRequested()")));
-    QVERIFY(overlay.contains(QStringLiteral("onActionTriggered: root.openMediaRequested()")));
+    QVERIFY(overlay.contains(QStringLiteral("onActionRequested: root.openMediaRequested()")));
     QVERIFY(!overlay.contains(QStringLiteral("mediaOpenCoordinator")));
     QVERIFY(!overlay.contains(QStringLiteral("FileDialog")));
 }
