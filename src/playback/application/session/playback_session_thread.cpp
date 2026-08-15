@@ -92,6 +92,12 @@ bool PlaybackSessionThread::start(QString* errorMessage)
         Qt::QueuedConnection);
     QObject::connect(
         session,
+        &PlaybackSession::requestFailed,
+        this,
+        &PlaybackSessionThread::requestFailed,
+        Qt::QueuedConnection);
+    QObject::connect(
+        session,
         &PlaybackSession::stopped,
         this,
         &PlaybackSessionThread::stopped,
