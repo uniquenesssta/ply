@@ -5,6 +5,7 @@ add_subdirectory(viewmodels/player/transport)
 add_subdirectory(viewmodels/player/timeline)
 add_subdirectory(viewmodels/player/volume)
 add_subdirectory(viewmodels/player/status)
+add_subdirectory(viewmodels/player/media)
 add_subdirectory(viewmodels/player/hud)
 
 set(PLAYER_QML_FILES
@@ -132,6 +133,7 @@ target_link_libraries(
         player_presentation_timeline
         player_presentation_volume
         player_presentation_status
+        player_presentation_media
         player_presentation_hud
 )
 
