@@ -26,11 +26,14 @@ Item {
             return qsTr("Muted")
         case "seek":
             return qsTr("Seek")
+        case "seekFailed":
+            return qsTr("Seek failed")
         default:
             return ""
         }
     }
     readonly property string primaryText: root.messageKey === "muted"
+                                          || root.messageKey === "seekFailed"
                                           ? root.labelText
                                           : root.valueText
 
@@ -70,7 +73,9 @@ Item {
                 id: hudLabel
                 objectName: "playerHudLabel"
                 anchors.horizontalCenter: parent.horizontalCenter
-                visible: root.messageKey !== "muted" && text.length > 0
+                visible: root.messageKey !== "muted"
+                         && root.messageKey !== "seekFailed"
+                         && text.length > 0
                 variant: CaptionText.CompactStrong
                 text: root.labelText
             }
