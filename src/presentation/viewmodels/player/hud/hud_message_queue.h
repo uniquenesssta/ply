@@ -27,6 +27,7 @@ public:
 
     void showVolume(double volumePercent, bool muted);
     void showSeek(const QString& positionText);
+    void showSeekFailure();
     void clear();
 
 signals:
