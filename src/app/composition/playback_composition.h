@@ -1,5 +1,6 @@
 #pragma once
 
+#include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/transport_command.h"
 
 #include <memory>
@@ -42,7 +43,9 @@ public:
 
 private:
     void submitTransport(player::playback::domain::TransportAction action);
-    [[nodiscard]] bool submitSeek(double absoluteSeconds);
+    [[nodiscard]] bool submitSeek(
+        double seconds,
+        player::playback::domain::SeekMode mode);
     [[nodiscard]] bool submitVolume(double percent);
     [[nodiscard]] bool submitMuted(bool muted);
 
