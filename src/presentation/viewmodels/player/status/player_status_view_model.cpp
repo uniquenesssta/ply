@@ -26,6 +26,7 @@ int normalizedBufferingPercent(
 
 PlayerStatusViewModel::PlayerStatusViewModel(QObject* parent)
     : QObject(parent)
+    , status_(selectPlayerStatus(player::playback::domain::PlaybackSnapshot{}))
 {
 }
 
