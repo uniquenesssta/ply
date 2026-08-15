@@ -22,6 +22,7 @@ PlayerStatusKind selectPlayerStatus(
         }
         return PlayerStatusKind::None;
     case PlaybackLifecycleState::Empty:
+        return PlayerStatusKind::Empty;
     case PlaybackLifecycleState::Closing:
         return PlayerStatusKind::None;
     }
