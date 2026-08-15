@@ -25,6 +25,7 @@ private slots:
     void mainWindowRoutesIntentThroughCoordinator();
     void playbackScreenAndOverlayRemainPresentationOnly();
     void bootstrapInjectsSingleCoordinatorBoundary();
+    void mediaCapabilityUsesSnapshotProjection();
     void localValidationAndCoordinationStaySeparated();
 };
 
@@ -52,8 +53,10 @@ void PlayerMediaOpenTest::mainWindowRoutesIntentThroughCoordinator()
     QVERIFY(!source.isEmpty());
 
     QVERIFY(source.contains(QStringLiteral("property var mediaOpenCoordinator: null")));
+    QVERIFY(source.contains(QStringLiteral("property var mediaViewModel: null")));
     QVERIFY(source.contains(QStringLiteral("LocalMediaOpenDialog {")));
     QVERIFY(source.contains(QStringLiteral("window.mediaOpenCoordinator.openLocalFile(sourceUrl)")));
+    QVERIFY(source.contains(QStringLiteral("mediaViewModel: window.mediaViewModel")));
     QVERIFY(source.contains(QStringLiteral("onOpenMediaRequested: localMediaOpenDialog.open()")));
     QVERIFY(!source.contains(QStringLiteral("PlaybackSession")));
     QVERIFY(!source.contains(QStringLiteral("libmpv"), Qt::CaseInsensitive));
@@ -98,6 +101,30 @@ void PlayerMediaOpenTest::bootstrapInjectsSingleCoordinatorBoundary()
     QVERIFY(container.contains(QStringLiteral("submitMediaLoad(source.location())")));
     QVERIFY(composition.contains(QStringLiteral("LoadMediaCommand{canonicalSource}")));
     QVERIFY(composition.contains(QStringLiteral("playbackThread_->commandBus()")));
+}
+
+void PlayerMediaOpenTest::mediaCapabilityUsesSnapshotProjection()
+{
+    const QString bootstrap = readSource(QStringLiteral(
+        "src/app/bootstrap/application_bootstrap.cpp"));
+    const QString composition = readSource(QStringLiteral(
+        "src/app/composition/playback_composition.cpp"));
+    const QString mediaViewModel = readSource(QStringLiteral(
+        "src/presentation/viewmodels/player/media/player_media_view_model.cpp"));
+    const QString screen = readSource(QStringLiteral(
+        "src/presentation/qml/screens/player/PlayerScreen.qml"));
+    QVERIFY(!bootstrap.isEmpty());
+    QVERIFY(!composition.isEmpty());
+    QVERIFY(!mediaViewModel.isEmpty());
+    QVERIFY(!screen.isEmpty());
+
+    QVERIFY(bootstrap.contains(QStringLiteral("playbackComposition.mediaViewModel()")));
+    QVERIFY(composition.contains(QStringLiteral("PlayerMediaViewModel::acceptSnapshot")));
+    QVERIFY(mediaViewModel.contains(QStringLiteral("snapshot.streams().video.has_value()")));
+    QVERIFY(screen.contains(QStringLiteral("hasMedia: root.mediaViewModel !== null")));
+    QVERIFY(screen.contains(QStringLiteral("hasVideo: root.mediaViewModel !== null")));
+    QVERIFY(!mediaViewModel.contains(QStringLiteral("PlaybackSession")));
+    QVERIFY(!mediaViewModel.contains(QStringLiteral("libmpv"), Qt::CaseInsensitive));
 }
 
 void PlayerMediaOpenTest::localValidationAndCoordinationStaySeparated()
