@@ -10,6 +10,7 @@
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
 #include "presentation/qml/types/presentation_type_registration.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
+#include "presentation/viewmodels/player/media/player_media_view_model.h"
 #include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
@@ -115,6 +116,10 @@ int ApplicationBootstrap::run(
         QStringLiteral("statusViewModel"),
         QVariant::fromValue(
             static_cast<QObject*>(&playbackComposition.statusViewModel())));
+    initialProperties.insert(
+        QStringLiteral("mediaViewModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.mediaViewModel())));
     initialProperties.insert(
         QStringLiteral("hudMessageQueue"),
         QVariant::fromValue(
