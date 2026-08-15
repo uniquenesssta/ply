@@ -152,7 +152,14 @@ void PlayerHudOverlayTest::overlayBoundaryStaysFocused()
     QVERIFY(source.contains(QStringLiteral("enabled: false")));
     QVERIFY(source.contains(QStringLiteral("MotionTokens.hudShowDuration")));
     QVERIFY(source.contains(QStringLiteral("MotionTokens.hudHideDuration")));
-    QVERIFY(source.contains(QStringLiteral("MotionTokens.resolvedDuration")));
+    QVERIFY(source.contains(QStringLiteral("MotionTokens.enterEasingType")));
+    QVERIFY(source.contains(QStringLiteral("MotionTokens.exitEasingType")));
+    QVERIFY(source.contains(QStringLiteral("MotionTokens.enterBezier")));
+    QVERIFY(source.contains(QStringLiteral("MotionTokens.exitBezier")));
+    QVERIFY(source.contains(QStringLiteral("OpacityTokens.visible")));
+    QVERIFY(source.contains(QStringLiteral("OpacityTokens.hidden")));
+    QVERIFY(!source.contains(QStringLiteral("MotionTokens.resolvedDuration")));
+    QVERIFY(!source.contains(QStringLiteral("MotionTokens.commonEasing")));
 
     QVERIFY(!source.contains(QStringLiteral("Timer {")));
     QVERIFY(!source.contains(QStringLiteral("Toast")));
