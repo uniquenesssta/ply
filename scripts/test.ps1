@@ -1,6 +1,8 @@
 param(
     [ValidateSet("windows-msvc-debug")]
-    [string]$Preset = "windows-msvc-debug"
+    [string]$Preset = "windows-msvc-debug",
+    [switch]$Quick,
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,12 +62,24 @@ try {
         [Environment]::SetEnvironmentVariable("QT_QPA_PLATFORM_PLUGIN_PATH", $qtPlatformPlugins, "Process")
         [Environment]::SetEnvironmentVariable("QML_IMPORT_PATH", $testQmlImportPath, "Process")
 
-        & $cmake --build --preset $Preset
-        if ($LASTEXITCODE -ne 0) {
-            throw "Test build failed with exit code $LASTEXITCODE."
+        if ($SkipBuild) {
+            Write-Host "[INFO] Test build skipped by -SkipBuild; existing binaries will be used."
+        }
+        else {
+            & $cmake --build --preset $Preset
+            if ($LASTEXITCODE -ne 0) {
+                throw "Test build failed with exit code $LASTEXITCODE."
+            }
         }
 
-        & $ctest --preset $Preset
+        $ctestArguments = @("--preset", $Preset)
+        if ($Quick) {
+            $ctestArguments += @("--label-exclude", "windowed-render")
+            Write-Host "[INFO] Quick validation excludes CTest label 'windowed-render'."
+            Write-Host "[INFO] Quick validation is not sufficient for Atomic Task or Stage closure."
+        }
+
+        & $ctest @ctestArguments
         if ($LASTEXITCODE -ne 0) {
             throw "CTest failed with exit code $LASTEXITCODE."
         }
