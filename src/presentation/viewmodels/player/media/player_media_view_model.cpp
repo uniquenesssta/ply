@@ -35,7 +35,7 @@ void PlayerMediaViewModel::acceptSnapshot(
     const bool nextHasMedia = lifecycleHasEstablishedMedia(snapshot.lifecycle())
         && source.has_value()
         && !source->isEmpty();
-    const bool nextHasVideo = nextHasMedia && snapshot.streams().video.has_value();
+    const bool nextHasVideo = nextHasMedia && snapshot.capabilities().hasVideoTrack;
 
     if (nextHasMedia == hasMedia_ && nextHasVideo == hasVideo_) {
         return;
