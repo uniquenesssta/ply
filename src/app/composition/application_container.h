@@ -4,6 +4,10 @@
 
 #include <memory>
 
+namespace player::media::application {
+class MediaOpenCoordinator;
+}
+
 namespace player::app {
 
 class LoggingBootstrap;
@@ -27,6 +31,7 @@ public:
     [[nodiscard]] const RuntimePaths& runtimePaths() const noexcept;
     [[nodiscard]] LoggingBootstrap& loggingBootstrap() noexcept;
     [[nodiscard]] PlaybackComposition& playbackComposition() noexcept;
+    [[nodiscard]] player::media::application::MediaOpenCoordinator& mediaOpenCoordinator() noexcept;
     [[nodiscard]] QmlBootstrap& qmlBootstrap() noexcept;
 
     void shutdown() noexcept;
@@ -35,6 +40,7 @@ private:
     RuntimePaths runtimePaths_;
     std::unique_ptr<LoggingBootstrap> loggingBootstrap_;
     std::unique_ptr<PlaybackComposition> playbackComposition_;
+    std::unique_ptr<player::media::application::MediaOpenCoordinator> mediaOpenCoordinator_;
     std::unique_ptr<QmlBootstrap> qmlBootstrap_;
 };
 
