@@ -59,6 +59,14 @@ void HudMessageQueue::showSeek(const QString& positionText)
     enqueueOrUpdate(std::move(message));
 }
 
+void HudMessageQueue::showSeekFailure()
+{
+    Message message;
+    message.kind = MessageKind::Seek;
+    message.key = QStringLiteral("seekFailed");
+    enqueueOrUpdate(std::move(message));
+}
+
 void HudMessageQueue::clear()
 {
     holdTimer_.stop();
