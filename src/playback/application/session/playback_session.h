@@ -32,6 +32,7 @@ public:
 
 signals:
     void ready();
+    void renderCoreReady(quintptr nativeHandle);
     void startupFailed(const QString& diagnostic);
     void snapshotCommitted(const player::playback::domain::PlaybackSnapshot& snapshot);
     void requestFailed(quint8 requestType, const QString& diagnostic);
