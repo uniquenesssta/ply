@@ -14,6 +14,7 @@ class PlaybackSessionThread;
 
 namespace player::presentation {
 class HudMessageQueue;
+class PlayerMediaViewModel;
 class PlayerStatusViewModel;
 class PlayerTimelineViewModel;
 class PlayerTransportViewModel;
@@ -39,6 +40,7 @@ public:
     [[nodiscard]] player::presentation::PlayerTimelineViewModel& timelineViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerVolumeViewModel& volumeViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerStatusViewModel& statusViewModel() noexcept;
+    [[nodiscard]] player::presentation::PlayerMediaViewModel& mediaViewModel() noexcept;
     [[nodiscard]] player::presentation::HudMessageQueue& hudMessageQueue() noexcept;
 
     [[nodiscard]] bool submitMediaLoad(const QString& canonicalSource);
@@ -57,6 +59,7 @@ private:
     std::unique_ptr<player::presentation::PlayerTimelineViewModel> timelineViewModel_;
     std::unique_ptr<player::presentation::PlayerVolumeViewModel> volumeViewModel_;
     std::unique_ptr<player::presentation::PlayerStatusViewModel> statusViewModel_;
+    std::unique_ptr<player::presentation::PlayerMediaViewModel> mediaViewModel_;
     std::unique_ptr<player::presentation::HudMessageQueue> hudMessageQueue_;
 };
 
