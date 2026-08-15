@@ -8,6 +8,7 @@
 #include "playback/domain/commands/playback_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/volume_command.h"
+#include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
@@ -47,6 +48,8 @@ PlaybackComposition::PlaybackComposition()
         std::make_unique<player::presentation::PlayerTimelineViewModel>())
     , volumeViewModel_(
         std::make_unique<player::presentation::PlayerVolumeViewModel>())
+    , statusViewModel_(
+        std::make_unique<player::presentation::PlayerStatusViewModel>())
 {
     auto* publisher = playbackThread_->statePublisher();
     QObject::connect(
@@ -64,6 +67,11 @@ PlaybackComposition::PlaybackComposition()
         &player::playback::application::StatePublisher::snapshotPublished,
         volumeViewModel_.get(),
         &player::presentation::PlayerVolumeViewModel::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        statusViewModel_.get(),
+        &player::presentation::PlayerStatusViewModel::acceptSnapshot);
 
     QObject::connect(
         transportViewModel_.get(),
@@ -158,6 +166,12 @@ player::presentation::PlayerVolumeViewModel&
 PlaybackComposition::volumeViewModel() noexcept
 {
     return *volumeViewModel_;
+}
+
+player::presentation::PlayerStatusViewModel&
+PlaybackComposition::statusViewModel() noexcept
+{
+    return *statusViewModel_;
 }
 
 void PlaybackComposition::submitTransport(TransportAction action)
