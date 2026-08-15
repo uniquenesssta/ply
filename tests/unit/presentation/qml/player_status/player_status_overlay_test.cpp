@@ -127,7 +127,7 @@ void PlayerStatusOverlayTest::loadsEachStatusRole()
         StatusStub viewModel(testCase.key, true, testCase.bufferingPercent);
         std::unique_ptr<QObject> overlay = createOverlay(engine, viewModel);
         QVERIFY2(overlay != nullptr, qPrintable(testCase.key));
-        QVERIFY(overlay->property("visible").toBool());
+        QVERIFY(overlay->property("statusVisible").toBool());
         QTRY_VERIFY_WITH_TIMEOUT(
             overlay->findChild<QObject*>(testCase.objectName) != nullptr,
             1000);
@@ -141,7 +141,7 @@ void PlayerStatusOverlayTest::bufferingCanBeSuppressedByTimelineInteraction()
     std::unique_ptr<QObject> overlay = createOverlay(engine, viewModel, true);
     QVERIFY(overlay != nullptr);
     QVERIFY(!overlay->property("statusVisible").toBool());
-    QVERIFY(!overlay->property("visible").toBool());
+    QVERIFY(overlay->findChild<QObject*>(QStringLiteral("playerBufferingFeedback")) == nullptr);
 }
 
 void PlayerStatusOverlayTest::overlayBoundaryStaysFocused()
@@ -155,6 +155,8 @@ void PlayerStatusOverlayTest::overlayBoundaryStaysFocused()
     QVERIFY(source.contains(QStringLiteral("EndedFeedback")));
     QVERIFY(source.contains(QStringLiteral("ErrorFeedback")));
     QVERIFY(source.contains(QStringLiteral("suppressBuffering")));
+    QVERIFY(source.contains(QStringLiteral("visible: root.statusVisible")));
+    QVERIFY(source.contains(QStringLiteral("active: root.statusVisible")));
 
     QVERIFY(!source.contains(QStringLiteral("Timer {")));
     QVERIFY(!source.contains(QStringLiteral("Toast")));
