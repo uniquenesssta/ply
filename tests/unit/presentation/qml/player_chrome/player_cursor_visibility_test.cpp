@@ -159,7 +159,9 @@ void PlayerCursorVisibilityTest::screenIntegratesCursorPolicyWithoutSecondTimer(
     QVERIFY(!combined.contains(QStringLiteral("PlaybackCommandBus")));
     QVERIFY(!combined.contains(QStringLiteral("libmpv")));
     QVERIFY(!combined.contains(QStringLiteral("mpv_")));
-    QVERIFY(!combined.contains(QStringLiteral("PlayerStatusOverlay")));
+    QVERIFY(!cursorController.contains(QStringLiteral("PlayerStatusOverlay")));
+    QVERIFY(!activityLayer.contains(QStringLiteral("PlayerStatusOverlay")));
+    QVERIFY(screen.contains(QStringLiteral("PlayerStatusOverlay {")));
     QVERIFY(!combined.contains(QStringLiteral("HudMessageQueue")));
 }
 
