@@ -2,6 +2,7 @@
 
 #include "foundation/logging/log_categories.h"
 #include "playback/application/command_bus/playback_command_bus.h"
+#include "playback/application/requests/playback_request.h"
 #include "playback/application/requests/playback_request_id_generator.h"
 #include "playback/application/session/playback_session_thread.h"
 #include "playback/application/state_publisher/state_publisher.h"
@@ -47,6 +48,13 @@ QString seekModeName(SeekMode mode)
     return QStringLiteral("unknown");
 }
 
+bool isSeekRequestType(quint8 requestType) noexcept
+{
+    using player::playback::application::PlaybackRequestType;
+    return requestType == static_cast<quint8>(PlaybackRequestType::SeekAbsolute)
+        || requestType == static_cast<quint8>(PlaybackRequestType::SeekRelative);
+}
+
 } // namespace
 
 PlaybackComposition::PlaybackComposition()
@@ -88,6 +96,24 @@ PlaybackComposition::PlaybackComposition()
         &player::presentation::PlayerStatusViewModel::acceptSnapshot);
 
     QObject::connect(
+        playbackThread_.get(),
+        &player::playback::application::PlaybackSessionThread::requestFailed,
+        timelineViewModel_.get(),
+        [this](quint8 requestType, const QString& diagnostic) {
+            if (!isSeekRequestType(requestType)) {
+                return;
+            }
+
+            const bool cleared = timelineViewModel_->rejectPendingSeek();
+            if (cleared) {
+                hudMessageQueue_->showSeekFailure();
+            }
+            qCWarning(player::logging::uiInteraction).noquote()
+                << "Tracked timeline seek request failed:"
+                << diagnostic;
+        });
+
+    QObject::connect(
         transportViewModel_.get(),
         &player::presentation::PlayerTransportViewModel::playRequested,
         playbackThread_.get(),
@@ -108,7 +134,9 @@ PlaybackComposition::PlaybackComposition()
         playbackThread_.get(),
         [this](double absoluteSeconds) {
             if (!submitSeek(absoluteSeconds, SeekMode::Absolute)) {
-                (void)timelineViewModel_->rejectPendingSeek();
+                if (timelineViewModel_->rejectPendingSeek()) {
+                    hudMessageQueue_->showSeekFailure();
+                }
                 return;
             }
             hudMessageQueue_->showSeek(timelineViewModel_->positionText());
@@ -119,7 +147,9 @@ PlaybackComposition::PlaybackComposition()
         playbackThread_.get(),
         [this](double deltaSeconds) {
             if (!submitSeek(deltaSeconds, SeekMode::Relative)) {
-                (void)timelineViewModel_->rejectPendingSeek();
+                if (timelineViewModel_->rejectPendingSeek()) {
+                    hudMessageQueue_->showSeekFailure();
+                }
                 return;
             }
             hudMessageQueue_->showSeek(timelineViewModel_->positionText());
