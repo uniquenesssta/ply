@@ -92,6 +92,7 @@ qt_add_qml_module(
     TYPEINFO player_app.qmltypes
     DEPENDENCIES
         QtQuick
+        QtQuick.Dialogs
         Player.Presentation.Theme
         Player.Presentation.Primitives
         Player.Presentation.Controls
