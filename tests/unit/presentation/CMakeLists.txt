@@ -5,3 +5,9 @@ add_subdirectory(viewmodels/player/volume)
 add_subdirectory(viewmodels/player/status)
 add_subdirectory(viewmodels/player/media)
 add_subdirectory(viewmodels/player/hud)
+
+target_link_libraries(
+    application_container_tests
+    PRIVATE
+        player_presentation_media
+)
