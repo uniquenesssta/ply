@@ -19,6 +19,7 @@ Item {
     property var timelineViewModel: null
     property var volumeViewModel: null
     property var statusViewModel: null
+    property var mediaViewModel: null
     property var hudMessageQueue: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
@@ -50,6 +51,8 @@ Item {
     VideoViewport {
         id: videoViewport
         anchors.fill: parent
+        hasMedia: root.mediaViewModel !== null && root.mediaViewModel.hasMedia
+        hasVideo: root.mediaViewModel !== null && root.mediaViewModel.hasVideo
     }
 
     FullscreenGestureLayer {
