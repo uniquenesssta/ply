@@ -12,6 +12,7 @@ namespace player::presentation {
 namespace {
 
 constexpr double kSeekAcknowledgementToleranceSeconds = 0.75;
+constexpr double kRelativeSeekStepSeconds = 5.0;
 constexpr double kStateComparisonTolerance = 0.0000001;
 
 bool nearlyEqual(double left, double right) noexcept
@@ -76,6 +77,11 @@ double PlayerTimelineViewModel::displayedNormalized() const noexcept
 double PlayerTimelineViewModel::durationSeconds() const noexcept
 {
     return durationSeconds_.value_or(0.0);
+}
+
+double PlayerTimelineViewModel::relativeSeekStepSeconds() const noexcept
+{
+    return kRelativeSeekStepSeconds;
 }
 
 QString PlayerTimelineViewModel::positionText() const
@@ -273,7 +279,9 @@ void PlayerTimelineViewModel::flushRelativeSeek(double deltaSeconds)
         return;
     }
 
-    const double baseActualSeconds = actualPositionSeconds_.value_or(*projectedTarget);
+    const double baseActualSeconds = actualPositionSeconds_.has_value()
+        ? *actualPositionSeconds_
+        : *projectedTarget;
     const std::optional<double> effectiveDelta = seekProjection_.nudgeRelative(
         generation_,
         baseActualSeconds,
