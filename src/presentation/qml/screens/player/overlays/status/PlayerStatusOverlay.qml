@@ -58,7 +58,7 @@ Item {
             detail: qsTr("Open a local media file to start playback")
             actionText: qsTr("Open media")
 
-            onActionTriggered: root.openMediaRequested()
+            onActionRequested: root.openMediaRequested()
         }
     }
 
