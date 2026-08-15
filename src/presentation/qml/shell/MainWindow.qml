@@ -33,6 +33,7 @@ ApplicationWindow {
         statusViewModel: window.statusViewModel
         hudMessageQueue: window.hudMessageQueue
         fullScreen: fullscreenWindowController.fullScreen
+        windowActive: window.active
         windowExpanded: window.visibility === Window.Maximized
                         || window.visibility === Window.FullScreen
 
