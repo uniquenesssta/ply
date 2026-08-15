@@ -237,6 +237,12 @@ void PlaybackSession::handleCommandReply(const CommandReplyEvent& reply)
             PlaybackFailureCategory::Command,
             QStringLiteral("Playback backend returned a failed command reply without diagnostics."));
 
+    if (resolution.record.has_value()) {
+        emit requestFailed(
+            static_cast<quint8>(resolution.record->type),
+            failure.diagnostic);
+    }
+
     if (resolution.record.has_value()
         && resolution.record->type == PlaybackRequestType::LoadMedia) {
         commitSnapshot(reducePlaybackSnapshot(
@@ -284,11 +290,18 @@ void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
         PlaybackEvent{MediaLoadStartedEvent{}});
     commitSnapshot(opening);
 
+    const std::optional<PlaybackRequestRecord> trackedRecord = requestTracker_.record(
+        command.requestId());
     QString error;
     if (!backend_->submit(command, generation, &error)) {
         (void)requestTracker_.cancel(
             command.requestId(),
             PlaybackRequestCancellationReason::SubmissionFailed);
+        if (trackedRecord.has_value()) {
+            emit requestFailed(
+                static_cast<quint8>(trackedRecord->type),
+                error);
+        }
         commitSubmissionFailure(command, std::move(error));
     }
 }
@@ -306,11 +319,18 @@ void PlaybackSession::submitTrackedCommand(const PlaybackCommand& command)
 
     (void)requestTracker_.supersedePendingFor(command, generation);
 
+    const std::optional<PlaybackRequestRecord> trackedRecord = requestTracker_.record(
+        command.requestId());
     QString error;
     if (!backend_->submit(command, generation, &error)) {
         (void)requestTracker_.cancel(
             command.requestId(),
             PlaybackRequestCancellationReason::SubmissionFailed);
+        if (trackedRecord.has_value()) {
+            emit requestFailed(
+                static_cast<quint8>(trackedRecord->type),
+                error);
+        }
         commitSubmissionFailure(command, std::move(error));
     }
 }
