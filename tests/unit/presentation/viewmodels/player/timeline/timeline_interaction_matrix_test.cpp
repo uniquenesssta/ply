@@ -49,6 +49,7 @@ class TimelineInteractionMatrixTest final : public QObject
 private slots:
     void playingPausedAndBufferingScrubKeepPreviewOwnership();
     void rapidRelativeSeekCoalescesToOneCommand();
+    void sustainedRelativeInputFlushesBoundedBatches();
     void relativeSeekClampsAtTimelineBounds();
     void generationChangeCancelsQueuedRelativeSeek();
     void endedMediaCanSeekEarlierWithoutReplayIntent();
@@ -120,6 +121,29 @@ void TimelineInteractionMatrixTest::rapidRelativeSeekCoalescesToOneCommand()
 
     viewModel.acceptSnapshot(timelineState(2, 90.2, 100.0, true));
     QVERIFY(!viewModel.seekPending());
+}
+
+void TimelineInteractionMatrixTest::sustainedRelativeInputFlushesBoundedBatches()
+{
+    PlayerTimelineViewModel viewModel;
+    QSignalSpy relativeSpy(&viewModel, &PlayerTimelineViewModel::relativeSeekRequested);
+
+    viewModel.acceptSnapshot(timelineState(8, 100.0, 500.0, true));
+    for (int index = 0; index < 12; ++index) {
+        QVERIFY(viewModel.requestRelativeSeek(viewModel.relativeSeekStepSeconds()));
+        QTest::qWait(20);
+    }
+
+    QTest::qWait(180);
+    QVERIFY(relativeSpy.count() >= 2);
+    QVERIFY(relativeSpy.count() <= 4);
+
+    double submittedDelta = 0.0;
+    for (int index = 0; index < relativeSpy.count(); ++index) {
+        submittedDelta += relativeSpy.at(index).at(0).toDouble();
+    }
+    QVERIFY(fuzzyEqual(submittedDelta, 60.0));
+    QVERIFY(fuzzyEqual(viewModel.displayedNormalized(), 160.0 / 500.0));
 }
 
 void TimelineInteractionMatrixTest::relativeSeekClampsAtTimelineBounds()
