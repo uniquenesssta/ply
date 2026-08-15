@@ -14,6 +14,7 @@ Item {
     property var timelineViewModel: null
     property var volumeViewModel: null
     property var statusViewModel: null
+    property var hudMessageQueue: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property bool oscCompact: root.fullScreen
@@ -129,6 +130,12 @@ Item {
             viewModel: root.statusViewModel
             suppressBuffering: root.timelineInteractionActive
         }
+    }
+
+    PlayerHudOverlay {
+        id: hudOverlay
+        anchors.fill: parent
+        viewModel: root.hudMessageQueue
     }
 
     PlayerBottomRegion {

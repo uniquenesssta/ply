@@ -1,0 +1,83 @@
+pragma ComponentBehavior: Bound
+
+import QtQuick
+import Player.Presentation.Primitives
+import Player.Presentation.Surfaces
+import Player.Presentation.Theme
+
+Item {
+    id: root
+
+    property var viewModel: null
+
+    readonly property bool hudVisible: root.viewModel !== null
+                                       && root.viewModel.visible
+    readonly property string messageKey: root.viewModel !== null
+                                         ? root.viewModel.messageKey
+                                         : ""
+    readonly property string valueText: root.viewModel !== null
+                                        ? root.viewModel.valueText
+                                        : ""
+    readonly property string labelText: {
+        switch (root.messageKey) {
+        case "volume":
+            return qsTr("Volume")
+        case "muted":
+            return qsTr("Muted")
+        case "seek":
+            return qsTr("Seek")
+        default:
+            return ""
+        }
+    }
+    readonly property string primaryText: root.messageKey === "muted"
+                                          ? root.labelText
+                                          : root.valueText
+
+    objectName: "playerHudOverlay"
+    enabled: false
+    z: ZOrderTokens.hud
+    opacity: root.hudVisible ? 1.0 : 0.0
+    visible: root.hudVisible || root.opacity > 0.001
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: MotionTokens.resolvedDuration(
+                          root.hudVisible
+                          ? MotionTokens.hudShowDuration
+                          : MotionTokens.hudHideDuration)
+            easing.type: MotionTokens.commonEasing
+        }
+    }
+
+    Hud {
+        id: hudSurface
+        objectName: "playerHudSurface"
+        anchors.centerIn: parent
+        width: hudBody.implicitWidth + contentPadding * 2
+        height: hudBody.implicitHeight + contentPadding * 2
+
+        Column {
+            id: hudBody
+            anchors.centerIn: parent
+            spacing: SpacingTokens.controlTight
+
+            CaptionText {
+                id: hudLabel
+                objectName: "playerHudLabel"
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: root.messageKey !== "muted" && text.length > 0
+                variant: CaptionText.CompactStrong
+                text: root.labelText
+            }
+
+            TitleText {
+                id: hudValue
+                objectName: "playerHudPrimaryText"
+                anchors.horizontalCenter: parent.horizontalCenter
+                variant: TitleText.MediaCompact
+                text: root.primaryText
+            }
+        }
+    }
+}

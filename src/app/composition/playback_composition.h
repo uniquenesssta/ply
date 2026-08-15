@@ -12,6 +12,7 @@ class PlaybackSessionThread;
 }
 
 namespace player::presentation {
+class HudMessageQueue;
 class PlayerStatusViewModel;
 class PlayerTimelineViewModel;
 class PlayerTransportViewModel;
@@ -37,6 +38,7 @@ public:
     [[nodiscard]] player::presentation::PlayerTimelineViewModel& timelineViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerVolumeViewModel& volumeViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerStatusViewModel& statusViewModel() noexcept;
+    [[nodiscard]] player::presentation::HudMessageQueue& hudMessageQueue() noexcept;
 
 private:
     void submitTransport(player::playback::domain::TransportAction action);
@@ -50,6 +52,7 @@ private:
     std::unique_ptr<player::presentation::PlayerTimelineViewModel> timelineViewModel_;
     std::unique_ptr<player::presentation::PlayerVolumeViewModel> volumeViewModel_;
     std::unique_ptr<player::presentation::PlayerStatusViewModel> statusViewModel_;
+    std::unique_ptr<player::presentation::HudMessageQueue> hudMessageQueue_;
 };
 
 } // namespace player::app

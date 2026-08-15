@@ -5,6 +5,7 @@ add_subdirectory(viewmodels/player/transport)
 add_subdirectory(viewmodels/player/timeline)
 add_subdirectory(viewmodels/player/volume)
 add_subdirectory(viewmodels/player/status)
+add_subdirectory(viewmodels/player/hud)
 
 set(PLAYER_QML_FILES
     qml/App.qml
@@ -22,6 +23,7 @@ set(PLAYER_QML_FILES
     qml/screens/player/osc/OscControlRow.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/overlays/status/PlayerStatusOverlay.qml
+    qml/screens/player/overlays/hud/PlayerHudOverlay.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
@@ -64,6 +66,7 @@ set_source_files_properties(
     qml/screens/player/osc/OscControlRow.qml
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/overlays/status/PlayerStatusOverlay.qml
+    qml/screens/player/overlays/hud/PlayerHudOverlay.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
@@ -127,6 +130,7 @@ target_link_libraries(
         player_presentation_timeline
         player_presentation_volume
         player_presentation_status
+        player_presentation_hud
 )
 
 add_custom_target(

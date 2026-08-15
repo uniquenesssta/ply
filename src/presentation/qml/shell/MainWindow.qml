@@ -10,6 +10,7 @@ ApplicationWindow {
     property var timelineViewModel: null
     property var volumeViewModel: null
     property var statusViewModel: null
+    property var hudMessageQueue: null
 
     width: LayoutTokens.windowDefaultWidth
     height: LayoutTokens.windowDefaultHeight
@@ -30,6 +31,7 @@ ApplicationWindow {
         timelineViewModel: window.timelineViewModel
         volumeViewModel: window.volumeViewModel
         statusViewModel: window.statusViewModel
+        hudMessageQueue: window.hudMessageQueue
         fullScreen: fullscreenWindowController.fullScreen
         windowExpanded: window.visibility === Window.Maximized
                         || window.visibility === Window.FullScreen

@@ -2,6 +2,7 @@
 
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/composition/playback_composition.h"
+#include "presentation/viewmodels/player/hud/hud_message_queue.h"
 #include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
@@ -133,6 +134,8 @@ void ApplicationContainerTest::playbackCompositionStartsAndStops()
     QVERIFY(!playback.statusViewModel().visible());
     QVERIFY(!playback.statusViewModel().errorVisible());
     QCOMPARE(playback.statusViewModel().statusKey(), QString{});
+    QVERIFY(!playback.hudMessageQueue().visible());
+    QCOMPARE(playback.hudMessageQueue().messageKey(), QString{});
 
     QString error;
     QVERIFY2(playback.start(&error), qPrintable(error));
@@ -141,6 +144,7 @@ void ApplicationContainerTest::playbackCompositionStartsAndStops()
     error.clear();
     QVERIFY2(playback.stop(&error), qPrintable(error));
     QVERIFY(!playback.isRunning());
+    QVERIFY(!playback.hudMessageQueue().visible());
 }
 
 void ApplicationContainerTest::shutdownIsIdempotent()

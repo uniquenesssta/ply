@@ -8,6 +8,7 @@
 #include "playback/domain/commands/playback_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/volume_command.h"
+#include "presentation/viewmodels/player/hud/hud_message_queue.h"
 #include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
@@ -50,6 +51,8 @@ PlaybackComposition::PlaybackComposition()
         std::make_unique<player::presentation::PlayerVolumeViewModel>())
     , statusViewModel_(
         std::make_unique<player::presentation::PlayerStatusViewModel>())
+    , hudMessageQueue_(
+        std::make_unique<player::presentation::HudMessageQueue>())
 {
     auto* publisher = playbackThread_->statePublisher();
     QObject::connect(
@@ -95,7 +98,9 @@ PlaybackComposition::PlaybackComposition()
         [this](double absoluteSeconds) {
             if (!submitSeek(absoluteSeconds)) {
                 (void)timelineViewModel_->rejectPendingSeek();
+                return;
             }
+            hudMessageQueue_->showSeek(timelineViewModel_->positionText());
         });
     QObject::connect(
         volumeViewModel_.get(),
@@ -104,7 +109,11 @@ PlaybackComposition::PlaybackComposition()
         [this](double percent) {
             if (!submitVolume(percent)) {
                 (void)volumeViewModel_->rejectPendingVolume();
+                return;
             }
+            hudMessageQueue_->showVolume(
+                volumeViewModel_->volumePercent(),
+                volumeViewModel_->muted());
         });
     QObject::connect(
         volumeViewModel_.get(),
@@ -113,7 +122,11 @@ PlaybackComposition::PlaybackComposition()
         [this](bool muted) {
             if (!submitMuted(muted)) {
                 (void)volumeViewModel_->rejectPendingMute();
+                return;
             }
+            hudMessageQueue_->showVolume(
+                volumeViewModel_->volumePercent(),
+                volumeViewModel_->muted());
         });
 
     QObject::connect(
@@ -142,6 +155,7 @@ bool PlaybackComposition::start(QString* errorMessage)
 
 bool PlaybackComposition::stop(QString* errorMessage)
 {
+    hudMessageQueue_->clear();
     return playbackThread_->stop(errorMessage);
 }
 
@@ -172,6 +186,12 @@ player::presentation::PlayerStatusViewModel&
 PlaybackComposition::statusViewModel() noexcept
 {
     return *statusViewModel_;
+}
+
+player::presentation::HudMessageQueue&
+PlaybackComposition::hudMessageQueue() noexcept
+{
+    return *hudMessageQueue_;
 }
 
 void PlaybackComposition::submitTransport(TransportAction action)
