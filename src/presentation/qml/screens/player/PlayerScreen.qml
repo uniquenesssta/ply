@@ -28,6 +28,8 @@ Item {
     readonly property bool timelineInteractionActive: root.timelineViewModel !== null
                                                       && (root.timelineViewModel.isScrubbing
                                                           || root.timelineViewModel.seekPending)
+    readonly property bool controlsDragActive: root.dragActive
+                                               || volumeControls.interactionActive
     readonly property bool errorOverlayVisible: root.statusViewModel !== null
                                                 && root.statusViewModel.errorVisible
     readonly property bool chromeControlsHovered: playerOscLayout.controlsHovered
@@ -79,7 +81,7 @@ Item {
         playing: root.playbackPlaying
         oscVisible: root.oscVisible
         scrubbing: root.timelineInteractionActive
-        dragActive: root.dragActive
+        dragActive: root.controlsDragActive
         popupOpen: root.popupOpen
         menuOpen: root.menuOpen
         drawerOpen: root.drawerOpen
@@ -201,6 +203,8 @@ Item {
             ]
             volumeContent: [
                 VolumeControls {
+                    id: volumeControls
+
                     compact: root.oscCompact
                     viewModel: root.volumeViewModel
                 }
