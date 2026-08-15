@@ -6,6 +6,7 @@
 #include "app/composition/application_container.h"
 #include "app/composition/playback_composition.h"
 #include "foundation/logging/log_categories.h"
+#include "media/application/open/media_open_coordinator.h"
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
 #include "presentation/qml/types/presentation_type_registration.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
@@ -118,6 +119,10 @@ int ApplicationBootstrap::run(
         QStringLiteral("hudMessageQueue"),
         QVariant::fromValue(
             static_cast<QObject*>(&playbackComposition.hudMessageQueue())));
+    initialProperties.insert(
+        QStringLiteral("mediaOpenCoordinator"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.mediaOpenCoordinator())));
     qmlBootstrap.setInitialProperties(initialProperties);
 
     if (!qmlBootstrap.load()) {
