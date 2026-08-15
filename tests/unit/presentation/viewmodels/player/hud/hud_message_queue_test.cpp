@@ -14,6 +14,7 @@ private slots:
     void volumeMessageClampsAndRounds();
     void rapidVolumeUpdatesCoalesce();
     void muteUpdatesCurrentVolumeMessage();
+    void seekFailureReplacesCurrentSeekResult();
     void differentKindsQueueLatestValue();
     void invalidMessagesAreIgnored();
     void clearStopsCurrentAndPendingMessages();
@@ -58,6 +59,18 @@ void HudMessageQueueTest::muteUpdatesCurrentVolumeMessage()
     QTRY_VERIFY_WITH_TIMEOUT(
         !queue.visible(),
         HudMessageQueue::holdDurationMs() + 700);
+}
+
+void HudMessageQueueTest::seekFailureReplacesCurrentSeekResult()
+{
+    HudMessageQueue queue;
+
+    queue.showSeek(QStringLiteral("00:45"));
+    queue.showSeekFailure();
+
+    QVERIFY(queue.visible());
+    QCOMPARE(queue.messageKey(), QStringLiteral("seekFailed"));
+    QCOMPARE(queue.valueText(), QString{});
 }
 
 void HudMessageQueueTest::differentKindsQueueLatestValue()
