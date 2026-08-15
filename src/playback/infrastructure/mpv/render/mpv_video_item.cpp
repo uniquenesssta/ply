@@ -62,6 +62,11 @@ MpvVideoPresentationState MpvVideoItem::presentationState() const noexcept
     };
 }
 
+void MpvVideoItem::setRenderCoreAddress(quintptr coreAddress) noexcept
+{
+    setRenderCoreHandle(reinterpret_cast<mpv_handle*>(coreAddress));
+}
+
 void MpvVideoItem::setRenderCoreHandle(mpv_handle* coreHandle) noexcept
 {
     if (coreHandle != nullptr && renderShutdownCoordinator_->isShutdownRequested()) {
