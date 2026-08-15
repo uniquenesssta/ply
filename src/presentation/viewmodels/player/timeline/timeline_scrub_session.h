@@ -12,7 +12,6 @@ enum class TimelineScrubPhase : quint8
 {
     Idle,
     Scrubbing,
-    PendingCommit,
 };
 
 class TimelineScrubSession final
@@ -21,7 +20,6 @@ public:
     [[nodiscard]] TimelineScrubPhase phase() const noexcept;
     [[nodiscard]] bool isActive() const noexcept;
     [[nodiscard]] bool isScrubbing() const noexcept;
-    [[nodiscard]] bool isPendingCommit() const noexcept;
     [[nodiscard]] double previewNormalized() const noexcept;
     [[nodiscard]] player::playback::domain::MediaGeneration generation() const noexcept;
 
@@ -33,7 +31,6 @@ public:
     [[nodiscard]] bool cancel() noexcept;
     [[nodiscard]] bool cancelIfGenerationChanged(
         player::playback::domain::MediaGeneration generation) noexcept;
-    [[nodiscard]] bool acknowledgePending() noexcept;
 
 private:
     [[nodiscard]] static bool isValidNormalized(double normalized) noexcept;
