@@ -10,6 +10,7 @@ ApplicationWindow {
     property var timelineViewModel: null
     property var volumeViewModel: null
     property var statusViewModel: null
+    property var mediaViewModel: null
     property var hudMessageQueue: null
     property var mediaOpenCoordinator: null
 
@@ -42,6 +43,7 @@ ApplicationWindow {
         timelineViewModel: window.timelineViewModel
         volumeViewModel: window.volumeViewModel
         statusViewModel: window.statusViewModel
+        mediaViewModel: window.mediaViewModel
         hudMessageQueue: window.hudMessageQueue
         fullScreen: fullscreenWindowController.fullScreen
         windowActive: window.active
