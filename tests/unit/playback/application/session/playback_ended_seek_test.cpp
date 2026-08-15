@@ -42,7 +42,7 @@ void PlaybackEndedSeekTest::endedMediaCanSeekEarlierWithoutReload()
     const QString mediaPath = directory.filePath(QStringLiteral("ended-seek.wav"));
     QString error;
     QVERIFY2(
-        test_support::writeSilentPcmWav(mediaPath, 1200, &error),
+        test_support::writeSilentPcmWav(mediaPath, 3000, &error),
         qPrintable(error));
 
     test_support::PlaybackSessionTestHarness harness;
@@ -66,6 +66,20 @@ void PlaybackEndedSeekTest::endedMediaCanSeekEarlierWithoutReload()
                 && snapshot.timeline().seekable.value_or(false);
         },
         7000));
+
+    sequence = harness.snapshotSequence();
+    QVERIFY2(
+        harness.bus().submit(
+            makeCommand(requestId++, TransportCommand{TransportAction::Pause}),
+            &error),
+        qPrintable(error));
+    QVERIFY(harness.waitForSnapshotAfter(
+        sequence,
+        [](const PlaybackSnapshot& snapshot) {
+            return snapshot.lifecycle() == PlaybackLifecycleState::Ready
+                && snapshot.transport() == PlaybackTransportState::Paused;
+        },
+        5000));
 
     sequence = harness.snapshotSequence();
     QVERIFY2(
