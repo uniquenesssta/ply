@@ -5,4 +5,6 @@ target_sources(
         application_container.h
         playback_composition.cpp
         playback_composition.h
+        render/player_video_render_binding.cpp
+        render/player_video_render_binding.h
 )
