@@ -28,6 +28,10 @@ Item {
             return qsTr("Seek")
         case "seekFailed":
             return qsTr("Seek failed")
+        case "speed":
+            return qsTr("Speed")
+        case "track":
+            return qsTr("Track")
         default:
             return ""
         }
