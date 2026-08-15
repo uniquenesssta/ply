@@ -34,6 +34,7 @@ set(PLAYER_QML_FILES
     qml/features/player/volume/VolumeControls.qml
     qml/features/player/fullscreen/FullscreenControls.qml
     qml/features/player/fullscreen/FullscreenGestureLayer.qml
+    qml/features/player/mediaopen/LocalMediaOpenDialog.qml
 )
 
 target_sources(
@@ -77,6 +78,7 @@ set_source_files_properties(
     qml/features/player/volume/VolumeControls.qml
     qml/features/player/fullscreen/FullscreenControls.qml
     qml/features/player/fullscreen/FullscreenGestureLayer.qml
+    qml/features/player/mediaopen/LocalMediaOpenDialog.qml
     PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 
