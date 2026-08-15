@@ -182,6 +182,11 @@ bool PlaybackSessionBackend::isReady() const noexcept
         && commandExecutor_ != nullptr;
 }
 
+mpv_handle* PlaybackSessionBackend::renderCoreHandle() noexcept
+{
+    return isReady() && handle_ != nullptr ? handle_->nativeHandle() : nullptr;
+}
+
 bool PlaybackSessionBackend::submit(
     const player::playback::domain::PlaybackCommand& command,
     player::playback::domain::MediaGeneration generation,
