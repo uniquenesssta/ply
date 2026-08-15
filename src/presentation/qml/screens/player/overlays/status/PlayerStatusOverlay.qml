@@ -21,6 +21,8 @@ Item {
                                           && root.viewModel.visible
                                           && !root.bufferingSuppressed
 
+    signal openMediaRequested()
+
     objectName: "playerStatusOverlay"
     visible: root.statusVisible
 
@@ -31,6 +33,8 @@ Item {
         active: root.statusVisible
         sourceComponent: {
             switch (root.statusKey) {
+            case "empty":
+                return emptyComponent
             case "loading":
                 return loadingComponent
             case "buffering":
@@ -42,6 +46,19 @@ Item {
             default:
                 return null
             }
+        }
+    }
+
+    Component {
+        id: emptyComponent
+
+        EmptyFeedback {
+            objectName: "playerEmptyFeedback"
+            title: qsTr("No media")
+            detail: qsTr("Open a local media file to start playback")
+            actionText: qsTr("Open media")
+
+            onActionTriggered: root.openMediaRequested()
         }
     }
 
