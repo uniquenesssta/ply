@@ -24,6 +24,7 @@ public:
     explicit PlayerVideoRenderBinding(
         player::playback::application::PlaybackSessionThread& playbackThread,
         QObject* parent = nullptr);
+    ~PlayerVideoRenderBinding() override;
 
     [[nodiscard]] bool resetForStart(QString* errorMessage = nullptr);
     [[nodiscard]] bool attachRoot(QObject* qmlRoot, QString* errorMessage = nullptr);
