@@ -8,6 +8,7 @@
 #include "foundation/logging/log_categories.h"
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
 #include "presentation/qml/types/presentation_type_registration.h"
+#include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
@@ -108,6 +109,10 @@ int ApplicationBootstrap::run(
         QStringLiteral("volumeViewModel"),
         QVariant::fromValue(
             static_cast<QObject*>(&playbackComposition.volumeViewModel())));
+    initialProperties.insert(
+        QStringLiteral("statusViewModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.statusViewModel())));
     qmlBootstrap.setInitialProperties(initialProperties);
 
     if (!qmlBootstrap.load()) {
