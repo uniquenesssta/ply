@@ -8,6 +8,8 @@ Row {
     property var viewModel: null
     property bool compact: false
 
+    readonly property bool interactionActive: volumeSlider.pressed
+
     objectName: "playerVolumeControls"
 
     function syncSliderFromViewModel() {
