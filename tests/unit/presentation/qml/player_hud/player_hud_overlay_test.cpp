@@ -157,6 +157,7 @@ void PlayerHudOverlayTest::fatalErrorSuppressionKeepsHudSemanticallyHidden()
     QVERIFY(overlay != nullptr);
     QVERIFY(overlay->property("suppressed").toBool());
     QVERIFY(!overlay->property("hudVisible").toBool());
+    QVERIFY(!overlay->property("visible").toBool());
 }
 
 void PlayerHudOverlayTest::overlayBoundaryStaysFocused()
@@ -167,6 +168,7 @@ void PlayerHudOverlayTest::overlayBoundaryStaysFocused()
 
     QVERIFY(source.contains(QStringLiteral("property bool suppressed: false")));
     QVERIFY(source.contains(QStringLiteral("&& !root.suppressed")));
+    QVERIFY(source.contains(QStringLiteral("visible: !root.suppressed")));
     QVERIFY(source.contains(QStringLiteral("Hud {")));
     QVERIFY(source.contains(QStringLiteral("z: ZOrderTokens.hud")));
     QVERIFY(source.contains(QStringLiteral("enabled: false")));
