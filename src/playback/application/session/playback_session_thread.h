@@ -34,6 +34,7 @@ public:
 signals:
     void ready();
     void startupFailed(const QString& diagnostic);
+    void requestFailed(quint8 requestType, const QString& diagnostic);
     void stopped();
 
 private:
