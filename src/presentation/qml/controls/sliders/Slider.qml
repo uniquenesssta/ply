@@ -9,6 +9,7 @@ Item {
     property real stepSize: 0.01
     property real wheelStep: stepSize
     property bool showValue: true
+    property bool keyboardEnabled: true
     property bool wheelEnabled: true
     property string valueText: Math.round(normalizedValue * 100) + "%"
     property string accessibleName: ""
@@ -132,7 +133,7 @@ Item {
     }
 
     Keys.onPressed: function(event) {
-        if (!root.enabled) {
+        if (!root.enabled || !root.keyboardEnabled) {
             return
         }
 
