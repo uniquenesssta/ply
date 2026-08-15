@@ -14,6 +14,7 @@ public:
 
     void setInitialProperties(const QVariantMap& properties);
     [[nodiscard]] bool load();
+    [[nodiscard]] QObject* rootObject() const noexcept;
     [[nodiscard]] const QString& lastError() const noexcept;
 
 private:
