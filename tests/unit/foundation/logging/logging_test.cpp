@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -22,6 +23,13 @@ QString readTextFile(const QString& path)
     return QString::fromUtf8(file.readAll());
 }
 
+bool isSessionLogFileName(const QString& path)
+{
+    static const QRegularExpression pattern(
+        QStringLiteral(R"(^player-\d{8}-\d{6}(?:-\d{2})?\.log$)"));
+    return pattern.match(QFileInfo(path).fileName()).hasMatch();
+}
+
 } // namespace
 
 class LoggingTest final : public QObject
@@ -31,8 +39,9 @@ class LoggingTest final : public QObject
 private slots:
     void redactsSecrets();
     void writesThroughQtHandlerAndFlushesOnStop();
+    void createsSeparateFileForEachStart();
     void writesFromMultipleThreads();
-    void rotatesFiles();
+    void rotatesFilesWithinCurrentSession();
     void reportsInvalidLogDirectory();
 };
 
@@ -59,17 +68,54 @@ void LoggingTest::writesThroughQtHandlerAndFlushesOnStop()
     player::logging::LogFileSink sink(options);
     QString error;
     QVERIFY2(sink.start(&error), qPrintable(error));
+    const QString logPath = sink.currentLogFilePath();
+    QVERIFY(isSessionLogFileName(logPath));
 
     qCInfo(player::logging::appLifecycle).noquote()
         << "handler-message token=do-not-write-this";
 
     sink.stop();
 
-    const QString content = readTextFile(
-        QDir(temporaryDirectory.path()).filePath(QStringLiteral("player.log")));
+    const QString content = readTextFile(logPath);
     QVERIFY(content.contains(QStringLiteral("handler-message")));
     QVERIFY(!content.contains(QStringLiteral("do-not-write-this")));
     QVERIFY(content.contains(QStringLiteral("<redacted>")));
+}
+
+void LoggingTest::createsSeparateFileForEachStart()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    player::logging::LogFileSinkOptions options;
+    options.directory = temporaryDirectory.path();
+
+    player::logging::LogFileSink first(options);
+    QString error;
+    QVERIFY2(first.start(&error), qPrintable(error));
+    const QString firstPath = first.currentLogFilePath();
+    first.writeMessage(QtInfoMsg, QMessageLogContext(), QStringLiteral("first-session"));
+    first.stop();
+
+    player::logging::LogFileSink second(options);
+    error.clear();
+    QVERIFY2(second.start(&error), qPrintable(error));
+    const QString secondPath = second.currentLogFilePath();
+    second.writeMessage(QtInfoMsg, QMessageLogContext(), QStringLiteral("second-session"));
+    second.stop();
+
+    QVERIFY(isSessionLogFileName(firstPath));
+    QVERIFY(isSessionLogFileName(secondPath));
+    QVERIFY(firstPath != secondPath);
+    QVERIFY(QFileInfo::exists(firstPath));
+    QVERIFY(QFileInfo::exists(secondPath));
+
+    const QString firstContent = readTextFile(firstPath);
+    const QString secondContent = readTextFile(secondPath);
+    QVERIFY(firstContent.contains(QStringLiteral("first-session")));
+    QVERIFY(!firstContent.contains(QStringLiteral("second-session")));
+    QVERIFY(secondContent.contains(QStringLiteral("second-session")));
+    QVERIFY(!secondContent.contains(QStringLiteral("first-session")));
 }
 
 void LoggingTest::writesFromMultipleThreads()
@@ -84,6 +130,7 @@ void LoggingTest::writesFromMultipleThreads()
     player::logging::LogFileSink sink(options);
     QString error;
     QVERIFY2(sink.start(&error), qPrintable(error));
+    const QString logPath = sink.currentLogFilePath();
 
     constexpr int threadCount = 4;
     constexpr int messagesPerThread = 50;
@@ -109,8 +156,7 @@ void LoggingTest::writesFromMultipleThreads()
 
     sink.stop();
 
-    const QString content = readTextFile(
-        QDir(temporaryDirectory.path()).filePath(QStringLiteral("player.log")));
+    const QString content = readTextFile(logPath);
     for (int threadIndex = 0; threadIndex < threadCount; ++threadIndex) {
         for (int messageIndex = 0; messageIndex < messagesPerThread; ++messageIndex) {
             QVERIFY(content.contains(
@@ -121,7 +167,7 @@ void LoggingTest::writesFromMultipleThreads()
     }
 }
 
-void LoggingTest::rotatesFiles()
+void LoggingTest::rotatesFilesWithinCurrentSession()
 {
     QTemporaryDir temporaryDirectory;
     QVERIFY(temporaryDirectory.isValid());
@@ -134,6 +180,7 @@ void LoggingTest::rotatesFiles()
     player::logging::LogFileSink sink(options);
     QString error;
     QVERIFY2(sink.start(&error), qPrintable(error));
+    const QString activePath = sink.currentLogFilePath();
 
     for (int index = 0; index < 40; ++index) {
         sink.writeMessage(
@@ -144,10 +191,9 @@ void LoggingTest::rotatesFiles()
 
     sink.stop();
 
-    const QDir directory(temporaryDirectory.path());
-    QVERIFY(QFileInfo::exists(directory.filePath(QStringLiteral("player.log"))));
-    QVERIFY(QFileInfo::exists(directory.filePath(QStringLiteral("player.log.1"))));
-    QVERIFY(!QFileInfo::exists(directory.filePath(QStringLiteral("player.log.3"))));
+    QVERIFY(QFileInfo::exists(activePath));
+    QVERIFY(QFileInfo::exists(QStringLiteral("%1.1").arg(activePath)));
+    QVERIFY(!QFileInfo::exists(QStringLiteral("%1.3").arg(activePath)));
 }
 
 void LoggingTest::reportsInvalidLogDirectory()
