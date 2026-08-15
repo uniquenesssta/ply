@@ -153,7 +153,7 @@ void PlayerStatusOverlayTest::emptyActionRoutesOpenIntent()
     QVERIFY(emptyFeedback != nullptr);
 
     QSignalSpy openSpy(overlay.get(), SIGNAL(openMediaRequested()));
-    QVERIFY(QMetaObject::invokeMethod(emptyFeedback, "actionTriggered"));
+    QVERIFY(QMetaObject::invokeMethod(emptyFeedback, "actionRequested"));
     QCOMPARE(openSpy.count(), 1);
 }
 
@@ -179,7 +179,7 @@ void PlayerStatusOverlayTest::overlayBoundaryStaysFocused()
     QVERIFY(source.contains(QStringLiteral("EndedFeedback")));
     QVERIFY(source.contains(QStringLiteral("ErrorFeedback")));
     QVERIFY(source.contains(QStringLiteral("signal openMediaRequested()")));
-    QVERIFY(source.contains(QStringLiteral("onActionTriggered: root.openMediaRequested()")));
+    QVERIFY(source.contains(QStringLiteral("onActionRequested: root.openMediaRequested()")));
     QVERIFY(source.contains(QStringLiteral("suppressBuffering")));
     QVERIFY(source.contains(QStringLiteral("visible: root.statusVisible")));
     QVERIFY(source.contains(QStringLiteral("active: root.statusVisible")));
