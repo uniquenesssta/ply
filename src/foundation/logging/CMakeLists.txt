@@ -7,4 +7,6 @@ target_sources(
         log_file_sink.h
         log_redactor.cpp
         log_redactor.h
+        log_session_file_name.cpp
+        log_session_file_name.h
 )
