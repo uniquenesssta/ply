@@ -9,6 +9,7 @@ namespace player::presentation {
 enum class PlayerStatusKind : quint8
 {
     None,
+    Empty,
     Loading,
     Buffering,
     Ended,
