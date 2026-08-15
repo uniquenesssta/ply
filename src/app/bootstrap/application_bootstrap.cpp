@@ -136,6 +136,15 @@ int ApplicationBootstrap::run(
         return EXIT_FAILURE;
     }
 
+    QString videoOutputError;
+    if (!playbackComposition.attachVideoOutput(
+            qmlBootstrap.rootObject(),
+            &videoOutputError)) {
+        qCCritical(player::logging::appBootstrap).noquote()
+            << "Video output binding failed:" << videoOutputError;
+        return EXIT_FAILURE;
+    }
+
     const int exitCode = application.exec();
 
     qCInfo(player::logging::appLifecycle) << "Application stopping with exit code" << exitCode;
