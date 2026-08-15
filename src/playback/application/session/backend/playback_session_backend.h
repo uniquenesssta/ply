@@ -5,11 +5,12 @@
 #include "playback/domain/events/playback_event.h"
 #include "playback/domain/state/media_generation.h"
 
+#include <QtGlobal>
+
 #include <functional>
 #include <memory>
 
 class QString;
-struct mpv_handle;
 
 namespace player::playback::mpv {
 class MpvCommandExecutor;
@@ -38,7 +39,7 @@ public:
     void shutdown() noexcept;
 
     [[nodiscard]] bool isReady() const noexcept;
-    [[nodiscard]] mpv_handle* renderCoreHandle() noexcept;
+    [[nodiscard]] quintptr renderCoreAddress() noexcept;
     [[nodiscard]] bool submit(
         const player::playback::domain::PlaybackCommand& command,
         player::playback::domain::MediaGeneration generation,
