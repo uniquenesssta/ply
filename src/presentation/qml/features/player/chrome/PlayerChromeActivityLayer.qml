@@ -5,6 +5,8 @@ Item {
 
     property bool cursorHidden: false
 
+    readonly property bool pointerInside: pointerHover.hovered
+
     signal activityDetected(string reason)
 
     objectName: "playerChromeActivityLayer"
