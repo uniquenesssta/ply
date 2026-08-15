@@ -6,7 +6,6 @@
 #include "playback/application/session/playback_session_thread.h"
 #include "playback/application/state_publisher/state_publisher.h"
 #include "playback/domain/commands/playback_command.h"
-#include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/volume_command.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
 #include "presentation/viewmodels/player/status/player_status_view_model.h"
@@ -21,6 +20,7 @@
 namespace player::app {
 namespace {
 
+using player::playback::domain::SeekMode;
 using player::playback::domain::TransportAction;
 
 QString transportActionName(TransportAction action)
@@ -32,6 +32,17 @@ QString transportActionName(TransportAction action)
         return QStringLiteral("pause");
     case TransportAction::Stop:
         return QStringLiteral("stop");
+    }
+    return QStringLiteral("unknown");
+}
+
+QString seekModeName(SeekMode mode)
+{
+    switch (mode) {
+    case SeekMode::Absolute:
+        return QStringLiteral("absolute");
+    case SeekMode::Relative:
+        return QStringLiteral("relative");
     }
     return QStringLiteral("unknown");
 }
@@ -96,7 +107,18 @@ PlaybackComposition::PlaybackComposition()
         &player::presentation::PlayerTimelineViewModel::seekRequested,
         playbackThread_.get(),
         [this](double absoluteSeconds) {
-            if (!submitSeek(absoluteSeconds)) {
+            if (!submitSeek(absoluteSeconds, SeekMode::Absolute)) {
+                (void)timelineViewModel_->rejectPendingSeek();
+                return;
+            }
+            hudMessageQueue_->showSeek(timelineViewModel_->positionText());
+        });
+    QObject::connect(
+        timelineViewModel_.get(),
+        &player::presentation::PlayerTimelineViewModel::relativeSeekRequested,
+        playbackThread_.get(),
+        [this](double deltaSeconds) {
+            if (!submitSeek(deltaSeconds, SeekMode::Relative)) {
                 (void)timelineViewModel_->rejectPendingSeek();
                 return;
             }
@@ -216,26 +238,26 @@ void PlaybackComposition::submitTransport(TransportAction action)
     }
 }
 
-bool PlaybackComposition::submitSeek(double absoluteSeconds)
+bool PlaybackComposition::submitSeek(double seconds, SeekMode mode)
 {
     auto* bus = playbackThread_->commandBus();
     if (bus == nullptr || !bus->isAcceptingCommands()) {
         qCWarning(player::logging::uiInteraction).noquote()
             << "Timeline seek intent ignored because PlaybackCommandBus is unavailable:"
-            << absoluteSeconds;
+            << seekModeName(mode)
+            << seconds;
         return false;
     }
 
     QString diagnostic;
     const player::playback::domain::PlaybackCommand command{
         requestIdGenerator_->next(),
-        player::playback::domain::SeekCommand{
-            absoluteSeconds,
-            player::playback::domain::SeekMode::Absolute}};
+        player::playback::domain::SeekCommand{seconds, mode}};
     if (!bus->submit(command, &diagnostic)) {
         qCWarning(player::logging::uiInteraction).noquote()
             << "Timeline seek command submission failed:"
-            << absoluteSeconds
+            << seekModeName(mode)
+            << seconds
             << diagnostic;
         return false;
     }
