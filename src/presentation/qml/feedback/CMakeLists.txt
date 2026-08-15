@@ -4,6 +4,8 @@ set(PLAYER_FEEDBACK_QML_FILES
     Toast.qml
     ErrorFeedback.qml
     LoadingFeedback.qml
+    BufferingFeedback.qml
+    EndedFeedback.qml
     EmptyFeedback.qml
 )
 
