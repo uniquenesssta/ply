@@ -9,11 +9,11 @@ Item {
     property bool windowExpanded: false
     property bool fullScreen: false
     property bool popupOpen: false
-    property bool errorOverlayVisible: false
     property bool cursorHideSuppressed: false
     property var transportViewModel: null
     property var timelineViewModel: null
     property var volumeViewModel: null
+    property var statusViewModel: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property bool oscCompact: root.fullScreen
@@ -22,6 +22,8 @@ Item {
     readonly property bool timelineInteractionActive: root.timelineViewModel !== null
                                                       && (root.timelineViewModel.isScrubbing
                                                           || root.timelineViewModel.seekPending)
+    readonly property bool errorOverlayVisible: root.statusViewModel !== null
+                                                && root.statusViewModel.errorVisible
     readonly property bool oscVisible: chromeVisibilityController.chromeVisible
     readonly property bool cursorHidden: cursorVisibilityController.cursorHidden
 
@@ -121,6 +123,12 @@ Item {
     PlayerOverlayStack {
         id: overlayStack
         anchors.fill: parent
+
+        PlayerStatusOverlay {
+            anchors.fill: parent
+            viewModel: root.statusViewModel
+            suppressBuffering: root.timelineInteractionActive
+        }
     }
 
     PlayerBottomRegion {
