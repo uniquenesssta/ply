@@ -7,6 +7,7 @@ Item {
     property string mediaTitle: ""
     property string mediaMetadataText: ""
     property bool windowExpanded: false
+    property bool windowActive: true
     property bool fullScreen: false
     property bool popupOpen: false
     property bool cursorHideSuppressed: false
@@ -166,6 +167,7 @@ Item {
                 TimelineControls {
                     anchors.fill: parent
                     compact: root.oscCompact
+                    windowActive: root.windowActive
                     viewModel: root.timelineViewModel
                 }
             ]
