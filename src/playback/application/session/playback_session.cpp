@@ -135,7 +135,7 @@ void PlaybackSession::initialize()
     }
     requestTimeoutMonitor_->start();
     initialized_ = true;
-    emit renderCoreReady(reinterpret_cast<quintptr>(backend_->renderCoreHandle()));
+    emit renderCoreReady(backend_->renderCoreAddress());
     emit ready();
 }
 
