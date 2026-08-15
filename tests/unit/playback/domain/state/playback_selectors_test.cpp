@@ -33,7 +33,7 @@ class PlaybackSelectorsTest final : public QObject
 
 private slots:
     void lifecycleAndTransportMatrixIsConservative();
-    void seekCapabilityRequiresReadyAndExplicitBackendSupport();
+    void seekCapabilityRequiresRetainedMediaAndExplicitBackendSupport();
 };
 
 void PlaybackSelectorsTest::lifecycleAndTransportMatrixIsConservative()
@@ -111,7 +111,7 @@ void PlaybackSelectorsTest::lifecycleAndTransportMatrixIsConservative()
     QVERIFY(!selectors::isPlaying(closing));
 }
 
-void PlaybackSelectorsTest::seekCapabilityRequiresReadyAndExplicitBackendSupport()
+void PlaybackSelectorsTest::seekCapabilityRequiresRetainedMediaAndExplicitBackendSupport()
 {
     QVERIFY(!selectors::canSeek(seekSnapshotFor(
         PlaybackLifecycleState::Empty,
@@ -128,8 +128,14 @@ void PlaybackSelectorsTest::seekCapabilityRequiresReadyAndExplicitBackendSupport
     QVERIFY(selectors::canSeek(seekSnapshotFor(
         PlaybackLifecycleState::Ready,
         true)));
+    QVERIFY(selectors::canSeek(seekSnapshotFor(
+        PlaybackLifecycleState::Ended,
+        true)));
     QVERIFY(!selectors::canSeek(seekSnapshotFor(
         PlaybackLifecycleState::Ended,
+        false)));
+    QVERIFY(!selectors::canSeek(seekSnapshotFor(
+        PlaybackLifecycleState::Failed,
         true)));
 }
 
