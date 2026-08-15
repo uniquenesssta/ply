@@ -9,6 +9,7 @@ ApplicationWindow {
     property var transportViewModel: null
     property var timelineViewModel: null
     property var volumeViewModel: null
+    property var statusViewModel: null
 
     width: LayoutTokens.windowDefaultWidth
     height: LayoutTokens.windowDefaultHeight
@@ -28,6 +29,7 @@ ApplicationWindow {
         transportViewModel: window.transportViewModel
         timelineViewModel: window.timelineViewModel
         volumeViewModel: window.volumeViewModel
+        statusViewModel: window.statusViewModel
         fullScreen: fullscreenWindowController.fullScreen
         windowExpanded: window.visibility === Window.Maximized
                         || window.visibility === Window.FullScreen
