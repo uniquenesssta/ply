@@ -47,7 +47,8 @@ Item {
     enabled: false
     z: ZOrderTokens.hud
     opacity: root.hudVisible ? OpacityTokens.visible : OpacityTokens.hidden
-    visible: root.hudVisible || root.opacity > OpacityTokens.hidden
+    visible: !root.suppressed
+             && (root.hudVisible || root.opacity > OpacityTokens.hidden)
 
     Behavior on opacity {
         NumberAnimation {
