@@ -172,11 +172,22 @@ PlaybackSnapshot reducePlaybackSnapshot(
                 state.streams.video = payload.info;
             } else if constexpr (std::is_same_v<Payload, AudioStreamInfoChangedEvent>) {
                 state.streams.audio = payload.info;
+            } else if constexpr (std::is_same_v<Payload, EofReachedChangedEvent>) {
+                if (payload.reached.has_value()) {
+                    if (*payload.reached
+                        && state.lifecycle == PlaybackLifecycleState::Ready) {
+                        reducer_detail::markEnded(state);
+                    } else if (!*payload.reached
+                               && state.lifecycle == PlaybackLifecycleState::Ended) {
+                        state.lifecycle = PlaybackLifecycleState::Ready;
+                        state.transport = PlaybackTransportState::Paused;
+                        state.failure.reset();
+                    }
+                }
             } else if constexpr (std::is_same_v<Payload, PlaybackFailureEvent>) {
                 state.failure = payload.failure;
             } else if constexpr (
                 std::is_same_v<Payload, CoreIdleChangedEvent>
-                || std::is_same_v<Payload, EofReachedChangedEvent>
                 || std::is_same_v<Payload, CommandReplyEvent>) {
                 // These observations are consumed by Session/request policy rather than
                 // owning PlaybackSnapshot state directly.
