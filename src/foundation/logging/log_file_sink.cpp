@@ -187,6 +187,9 @@ void LogFileSink::writeMessage(
 
 bool LogFileSink::openNewSessionFileLocked(QString* errorMessage)
 {
+    m_currentLogFilePath.clear();
+    m_lastError.clear();
+
     const QDateTime sessionStartedAt = QDateTime::currentDateTime();
     const QDir directory(m_options.directory);
 
@@ -200,7 +203,6 @@ bool LogFileSink::openNewSessionFileLocked(QString* errorMessage)
         m_file.setFileName(candidatePath);
         if (m_file.open(QIODevice::WriteOnly | QIODevice::NewOnly | QIODevice::Text)) {
             m_currentLogFilePath = candidatePath;
-            m_lastError.clear();
             return true;
         }
 
