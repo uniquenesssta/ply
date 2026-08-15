@@ -12,7 +12,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R3 — 领域状态与 PlaybackSession | Complete | PlaybackSnapshot、Reducer、Generation、RequestTracker、Supersession、Session 生命周期完成 |
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
-| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-09 Complete**；Pre-R6-09 runtime file diagnostics 已完成 Windows **65/65 PASS（53.73 s）**并确认 `Player.exe` 自主生成 `..\logs\player.log`；**R6-10 Cursor hiding implementation candidate 已提交，新增独立测试后预期 67-test Windows 验证 pending** |
+| R6 — 播放器主界面与基础交互 | In Progress | **R6-01 ~ R6-10 Complete**；R6-10 Windows configure/build/QML lint 通过，**67/67 CTest PASS（54.47 s）**，`Player.exe` startup smoke 无控制台错误；下一项 R6-11 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。
 
@@ -102,15 +102,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
-### 2026-08-15 — R6-10 Cursor hiding — implementation candidate
+### 2026-08-15 — R6-10 Cursor hiding Complete
 
-- 新增职责独立的 `features/player/chrome/PlayerCursorVisibilityController.qml`，只拥有 cursor visibility policy，不拥有 inactivity Timer。它直接消费 R6-09 的 `oscVisible` 结果，因此 R6-09 继续是“何时进入沉浸态”的唯一 Timer/state owner，R6-10 不复制 2200/1600ms delay。
-- Cursor 仅在 **Playing + OSC Hidden** 且不存在 Scrubbing/Pending、Popup、Error、显式 `cursorHideSuppressed` 例外时隐藏；Paused 或任何锁定场景均保持可见。`cursorHideSuppressed` 是 presentation 层显式 suppression 输入，用于后续无障碍/平台策略接入，默认值不改变现有行为。
-- 既有 `PlayerChromeActivityLayer` 继续是全屏 pointer activity sensor，并新增唯一 cursor application：隐藏态使用 `Qt.BlankCursor`，可见态恢复为 `undefined`，从而不覆盖 Button/其他子控件自己的 cursor semantic。Pointer move/enter 仍先通知 R6-09 Activity policy，OSC 回到 Active 后 Cursor controller 随 `oscVisible` 自动恢复可见。
-- `PlayerScreen` 只负责组合：同一 `playbackPlaying`、`timelineInteractionActive`、`popupOpen`、`errorOverlayVisible` 输入同时提供给 Chrome/Cursor policy；`oscVisible` 从 R6-09 controller 单向流入 Cursor controller，没有反向依赖或第二套状态真值。
-- Cursor hidden/visible 只在状态真正切换时写一条 `R6-10 cursor visibility` runtime log，并记录 playing/osc/scrub/popup/error/suppression，上层持续 pointer move 不会直接刷 cursor 日志。
-- 新增独立 `player_cursor_visibility` CTest，覆盖 Playing+OSC Hidden、OSC wake、Scrub、Popup、Error、suppression、Paused；同时静态锁定 Cursor controller **无 Timer**、R6-09 仍只有一个 Timer、Activity Layer 使用 `Qt.BlankCursor : undefined`、无 PlaybackSession/libmpv、无 R6-11 Status Overlay/R6-12 HUD 依赖。既有 `player_chrome_visibility` 测试只移除“R6-10 尚未存在”的旧禁区断言，并继续锁定 R6-09 owner 本身不得拥有 `cursorShape`。
-- 新 QML 文件与独立 CTest target 已纳入 CMake，因此 Windows 需要重新 configure；全量测试预期 **66 → 67**。当前尚未在用户锁定 Windows Qt 6.8.3/MSVC 环境执行 configure/build/QML lint/67-test 和 `Player.exe` startup，**R6-10 当前不是 Complete**。
+- `features/player/chrome/PlayerCursorVisibilityController.qml` 作为独立 cursor visibility policy owner，只消费 R6-09 的 `oscVisible` 结果，不拥有 inactivity Timer；R6-09 继续是“何时进入沉浸态”的唯一 Timer/state owner，R6-10 没有复制 2200/1600ms delay。
+- Cursor 仅在 **Playing + OSC Hidden** 且不存在 Scrubbing/Pending、Popup、Error、显式 `cursorHideSuppressed` 例外时隐藏；Paused 或任一锁定场景均保持可见。`cursorHideSuppressed` 是 presentation 层显式 suppression 输入，默认不改变现有行为。
+- `PlayerChromeActivityLayer` 继续拥有 pointer activity sensor，并承担当前窗口 cursor application：隐藏态使用 `Qt.BlankCursor`，可见态恢复为 `undefined`，避免覆盖 Button/其他子控件自己的 cursor semantic。Pointer move/enter 仍先通知 R6-09 Activity policy，OSC 回到 Active 后 Cursor policy 随 `oscVisible` 自动恢复可见。
+- `PlayerScreen` 仅组合 Chrome/Cursor policy：共享 `playbackPlaying`、`timelineInteractionActive`、`popupOpen`、`errorOverlayVisible` 输入，并把 R6-09 `oscVisible` 单向传给 Cursor controller；没有反向依赖、第二套状态真值、PlaybackSession/libmpv 或 R6-11/R6-12 逻辑。
+- 独立 `player_cursor_visibility` CTest 覆盖 Playing+OSC Hidden、OSC wake、Scrub、Popup、Error、suppression、Paused；静态锁定 Cursor controller 无 Timer、R6-09 仍只有一个 Timer、Activity Layer 使用 `Qt.BlankCursor : undefined`。`player_chrome_visibility` 继续独立守住 R6-09 owner 与 Timer contract。
+- 用户锁定 Windows 复验：`configure.ps1` **PASS**（CMake Configuring 4.8 s / Generating 2.2 s）；Debug `build.ps1` 完成 **144/144**，development marker 与 Qt runtime deployment 均 PASS；`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **67/67 CTest PASS，0 failed，54.47 s**，其中 `player_chrome_visibility` **0.37 s PASS**、`player_cursor_visibility` **0.22 s PASS**，既有 Playback/Render/Presentation 回归全部保持通过。随后执行 `Player.exe` startup smoke，PowerShell 未输出 QML/runtime 启动错误。
+- 构建继续出现已记录的 Qt 6.8.3 `qjsengine.h/qvariant.h` MSVC C4702 system-header warning，没有新增 suppression/白名单，也未形成 build/test 阻断。验证前本地受保护 `.gitignore` 修改与 `r4-04-qml-diagnostics/` 仍保持存在，pull/configure/build/test 未清理或覆盖。
+- 当前产品仍没有 R7 媒体打开入口，因此不能从正式产品 UI 进入真实 Playing 完整手工验证“静置 → OSC Hidden → Cursor Hidden → pointer move → OSC/Cursor restore”；该真实媒体手工矩阵保留到 R7 媒体入口可用后回归，不伪装成已执行。自动化 policy/边界与 startup 已满足本 Atomic Task 收口条件。**R6-10 正式 Complete；R6-11 尚未开始。**
 
 ### 2026-08-15 — R6-09 OSC auto-hide Complete
 
@@ -119,7 +120,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 首轮 Windows 验证为 **65/66**，唯一失败集中在 `player_chrome_visibility`。后续诊断明确显示 `playing=true` 已进入 Active，但 Timer `running=false`；这排除了“只是等待时间不足”的解释。真实根因是 `onPlayingChanged → notifyActivity → scheduleHide()` 同步路径读取派生 `visibilityLocked` binding，而 QML 不保证派生 binding 与 change handler 的求值先后顺序。
 - 最终修复将命令路径改为 `isVisibilityLocked()` 直接读取当前 primitive inputs；`visibilityLocked` 只保留只读观测值，不再用于同步 schedule/hide/reevaluate 决策。测试增加 `playing=true` 后 `visibilityLocked=false + Timer.running=true` 回归守卫；offscreen CTest 对 Timer 采用“running/interval + triggered handler”确定性验证，不再把 offscreen animation clock 当 Windows wall-clock 测量。**2200/1600ms 产品参数从未因测试失败而放宽。**
 - 用户最终确认修复后全链复验通过，R6-09 按 **66/66 CTest PASS** 收口；R6-09 的单一 Timer、Paused/Scrub/Popup/Error lock、Fullscreen shorter timeout 与 pointer wake contract 保持成立。产品仍无 R7 媒体打开入口，因此真实媒体 Playing 下的长期手工 inactivity 回归继续在 R7 后补，不伪装为本阶段已具备的产品入口。
-- **R6-09 正式 Complete；R6-10 开始。**
+- **R6-09 正式 Complete。**
 
 ### 2026-08-14 — Pre-R6-09 runtime file diagnostics Complete
 
