@@ -61,6 +61,7 @@ void PlayerMediaOpenTest::mainWindowRoutesIntentThroughCoordinator()
     QVERIFY(source.contains(QStringLiteral("LocalMediaOpenDialog {")));
     QVERIFY(source.contains(QStringLiteral("window.mediaOpenCoordinator.openLocalFile(sourceUrl)")));
     QVERIFY(source.contains(QStringLiteral("mediaViewModel: window.mediaViewModel")));
+    QVERIFY(source.contains(QStringLiteral("modalActive: localMediaOpenDialog.visible")));
     QVERIFY(source.contains(QStringLiteral("onOpenMediaRequested: localMediaOpenDialog.open()")));
     QVERIFY(!source.contains(QStringLiteral("PlaybackSession")));
     QVERIFY(!source.contains(QStringLiteral("libmpv"), Qt::CaseInsensitive));
