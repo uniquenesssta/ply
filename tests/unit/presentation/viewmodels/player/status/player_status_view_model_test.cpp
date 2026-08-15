@@ -57,6 +57,7 @@ class PlayerStatusViewModelTest final : public QObject
 
 private slots:
     void emptyProjectsEmpty();
+    void emptyToReadyPublishesNone();
     void loadingDominatesOpeningBuffering();
     void playingBufferingPublishesRoundedProgress();
     void pausedSuppressesBuffering();
@@ -79,6 +80,25 @@ void PlayerStatusViewModelTest::emptyProjectsEmpty()
     QVERIFY(viewModel.visible());
     QVERIFY(!viewModel.errorVisible());
     QCOMPARE(viewModel.bufferingPercent(), -1);
+}
+
+void PlayerStatusViewModelTest::emptyToReadyPublishesNone()
+{
+    using namespace player::playback::domain;
+
+    PlayerStatusViewModel viewModel;
+    QSignalSpy spy(&viewModel, &PlayerStatusViewModel::stateChanged);
+
+    viewModel.acceptSnapshot(makeSnapshot(
+        PlaybackLifecycleState::Ready,
+        PlaybackTransportState::Playing));
+
+    compareStatus(viewModel, PlayerStatusKind::None);
+    QCOMPARE(viewModel.statusKey(), QString{});
+    QVERIFY(!viewModel.visible());
+    QVERIFY(!viewModel.errorVisible());
+    QCOMPARE(viewModel.bufferingPercent(), -1);
+    QCOMPARE(spy.count(), 1);
 }
 
 void PlayerStatusViewModelTest::loadingDominatesOpeningBuffering()
@@ -166,16 +186,20 @@ void PlayerStatusViewModelTest::irrelevantSnapshotDoesNotEmit()
     using namespace player::playback::domain;
 
     PlayerStatusViewModel viewModel;
+    viewModel.acceptSnapshot(makeSnapshot(
+        PlaybackLifecycleState::Ready,
+        PlaybackTransportState::Playing));
+
     QSignalSpy spy(&viewModel, &PlayerStatusViewModel::stateChanged);
 
     viewModel.acceptSnapshot(makeSnapshot(
         PlaybackLifecycleState::Ready,
-        PlaybackTransportState::Playing));
+        PlaybackTransportState::Idle));
     QCOMPARE(spy.count(), 0);
 
     viewModel.acceptSnapshot(makeSnapshot(
         PlaybackLifecycleState::Ready,
-        PlaybackTransportState::Idle));
+        PlaybackTransportState::Playing));
     QCOMPARE(spy.count(), 0);
 
     viewModel.acceptSnapshot(makeSnapshot(
