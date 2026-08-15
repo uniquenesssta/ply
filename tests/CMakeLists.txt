@@ -127,6 +127,7 @@ target_link_libraries(
         player_presentation_timeline
         player_presentation_volume
         player_presentation_status
+        player_presentation_media
         player_presentation_hud
         Qt6::Core
         Qt6::Qml
