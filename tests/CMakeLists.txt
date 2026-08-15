@@ -122,6 +122,7 @@ target_link_libraries(
     PRIVATE
         player_foundation
         player_playback_application
+        player_media_application
         player_presentation_transport
         player_presentation_timeline
         player_presentation_volume
@@ -405,6 +406,7 @@ add_test(
     COMMAND mpv_runtime_probe_tests
 )
 
+add_subdirectory(unit/media)
 add_subdirectory(unit/playback/domain)
 add_subdirectory(unit/playback/application)
 add_subdirectory(unit/playback/infrastructure/mpv/render)
