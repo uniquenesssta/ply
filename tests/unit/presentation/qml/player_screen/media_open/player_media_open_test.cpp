@@ -162,9 +162,12 @@ void PlayerMediaOpenTest::productVideoOutputUsesExistingRenderBoundary()
         "src/app/composition/application_container.cpp"));
     const QString binding = readSource(QStringLiteral(
         "src/app/composition/render/player_video_render_binding.cpp"));
+    const QString backendHeader = readSource(QStringLiteral(
+        "src/playback/application/session/backend/playback_session_backend.h"));
     QVERIFY(!bootstrap.isEmpty());
     QVERIFY(!container.isEmpty());
     QVERIFY(!binding.isEmpty());
+    QVERIFY(!backendHeader.isEmpty());
 
     QVERIFY(bootstrap.contains(QStringLiteral("playbackComposition.attachVideoOutput(")));
     QVERIFY(bootstrap.contains(QStringLiteral("qmlBootstrap.rootObject()")));
@@ -179,11 +182,13 @@ void PlayerMediaOpenTest::productVideoOutputUsesExistingRenderBoundary()
 
     QVERIFY(binding.contains(QStringLiteral("findChild<")));
     QVERIFY(binding.contains(QStringLiteral("mpvVideoItem")));
-    QVERIFY(binding.contains(QStringLiteral("setRenderCoreHandle(")));
+    QVERIFY(binding.contains(QStringLiteral("setRenderCoreAddress(")));
     QVERIFY(binding.contains(QStringLiteral("beginRenderShutdown()")));
     QVERIFY(binding.contains(QStringLiteral("waitForRenderRelease(")));
+    QVERIFY(!binding.contains(QStringLiteral("mpv_handle")));
     QVERIFY(!binding.contains(QStringLiteral("MpvRenderContext")));
     QVERIFY(!binding.contains(QStringLiteral("mpv_render_context_create")));
+    QVERIFY(!backendHeader.contains(QStringLiteral("mpv_handle")));
 }
 
 } // namespace player::presentation::qml
