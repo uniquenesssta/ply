@@ -1,6 +1,7 @@
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 
 #include "playback/domain/state/playback_selectors.h"
+#include "presentation/viewmodels/player/timeline/timeline_relative_seek_coalescer.h"
 
 #include <QChar>
 
@@ -22,7 +23,13 @@ bool nearlyEqual(double left, double right) noexcept
 
 PlayerTimelineViewModel::PlayerTimelineViewModel(QObject* parent)
     : QObject(parent)
+    , relativeSeekCoalescer_(new TimelineRelativeSeekCoalescer(this))
 {
+    QObject::connect(
+        relativeSeekCoalescer_,
+        &TimelineRelativeSeekCoalescer::flushRequested,
+        this,
+        &PlayerTimelineViewModel::flushRelativeSeek);
 }
 
 bool PlayerTimelineViewModel::canSeek() const noexcept
@@ -37,7 +44,8 @@ bool PlayerTimelineViewModel::isScrubbing() const noexcept
 
 bool PlayerTimelineViewModel::seekPending() const noexcept
 {
-    return scrubSession_.isPendingCommit();
+    return seekProjection_.isPending()
+        || (relativeSeekCoalescer_ != nullptr && relativeSeekCoalescer_->hasPending());
 }
 
 bool PlayerTimelineViewModel::backendSeeking() const noexcept
@@ -54,8 +62,8 @@ double PlayerTimelineViewModel::displayedNormalized() const noexcept
     if (scrubSession_.isScrubbing()) {
         return scrubSession_.previewNormalized();
     }
-    if (scrubSession_.isPendingCommit() && pendingAbsoluteSeconds_.has_value()) {
-        return std::clamp(*pendingAbsoluteSeconds_ / *durationSeconds_, 0.0, 1.0);
+    if (const auto pendingTarget = seekProjection_.targetSeconds(); pendingTarget.has_value()) {
+        return std::clamp(*pendingTarget / *durationSeconds_, 0.0, 1.0);
     }
 
     if (!actualPositionSeconds_.has_value()) {
@@ -74,7 +82,8 @@ QString PlayerTimelineViewModel::positionText() const
 {
     if (!actualPositionSeconds_.has_value()
         && !durationSeconds_.has_value()
-        && !scrubSession_.isActive()) {
+        && !scrubSession_.isActive()
+        && !seekProjection_.isPending()) {
         return QStringLiteral("--:--:--");
     }
 
@@ -100,7 +109,10 @@ bool PlayerTimelineViewModel::beginScrub(double normalized)
         return false;
     }
 
-    pendingAbsoluteSeconds_.reset();
+    (void)seekProjection_.clear();
+    if (relativeSeekCoalescer_ != nullptr) {
+        (void)relativeSeekCoalescer_->clear();
+    }
     emit stateChanged();
     return true;
 }
@@ -126,9 +138,17 @@ bool PlayerTimelineViewModel::commitScrub(double normalized)
         return false;
     }
 
-    pendingAbsoluteSeconds_ = *committed * *durationSeconds_;
+    const double targetSeconds = *committed * *durationSeconds_;
+    if (!seekProjection_.beginAbsolute(
+            generation_,
+            targetSeconds,
+            *durationSeconds_)) {
+        emit stateChanged();
+        return false;
+    }
+
     emit stateChanged();
-    emit seekRequested(*pendingAbsoluteSeconds_);
+    emit seekRequested(targetSeconds);
     return true;
 }
 
@@ -139,18 +159,44 @@ bool PlayerTimelineViewModel::cancelScrub()
     }
 
     (void)scrubSession_.cancel();
-    pendingAbsoluteSeconds_.reset();
     emit stateChanged();
+    return true;
+}
+
+bool PlayerTimelineViewModel::requestRelativeSeek(double deltaSeconds)
+{
+    if (!canSeek_
+        || isScrubbing()
+        || !generation_.isValid()
+        || !durationSeconds_.has_value()
+        || !std::isfinite(deltaSeconds)
+        || std::abs(deltaSeconds) <= kStateComparisonTolerance
+        || (!actualPositionSeconds_.has_value() && !seekProjection_.isPending())
+        || relativeSeekCoalescer_ == nullptr) {
+        return false;
+    }
+
+    const bool wasPending = seekPending();
+    if (!relativeSeekCoalescer_->enqueue(deltaSeconds)) {
+        return false;
+    }
+
+    if (wasPending != seekPending()) {
+        emit stateChanged();
+    }
     return true;
 }
 
 bool PlayerTimelineViewModel::rejectPendingSeek()
 {
-    if (!scrubSession_.acknowledgePending()) {
+    bool changed = seekProjection_.clear();
+    if (relativeSeekCoalescer_ != nullptr) {
+        changed = relativeSeekCoalescer_->clear() || changed;
+    }
+    if (!changed) {
         return false;
     }
 
-    pendingAbsoluteSeconds_.reset();
     emit stateChanged();
     return true;
 }
@@ -170,7 +216,10 @@ void PlayerTimelineViewModel::acceptSnapshot(
     const auto nextGeneration = snapshot.generation();
     if (nextGeneration != generation_) {
         (void)scrubSession_.cancelIfGenerationChanged(nextGeneration);
-        pendingAbsoluteSeconds_.reset();
+        (void)seekProjection_.cancelIfGenerationChanged(nextGeneration);
+        if (relativeSeekCoalescer_ != nullptr) {
+            (void)relativeSeekCoalescer_->clear();
+        }
     }
     generation_ = nextGeneration;
 
@@ -184,18 +233,14 @@ void PlayerTimelineViewModel::acceptSnapshot(
 
     if (!canSeek_) {
         (void)scrubSession_.cancel();
-        pendingAbsoluteSeconds_.reset();
-    } else if (scrubSession_.isPendingCommit()) {
-        const double targetSeconds = pendingAbsoluteSeconds_.value_or(
-            scrubSession_.previewNormalized() * *durationSeconds_);
-        const bool targetObserved = actualPositionSeconds_.has_value()
-            && std::abs(*actualPositionSeconds_ - targetSeconds)
-                <= kSeekAcknowledgementToleranceSeconds;
-
-        if (targetObserved) {
-            (void)scrubSession_.acknowledgePending();
-            pendingAbsoluteSeconds_.reset();
+        (void)seekProjection_.clear();
+        if (relativeSeekCoalescer_ != nullptr) {
+            (void)relativeSeekCoalescer_->clear();
         }
+    } else if (actualPositionSeconds_.has_value()) {
+        (void)seekProjection_.acknowledge(
+            *actualPositionSeconds_,
+            kSeekAcknowledgementToleranceSeconds);
     }
 
     const bool changed = previousCanSeek != canSeek()
@@ -212,16 +257,48 @@ void PlayerTimelineViewModel::acceptSnapshot(
     }
 }
 
+void PlayerTimelineViewModel::flushRelativeSeek(double deltaSeconds)
+{
+    if (!canSeek_
+        || isScrubbing()
+        || !generation_.isValid()
+        || !durationSeconds_.has_value()) {
+        emit stateChanged();
+        return;
+    }
+
+    const std::optional<double> projectedTarget = seekProjection_.targetSeconds();
+    if (!actualPositionSeconds_.has_value() && !projectedTarget.has_value()) {
+        emit stateChanged();
+        return;
+    }
+
+    const double baseActualSeconds = actualPositionSeconds_.value_or(*projectedTarget);
+    const std::optional<double> effectiveDelta = seekProjection_.nudgeRelative(
+        generation_,
+        baseActualSeconds,
+        deltaSeconds,
+        *durationSeconds_);
+    if (!effectiveDelta.has_value()
+        || std::abs(*effectiveDelta) <= kStateComparisonTolerance) {
+        emit stateChanged();
+        return;
+    }
+
+    emit stateChanged();
+    emit relativeSeekRequested(*effectiveDelta);
+}
+
 double PlayerTimelineViewModel::displayedPositionSeconds() const noexcept
 {
     if (durationSeconds_.has_value() && scrubSession_.isScrubbing()) {
         return scrubSession_.previewNormalized() * *durationSeconds_;
     }
-    if (scrubSession_.isPendingCommit() && pendingAbsoluteSeconds_.has_value()) {
+    if (const auto pendingTarget = seekProjection_.targetSeconds(); pendingTarget.has_value()) {
         if (!durationSeconds_.has_value()) {
-            return std::max(0.0, *pendingAbsoluteSeconds_);
+            return std::max(0.0, *pendingTarget);
         }
-        return std::clamp(*pendingAbsoluteSeconds_, 0.0, *durationSeconds_);
+        return std::clamp(*pendingTarget, 0.0, *durationSeconds_);
     }
 
     const double position = actualPositionSeconds_.value_or(0.0);
