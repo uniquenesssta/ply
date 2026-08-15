@@ -38,7 +38,10 @@ public:
         const QString& message);
 
 private:
-    [[nodiscard]] bool openFileLocked(QString* errorMessage);
+    [[nodiscard]] bool openNewSessionFileLocked(QString* errorMessage);
+    [[nodiscard]] bool openCurrentFileLocked(
+        bool appendExisting,
+        QString* errorMessage);
     [[nodiscard]] bool rotateIfNeededLocked(qint64 incomingBytes);
     [[nodiscard]] bool rotateLocked();
     void setLastErrorLocked(QString message);
@@ -52,6 +55,7 @@ private:
     LogFileSinkOptions m_options;
     mutable QMutex m_mutex;
     QFile m_file;
+    QString m_currentLogFilePath;
     QString m_lastError;
     QtMessageHandler m_previousHandler = nullptr;
     bool m_active = false;
