@@ -13,6 +13,7 @@ Item {
     property bool menuOpen: false
     property bool drawerOpen: false
     property bool modalActive: false
+    property bool dragActive: false
     property bool cursorHideSuppressed: false
     property var transportViewModel: null
     property var timelineViewModel: null
@@ -32,6 +33,7 @@ Item {
     readonly property bool chromeControlsHovered: playerOscLayout.controlsHovered
     readonly property bool chromeControlsFocused: topRegion.controlsFocused
                                                   || playerOscLayout.controlsFocused
+    readonly property bool pointerInsideWindow: chromeActivityLayer.pointerInside
     readonly property bool oscVisible: chromeVisibilityController.chromeVisible
     readonly property bool cursorHidden: cursorVisibilityController.cursorHidden
 
@@ -77,9 +79,15 @@ Item {
         playing: root.playbackPlaying
         oscVisible: root.oscVisible
         scrubbing: root.timelineInteractionActive
+        dragActive: root.dragActive
         popupOpen: root.popupOpen
+        menuOpen: root.menuOpen
+        drawerOpen: root.drawerOpen
+        modalActive: root.modalActive
         errorVisible: root.errorOverlayVisible
         cursorHideSuppressed: root.cursorHideSuppressed
+        windowActive: root.windowActive
+        pointerInside: root.pointerInsideWindow
     }
 
     PlayerChromeActivityLayer {
@@ -90,6 +98,7 @@ Item {
 
         onActivityDetected: function(reason) {
             chromeVisibilityController.notifyActivity(reason)
+            cursorVisibilityController.notifyActivity(reason)
         }
     }
 
