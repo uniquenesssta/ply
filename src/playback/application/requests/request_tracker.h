@@ -32,6 +32,10 @@ public:
         player::ids::RequestId requestId,
         PlaybackRequestCancellationReason reason) noexcept;
 
+    [[nodiscard]] std::size_t cancelMediaRequestsForGeneration(
+        player::playback::domain::MediaGeneration generation,
+        PlaybackRequestCancellationReason reason) noexcept;
+
     [[nodiscard]] std::size_t cancelMediaRequestsForGenerationChange(
         player::playback::domain::MediaGeneration nextGeneration) noexcept;
 
