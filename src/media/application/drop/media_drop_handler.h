@@ -9,6 +9,7 @@
 namespace player::media::application {
 
 class MediaOpenCoordinator;
+class UrlOpenWorkflow;
 
 class MediaDropHandler final : public QObject
 {
@@ -17,7 +18,10 @@ class MediaDropHandler final : public QObject
     Q_PROPERTY(QVariantList orderedSourceUrls READ orderedSourceUrls NOTIFY dropResultChanged)
 
 public:
-    explicit MediaDropHandler(MediaOpenCoordinator& mediaOpenCoordinator, QObject* parent = nullptr);
+    explicit MediaDropHandler(
+        MediaOpenCoordinator& mediaOpenCoordinator,
+        UrlOpenWorkflow& urlOpenWorkflow,
+        QObject* parent = nullptr);
 
     [[nodiscard]] QString lastOutcomeKey() const;
     [[nodiscard]] QVariantList orderedSourceUrls() const;
@@ -35,7 +39,8 @@ private:
         Empty,
         SingleLocalFile,
         MultipleLocalFiles,
-        RemoteUrl,
+        SingleRemoteUrl,
+        MultipleSources,
         Directory,
         Unsupported,
     };
@@ -44,6 +49,7 @@ private:
     void setResult(const QString& outcomeKey, const QList<QUrl>& sourceUrls);
 
     MediaOpenCoordinator& mediaOpenCoordinator_;
+    UrlOpenWorkflow& urlOpenWorkflow_;
     QString lastOutcomeKey_;
     QVariantList orderedSourceUrls_;
 };
