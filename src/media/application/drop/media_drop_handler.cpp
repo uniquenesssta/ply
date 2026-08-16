@@ -5,6 +5,8 @@
 #include <QFileInfo>
 #include <QVariant>
 
+#include <utility>
+
 namespace player::media::application {
 namespace {
 
