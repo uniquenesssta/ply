@@ -230,7 +230,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - `PlayerChromeActivityLayer` 继续拥有 pointer activity sensor，并承担当前窗口 cursor application：隐藏态使用 `Qt.BlankCursor`，可见态恢复为 `undefined`，避免覆盖 Button/其他子控件自己的 cursor semantic。Pointer move/enter 仍先通知 R6-09 Activity policy，OSC 回到 Active 后 Cursor policy 随 `oscVisible` 自动恢复可见。
 - `PlayerScreen` 仅组合 Chrome/Cursor policy：共享 `playbackPlaying`、`timelineInteractionActive`、`popupOpen`、`errorOverlayVisible` 输入，并把 R6-09 `oscVisible` 单向传给 Cursor controller；没有反向依赖、第二套状态真值、PlaybackSession/libmpv 或 R6-11/R6-12 逻辑。
 - 独立 `player_cursor_visibility` CTest 覆盖 Playing+OSC Hidden、OSC wake、Scrub、Popup、Error、suppression、Paused；静态锁定 Cursor controller 无 Timer、R6-09 仍只有一个 Timer、Activity Layer 使用 `Qt.BlankCursor : undefined`。`player_chrome_visibility` 继续独立守住 R6-09 owner 与 Timer contract。
-- 用户锁定 Windows 复验：`configure.ps1` **PASS**（CMake Configuring 4.8 s / Generating 2.2 s）；Debug `build.ps1` 完成 **144/144**，development marker 与 Qt runtime deployment 均 PASS；`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **67/67 CTest PASS，0 failed，54.47 s**，其中 `player_chrome_visibility` **0.37 s PASS**、`player_cursor_visibility` **0.22 s PASS**，既有 Playback/Render/Presentation 回归全部保持通过。随后执行 `Player.exe` startup smoke，PowerShell 未输出 QML/runtime 启动错误。
+- 用户锁定 Windows 复验：`configure.ps1` **PASS**（Configuring 4.8 s / Generating 2.2 s）；Debug `build.ps1` 完成 **144/144**，development marker 与 Qt runtime deployment 均 PASS；`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **67/67 CTest PASS，0 failed，54.47 s**，其中 `player_chrome_visibility` **0.37 s PASS**、`player_cursor_visibility` **0.22 s PASS**，既有 Playback/Render/Presentation 回归全部保持通过。随后执行 `Player.exe` startup smoke，PowerShell 未输出 QML/runtime 启动错误。
 - 构建继续出现已记录的 Qt 6.8.3 `qjsengine.h/qvariant.h` MSVC C4702 system-header warning，没有新增 suppression/白名单，也未形成 build/test 阻断。验证前本地受保护 `.gitignore` 修改与 `r4-04-qml-diagnostics/` 仍保持存在，pull/configure/build/test 未清理或覆盖。
 - 当前产品仍没有 R7 媒体打开入口，因此不能从正式产品 UI 进入真实 Playing 完整手工验证“静置 → OSC Hidden → Cursor Hidden → pointer move → OSC/Cursor restore”；该真实媒体手工矩阵保留到 R7 媒体入口可用后回归，不伪装成已执行。自动化 policy/边界与 startup 已满足本 Atomic Task 收口条件。**R6-10 正式 Complete；R6-11 开始。**
 
@@ -272,7 +272,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 最终 Figma 目前只有 canonical `volume` glyph，没有独立 Mute glyph；本任务不手绘/伪造 `mute.svg`，静音状态通过同一 glyph + Tooltip/Accessible description 表达。该资产缺口按当前设计基线接受；后续若设计侧新增 Mute glyph，应更新统一 Icon source，而不是在 Volume Feature 内自造资产。
 - R6-12 明确拥有 `HudMessageQueue + PlayerHudOverlay` 以及连续 volume/seek 消息合并策略，所以本任务没有提前创建第二套 HUD Timer/queue；R6-07 只建立后续 HUD consumer 所需的 Volume 状态/intent 主链。
 - 新增独立 `player_volume_view_model`、`player_volume_controls` 两个 CTest target，并扩展 `application_container` 的直接 composition 链接/生命周期边界；全量测试数 **62 → 64**。
-- 用户锁定 Windows Qt 6.8.3 / MSVC / libmpv 环境最终验证：`configure.ps1` **PASS**（CMake Configuring 4.6 s / Generating 2.1 s）；Debug `build.ps1` **PASS**；`scripts/test.ps1` 完成 QML lint；全量 **64/64 CTest PASS，0 failed，53.71 s**，其中 `player_volume_controls` **0.11 s PASS**、`player_volume_view_model` **0.11 s PASS**，Transport/Timeline/Render/Playback 回归全部保持通过。
+- 用户锁定 Windows Qt 6.8.3 / MSVC / libmpv 环境最终验证：`configure.ps1` **PASS**（Configuring 4.6 s / Generating 2.1 s）；Debug `build.ps1` **PASS**；`scripts/test.ps1` 完成 QML lint；全量 **64/64 CTest PASS，0 failed，53.71 s**，其中 `player_volume_controls` **0.11 s PASS**、`player_volume_view_model` **0.11 s PASS**，Transport/Timeline/Render/Playback 回归全部保持通过。
 - `Player.exe` 实际启动 **PASS**。用户提供的两张实机截图覆盖 960px 最小 Main Window 与宽窗口：Main Standard OSC 在两档宽度下 Timeline/Transport/Volume 均无重叠或错位，100px Volume Slider 正常可见；Slider 获得焦点后的紫色外框来自 R5 已冻结的 focus-visible contract。Main Window resize 不应以“隐藏 Slider”作为 R6-07 验收条件；Fullscreen no-slider variant 的运行时切换留给 R6-08。
 - 当前产品媒体打开入口仍属于 R7，因此无法在产品 UI 中加载真实媒体后手工验证 backend volume/mute acknowledgement；该未执行项由现有真实 playback backend 能力链与本轮 VM/QML 定向测试覆盖，没有伪装成已手工通过。**R6-07 正式 Complete；下一项 R6-08。**
 
@@ -382,7 +382,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 ### 2026-08-13 — R5-07 Slider controls Complete
 
 - 重新核对第三版最终 Figma `Control / Slider` 与 D3 OSC 设计规则：默认组件为 **180×32**，命中区 **132×16**，视觉轨道 **126×3**，值区 **36px** + **12px** gap；Thumb 为 **10 / 12 / 14px（Default/Focus / Hover / Pressed）**，Focus ring **1.5px / 82%**，Disabled **38%**。视觉轨道继续使用既有 `control/track`、`control/progress`、`control/thumb-border` semantic color。
-- 新增业务无关 `controls/sliders/Slider.qml`：公开 normalized `value`（0..1）、`stepSize`、`wheelStep`、`showValue/valueText`，只把 pointer/keyboard/wheel 输入转换成 normalized value，并发出 `interactionStarted/valueEdited/interactionFinished/interactionCanceled`；不调用 Seek、Volume、PlaybackSession，也不拥有媒体业务状态。
+- 新增业务无关 `controls/sliders/Slider.qml`：公开 normalized `value`（0..1）、`stepSize`、`wheelStep`、`showValue/valueText`，只把 pointer/keyboard/wheel输入转换成 normalized value，并发出 `interactionStarted/valueEdited/interactionFinished/interactionCanceled`；不调用 Seek、Volume、PlaybackSession，也不拥有媒体业务状态。
 - Pointer 通过独立 16px hit target 处理 press/drag，视觉轨道保持 3px；键盘 Left/Down 与 Right/Up 使用 `stepSize`，Wheel 使用 `wheelStep`；Disabled 阻断用户输入但不阻止外部程序设置值。根 `value` 越界时收敛到 0..1。
 - Slider 默认值文本复用 `TimecodeText.ExtraSmall`（Geist Mono 10 Regular），因此 Controls 继续只经既有 Theme + Primitives 边界消费基础能力；Feature import 规则不变，Timeline/Volume 后续应包装 Slider，而不是复制输入状态机。
 - R5-07 首次真实消费补齐 Slider 几何 semantic token：180/132/16/3、10/12/14 thumb、36 value width、12 gap、1px thumb border 与 1.5px focus ring；未改写既有颜色、Opacity、Radius、Motion 真值。
@@ -423,7 +423,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ### 2026-08-13 — R5-03 Complete
 
-- Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token 已建立；Reduce Motion 统一将 transition duration 降为 0 并切换 Linear easing，OSC inactivity hide-delay 继续保持 **2200 ms**。
+- Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token 已建立；Reduce Motion 统一将 transition duration 降为 0并切换 Linear easing，OSC inactivity hide-delay 继续保持 **2200 ms**。
 - 新增 `theme_effect_tokens` 合同测试与产品 QML raw radius/z/opacity/duration 回流门禁。
 - 锁定 Windows 环境实测已确认：configure、Debug build、无 warning `player_qml_lint`、**44/44 CTest PASS（49.52 s）** 与 `Player.exe` 启动 smoke 均通过。当前仍是播放器骨架界面；Panel/Popover/HUD 等实际 Surface 消费属于 R5-08。**R5-03 正式 Complete。**
 
@@ -477,4 +477,4 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 - **R2-01~R2-11 完成 Stage 主链；Stage R2 Complete。**
 - 建立固定 libmpv 运行链、RAII client、初始化、命令、属性、事件、错误映射与 headless playback probe。
-- R2-01 原仓库根 `player.log` 落盘缺口已由 Pre-R6-09 development diagnostics 正式关闭：开发态 `Player.exe` 自主写入项目根上一级 `..\logs\player.log`，Windows 实机验证通过。
+- R2-01 原仓库根 `player.log` 落盘缺口已由 Pre-R6-09 development diagnostics 正式关闭：开发态 `Player.exe` 自主写入项目根上一级 `..\logs\player.log`，Windows 实机验证通过。 
