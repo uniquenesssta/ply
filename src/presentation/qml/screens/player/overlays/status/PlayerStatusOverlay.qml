@@ -24,6 +24,7 @@ Item {
 
     signal openMediaRequested()
     signal openUrlRequested()
+    signal cancelMediaOpenRequested()
 
     objectName: "playerStatusOverlay"
     visible: root.statusVisible
@@ -76,9 +77,17 @@ Item {
         id: loadingComponent
 
         LoadingFeedback {
+            id: loadingFeedback
             objectName: "playerLoadingFeedback"
             title: qsTr("Loading media")
             detail: qsTr("Preparing playback")
+
+            TextButton {
+                parent: loadingFeedback.contentColumn
+                objectName: "playerCancelMediaOpenAction"
+                text: qsTr("Cancel")
+                onClicked: root.cancelMediaOpenRequested()
+            }
         }
     }
 
@@ -111,6 +120,9 @@ Item {
             objectName: "playerErrorFeedback"
             title: qsTr("Playback unavailable")
             detail: qsTr("The media could not be played")
+            actionText: qsTr("Open media")
+
+            onActionRequested: root.openMediaRequested()
         }
     }
 }
