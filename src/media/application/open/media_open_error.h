@@ -14,6 +14,9 @@ enum class MediaOpenError : quint8
     NotRegularFile,
     NotReadable,
     CanonicalizationFailed,
+    EmptyUrl,
+    InvalidUrl,
+    UnsupportedUrlScheme,
     SubmissionRejected,
 };
 
