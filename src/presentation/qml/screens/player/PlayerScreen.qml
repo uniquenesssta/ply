@@ -21,6 +21,7 @@ Item {
     property var statusViewModel: null
     property var mediaViewModel: null
     property var hudMessageQueue: null
+    property var mediaDropHandler: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property bool oscCompact: root.fullScreen
@@ -30,6 +31,7 @@ Item {
                                                       && (root.timelineViewModel.isScrubbing
                                                           || root.timelineViewModel.seekPending)
     readonly property bool controlsDragActive: root.dragActive
+                                               || dropOverlay.dragActive
                                                || volumeControls.interactionActive
     readonly property bool errorOverlayVisible: root.statusViewModel !== null
                                                 && root.statusViewModel.errorVisible
@@ -158,6 +160,12 @@ Item {
             suppressBuffering: root.timelineInteractionActive
 
             onOpenMediaRequested: root.openMediaRequested()
+        }
+
+        PlayerDropOverlay {
+            id: dropOverlay
+            anchors.fill: parent
+            mediaDropHandler: root.mediaDropHandler
         }
     }
 
