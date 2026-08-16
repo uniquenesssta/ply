@@ -4,6 +4,7 @@
 #include "app/bootstrap/qml_bootstrap.h"
 #include "app/composition/playback_composition.h"
 #include "foundation/logging/log_categories.h"
+#include "media/application/arguments/media_argument_open_workflow.h"
 #include "media/application/drop/media_drop_handler.h"
 #include "media/application/open/media_open_coordinator.h"
 #include "media/application/open/url_open_workflow.h"
@@ -37,6 +38,10 @@ ApplicationContainer::ApplicationContainer(
     , urlOpenWorkflow_(
         std::make_unique<player::media::application::UrlOpenWorkflow>(
             *mediaOpenCoordinator_))
+    , mediaArgumentOpenWorkflow_(
+        std::make_unique<player::media::application::MediaArgumentOpenWorkflow>(
+            *mediaOpenCoordinator_,
+            *urlOpenWorkflow_))
     , mediaDropHandler_(
         std::make_unique<player::media::application::MediaDropHandler>(
             *mediaOpenCoordinator_,
@@ -80,6 +85,12 @@ ApplicationContainer::urlOpenWorkflow() noexcept
     return *urlOpenWorkflow_;
 }
 
+player::media::application::MediaArgumentOpenWorkflow&
+ApplicationContainer::mediaArgumentOpenWorkflow() noexcept
+{
+    return *mediaArgumentOpenWorkflow_;
+}
+
 player::media::application::MediaDropHandler&
 ApplicationContainer::mediaDropHandler() noexcept
 {
@@ -103,6 +114,7 @@ void ApplicationContainer::shutdown() noexcept
 
     qmlBootstrap_.reset();
     mediaDropHandler_.reset();
+    mediaArgumentOpenWorkflow_.reset();
     urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
 
