@@ -35,6 +35,8 @@ void PlayerUrlOpenTest::urlDialogUsesPublicPresentationBoundaryOnly()
         "src/presentation/qml/features/player/mediaopen/UrlMediaOpenDialog.qml"));
     QVERIFY(!dialog.isEmpty());
 
+    QVERIFY(dialog.contains(QStringLiteral("import QtQuick.Controls.Basic")));
+    QVERIFY(!dialog.contains(QStringLiteral("import QtQuick.Controls\n")));
     QVERIFY(dialog.contains(QStringLiteral("Popup {")));
     QVERIFY(dialog.contains(QStringLiteral("TextField {")));
     QVERIFY(dialog.contains(QStringLiteral("Rectangle {")));
