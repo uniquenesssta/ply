@@ -117,12 +117,20 @@ Item {
         id: errorComponent
 
         ErrorFeedback {
+            id: errorFeedback
             objectName: "playerErrorFeedback"
             title: qsTr("Playback unavailable")
             detail: qsTr("The media could not be played")
             actionText: qsTr("Open media")
 
             onActionRequested: root.openMediaRequested()
+
+            TextButton {
+                parent: errorFeedback.contentColumn
+                objectName: "playerErrorOpenUrlAction"
+                text: qsTr("Open URL")
+                onClicked: root.openUrlRequested()
+            }
         }
     }
 }
