@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
 | R6 — 播放器主界面与基础交互 | Complete | **R6-01 ~ R6-16 全部 Complete**；最终 Windows Debug build **124/124**、QML lint **6/6**、**76/76 CTest PASS（71.23 s）**、`Player.exe` startup/exit smoke PASS |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 / R7-02 / R7-03 / R7-04 Complete**；R7-04 已完成当前进程 argv / 外部路径入口、首帧后 startup open 调度与单一 MediaOpenCoordinator 路由。本地单文件 argv 实机已确认自动进入播放；Windows Quick **83/83 PASS**、完整 **90/90 CTest PASS（72.49 s）**，其中 7 个 `windowed-render` 测试合计 **34.78 s**。R7-05 及之后任务尚未开始 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 / R7-02 / R7-03 / R7-04 / R7-05 Complete**；R7-05 已建立 Playlist/Entry/current/repeat/shuffle 的纯 Domain authoritative queue。Windows Debug build PASS、Quick **84/84 PASS**、完整 **91/91 CTest PASS（72.72 s）**，其中 7 个 `windowed-render` 测试合计 **34.83 s**。R7-06 及之后任务尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线；其中追加的 R6-13 ~ R6-16 已全部完成，Stage R6 已重新关闭。
 
@@ -63,6 +63,7 @@ src/playback/application/        PlaybackSession、请求生命周期与应用�
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验与统一 workflow 编排
+src/playlist/domain/             播放队列、Entry/current/repeat/shuffle 领域真值
 src/presentation/                QML 与 presentation 层
 src/platform/                    平台能力
 src/persistence/                 持久化边界
@@ -113,6 +114,13 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-17 — R7-05 Playlist Domain Complete
+
+- 新增独立 `src/playlist/domain/` 与 `player_playlist_domain`。`Playlist` 是队列顺序、current entry、repeat mode 与 shuffle-enabled 的唯一领域 owner；`PlaylistEntry` 只绑定稳定 `PlaylistEntryId + MediaSource`，Domain 不依赖 QML、PlaybackSession、libmpv 或 Controller。
+- `append()` 只接受有效 `MediaSource` 并分配单调、不回收的稳定 Entry ID；相同媒体允许重复入队但 ID 独立。追加不会隐式选择 current；`select()` 只接受已存在 ID；删除 current 时清空 current，保证没有 dangling current ID；`clear()` 清队列/current 但不回收已发出的 ID，也不重置 repeat/shuffle policy。
+- Repeat 领域状态限定为 `Off / One / All`，Shuffle 本轮只建立 enabled 真值；EOF 导航、随机顺序、删除 current 后 next/stop policy、Controller/readonly model/QML 均未提前实现，分别继续归 R7-06/R7-08/R7-09。
+- 新增独立 `playlist_domain` CTest，覆盖空列表、追加顺序、稳定/重复 ID、无效来源、选择与删除 current、clear、repeat/shuffle 状态。Windows 锁定环境验证：Debug build PASS；Quick **84/84 PASS**；最终 `scripts/test.ps1 -SkipBuild` **91/91 CTest PASS，0 failed，72.72 s**，其中 `playlist_domain` **0.02 s PASS**、7 个真实 `windowed-render` 测试合计 **34.83 s**，既有 Media/Open、Playback、Render 与 Presentation 回归全部保持 PASS。没有新增生产依赖。**R7-05 正式 Complete；Stage R7 继续 In Progress；下一任务 R7-06 Playlist Controller。**
 
 ### 2026-08-16 — R7-04 Command-line and file-association entry Complete
 
@@ -348,7 +356,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 已删除被新结构完整替代的 `features/player/chrome/PlayerChrome.qml`。该旧文件同时拥有顶部和底部占位 UI，继续保留会形成重复路径；删除不改变任何已实现业务操作，因为其中只有框架提示文字和玻璃占位矩形。
 - 目标结构中的 `states/` 本轮没有创建空文件：R6-01 尚无独立状态 owner，Loading/Buffering/Ended/Error selector 属于后续 R6-11；不为了目录形式制造透明转发或推测状态抽象。当前仓库也尚无 `PlayerViewModel`，因此 R6-01 只建立 `PlayerViewModel → PlayerScreen → child features` 链中的 Screen/Host 边界，不把尚未存在的 VM 伪装为已接通。
 - 新增独立 `player_screen_structure` CTest，静态验证 PlayerScreen 只组合五类 Host、Host 使用正确 z-order/slot、VideoViewport 只包装 VideoSurface、Screen/Host 不出现 PlaybackSession/libmpv/mpv_ 业务词，并强制旧 `PlayerChrome.qml` 不再存在。全量测试数由 **51 → 52**。
-- 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被旧 scaffold 校验阻断，原因是旧 `verify-project-layout.ps1` 仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake自动重跑正常，Debug build PASS，`scripts/test.ps1` 的 QML lint 门禁完成且无新增 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS。
+- 首轮 Windows 验证锁定代码 HEAD `630bc2249b5024408590b7b9fd803daf82bfb5c5`：`configure.ps1` 在真正调用 CMake 前被旧 scaffold 校验阻断，原因是旧 `verify-project-layout.ps1` 仍把已删除的 `PlayerChrome.qml` 当作必需文件；随后 `build.ps1` 的 CMake自动重跑正常，Debug build PASS，`scripts/test.ps1` 的 QML lint门禁完成且无新增 warning/error，全量 **52/52 CTest PASS，0 failed，52.79 s**，新增 `player_screen_structure` PASS；`Player.exe` 实际启动 PASS。
 - 同源修复更新 `scripts/verify-project-layout.ps1`：required-files 真值改为 R6-01 五个 Screen Host + `VideoSurface`，旧 `PlayerChrome.qml` 改为 obsolete path；Presentation CMake 校验同步要求五个 Host 已进入 QML module；PlayerScreen composition 校验同步改为新五层结构。没有恢复旧 Chrome，也没有弱化校验。
 - 修复后 `configure.ps1` 在锁定 Windows 环境复验 **PASS**：layout verifier 明确识别 R6-01 PlayerScreen composition 完整，CMake **Configuring 3.7 s / Generating 1.7 s**；此前 build/QML lint/52-test 结果保持有效，因为修复只涉及 verifier 与文档。
 - 最终手工 basic resize 验证 **PASS**：窗口缩小、放大均正常，内容始终铺满，没有错位或运行时报错；`Player.exe` 再次启动正常。未修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-01 正式 Complete；R6-02 未开始。**
