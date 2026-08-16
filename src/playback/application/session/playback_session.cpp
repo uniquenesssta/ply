@@ -229,6 +229,9 @@ void PlaybackSession::handleBackendEvent(const PlaybackEvent& event)
     if (ended != nullptr
         && (ended->reason == MediaEndReason::Stopped
             || ended->reason == MediaEndReason::Shutdown)) {
+        (void)requestTracker_.cancelMediaRequestsForGeneration(
+            event.generation,
+            PlaybackRequestCancellationReason::GenerationChanged);
         mediaGenerationGate_.reset();
     }
 }
