@@ -24,6 +24,7 @@ private slots:
     void urlDialogUsesPublicPresentationBoundaryOnly();
     void mainWindowRoutesUrlIntentThroughWorkflow();
     void emptyStateExposesSeparateUrlIntent();
+    void remoteOpenRecoveryIsExplicit();
     void urlWorkflowUsesUnifiedCoordinatorBoundary();
     void validatorOwnsHttpHttpsStructureRules();
     void bootstrapInjectsUrlWorkflow();
@@ -89,6 +90,44 @@ void PlayerUrlOpenTest::emptyStateExposesSeparateUrlIntent()
     QVERIFY(screen.contains(QStringLiteral("onOpenUrlRequested: root.openUrlRequested()")));
     QVERIFY(!overlay.contains(QStringLiteral("urlOpenWorkflow")));
     QVERIFY(!screen.contains(QStringLiteral("urlOpenWorkflow")));
+}
+
+void PlayerUrlOpenTest::remoteOpenRecoveryIsExplicit()
+{
+    const QString overlay = readSource(QStringLiteral(
+        "src/presentation/qml/screens/player/overlays/status/PlayerStatusOverlay.qml"));
+    const QString screen = readSource(QStringLiteral(
+        "src/presentation/qml/screens/player/PlayerScreen.qml"));
+    const QString tracker = readSource(QStringLiteral(
+        "src/playback/application/requests/request_tracker.cpp"));
+    const QString monitor = readSource(QStringLiteral(
+        "src/playback/application/requests/request_timeout_monitor.cpp"));
+    const QString session = readSource(QStringLiteral(
+        "src/playback/application/session/playback_session.cpp"));
+    QVERIFY(!overlay.isEmpty());
+    QVERIFY(!screen.isEmpty());
+    QVERIFY(!tracker.isEmpty());
+    QVERIFY(!monitor.isEmpty());
+    QVERIFY(!session.isEmpty());
+
+    QVERIFY(overlay.contains(QStringLiteral("signal cancelMediaOpenRequested()")));
+    QVERIFY(overlay.contains(QStringLiteral("objectName: \"playerCancelMediaOpenAction\"")));
+    QVERIFY(overlay.contains(QStringLiteral("text: qsTr(\"Cancel\")")));
+    QVERIFY(overlay.contains(QStringLiteral("onClicked: root.cancelMediaOpenRequested()")));
+    QVERIFY(overlay.contains(QStringLiteral("actionText: qsTr(\"Open media\")")));
+    QVERIFY(screen.contains(QStringLiteral("onCancelMediaOpenRequested:")));
+    QVERIFY(screen.contains(QStringLiteral("root.transportViewModel.requestStop()")));
+
+    QVERIFY(tracker.contains(QStringLiteral("RequestTracker::cancelExpiredRecords")));
+    QVERIFY(monitor.contains(QStringLiteral("tracker_.cancelExpiredRecords")));
+    QVERIFY(monitor.contains(QStringLiteral("timeoutHandler_(record)")));
+    QVERIFY(session.contains(QStringLiteral("handleRequestTimeout(record)")));
+    QVERIFY(session.contains(QStringLiteral("record.type != PlaybackRequestType::LoadMedia")));
+    QVERIFY(session.contains(QStringLiteral("snapshot_.lifecycle() != PlaybackLifecycleState::Opening")));
+    QVERIFY(session.contains(QStringLiteral("Media load timed out.")));
+    QVERIFY(session.contains(QStringLiteral("mediaGenerationGate_.reset()")));
+    QVERIFY(session.contains(QStringLiteral("MediaEndReason::Stopped")));
+    QVERIFY(session.contains(QStringLiteral("MediaFailedEvent")));
 }
 
 void PlayerUrlOpenTest::urlWorkflowUsesUnifiedCoordinatorBoundary()
