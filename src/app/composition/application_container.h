@@ -5,6 +5,7 @@
 #include <memory>
 
 namespace player::media::application {
+class MediaArgumentOpenWorkflow;
 class MediaDropHandler;
 class MediaOpenCoordinator;
 class UrlOpenWorkflow;
@@ -35,6 +36,7 @@ public:
     [[nodiscard]] PlaybackComposition& playbackComposition() noexcept;
     [[nodiscard]] player::media::application::MediaOpenCoordinator& mediaOpenCoordinator() noexcept;
     [[nodiscard]] player::media::application::UrlOpenWorkflow& urlOpenWorkflow() noexcept;
+    [[nodiscard]] player::media::application::MediaArgumentOpenWorkflow& mediaArgumentOpenWorkflow() noexcept;
     [[nodiscard]] player::media::application::MediaDropHandler& mediaDropHandler() noexcept;
     [[nodiscard]] QmlBootstrap& qmlBootstrap() noexcept;
 
@@ -46,6 +48,7 @@ private:
     std::unique_ptr<PlaybackComposition> playbackComposition_;
     std::unique_ptr<player::media::application::MediaOpenCoordinator> mediaOpenCoordinator_;
     std::unique_ptr<player::media::application::UrlOpenWorkflow> urlOpenWorkflow_;
+    std::unique_ptr<player::media::application::MediaArgumentOpenWorkflow> mediaArgumentOpenWorkflow_;
     std::unique_ptr<player::media::application::MediaDropHandler> mediaDropHandler_;
     std::unique_ptr<QmlBootstrap> qmlBootstrap_;
 };
