@@ -19,7 +19,11 @@ public:
 
     explicit RequestTimeoutMonitor(
         RequestTracker& tracker,
-        TimeoutHandler timeoutHandler = {},
+        QObject* parent = nullptr);
+
+    RequestTimeoutMonitor(
+        RequestTracker& tracker,
+        TimeoutHandler timeoutHandler,
         QObject* parent = nullptr);
 
     RequestTimeoutMonitor(const RequestTimeoutMonitor&) = delete;
