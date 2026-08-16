@@ -6,6 +6,7 @@
 #include "foundation/logging/log_categories.h"
 #include "media/application/drop/media_drop_handler.h"
 #include "media/application/open/media_open_coordinator.h"
+#include "media/application/open/url_open_workflow.h"
 
 #include <QLoggingCategory>
 #include <QString>
@@ -33,9 +34,13 @@ ApplicationContainer::ApplicationContainer(
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitMediaLoad(source.location());
             }))
+    , urlOpenWorkflow_(
+        std::make_unique<player::media::application::UrlOpenWorkflow>(
+            *mediaOpenCoordinator_))
     , mediaDropHandler_(
         std::make_unique<player::media::application::MediaDropHandler>(
-            *mediaOpenCoordinator_))
+            *mediaOpenCoordinator_,
+            *urlOpenWorkflow_))
     , qmlBootstrap_(std::make_unique<QmlBootstrap>())
 {
     if (loggingBootstrap_ == nullptr) {
@@ -69,6 +74,12 @@ ApplicationContainer::mediaOpenCoordinator() noexcept
     return *mediaOpenCoordinator_;
 }
 
+player::media::application::UrlOpenWorkflow&
+ApplicationContainer::urlOpenWorkflow() noexcept
+{
+    return *urlOpenWorkflow_;
+}
+
 player::media::application::MediaDropHandler&
 ApplicationContainer::mediaDropHandler() noexcept
 {
@@ -92,6 +103,7 @@ void ApplicationContainer::shutdown() noexcept
 
     qmlBootstrap_.reset();
     mediaDropHandler_.reset();
+    urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
 
     if (playbackComposition_ != nullptr) {
