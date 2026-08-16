@@ -137,15 +137,15 @@ std::size_t RequestTracker::cancelMediaRequestsForGenerationChange(
     return cancelled;
 }
 
-std::size_t RequestTracker::cancelExpired(
+std::vector<PlaybackRequestRecord> RequestTracker::cancelExpiredRecords(
     PlaybackRequestClock::time_point now,
     std::chrono::milliseconds timeout) noexcept
 {
+    std::vector<PlaybackRequestRecord> cancelledRecords;
     if (timeout.count() < 0) {
-        return 0;
+        return cancelledRecords;
     }
 
-    std::size_t cancelled = 0;
     for (auto& [id, record] : records_) {
         Q_UNUSED(id);
         if (record.state != PlaybackRequestState::Pending || now < record.submittedAt) {
@@ -156,11 +156,18 @@ std::size_t RequestTracker::cancelExpired(
         }
 
         markCancelled(record, PlaybackRequestCancellationReason::Timeout);
-        ++cancelled;
+        cancelledRecords.push_back(record);
     }
 
-    diagnostics_.timeoutCancellationCount += cancelled;
-    return cancelled;
+    diagnostics_.timeoutCancellationCount += cancelledRecords.size();
+    return cancelledRecords;
+}
+
+std::size_t RequestTracker::cancelExpired(
+    PlaybackRequestClock::time_point now,
+    std::chrono::milliseconds timeout) noexcept
+{
+    return cancelExpiredRecords(now, timeout).size();
 }
 
 std::size_t RequestTracker::cancelAll(PlaybackRequestCancellationReason reason) noexcept
