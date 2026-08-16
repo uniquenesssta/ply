@@ -23,6 +23,7 @@ public:
 
     [[nodiscard]] QString lastErrorKey() const;
 
+    [[nodiscard]] bool openSource(const player::media::domain::MediaSource& source);
     Q_INVOKABLE bool openLocalFile(const QUrl& sourceUrl);
 
 signals:
