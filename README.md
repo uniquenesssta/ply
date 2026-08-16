@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
 | R6 — 播放器主界面与基础交互 | Complete | **R6-01 ~ R6-16 全部 Complete**；最终 Windows Debug build **124/124**、QML lint **6/6**、**76/76 CTest PASS（71.23 s）**、`Player.exe` startup/exit smoke PASS |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 / R7-02 / R7-03 Complete**；R7-03 已完成基础 HTTP/HTTPS URL 主链、加载失败恢复与 Windows Schannel/TLS package 能力补齐。重建 audited libmpv 后同一 HTTPS MP4 直链实机可正常打开播放；最新 Windows Quick **80/80 PASS**、完整 **87/87 CTest PASS（73.24 s）**，其中 7 个 `windowed-render` 测试合计 **35.49 s**。R7-04 及之后任务尚未开始 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 / R7-02 / R7-03 / R7-04 Complete**；R7-04 已完成当前进程 argv / 外部路径入口、首帧后 startup open 调度与单一 MediaOpenCoordinator 路由。本地单文件 argv 实机已确认自动进入播放；Windows Quick **83/83 PASS**、完整 **90/90 CTest PASS（72.49 s）**，其中 7 个 `windowed-render` 测试合计 **34.78 s**。R7-05 及之后任务尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线；其中追加的 R6-13 ~ R6-16 已全部完成，Stage R6 已重新关闭。
 
@@ -114,6 +114,15 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-16 — R7-04 Command-line and file-association entry Complete
+
+- 新增职责独立的 `media/application/arguments/MediaArgumentParser` 与 `MediaArgumentOpenWorkflow`。Parser 只解析当前进程 `argv`，跳过 `argv[0]`，将本地绝对/相对路径按启动 working directory 规范化为 local `QUrl`，保留 HTTP/HTTPS URL，并支持 `--` 后以 `-` 开头的合法文件名；普通 option-like token 不当作媒体来源。
+- `MediaArgumentOpenWorkflow` 不建立第二套 load：单本地路径复用 `MediaOpenCoordinator::openLocalFile()`，单 HTTP/HTTPS 参数复用 R7-03 `UrlOpenWorkflow`；多个来源只保留输入顺序并返回 deferred，在 R7-05 Playlist authoritative queue 建立前不连续 `loadfile`、不让“最后一个覆盖前一个”冒充多文件支持。
+- 新增 `StartupMediaOpenScheduler`，只负责在 QML root、VideoOutput/Render binding 与 Qt Quick 首个 `frameSwapped` 已完成后一次性执行 startup argv open；避免在 R7-01 已修复的 RenderContext 建立前提前提交媒体 load。Parser/Workflow 不依赖 Render，后续 R10 第二实例转发可复用 open workflow 而无需复制 Playback load 主链。
+- 本任务按任务书只实现**当前进程 argv / 外部路径被交给已启动进程时的消费入口**；没有新增 Windows 注册表文件关联安装、installer association、单实例锁或第二实例 IPC/转发，这些继续归后续 Platform/R10 范围。无新增生产依赖，PlaybackSession、CommandBus、MediaGeneration、Renderer、配置与持久化语义保持不变。
+- 新增 `media_argument_parser`、`media_argument_open_workflow`、`startup_media_open_scheduler` 三个独立 CTest。Windows 锁定环境验证：Debug build 与 runtime deployment PASS；Quick **83/83 PASS**。实机以 `Player.exe "F:\081.mp4"` 启动后无需文件选择即自动进入 `playing=true`，无参数启动保持 Empty/`playing=false`，两类运行均正常 exit code 0 且未见 WARN/ERROR/CRITICAL。HTTP/HTTPS argv 的路由由 workflow 定向测试覆盖；本轮未把额外 HTTPS argv smoke 伪报为手工通过。
+- 最终 `scripts/test.ps1 -SkipBuild` 完成全量 **90/90 CTest PASS，0 failed，72.49 s**，其中 7 个真实 `windowed-render` 测试合计 **34.78 s**；R7-04 新增三项、既有 R7-01~03 Media/Open、Playback、Render 与 Presentation 回归全部保持 PASS。**R7-04 正式 Complete；Stage R7 继续 In Progress；下一任务 R7-05 Playlist Domain。**
+
 ### 2026-08-16 — R7-03 URL Open Complete
 
 - `MediaSource` 增加 `RemoteUrl` 来源类型；新增职责独立的 `UrlMediaValidator` 与 `UrlOpenWorkflow`。Validator 仅负责 trim、严格绝对 URL、host 与 HTTP/HTTPS scheme 校验及规范化，不执行网站解析、可达性探测、阻塞网络请求或重试；Workflow 只执行 `validate → MediaOpenCoordinator::openSource()`，网络媒体继续复用同一 Playback load 主链和既有 Playback Error/Status 失败语义。
@@ -209,10 +218,10 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - `screens/player/overlays/hud/PlayerHudOverlay.qml` 复用 R5 已冻结 `Surfaces.Hud` / `ZOrderTokens.hud=70`，作为 `PlayerScreen` 的直接 sibling 而不是 z35 `PlayerOverlayStack` 子项，因此保持 `Overlay 35 < OSC 40 < HUD 70 < Toast 80 < Dialog 100`。root `enabled:false` 且没有 PointerHandler；QML **没有 Timer**，短反馈不阻断控制。
 - 初始 candidate 的 Windows qmllint/runtime 暴露 Overlay 误用不存在的 `MotionTokens.resolvedDuration` / `commonEasing`。收口修复改为消费既有 `hudShowDuration/hudHideDuration`、enter/exit easing 与 bezier token，没有新增兼容 facade、裸动画参数或 suppression；`player_hud_overlay` 同步增加回归，最终 QML lint 输出中这两个无效 API 已完全消失。
 - 当前 R6 有真实 producer 的只接入 Volume/Mute 与 Seek；虽然 Domain 已有 speed command，但 R6 尚无真实 Speed presentation action，Track 切换归 R8，因此本任务不伪造 Speed/Track 控件或假 command。Queue/Overlay 保留后续真实 Feature 的明确接入边界。
-- 新增 `player_hud_message_queue` 与 `player_hud_overlay` 两个独立 CTest，并扩展 `application_container` / CMake wiring；测试覆盖 volume clamp/round、同类合并、mute update、Volume↔Seek 有限排队、clear/timeout、HUD semantic mapping、非阻断/z-order/Motion、QML 无 Timer以及 Bootstrap→MainWindow→PlayerScreen 单一 queue route。全量测试数 **69 → 71**。
+- 新增 `player_hud_message_queue` 与 `player_hud_overlay` 两个独立 CTest，并扩展 `application_container` / CMake wiring；全量测试数 **69 → 71**。
 - 最终 Windows 锁定环境复验：`configure.ps1` **PASS**（Configuring **4.7 s** / Generating **2.3 s**）、Debug build **PASS**、`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **71/71 CTest PASS，0 failed，67.05 s**，其中 `player_hud_overlay` **0.73 s PASS**、`player_hud_message_queue` **6.27 s PASS**，logging/application_container/Status/Chrome/Cursor 以及既有 Playback/Render/Presentation 回归全部保持通过。
 - 随后多次 `Player.exe` startup/exit smoke 均正常；两份最终上传日志均以 exit code 0 结束，进一步确认 HUD Motion 修复没有留下启动期 QML runtime warning，并验证“一次启动 = 一份日志”的诊断行为。
-- 产品媒体打开入口仍属于 R7，因此正式产品 UI 中以真实媒体触发 Volume/Seek HUD 的完整手工矩阵尚不可执行；该项保留到 R7 后回归，不伪装为已手工覆盖。没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、配置、持久化或公共播放接口。**R6-12 正式 Complete；当时 R6-01~R6-12 核心阶段按既有任务书关闭。随后识别到跨 Stage 强制补充的 R6-13~R6-16，因此 Stage R6 当前重新处于 Supplemental In Progress；R7 仍未开始。**
+- 产品媒体打开入口仍属于 R7，因此正式产品 UI 中以真实媒体触发 Volume/Seek HUD 的完整手工矩阵尚不可执行；该项保留到 R7 后回归，不伪装成已手工覆盖。没有新增生产依赖，没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、配置、持久化或公共播放接口。**R6-12 正式 Complete；当时 R6-01~R6-12 核心阶段按既有任务书关闭。随后识别到跨 Stage 强制补充的 R6-13~R6-16，因此 Stage R6 当前重新处于 Supplemental In Progress；R7 仍未开始。**
 
 ### 2026-08-15 — R6-11 Status Overlay Complete
 
@@ -228,7 +237,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 ### 2026-08-15 — R6-10 Cursor hiding Complete
 
 - `features/player/chrome/PlayerCursorVisibilityController.qml` 作为独立 cursor visibility policy owner，只消费 R6-09 的 `oscVisible` 结果，不拥有 inactivity Timer；R6-09 继续是“何时进入沉浸态”的唯一 Timer/state owner，R6-10 没有复制 2200/1600ms delay。
-- Cursor 仅在 **Playing + OSC Hidden** 且不存在 Scrubbing/Pending、Popup、Error、显式 `cursorHideSuppressed` 例外时隐藏；Paused 或任一锁定场景均保持可见。`cursorHideSuppressed` 是 presentation 层显式 suppression 输入，默认不改变现有行为。
+- Cursor 仅在 **Playing + OSC Hidden** 且不存在 Scrubbing/Pending Seek、Popup、Error、显式 `cursorHideSuppressed` 例外时隐藏；Paused 或任一锁定场景均保持可见。`cursorHideSuppressed` 是 presentation 层显式 suppression 输入，默认不改变现有行为。
 - `PlayerChromeActivityLayer` 继续拥有 pointer activity sensor，并承担当前窗口 cursor application：隐藏态使用 `Qt.BlankCursor`，可见态恢复为 `undefined`，避免覆盖 Button/其他子控件自己的 cursor semantic。Pointer move/enter 仍先通知 R6-09 Activity policy，OSC 回到 Active 后 Cursor policy 随 `oscVisible` 自动恢复可见。
 - `PlayerScreen` 仅组合 Chrome/Cursor policy：共享 `playbackPlaying`、`timelineInteractionActive`、`popupOpen`、`errorOverlayVisible` 输入，并把 R6-09 `oscVisible` 单向传给 Cursor controller；没有反向依赖、第二套状态真值、PlaybackSession/libmpv 或 R6-11/R6-12 逻辑。
 - 独立 `player_cursor_visibility` CTest 覆盖 Playing+OSC Hidden、OSC wake、Scrub、Popup、Error、suppression、Paused；静态锁定 Cursor controller 无 Timer、R6-09 仍只有一个 Timer、Activity Layer 使用 `Qt.BlankCursor : undefined`。`player_chrome_visibility` 继续独立守住 R6-09 owner 与 Timer contract。
@@ -257,7 +266,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 - Fullscreen 是窗口模式，不建立第二套 Playback 真值。新增 `shell/window/FullscreenWindowController.qml`，直接以 Qt `Window.visibility === Window.FullScreen` 作为权威状态；进入前只记录 Windowed/Maximized 恢复语义，退出时分别 `showNormal()` / `showMaximized()`。`MainWindow → PlayerScreen` 只显式传递 `fullScreen` 并转发 fullscreen intent，没有把 window-state owner 塞进 Playback ViewModel。
 - 新增职责独立的 `features/player/fullscreen/FullscreenControls.qml` 与 `FullscreenGestureLayer.qml`：前者只拥有 OSC Utility 的 Fullscreen action，后者只用 `TapHandler.onDoubleTapped` 把视频双击转换为同一 toggle intent；Esc 由 Window Controller 的 `Shortcut` + `Qt.ApplicationShortcut` 统一处理，因此按钮、双击、Esc 最终共用一个进入/退出 owner。
-- 重新读取最终 Figma `4:48 Framework / Fullscreen`：Fullscreen Header `4:60` 为 **440×50**，使用 Header Compact 材质/R25/MediaCompact title + `ESC` keycap；Fullscreen OSC `4:63` 为 **828×106**、R32、Compact material，Timeline 使用 11px timecode/28px inset，Transport/Volume/Utility visual glyph 为 **21px**，Volume slider 不显示。新增 `SizePrimitives.size440/size828` 与对应 semantic Layout token，没有把裸尺寸散回业务 QML。
+- 重新读取第三版最终 Figma `4:48 Framework / Fullscreen`：Fullscreen Header `4:60` 为 **440×50**，使用 Header Compact 材质/R25/MediaCompact title + `ESC` keycap；Fullscreen OSC `4:63` 为 **828×106**、R32、Compact material，Timeline 使用 11px timecode/28px inset，Transport/Volume/Utility visual glyph 为 **21px**，Volume slider 不显示。新增 `SizePrimitives.size440/size828` 与对应 semantic Layout token，没有把裸尺寸散回业务 QML。
 - Fullscreen 没有复制 Timeline/Transport/Volume：`PlayerScreen` 仍组合现有 `PlayerOscLayout` 与同一三类 Feature，只把 `compact` 的模式来源改为 `fullScreen`。`PlayerOscLayout/OscSurface` 在 Fullscreen 使用 828px max width；`TransportControls` 在 compact 下复用同一 intent/VM，但把 Play 从 40px Primary glass 降为 Secondary，并用新增的通用 `IconButton.iconSizeOverride` 输出 21px visual；32px Secondary hit target 继续保持。`VolumeControls` 在 compact 下继续隐藏 Slider 并把 Volume visual 降为 21px。
 - 最终 Figma 目前只有 canonical `fullscreen` glyph，没有独立 Exit-Fullscreen glyph；实现不手绘/伪造资产，进入/退出使用同一 canonical glyph，仅切换 Tooltip/Accessible description。Subtitles/Playlist 尚属后续真实 Feature，因此 R6-08 不用静态假按钮占位。
 - Fullscreen Header 在当前无媒体 identity 时不渲染空玻璃块；真正媒体标题绑定仍由后续媒体入口/presentation 数据链提供。R6-08 没有提前实现 R6-09 的 inactivity Timer/OSC 自动隐藏，也没有提前实现 R10 的 FramelessWindowHint、Win32 hit-test、DWM、Snap 或 native resize。
