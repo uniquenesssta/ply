@@ -9,6 +9,10 @@ add_library(
         open/media_open_coordinator.h
         open/media_open_error.cpp
         open/media_open_error.h
+        open/url_media_validator.cpp
+        open/url_media_validator.h
+        open/url_open_workflow.cpp
+        open/url_open_workflow.h
 )
 
 player_apply_compiler_options(player_media_application)
