@@ -5,6 +5,7 @@
 #include <QTimer>
 
 #include <chrono>
+#include <utility>
 
 namespace player::playback::application {
 namespace {
@@ -14,9 +15,13 @@ constexpr int kRequestTimeoutPollMilliseconds = 1000;
 
 } // namespace
 
-RequestTimeoutMonitor::RequestTimeoutMonitor(RequestTracker& tracker, QObject* parent)
+RequestTimeoutMonitor::RequestTimeoutMonitor(
+    RequestTracker& tracker,
+    TimeoutHandler timeoutHandler,
+    QObject* parent)
     : QObject(parent)
     , tracker_(tracker)
+    , timeoutHandler_(std::move(timeoutHandler))
     , timer_(new QTimer(this))
 {
     timer_->setInterval(kRequestTimeoutPollMilliseconds);
@@ -26,9 +31,15 @@ RequestTimeoutMonitor::RequestTimeoutMonitor(RequestTracker& tracker, QObject* p
         &QTimer::timeout,
         this,
         [this]() {
-            (void)tracker_.cancelExpired(
+            const auto expired = tracker_.cancelExpiredRecords(
                 PlaybackRequestClock::now(),
                 kRequestTimeout);
+            if (!timeoutHandler_) {
+                return;
+            }
+            for (const PlaybackRequestRecord& record : expired) {
+                timeoutHandler_(record);
+            }
         });
 }
 
