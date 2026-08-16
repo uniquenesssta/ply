@@ -19,10 +19,9 @@ Item {
     z: ZOrderTokens.video
     clip: true
 
-    // Keep the libmpv-backed surface scene-graph active from application startup.
-    // libmpv requires mpv_render_context_create() to complete before video
-    // initialization; media capability therefore controls visual exposure, not
-    // the lifetime of the render surface itself.
+    // Keep the render surface scene-graph active from application startup.
+    // The render context must be ready before video initialization; media
+    // capability therefore controls visual exposure, not render-surface lifetime.
     VideoSurface {
         id: videoSurface
         objectName: "playerVideoSurface"
