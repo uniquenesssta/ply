@@ -24,8 +24,8 @@ public:
     }
 
     friend constexpr bool operator==(
-        PlaylistEntryId lhs,
-        PlaylistEntryId rhs) noexcept = default;
+        const PlaylistEntryId& lhs,
+        const PlaylistEntryId& rhs) noexcept = default;
 
 private:
     quint64 value_ = 0;
