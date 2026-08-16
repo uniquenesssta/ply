@@ -97,6 +97,7 @@ qt_add_qml_module(
     DEPENDENCIES
         QtQuick
         QtQuick.Controls
+        QtQuick.Controls.Basic
         QtQuick.Dialogs
         Player.Presentation.Theme
         Player.Presentation.Primitives
