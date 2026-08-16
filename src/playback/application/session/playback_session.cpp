@@ -131,7 +131,11 @@ void PlaybackSession::initialize()
     }
 
     if (requestTimeoutMonitor_ == nullptr) {
-        requestTimeoutMonitor_ = std::make_unique<RequestTimeoutMonitor>(requestTracker_);
+        requestTimeoutMonitor_ = std::make_unique<RequestTimeoutMonitor>(
+            requestTracker_,
+            [this](const PlaybackRequestRecord& record) {
+                handleRequestTimeout(record);
+            });
     }
     requestTimeoutMonitor_->start();
     initialized_ = true;
@@ -255,6 +259,30 @@ void PlaybackSession::handleCommandReply(const CommandReplyEvent& reply)
     commitSnapshot(reducePlaybackSnapshot(
         snapshot_,
         PlaybackEvent{PlaybackFailureEvent{std::move(failure)}}));
+}
+
+void PlaybackSession::handleRequestTimeout(const PlaybackRequestRecord& record)
+{
+    if (!initialized_ || stopping_
+        || record.type != PlaybackRequestType::LoadMedia
+        || !record.generation.has_value()
+        || *record.generation != snapshot_.generation()
+        || snapshot_.lifecycle() != PlaybackLifecycleState::Opening) {
+        return;
+    }
+
+    const QString diagnostic = QStringLiteral("Media load timed out.");
+    emit requestFailed(static_cast<quint8>(record.type), diagnostic);
+
+    // The timed-out generation must no longer be allowed to mutate state. A
+    // late backend reply/event remains observable by request diagnostics but
+    // cannot resurrect a load that the product has already declared failed.
+    mediaGenerationGate_.reset();
+    commitSnapshot(reducePlaybackSnapshot(
+        snapshot_,
+        PlaybackEvent{MediaFailedEvent{makeFailure(
+            PlaybackFailureCategory::Media,
+            diagnostic)}}));
 }
 
 void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
