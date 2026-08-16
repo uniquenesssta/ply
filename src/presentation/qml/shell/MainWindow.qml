@@ -13,6 +13,7 @@ ApplicationWindow {
     property var mediaViewModel: null
     property var hudMessageQueue: null
     property var mediaOpenCoordinator: null
+    property var mediaDropHandler: null
 
     width: LayoutTokens.windowDefaultWidth
     height: LayoutTokens.windowDefaultHeight
@@ -45,6 +46,7 @@ ApplicationWindow {
         statusViewModel: window.statusViewModel
         mediaViewModel: window.mediaViewModel
         hudMessageQueue: window.hudMessageQueue
+        mediaDropHandler: window.mediaDropHandler
         fullScreen: fullscreenWindowController.fullScreen
         windowActive: window.active
         modalActive: localMediaOpenDialog.visible
