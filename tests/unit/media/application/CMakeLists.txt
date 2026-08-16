@@ -161,3 +161,36 @@ add_test(
     NAME media_argument_open_workflow
     COMMAND media_argument_open_workflow_tests
 )
+
+add_executable(
+    startup_media_open_scheduler_tests
+    ../../app/bootstrap/startup_media_open_scheduler_test.cpp
+    ${PROJECT_SOURCE_DIR}/src/app/bootstrap/startup_media_open_scheduler.cpp
+    ${PROJECT_SOURCE_DIR}/src/app/bootstrap/startup_media_open_scheduler.h
+)
+
+player_apply_compiler_options(startup_media_open_scheduler_tests)
+player_enable_compiler_warnings(startup_media_open_scheduler_tests)
+player_enable_sanitizers(startup_media_open_scheduler_tests)
+player_enable_static_analysis(startup_media_open_scheduler_tests)
+
+target_include_directories(
+    startup_media_open_scheduler_tests
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+)
+
+target_link_libraries(
+    startup_media_open_scheduler_tests
+    PRIVATE
+        player_media_application
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(
+    NAME startup_media_open_scheduler
+    COMMAND startup_media_open_scheduler_tests
+)
