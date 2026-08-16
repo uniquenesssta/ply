@@ -1,6 +1,8 @@
 add_library(
     player_media_application
     STATIC
+        drop/media_drop_handler.cpp
+        drop/media_drop_handler.h
         open/local_media_validator.cpp
         open/local_media_validator.h
         open/media_open_coordinator.cpp
