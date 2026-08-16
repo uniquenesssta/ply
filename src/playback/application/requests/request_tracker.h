@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <optional>
 #include <unordered_map>
+#include <vector>
 
 namespace player::playback::application {
 
@@ -33,6 +34,10 @@ public:
 
     [[nodiscard]] std::size_t cancelMediaRequestsForGenerationChange(
         player::playback::domain::MediaGeneration nextGeneration) noexcept;
+
+    [[nodiscard]] std::vector<PlaybackRequestRecord> cancelExpiredRecords(
+        PlaybackRequestClock::time_point now,
+        std::chrono::milliseconds timeout) noexcept;
 
     [[nodiscard]] std::size_t cancelExpired(
         PlaybackRequestClock::time_point now,
