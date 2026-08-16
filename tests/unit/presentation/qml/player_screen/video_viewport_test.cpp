@@ -30,7 +30,7 @@ class VideoViewportTest final : public QObject
 private slots:
     void exposesMediaCapabilityContract();
     void usesSemanticBackgroundsForAllMediaStates();
-    void keepsRenderItemInsideDedicatedVideoSurface();
+    void keepsRenderSurfaceActiveBeforeMediaLoad();
 };
 
 void VideoViewportTest::exposesMediaCapabilityContract()
@@ -65,20 +65,26 @@ void VideoViewportTest::usesSemanticBackgroundsForAllMediaStates()
 
     QVERIFY(source.contains(
         QStringLiteral("objectName: \"playerVideoViewportBackground\"")));
+    QVERIFY(source.contains(QStringLiteral("visible: !root.videoVisible")));
     QVERIFY(source.contains(QStringLiteral("color: root.backgroundColor")));
     QVERIFY(!source.contains(QLatin1Char('#')));
 }
 
-void VideoViewportTest::keepsRenderItemInsideDedicatedVideoSurface()
+void VideoViewportTest::keepsRenderSurfaceActiveBeforeMediaLoad()
 {
     const QString viewportPath = QStringLiteral(
         "src/presentation/qml/screens/player/layout/VideoViewport.qml");
     const QString viewport = readSource(viewportPath);
     QVERIFY2(!viewport.isEmpty(), qPrintable(sourcePath(viewportPath)));
 
-    QVERIFY(viewport.contains(QStringLiteral("VideoSurface {")));
+    const qsizetype surfaceIndex = viewport.indexOf(QStringLiteral("VideoSurface {"));
+    const qsizetype backgroundIndex = viewport.indexOf(
+        QStringLiteral("objectName: \"playerVideoViewportBackground\""));
+    QVERIFY(surfaceIndex >= 0);
+    QVERIFY(backgroundIndex > surfaceIndex);
     QVERIFY(viewport.contains(QStringLiteral("anchors.fill: parent")));
-    QVERIFY(viewport.contains(QStringLiteral("visible: root.videoVisible")));
+    QVERIFY(!viewport.contains(QStringLiteral("visible: root.videoVisible")));
+    QVERIFY(viewport.contains(QStringLiteral("visible: !root.videoVisible")));
     QVERIFY(!viewport.contains(QStringLiteral("MpvVideoItem")));
     QVERIFY(!viewport.contains(QStringLiteral("PlaybackSession")));
     QVERIFY(!viewport.contains(QStringLiteral("libmpv")));
