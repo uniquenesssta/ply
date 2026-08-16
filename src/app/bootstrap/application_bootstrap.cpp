@@ -8,6 +8,7 @@
 #include "foundation/logging/log_categories.h"
 #include "media/application/drop/media_drop_handler.h"
 #include "media/application/open/media_open_coordinator.h"
+#include "media/application/open/url_open_workflow.h"
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
 #include "presentation/qml/types/presentation_type_registration.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
@@ -129,6 +130,10 @@ int ApplicationBootstrap::run(
         QStringLiteral("mediaOpenCoordinator"),
         QVariant::fromValue(
             static_cast<QObject*>(&container.mediaOpenCoordinator())));
+    initialProperties.insert(
+        QStringLiteral("urlOpenWorkflow"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.urlOpenWorkflow())));
     initialProperties.insert(
         QStringLiteral("mediaDropHandler"),
         QVariant::fromValue(
