@@ -19,6 +19,12 @@ QString mediaOpenErrorKey(MediaOpenError error)
         return QStringLiteral("not-readable");
     case MediaOpenError::CanonicalizationFailed:
         return QStringLiteral("canonicalization-failed");
+    case MediaOpenError::EmptyUrl:
+        return QStringLiteral("empty-url");
+    case MediaOpenError::InvalidUrl:
+        return QStringLiteral("invalid-url");
+    case MediaOpenError::UnsupportedUrlScheme:
+        return QStringLiteral("unsupported-url-scheme");
     case MediaOpenError::SubmissionRejected:
         return QStringLiteral("submission-rejected");
     }
