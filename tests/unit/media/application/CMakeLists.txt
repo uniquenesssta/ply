@@ -69,3 +69,49 @@ add_test(
     NAME media_drop_handler
     COMMAND media_drop_handler_tests
 )
+
+add_executable(
+    url_media_validator_tests
+    url_media_validator_test.cpp
+)
+
+player_apply_compiler_options(url_media_validator_tests)
+player_enable_compiler_warnings(url_media_validator_tests)
+player_enable_sanitizers(url_media_validator_tests)
+player_enable_static_analysis(url_media_validator_tests)
+
+target_link_libraries(
+    url_media_validator_tests
+    PRIVATE
+        player_media_application
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME url_media_validator
+    COMMAND url_media_validator_tests
+)
+
+add_executable(
+    url_open_workflow_tests
+    url_open_workflow_test.cpp
+)
+
+player_apply_compiler_options(url_open_workflow_tests)
+player_enable_compiler_warnings(url_open_workflow_tests)
+player_enable_sanitizers(url_open_workflow_tests)
+player_enable_static_analysis(url_open_workflow_tests)
+
+target_link_libraries(
+    url_open_workflow_tests
+    PRIVATE
+        player_media_application
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME url_open_workflow
+    COMMAND url_open_workflow_tests
+)
