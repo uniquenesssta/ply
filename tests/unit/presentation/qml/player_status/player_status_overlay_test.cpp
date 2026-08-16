@@ -187,12 +187,20 @@ void PlayerStatusOverlayTest::errorActionRoutesRecoveryIntent()
     QTRY_VERIFY_WITH_TIMEOUT(
         overlay->findChild<QObject*>(QStringLiteral("playerErrorFeedback")) != nullptr,
         1000);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        overlay->findChild<QObject*>(QStringLiteral("playerErrorOpenUrlAction")) != nullptr,
+        1000);
     QObject* errorFeedback = overlay->findChild<QObject*>(QStringLiteral("playerErrorFeedback"));
+    QObject* openUrlAction = overlay->findChild<QObject*>(QStringLiteral("playerErrorOpenUrlAction"));
     QVERIFY(errorFeedback != nullptr);
+    QVERIFY(openUrlAction != nullptr);
 
     QSignalSpy openSpy(overlay.get(), SIGNAL(openMediaRequested()));
+    QSignalSpy openUrlSpy(overlay.get(), SIGNAL(openUrlRequested()));
     QVERIFY(QMetaObject::invokeMethod(errorFeedback, "actionRequested"));
+    QVERIFY(QMetaObject::invokeMethod(openUrlAction, "clicked"));
     QCOMPARE(openSpy.count(), 1);
+    QCOMPARE(openUrlSpy.count(), 1);
 }
 
 void PlayerStatusOverlayTest::bufferingCanBeSuppressedByTimelineInteraction()
@@ -217,8 +225,10 @@ void PlayerStatusOverlayTest::overlayBoundaryStaysFocused()
     QVERIFY(source.contains(QStringLiteral("EndedFeedback")));
     QVERIFY(source.contains(QStringLiteral("ErrorFeedback")));
     QVERIFY(source.contains(QStringLiteral("signal openMediaRequested()")));
+    QVERIFY(source.contains(QStringLiteral("signal openUrlRequested()")));
     QVERIFY(source.contains(QStringLiteral("signal cancelMediaOpenRequested()")));
     QVERIFY(source.contains(QStringLiteral("onActionRequested: root.openMediaRequested()")));
+    QVERIFY(source.contains(QStringLiteral("objectName: \"playerErrorOpenUrlAction\"")));
     QVERIFY(source.contains(QStringLiteral("suppressBuffering")));
     QVERIFY(source.contains(QStringLiteral("visible: root.statusVisible")));
     QVERIFY(source.contains(QStringLiteral("active: root.statusVisible")));
@@ -243,10 +253,12 @@ void PlayerStatusOverlayTest::playerScreenRoutesStatusWithoutDuplicateErrorState
     QVERIFY(source.contains(QStringLiteral("readonly property bool errorOverlayVisible")));
     QVERIFY(source.contains(QStringLiteral("root.statusViewModel.errorVisible")));
     QVERIFY(source.contains(QStringLiteral("signal openMediaRequested()")));
+    QVERIFY(source.contains(QStringLiteral("signal openUrlRequested()")));
     QVERIFY(source.contains(QStringLiteral("PlayerStatusOverlay {")));
     QVERIFY(source.contains(QStringLiteral("viewModel: root.statusViewModel")));
     QVERIFY(source.contains(QStringLiteral("suppressBuffering: root.timelineInteractionActive")));
     QVERIFY(source.contains(QStringLiteral("onOpenMediaRequested: root.openMediaRequested()")));
+    QVERIFY(source.contains(QStringLiteral("onOpenUrlRequested: root.openUrlRequested()")));
     QVERIFY(source.contains(QStringLiteral("onCancelMediaOpenRequested:")));
     QVERIFY(source.contains(QStringLiteral("root.transportViewModel.requestStop()")));
     QVERIFY(!source.contains(QStringLiteral("property bool errorOverlayVisible: false")));
