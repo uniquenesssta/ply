@@ -1,6 +1,7 @@
 #include "media/application/drop/media_drop_handler.h"
 
 #include "media/application/open/media_open_coordinator.h"
+#include "media/application/open/url_open_workflow.h"
 
 #include <QFileInfo>
 #include <QVariant>
@@ -12,7 +13,7 @@ namespace {
 
 const QString kOpened = QStringLiteral("opened");
 const QString kMultipleFilesDeferred = QStringLiteral("multiple-files-deferred");
-const QString kUrlDeferred = QStringLiteral("url-deferred");
+const QString kMultipleSourcesDeferred = QStringLiteral("multiple-sources-deferred");
 const QString kDirectoryRejected = QStringLiteral("directory-rejected");
 const QString kUnsupported = QStringLiteral("unsupported");
 const QString kOpenRejected = QStringLiteral("open-rejected");
@@ -22,9 +23,11 @@ const QString kEmpty = QStringLiteral("empty");
 
 MediaDropHandler::MediaDropHandler(
     MediaOpenCoordinator& mediaOpenCoordinator,
+    UrlOpenWorkflow& urlOpenWorkflow,
     QObject* parent)
     : QObject(parent)
     , mediaOpenCoordinator_(mediaOpenCoordinator)
+    , urlOpenWorkflow_(urlOpenWorkflow)
 {
 }
 
@@ -43,7 +46,8 @@ bool MediaDropHandler::canHandle(const QList<QUrl>& sourceUrls) const
     const Classification classification = classify(sourceUrls);
     return classification == Classification::SingleLocalFile
         || classification == Classification::MultipleLocalFiles
-        || classification == Classification::RemoteUrl;
+        || classification == Classification::SingleRemoteUrl
+        || classification == Classification::MultipleSources;
 }
 
 bool MediaDropHandler::handleDrop(const QList<QUrl>& sourceUrls)
@@ -59,12 +63,20 @@ bool MediaDropHandler::handleDrop(const QList<QUrl>& sourceUrls)
         setResult(kOpenRejected, sourceUrls);
         emit dropRejected(lastOutcomeKey_);
         return false;
+    case Classification::SingleRemoteUrl:
+        if (urlOpenWorkflow_.openUrl(sourceUrls.front().toString(QUrl::FullyEncoded))) {
+            setResult(kOpened, sourceUrls);
+            return true;
+        }
+        setResult(kOpenRejected, sourceUrls);
+        emit dropRejected(lastOutcomeKey_);
+        return false;
     case Classification::MultipleLocalFiles:
         setResult(kMultipleFilesDeferred, sourceUrls);
         emit dropDeferred(lastOutcomeKey_, orderedSourceUrls_);
         return false;
-    case Classification::RemoteUrl:
-        setResult(kUrlDeferred, sourceUrls);
+    case Classification::MultipleSources:
+        setResult(kMultipleSourcesDeferred, sourceUrls);
         emit dropDeferred(lastOutcomeKey_, orderedSourceUrls_);
         return false;
     case Classification::Directory:
@@ -91,8 +103,8 @@ MediaDropHandler::Classification MediaDropHandler::classify(
         return Classification::Empty;
     }
 
-    bool containsRemoteUrl = false;
     qsizetype localFileCount = 0;
+    qsizetype remoteUrlCount = 0;
 
     for (const QUrl& sourceUrl : sourceUrls) {
         if (!sourceUrl.isValid() || sourceUrl.isEmpty()) {
@@ -110,20 +122,26 @@ MediaDropHandler::Classification MediaDropHandler::classify(
 
         const QString scheme = sourceUrl.scheme().toLower();
         if (scheme == QStringLiteral("http") || scheme == QStringLiteral("https")) {
-            containsRemoteUrl = true;
+            ++remoteUrlCount;
             continue;
         }
 
         return Classification::Unsupported;
     }
 
-    if (containsRemoteUrl) {
-        return Classification::RemoteUrl;
+    if (sourceUrls.size() > 1) {
+        return remoteUrlCount == 0
+            ? Classification::MultipleLocalFiles
+            : Classification::MultipleSources;
+    }
+
+    if (remoteUrlCount == 1) {
+        return Classification::SingleRemoteUrl;
     }
 
     return localFileCount == 1
         ? Classification::SingleLocalFile
-        : Classification::MultipleLocalFiles;
+        : Classification::Unsupported;
 }
 
 void MediaDropHandler::setResult(
