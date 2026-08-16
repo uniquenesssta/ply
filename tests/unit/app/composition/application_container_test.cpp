@@ -3,6 +3,7 @@
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/composition/playback_composition.h"
 #include "media/application/open/media_open_coordinator.h"
+#include "media/application/open/url_open_workflow.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
 #include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
@@ -40,6 +41,7 @@ private slots:
     void loggingBootstrapCreatesResolvedDevelopmentLog();
     void adoptsPreStartedLoggingBootstrap();
     void ownsMediaOpenCoordinator();
+    void ownsUrlOpenWorkflow();
     void playbackCompositionStartsAndStops();
     void shutdownIsIdempotent();
 };
@@ -141,6 +143,18 @@ void ApplicationContainerTest::ownsMediaOpenCoordinator()
         temporaryDirectory.path()));
 
     QCOMPARE(container.mediaOpenCoordinator().lastErrorKey(), QString{});
+}
+
+void ApplicationContainerTest::ownsUrlOpenWorkflow()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    ApplicationContainer container(RuntimePaths::resolve(
+        RuntimePaths::Mode::Portable,
+        temporaryDirectory.path()));
+
+    QCOMPARE(container.urlOpenWorkflow().lastErrorKey(), QString{});
 }
 
 void ApplicationContainerTest::playbackCompositionStartsAndStops()
