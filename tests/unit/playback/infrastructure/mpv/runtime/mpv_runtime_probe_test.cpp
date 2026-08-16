@@ -5,6 +5,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QtTest>
 
 namespace player::playback::mpv {
@@ -53,7 +54,7 @@ void MpvRuntimeProbeTest::manifestRequiresWindowsTlsForHttpsMedia()
                                          .value(QStringLiteral("ffmpeg"))
                                          .toArray();
     QVERIFY2(
-        ffmpegPolicy.contains(QStringLiteral("enable-schannel")),
+        ffmpegPolicy.contains(QJsonValue(QStringLiteral("enable-schannel"))),
         "The audited Windows FFmpeg package must explicitly enable Schannel when autodetect is disabled so HTTPS media is supported.");
 }
 
