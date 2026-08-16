@@ -72,14 +72,14 @@ try {
             }
         }
 
-        $ctestArguments = @("--preset", $Preset)
         if ($Quick) {
-            $ctestArguments += @("--label-exclude", "windowed-render")
             Write-Host "[INFO] Quick validation excludes CTest label 'windowed-render'."
             Write-Host "[INFO] Quick validation is not sufficient for Atomic Task or Stage closure."
+            & $ctest --preset $Preset --label-exclude "windowed-render"
         }
-
-        & $ctest @ctestArguments
+        else {
+            & $ctest --preset $Preset
+        }
         if ($LASTEXITCODE -ne 0) {
             throw "CTest failed with exit code $LASTEXITCODE."
         }
