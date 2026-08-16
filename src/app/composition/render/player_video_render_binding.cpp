@@ -1,11 +1,8 @@
 #include "player_video_render_binding.h"
 
-#include "foundation/logging/log_categories.h"
 #include "playback/application/session/playback_session_thread.h"
 #include "playback/infrastructure/mpv/render/mpv_render_shutdown_coordinator.h"
 #include "playback/infrastructure/mpv/render/mpv_video_item.h"
-
-#include <QLoggingCategory>
 
 #include <chrono>
 
@@ -164,8 +161,6 @@ void PlayerVideoRenderBinding::bindCoreIfReady() noexcept
     }
 
     videoItem_->setRenderCoreAddress(coreAddress_);
-    qCInfo(player::logging::playbackRender)
-        << "Product video output bound to playback core";
 }
 
 } // namespace player::app
