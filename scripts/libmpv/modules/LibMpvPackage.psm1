@@ -183,6 +183,7 @@ function Write-PlayerLibMpvDependencyManifest {
             )
             ffmpeg = @(
                 "disable-autodetect",
+                "enable-schannel",
                 "disable-gpl",
                 "disable-nonfree",
                 "enable-shared",
@@ -246,6 +247,11 @@ function Test-PlayerLibMpvDependencyManifest {
         if ($check[1] -ne $check[2]) {
             throw "libmpv manifest $($check[0]) mismatch. Expected '$($check[2])', found '$($check[1])'."
         }
+    }
+
+    $ffmpegBuildPolicy = @($manifest.buildPolicy.ffmpeg | ForEach-Object { [string]$_ })
+    if ($ffmpegBuildPolicy -notcontains "enable-schannel") {
+        throw "libmpv manifest FFmpeg build policy is missing 'enable-schannel'. Rebuild the package so HTTPS media uses Windows Schannel TLS."
     }
 
     $artifactEntries = @($manifest.artifacts)
