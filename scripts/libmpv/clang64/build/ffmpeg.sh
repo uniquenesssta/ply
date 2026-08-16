@@ -19,6 +19,7 @@ options=(
     --strip=llvm-strip
     --pkg-config=pkg-config
     --disable-autodetect
+    --enable-schannel
     --disable-gpl
     --disable-nonfree
     --enable-shared
