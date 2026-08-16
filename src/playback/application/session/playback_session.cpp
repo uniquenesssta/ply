@@ -224,7 +224,13 @@ void PlaybackSession::handleBackendEvent(const PlaybackEvent& event)
         return;
     }
 
+    const auto* ended = std::get_if<MediaEndedEvent>(&event.payload);
     commitSnapshot(reducePlaybackSnapshot(snapshot_, event));
+    if (ended != nullptr
+        && (ended->reason == MediaEndReason::Stopped
+            || ended->reason == MediaEndReason::Shutdown)) {
+        mediaGenerationGate_.reset();
+    }
 }
 
 void PlaybackSession::handleCommandReply(const CommandReplyEvent& reply)
