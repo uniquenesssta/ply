@@ -18,6 +18,17 @@ QString MediaOpenCoordinator::lastErrorKey() const
     return mediaOpenErrorKey(lastError_);
 }
 
+bool MediaOpenCoordinator::openSource(const player::media::domain::MediaSource& source)
+{
+    if (!source.isValid() || !submitMedia_ || !submitMedia_(source)) {
+        setError(MediaOpenError::SubmissionRejected);
+        return false;
+    }
+
+    setError(MediaOpenError::None);
+    return true;
+}
+
 bool MediaOpenCoordinator::openLocalFile(const QUrl& sourceUrl)
 {
     if (sourceUrl.isEmpty()) {
@@ -30,14 +41,7 @@ bool MediaOpenCoordinator::openLocalFile(const QUrl& sourceUrl)
         return false;
     }
 
-    const auto& source = std::get<player::media::domain::MediaSource>(validation);
-    if (!source.isValid() || !submitMedia_ || !submitMedia_(source)) {
-        setError(MediaOpenError::SubmissionRejected);
-        return false;
-    }
-
-    setError(MediaOpenError::None);
-    return true;
+    return openSource(std::get<player::media::domain::MediaSource>(validation));
 }
 
 void MediaOpenCoordinator::setError(MediaOpenError error)
