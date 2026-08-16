@@ -85,6 +85,33 @@ if(LibMpv_MANIFEST_FILE)
             )
         endif()
     endforeach()
+
+    string(JSON _player_ffmpeg_policy_length ERROR_VARIABLE _player_ffmpeg_policy_error
+        LENGTH "${_player_libmpv_manifest_json}" buildPolicy ffmpeg)
+    if(NOT _player_ffmpeg_policy_error STREQUAL "NOTFOUND")
+        message(FATAL_ERROR
+            "libmpv dependency manifest is missing or has an invalid 'buildPolicy.ffmpeg' array: ${_player_ffmpeg_policy_error}"
+        )
+    endif()
+
+    set(_player_ffmpeg_schannel_enabled FALSE)
+    if(_player_ffmpeg_policy_length GREATER 0)
+        math(EXPR _player_ffmpeg_policy_last "${_player_ffmpeg_policy_length} - 1")
+        foreach(_player_ffmpeg_policy_index RANGE 0 ${_player_ffmpeg_policy_last})
+            string(JSON _player_ffmpeg_policy_entry GET
+                "${_player_libmpv_manifest_json}" buildPolicy ffmpeg ${_player_ffmpeg_policy_index})
+            if(_player_ffmpeg_policy_entry STREQUAL "enable-schannel")
+                set(_player_ffmpeg_schannel_enabled TRUE)
+                break()
+            endif()
+        endforeach()
+    endif()
+
+    if(NOT _player_ffmpeg_schannel_enabled)
+        message(FATAL_ERROR
+            "libmpv FFmpeg build policy does not enable Windows Schannel TLS. Rebuild the audited package before using HTTP/HTTPS media."
+        )
+    endif()
 endif()
 
 find_package_handle_standard_args(
