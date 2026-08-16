@@ -115,3 +115,49 @@ add_test(
     NAME url_open_workflow
     COMMAND url_open_workflow_tests
 )
+
+add_executable(
+    media_argument_parser_tests
+    media_argument_parser_test.cpp
+)
+
+player_apply_compiler_options(media_argument_parser_tests)
+player_enable_compiler_warnings(media_argument_parser_tests)
+player_enable_sanitizers(media_argument_parser_tests)
+player_enable_static_analysis(media_argument_parser_tests)
+
+target_link_libraries(
+    media_argument_parser_tests
+    PRIVATE
+        player_media_application
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME media_argument_parser
+    COMMAND media_argument_parser_tests
+)
+
+add_executable(
+    media_argument_open_workflow_tests
+    media_argument_open_workflow_test.cpp
+)
+
+player_apply_compiler_options(media_argument_open_workflow_tests)
+player_enable_compiler_warnings(media_argument_open_workflow_tests)
+player_enable_sanitizers(media_argument_open_workflow_tests)
+player_enable_static_analysis(media_argument_open_workflow_tests)
+
+target_link_libraries(
+    media_argument_open_workflow_tests
+    PRIVATE
+        player_media_application
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME media_argument_open_workflow
+    COMMAND media_argument_open_workflow_tests
+)
