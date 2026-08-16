@@ -1,9 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Player.Presentation.Theme
-import Player.Presentation.Primitives
 import Player.Presentation.Controls
-import Player.Presentation.Surfaces
 
 Popup {
     id: root
@@ -51,11 +49,17 @@ Popup {
         root.errorKey = ""
     }
 
-    background: Panel {
-        cornerRadius: RadiusTokens.surfaceDialog
-        fillAlpha: MaterialTokens.popoverFillAlpha
-        backdropBlurRadius: MaterialTokens.dialogBlur
-        contentPadding: 0
+    background: Rectangle {
+        radius: RadiusTokens.surfaceDialog
+        color: Qt.rgba(ColorTokens.surfaceGlassStrong.r,
+                       ColorTokens.surfaceGlassStrong.g,
+                       ColorTokens.surfaceGlassStrong.b,
+                       MaterialTokens.popoverFillAlpha)
+        border.width: LayoutTokens.surfaceBorderWidth
+        border.color: Qt.rgba(ColorTokens.borderGlass.r,
+                              ColorTokens.borderGlass.g,
+                              ColorTokens.borderGlass.b,
+                              MaterialTokens.borderStrongAlpha)
     }
 
     Overlay.modal: Rectangle {
@@ -70,17 +74,19 @@ Popup {
 
         spacing: SpacingTokens.controlAdjacent
 
-        TitleText {
+        Text {
             width: parent.width
             text: qsTr("Open URL")
-            variant: TitleText.Media
+            font: TypographyTokens.mediaTitle
             color: ColorTokens.textPrimary
+            wrapMode: Text.NoWrap
+            elide: Text.ElideRight
         }
 
-        BodyText {
+        Text {
             width: parent.width
             text: qsTr("Enter a direct HTTP or HTTPS media URL")
-            variant: BodyText.Supporting
+            font: TypographyTokens.supportingBody
             color: ColorTokens.textSecondary
             wrapMode: Text.WordWrap
         }
@@ -118,10 +124,10 @@ Popup {
             }
         }
 
-        BodyText {
+        Text {
             width: parent.width
             text: root.errorText(root.errorKey)
-            variant: BodyText.Supporting
+            font: TypographyTokens.supportingBody
             color: ColorTokens.feedbackError
             visible: text.length > 0
             wrapMode: Text.WordWrap
