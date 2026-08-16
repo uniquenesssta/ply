@@ -3,6 +3,7 @@
 #include "app/bootstrap/graphics_backend/graphics_backend_probe.h"
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/bootstrap/qml_bootstrap.h"
+#include "app/bootstrap/startup_media_open_scheduler.h"
 #include "app/composition/application_container.h"
 #include "app/composition/playback_composition.h"
 #include "foundation/logging/log_categories.h"
@@ -20,8 +21,10 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
 #include <QGuiApplication>
 #include <QObject>
+#include <QQuickWindow>
 #include <QString>
 #include <QVariant>
 #include <QVariantMap>
@@ -152,6 +155,18 @@ int ApplicationBootstrap::run(
             &videoOutputError)) {
         qCCritical(player::logging::appBootstrap).noquote()
             << "Video output binding failed:" << videoOutputError;
+        return EXIT_FAILURE;
+    }
+
+    QString startupMediaError;
+    if (!StartupMediaOpenScheduler::scheduleAfterFirstFrame(
+            qobject_cast<QQuickWindow*>(qmlBootstrap.rootObject()),
+            container.mediaArgumentOpenWorkflow(),
+            QCoreApplication::arguments(),
+            QDir::currentPath(),
+            &startupMediaError)) {
+        qCCritical(player::logging::appBootstrap).noquote()
+            << "Startup media scheduling failed:" << startupMediaError;
         return EXIT_FAILURE;
     }
 
