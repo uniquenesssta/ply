@@ -1,6 +1,10 @@
 add_library(
     player_media_application
     STATIC
+        arguments/media_argument_open_workflow.cpp
+        arguments/media_argument_open_workflow.h
+        arguments/media_argument_parser.cpp
+        arguments/media_argument_parser.h
         drop/media_drop_handler.cpp
         drop/media_drop_handler.h
         open/local_media_validator.cpp
