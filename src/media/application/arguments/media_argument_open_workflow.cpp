@@ -4,6 +4,8 @@
 #include "media/application/open/media_open_coordinator.h"
 #include "media/application/open/url_open_workflow.h"
 
+#include <utility>
+
 namespace player::media::application {
 
 bool MediaArgumentOpenResult::opened() const noexcept
