@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
 | R6 — 播放器主界面与基础交互 | Complete | **R6-01 ~ R6-16 全部 Complete**；最终 Windows Debug build **124/124**、QML lint **6/6**、**76/76 CTest PASS（71.23 s）**、`Player.exe` startup/exit smoke PASS |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 Local File Open Complete**；单文件 picker → validate → `MediaSource` → `MediaOpenCoordinator` → Playback 主链已打通，真实本地视频已确认音频与画面正常；最终 Windows Debug build PASS、QML lint **6/6**、**81/81 CTest PASS（75.25 s）**。R7-02 以后尚未开始 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 / R7-02 Complete**；R7-02 拖放最终完整门禁 **83/83 CTest PASS（70.87 s）**。**R7-03 URL Open implementation candidate** 已接入 HTTP/HTTPS `UrlMediaValidator → UrlOpenWorkflow → MediaOpenCoordinator`；Windows build/lint/test 与真实 URL 运行验证待执行 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线；其中追加的 R6-13 ~ R6-16 已全部完成，Stage R6 已重新关闭。
 
@@ -114,6 +114,19 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 ## Change log
 
+### 2026-08-16 — R7-03 URL Open — implementation candidate
+
+- `MediaSource` 增加 `RemoteUrl` 来源类型；新增职责独立的 `UrlMediaValidator` 与 `UrlOpenWorkflow`。Validator 仅负责 trim、严格绝对 URL、host 与 HTTP/HTTPS scheme 校验及规范化，不执行网站解析、可达性探测、阻塞网络请求或重试；Workflow 只执行 `validate → MediaOpenCoordinator::openSource()`，网络媒体继续复用同一 Playback load 主链和既有 Playback Error/Status 失败语义。
+- `MediaOpenCoordinator` 增加已验证 `MediaSource` 的统一提交边界，原 `openLocalFile()` 仍先走 `LocalMediaValidator` 后再汇入同一 source submission；没有复制 CommandBus、RequestId、MediaGeneration 或 PlaybackSession owner。R7-02 `MediaDropHandler` 的单个 HTTP/HTTPS URL 已改为进入 `UrlOpenWorkflow`；多个本地/远程来源仍只保序并 deferred，不连续 `loadfile`，Playlist 权威队列继续留给 R7-05。
+- 新增 internal `UrlMediaOpenDialog.qml` 与 Empty 状态的独立 `Open URL` intent；`MainWindow` 持有 workflow 注入和 dialog lifecycle，URL dialog 与既有 FileDialog 一起进入 `modalActive`，继续复用 R6 OSC/Cursor lock。Feature QML 只依赖 R5 已冻结的公共 `Theme + Controls` 边界；没有放宽 `qml_module_boundaries`，没有把 Primitives/Surfaces、PlaybackSession 或 backend 类型泄漏进 Feature。
+- 新增 `url_media_validator`、`url_open_workflow`、`player_url_open` 三个独立 CTest target，并扩展 coordinator/drop/container 回归；configure 后预期全量测试由 **83 → 86**、Quick 由 **76 → 79**。该数字目前仅为目标，Windows build、QML lint、CTest、真实 HTTP/HTTPS 播放与不可达 URL 产品行为均尚未执行，因此 **R7-03 仍为 implementation candidate**，不提前标 Complete。
+
+### 2026-08-16 — R7-02 Drag and Drop Complete
+
+- 新增职责独立的 `MediaDropHandler` 与 screen-local `PlayerDropOverlay`。Drop payload 只负责分类、顺序保留和入口转发；单本地文件继续复用 R7-01 `MediaOpenCoordinator → LocalMediaValidator → MediaSource → Playback`，QML 不直接调用 PlaybackSession/libmpv。
+- 多本地文件严格保留原始拖入顺序但不连续提交 load；在 R7-05 Playlist Domain 尚未建立前不制造临时队列或“最后一项覆盖前一项”的假播放列表。目录与不支持 scheme 明确拒绝；R7-02 当时对 URL 只分类/deferred，实际 URL 打开能力归 R7-03。Drop hover 复用既有 `controlsDragActive` / Cursor visibility lock，没有创建第二套 OSC/Cursor owner。
+- Windows 锁定环境验证：Debug build 与 runtime deployment PASS；Quick 模式执行 **76/76 PASS**。随后完整 `scripts/test.ps1 -SkipBuild` 执行 **83/83 CTest PASS，0 failed，70.87 s**，其中 7 个真实 `windowed-render` 测试合计 **34.91 s**，`media_drop_handler`、`player_media_drop`、R7-01 Media/Open、Playback、Render 与 Presentation 回归全部保持 PASS。**R7-02 正式 Complete；Stage R7 继续 In Progress。**
+
 ### 2026-08-16 — Developer quick validation path
 
 - `scripts/test.ps1` 新增显式 `-Quick` / `-SkipBuild`，默认无参数路径仍执行原完整 CTest gate。`-Quick` 仅通过 CTest label 排除 R4 已稳定且会真实创建/显示窗口的 `mpv_video_renderer`、4 档 `mpv_video_resize_dpi_*`、`mpv_video_visibility`、`mpv_video_shutdown`；Playback、Reducer、Media/R7、Presentation/ViewModel/QML contract、HUD 等其余测试仍执行。没有删除、skip 或放宽任何测试本身，也没有改用 offscreen 平台冒充真实 OpenGL windowed 验证。
@@ -165,7 +178,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 新增独立 `player_controls_visibility_policy` CTest，覆盖 Scrub、OSC hover、control focus、Popup/Menu/Drawer/Modal、Error、Paused lock；lock release 重算 timeout；pointer wake；Windowed/Fullscreen 单 Timer；快速 pause/play 单 owner；以及 PlayerScreen/OSC/Header 的模块边界。既有 `player_chrome_visibility` 与 `player_cursor_visibility` 继续作为 R6-09/R6-10 回归门禁。
 - Windows 锁定环境最终验收：`configure.ps1` **PASS**（Configuring **4.7 s** / Generating **2.4 s**）；Debug `build.ps1` 完成 **107/107**；`scripts/test.ps1` 完成 **6/6 QML lint**；全量 **74/74 CTest PASS，0 failed，66.46 s**，其中 `player_controls_visibility_policy` **0.46 s PASS**、`player_chrome_visibility` **0.28 s PASS**、`player_cursor_visibility` **0.12 s PASS**，既有 Playback/Render/Presentation 回归全部保持通过。
 - 随后执行 `Player.exe` startup/exit smoke；`player-20260815-183234.log` 仅包含 INFO，记录 libmpv 0.41.0 / FFmpeg 8.0.3、NVIDIA OpenGL 4.6 初始化、`R6-14 OSC visibility Active reason=pointer-enter` 以及 `Application stopping with exit code 0`，未见 WARN/ERROR/CRITICAL。验证前本地受保护 `.gitignore` 修改与 `r4-04-qml-diagnostics/` 保持存在，没有 reset/clean 或覆盖。
-- 产品媒体打开入口仍属于 R7，因此真实 Playing 媒体下的 inactivity/hover/focus/Popup/Drawer 手工矩阵当前仍不可执行；该项继续保留到 R7 媒体入口可用后回归，不伪装为已手工覆盖。**R6-14 正式 Complete；Stage R6 仍为 Supplemental In Progress；下一补充任务 R6-15。**
+- 产品媒体打开入口仍属于 R7，因此真实 Playing 媒体下的 inactivity/hover/focus/Popup/Drawer 手工矩阵当前仍不可执行；该项继续保留到 R7 媒体入口可用后回归，不伪装为已覆盖。**R6-14 正式 Complete；Stage R6 仍为 Supplemental In Progress；下一补充任务 R6-15。**
 
 ### 2026-08-15 — R6-13 Timeline Interaction State Machine Complete
 
@@ -302,7 +315,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - `WindowActionsPod` 只发出 intent，真正 Qt 通用窗口操作由 `MainWindow.qml` 统一执行 `showMinimized()` / `showMaximized()` / `showNormal()` / `close()`；没有加入 `Qt.FramelessWindowHint`、Win32 native event、hit-test、resize 或 Snap。R10-04 仍是无边框窗口与 Windows hit-test 的唯一任务，因此当前中间阶段**仍保留系统原生标题栏，原生窗口按钮与 Floating Header actions 会暂时共存**，本任务不提前消除它。
 - 当前仓库仍没有 `PlayerViewModel` / playback presentation composition，所以 `mediaTitle` / `mediaMetadataText` 只是后续可绑定的数据边界，未伪装成 `PlaybackSnapshot → Header` live binding；应用默认没有媒体 identity 时只显示 Window Actions。R6-03 不创建静态假媒体标题，也不把 PlaybackSession/libmpv 引入 QML。
 - 新增职责独立的 `player_top_region` CTest target，静态锁定 Host→Header→POD 模块边界、居中/Compact/无标题优先级、Window intent owner、R10 native-window 禁区以及 Figma canonical window glyph geometry；既有 `icon_pipeline` 同步纳入新增 Minimize/Maximize 资产并继续禁止产品 QML 绕过 Icon primitive。
-- 用户锁定 Windows 环境最终验证：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 1.8 s）；Debug `build.ps1` **PASS**；`scripts/test.ps1` 的 QML lint 门禁完成；全量 **54/54 CTest PASS，0 failed，54.36 s**，新增 `player_top_region` **0.11 s PASS**，既有 R2–R6-02 全部回归保持 PASS。构建日志中的 MSVC `/showIncludes` 中文乱码仍只是控制台编码显示，`WrapVulkanHeaders` 未找到在固定 OpenGL backend 下没有形成阻断。
+- 用户锁定 Windows 环境最终验证：`configure.ps1` **PASS**（CMake Configuring 4.5 s / Generating 1.8 s）；Debug `build.ps1` **PASS**；`scripts/test.ps1` 的 QML lint 门禁完成；全量 **54/54 CTest PASS，0 failed，54.36 s**，新增 `player_top_region` **0.11 s PASS**，既有 R2–R6-02 全部回归保持 PASS。构建日志中的 MSVC `/showIncludes` 中文控制台编码乱码仍只是控制台编码显示，`WrapVulkanHeaders` 未找到在固定 OpenGL backend 下没有形成阻断。
 - `Player.exe` 实机手工验收 **PASS**：启动正常；Floating Window Actions 的最小化、最大化、恢复、关闭全部正常；窗口缩放后 Header/Actions 无错位。当前产品仍无媒体打开入口，因此实际长媒体标题/metadata 没有进行产品运行手工展示；其单行 ellipsis 与无标题降级由既有 `TitleText` contract 和 R6-03 定向测试锁定。真实 fullscreen 进入/退出/Esc/双击交互仍属于 R6-08，不在 R6-03 冒充已完成。
 - 本地验证前已有受保护内容 `.gitignore`、`r4-04-qml-diagnostics/` 与 R4-09 1080p/4K JSON；pull/build/test 未覆盖、删除或清理这些内容。没有修改 PlaybackSession、libmpv、Renderer、Render 生命周期、公共播放接口、配置、数据结构或持久化。**R6-03 正式 Complete；下一项 R6-04。**
 
