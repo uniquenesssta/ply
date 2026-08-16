@@ -21,7 +21,7 @@ class PlayerUrlOpenTest final : public QObject
     Q_OBJECT
 
 private slots:
-    void urlDialogUsesPresentationComponentsOnly();
+    void urlDialogUsesPublicPresentationBoundaryOnly();
     void mainWindowRoutesUrlIntentThroughWorkflow();
     void emptyStateExposesSeparateUrlIntent();
     void urlWorkflowUsesUnifiedCoordinatorBoundary();
@@ -29,7 +29,7 @@ private slots:
     void bootstrapInjectsUrlWorkflow();
 };
 
-void PlayerUrlOpenTest::urlDialogUsesPresentationComponentsOnly()
+void PlayerUrlOpenTest::urlDialogUsesPublicPresentationBoundaryOnly()
 {
     const QString dialog = readSource(QStringLiteral(
         "src/presentation/qml/features/player/mediaopen/UrlMediaOpenDialog.qml"));
@@ -37,12 +37,16 @@ void PlayerUrlOpenTest::urlDialogUsesPresentationComponentsOnly()
 
     QVERIFY(dialog.contains(QStringLiteral("Popup {")));
     QVERIFY(dialog.contains(QStringLiteral("TextField {")));
-    QVERIFY(dialog.contains(QStringLiteral("Panel {")));
+    QVERIFY(dialog.contains(QStringLiteral("Rectangle {")));
     QVERIFY(dialog.contains(QStringLiteral("TextButton {")));
     QVERIFY(dialog.contains(QStringLiteral("signal urlSubmitted(string sourceText)")));
     QVERIFY(dialog.contains(QStringLiteral("Only HTTP and HTTPS URLs are supported")));
     QVERIFY(dialog.contains(QStringLiteral("RadiusTokens.surfaceDialog")));
-    QVERIFY(dialog.contains(QStringLiteral("MaterialTokens.dialogBlur")));
+    QVERIFY(dialog.contains(QStringLiteral("MaterialTokens.popoverFillAlpha")));
+    QVERIFY(dialog.contains(QStringLiteral("import Player.Presentation.Theme")));
+    QVERIFY(dialog.contains(QStringLiteral("import Player.Presentation.Controls")));
+    QVERIFY(!dialog.contains(QStringLiteral("Player.Presentation.Primitives")));
+    QVERIFY(!dialog.contains(QStringLiteral("Player.Presentation.Surfaces")));
     QVERIFY(!dialog.contains(QStringLiteral("PlaybackSession")));
     QVERIFY(!dialog.contains(QStringLiteral("libmpv"), Qt::CaseInsensitive));
     QVERIFY(!dialog.contains(QStringLiteral("mpv_"), Qt::CaseInsensitive));
