@@ -33,6 +33,10 @@ player_write_build_command ffmpeg "${options[@]}"
 
 pushd "$build_dir" >/dev/null
 "$source_dir/configure" "${options[@]}"
+if ! grep -Eq '^#define CONFIG_SCHANNEL 1$' config.h; then
+    printf 'FFmpeg configure did not enable Windows Schannel TLS support.\n' >&2
+    exit 1
+fi
 make -j"$(nproc)"
 make install
 popd >/dev/null
