@@ -8,12 +8,14 @@ namespace player::media::domain {
 enum class MediaSourceKind : quint8
 {
     LocalFile = 0,
+    RemoteUrl,
 };
 
 class MediaSource final
 {
 public:
     [[nodiscard]] static MediaSource localFile(QString canonicalPath);
+    [[nodiscard]] static MediaSource remoteUrl(QString normalizedUrl);
 
     [[nodiscard]] MediaSourceKind kind() const noexcept;
     [[nodiscard]] const QString& location() const noexcept;
