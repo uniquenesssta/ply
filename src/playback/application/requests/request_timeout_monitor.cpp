@@ -17,6 +17,13 @@ constexpr int kRequestTimeoutPollMilliseconds = 1000;
 
 RequestTimeoutMonitor::RequestTimeoutMonitor(
     RequestTracker& tracker,
+    QObject* parent)
+    : RequestTimeoutMonitor(tracker, TimeoutHandler{}, parent)
+{
+}
+
+RequestTimeoutMonitor::RequestTimeoutMonitor(
+    RequestTracker& tracker,
     TimeoutHandler timeoutHandler,
     QObject* parent)
     : QObject(parent)
