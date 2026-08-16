@@ -127,3 +127,4 @@ add_test(
 )
 
 add_subdirectory(media_open)
+add_subdirectory(media_drop)
