@@ -1,11 +1,13 @@
 #include "mpv_video_renderer.h"
 
+#include "foundation/logging/log_categories.h"
 #include "mpv_render_context.h"
 #include "mpv_render_parameters.h"
 #include "mpv_render_shutdown_coordinator.h"
 #include "mpv_render_update_bridge.h"
 
 #include <QDebug>
+#include <QLoggingCategory>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLFunctions>
@@ -271,6 +273,8 @@ bool MpvVideoRenderer::ensureRenderContext()
     }
 
     renderContext_ = std::move(renderContext);
+    qCInfo(player::logging::playbackRender)
+        << "Product mpv video render context active";
     return true;
 }
 
