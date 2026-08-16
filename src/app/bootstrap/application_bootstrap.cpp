@@ -6,6 +6,7 @@
 #include "app/composition/application_container.h"
 #include "app/composition/playback_composition.h"
 #include "foundation/logging/log_categories.h"
+#include "media/application/drop/media_drop_handler.h"
 #include "media/application/open/media_open_coordinator.h"
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
 #include "presentation/qml/types/presentation_type_registration.h"
@@ -128,6 +129,10 @@ int ApplicationBootstrap::run(
         QStringLiteral("mediaOpenCoordinator"),
         QVariant::fromValue(
             static_cast<QObject*>(&container.mediaOpenCoordinator())));
+    initialProperties.insert(
+        QStringLiteral("mediaDropHandler"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.mediaDropHandler())));
     qmlBootstrap.setInitialProperties(initialProperties);
 
     if (!qmlBootstrap.load()) {
