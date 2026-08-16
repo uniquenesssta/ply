@@ -12,6 +12,8 @@ ApplicationWindow {
     property var statusViewModel: null
     property var mediaViewModel: null
     property var hudMessageQueue: null
+    property var playlistController: null
+    property var playlistModel: null
     property var mediaOpenCoordinator: null
     property var urlOpenWorkflow: null
     property var mediaDropHandler: null

@@ -30,4 +30,6 @@ target_link_libraries(
         player_mpv_infrastructure
         player_playback_application
         player_media_application
+        player_playlist_application
+        player_playlist_presentation
 )

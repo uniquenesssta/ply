@@ -3,6 +3,7 @@
 #include "media/application/open/url_open_workflow.h"
 
 #include <QFile>
+#include <QFileInfo>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -15,10 +16,10 @@ class MediaDropHandlerTest final : public QObject
 
 private slots:
     void singleLocalFileUsesExistingCoordinator();
-    void multipleLocalFilesPreserveOrderWithoutRepeatedLoad();
+    void multipleLocalFilesPreserveOrderAndSubmitOneBatch();
     void directoryIsRejected();
     void remoteUrlUsesUrlWorkflow();
-    void multipleSourcesPreserveOrderWithoutRepeatedLoad();
+    void multipleSourcesPreserveOrderAndSubmitOneBatch();
     void unsupportedSchemeIsRejected();
 };
 
@@ -47,7 +48,7 @@ void MediaDropHandlerTest::singleLocalFileUsesExistingCoordinator()
     QCOMPARE(handler.lastOutcomeKey(), QStringLiteral("opened"));
 }
 
-void MediaDropHandlerTest::multipleLocalFilesPreserveOrderWithoutRepeatedLoad()
+void MediaDropHandlerTest::multipleLocalFilesPreserveOrderAndSubmitOneBatch()
 {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
@@ -61,20 +62,32 @@ void MediaDropHandlerTest::multipleLocalFilesPreserveOrderWithoutRepeatedLoad()
         urls.push_back(QUrl::fromLocalFile(path));
     }
 
-    int submissions = 0;
-    MediaOpenCoordinator coordinator([&](const player::media::domain::MediaSource&) {
-        ++submissions;
-        return true;
-    });
+    int singleSubmissions = 0;
+    int batchSubmissions = 0;
+    QList<player::media::domain::MediaSource> submittedSources;
+    MediaOpenCoordinator coordinator(
+        [&](const player::media::domain::MediaSource&) {
+            ++singleSubmissions;
+            return true;
+        },
+        [&](const QList<player::media::domain::MediaSource>& sources) {
+            ++batchSubmissions;
+            submittedSources = sources;
+            return true;
+        });
     UrlOpenWorkflow urlWorkflow(coordinator);
     MediaDropHandler handler(coordinator, urlWorkflow);
     QSignalSpy deferredSpy(&handler, &MediaDropHandler::dropDeferred);
 
     QVERIFY(handler.canHandle(urls));
-    QVERIFY(!handler.handleDrop(urls));
-    QCOMPARE(submissions, 0);
-    QCOMPARE(handler.lastOutcomeKey(), QStringLiteral("multiple-files-deferred"));
-    QCOMPARE(deferredSpy.count(), 1);
+    QVERIFY(handler.handleDrop(urls));
+    QCOMPARE(singleSubmissions, 0);
+    QCOMPARE(batchSubmissions, 1);
+    QCOMPARE(handler.lastOutcomeKey(), QStringLiteral("opened"));
+    QCOMPARE(deferredSpy.count(), 0);
+    QCOMPARE(submittedSources.size(), 2);
+    QCOMPARE(submittedSources.at(0).location(), QFileInfo(urls.at(0).toLocalFile()).canonicalFilePath());
+    QCOMPARE(submittedSources.at(1).location(), QFileInfo(urls.at(1).toLocalFile()).canonicalFilePath());
 
     const QVariantList ordered = handler.orderedSourceUrls();
     QCOMPARE(ordered.size(), 2);
@@ -122,26 +135,47 @@ void MediaDropHandlerTest::remoteUrlUsesUrlWorkflow()
     QCOMPARE(handler.lastOutcomeKey(), QStringLiteral("opened"));
 }
 
-void MediaDropHandlerTest::multipleSourcesPreserveOrderWithoutRepeatedLoad()
+void MediaDropHandlerTest::multipleSourcesPreserveOrderAndSubmitOneBatch()
 {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString localPath = directory.filePath(QStringLiteral("local.mp4"));
+    QFile file(localPath);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write("media");
+    file.close();
+
     const QList<QUrl> urls{
         QUrl(QStringLiteral("https://example.com/b.mp4")),
-        QUrl(QStringLiteral("https://example.com/a.mp4"))};
+        QUrl::fromLocalFile(localPath),
+    };
 
-    int submissions = 0;
-    MediaOpenCoordinator coordinator([&](const player::media::domain::MediaSource&) {
-        ++submissions;
-        return true;
-    });
+    int singleSubmissions = 0;
+    int batchSubmissions = 0;
+    QList<player::media::domain::MediaSource> submittedSources;
+    MediaOpenCoordinator coordinator(
+        [&](const player::media::domain::MediaSource&) {
+            ++singleSubmissions;
+            return true;
+        },
+        [&](const QList<player::media::domain::MediaSource>& sources) {
+            ++batchSubmissions;
+            submittedSources = sources;
+            return true;
+        });
     UrlOpenWorkflow urlWorkflow(coordinator);
     MediaDropHandler handler(coordinator, urlWorkflow);
     QSignalSpy deferredSpy(&handler, &MediaDropHandler::dropDeferred);
 
     QVERIFY(handler.canHandle(urls));
-    QVERIFY(!handler.handleDrop(urls));
-    QCOMPARE(submissions, 0);
-    QCOMPARE(handler.lastOutcomeKey(), QStringLiteral("multiple-sources-deferred"));
-    QCOMPARE(deferredSpy.count(), 1);
+    QVERIFY(handler.handleDrop(urls));
+    QCOMPARE(singleSubmissions, 0);
+    QCOMPARE(batchSubmissions, 1);
+    QCOMPARE(handler.lastOutcomeKey(), QStringLiteral("opened"));
+    QCOMPARE(deferredSpy.count(), 0);
+    QCOMPARE(submittedSources.size(), 2);
+    QCOMPARE(submittedSources.at(0).location(), QStringLiteral("https://example.com/b.mp4"));
+    QCOMPARE(submittedSources.at(1).location(), QFileInfo(localPath).canonicalFilePath());
 
     const QVariantList ordered = handler.orderedSourceUrls();
     QCOMPARE(ordered.size(), 2);

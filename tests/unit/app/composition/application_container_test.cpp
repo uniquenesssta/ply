@@ -4,6 +4,8 @@
 #include "app/composition/playback_composition.h"
 #include "media/application/open/media_open_coordinator.h"
 #include "media/application/open/url_open_workflow.h"
+#include "playlist/application/playlist_controller.h"
+#include "playlist/presentation/playlist_list_model.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
 #include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
@@ -42,6 +44,7 @@ private slots:
     void adoptsPreStartedLoggingBootstrap();
     void ownsMediaOpenCoordinator();
     void ownsUrlOpenWorkflow();
+    void ownsPlaylistControllerAndReadonlyModel();
     void playbackCompositionStartsAndStops();
     void shutdownIsIdempotent();
 };
@@ -155,6 +158,20 @@ void ApplicationContainerTest::ownsUrlOpenWorkflow()
         temporaryDirectory.path()));
 
     QCOMPARE(container.urlOpenWorkflow().lastErrorKey(), QString{});
+}
+
+void ApplicationContainerTest::ownsPlaylistControllerAndReadonlyModel()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    ApplicationContainer container(RuntimePaths::resolve(
+        RuntimePaths::Mode::Portable,
+        temporaryDirectory.path()));
+
+    QVERIFY(container.playlistController().playlist().empty());
+    QCOMPARE(container.playlistListModel().count(), 0);
+    QCOMPARE(container.playlistListModel().rowCount(), 0);
 }
 
 void ApplicationContainerTest::playbackCompositionStartsAndStops()

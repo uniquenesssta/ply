@@ -4,6 +4,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -16,7 +17,7 @@ class MediaArgumentOpenWorkflowTest final : public QObject
 private slots:
     void singleLocalPathUsesCoordinator();
     void singleRemoteUrlUsesUrlWorkflow();
-    void multipleSourcesAreDeferredWithoutRepeatedLoad();
+    void multipleSourcesUseOneOrderedBatch();
     void unsupportedSchemeIsRejected();
     void missingLocalPathIsRejected();
 };
@@ -90,16 +91,29 @@ void MediaArgumentOpenWorkflowTest::singleRemoteUrlUsesUrlWorkflow()
     QCOMPARE(submittedLocation, QStringLiteral("https://example.com/video.mp4"));
 }
 
-void MediaArgumentOpenWorkflowTest::multipleSourcesAreDeferredWithoutRepeatedLoad()
+void MediaArgumentOpenWorkflowTest::multipleSourcesUseOneOrderedBatch()
 {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
+    const QString localPath = directory.filePath(QStringLiteral("b.mp4"));
+    QFile file(localPath);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write("media");
+    file.close();
 
-    int submissions = 0;
-    MediaOpenCoordinator coordinator([&](const player::media::domain::MediaSource&) {
-        ++submissions;
-        return true;
-    });
+    int singleSubmissions = 0;
+    int batchSubmissions = 0;
+    QList<player::media::domain::MediaSource> submittedSources;
+    MediaOpenCoordinator coordinator(
+        [&](const player::media::domain::MediaSource&) {
+            ++singleSubmissions;
+            return true;
+        },
+        [&](const QList<player::media::domain::MediaSource>& sources) {
+            ++batchSubmissions;
+            submittedSources = sources;
+            return true;
+        });
     UrlOpenWorkflow urlWorkflow(coordinator);
     MediaArgumentOpenWorkflow workflow(coordinator, urlWorkflow);
 
@@ -109,14 +123,21 @@ void MediaArgumentOpenWorkflowTest::multipleSourcesAreDeferredWithoutRepeatedLoa
          QStringLiteral("https://example.com/a.mp4")},
         directory.path());
 
-    QVERIFY(!result.opened());
-    QVERIFY(result.deferred());
-    QCOMPARE(submissions, 0);
+    QVERIFY(result.opened());
+    QVERIFY(!result.deferred());
+    QCOMPARE(
+        static_cast<int>(result.outcome),
+        static_cast<int>(MediaArgumentOpenOutcome::OpenedMultiple));
+    QCOMPARE(singleSubmissions, 0);
+    QCOMPARE(batchSubmissions, 1);
     QCOMPARE(result.orderedSources.size(), 2);
     QCOMPARE(
         QDir::cleanPath(result.orderedSources.at(0).toLocalFile()),
-        QDir::cleanPath(QDir(directory.path()).absoluteFilePath(QStringLiteral("b.mp4"))));
+        QDir::cleanPath(localPath));
     QCOMPARE(result.orderedSources.at(1).toString(), QStringLiteral("https://example.com/a.mp4"));
+    QCOMPARE(submittedSources.size(), 2);
+    QCOMPARE(submittedSources.at(0).location(), QFileInfo(localPath).canonicalFilePath());
+    QCOMPARE(submittedSources.at(1).location(), QStringLiteral("https://example.com/a.mp4"));
 }
 
 void MediaArgumentOpenWorkflowTest::unsupportedSchemeIsRejected()

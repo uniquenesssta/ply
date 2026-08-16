@@ -20,6 +20,8 @@ enum class MediaArgumentOpenOutcome : quint8
     RejectedLocal,
     RejectedRemote,
     RejectedUnsupported,
+    OpenedMultiple,
+    RejectedMultiple,
 };
 
 struct MediaArgumentOpenResult final

@@ -8,7 +8,12 @@
 #include "media/application/drop/media_drop_handler.h"
 #include "media/application/open/media_open_coordinator.h"
 #include "media/application/open/url_open_workflow.h"
+#include "playlist/application/playlist_controller.h"
+#include "playlist/application/playlist_mutation.h"
+#include "playlist/domain/playlist.h"
+#include "playlist/presentation/playlist_list_model.h"
 
+#include <QList>
 #include <QLoggingCategory>
 #include <QString>
 
@@ -29,11 +34,29 @@ ApplicationContainer::ApplicationContainer(
     : runtimePaths_(std::move(runtimePaths))
     , loggingBootstrap_(std::move(loggingBootstrap))
     , playbackComposition_(std::make_unique<PlaybackComposition>())
-    , mediaOpenCoordinator_(
-        std::make_unique<player::media::application::MediaOpenCoordinator>(
+    , playlist_(std::make_unique<player::playlist::domain::Playlist>())
+    , playlistMutation_(
+        std::make_unique<player::playlist::application::PlaylistMutation>(*playlist_))
+    , playlistController_(
+        std::make_unique<player::playlist::application::PlaylistController>(
+            *playlist_,
+            *playlistMutation_,
             [this](const player::media::domain::MediaSource& source) {
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitMediaLoad(source.location());
+            }))
+    , playlistListModel_(
+        std::make_unique<player::playlist::presentation::PlaylistListModel>(
+            *playlistController_))
+    , mediaOpenCoordinator_(
+        std::make_unique<player::media::application::MediaOpenCoordinator>(
+            [this](const player::media::domain::MediaSource& source) {
+                return playlistController_ != nullptr
+                    && playlistController_->openSource(source);
+            },
+            [this](const QList<player::media::domain::MediaSource>& sources) {
+                return playlistController_ != nullptr
+                    && playlistController_->openSources(sources);
             }))
     , urlOpenWorkflow_(
         std::make_unique<player::media::application::UrlOpenWorkflow>(
@@ -71,6 +94,18 @@ LoggingBootstrap& ApplicationContainer::loggingBootstrap() noexcept
 PlaybackComposition& ApplicationContainer::playbackComposition() noexcept
 {
     return *playbackComposition_;
+}
+
+player::playlist::application::PlaylistController&
+ApplicationContainer::playlistController() noexcept
+{
+    return *playlistController_;
+}
+
+player::playlist::presentation::PlaylistListModel&
+ApplicationContainer::playlistListModel() noexcept
+{
+    return *playlistListModel_;
 }
 
 player::media::application::MediaOpenCoordinator&
@@ -117,6 +152,10 @@ void ApplicationContainer::shutdown() noexcept
     mediaArgumentOpenWorkflow_.reset();
     urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
+    playlistListModel_.reset();
+    playlistController_.reset();
+    playlistMutation_.reset();
+    playlist_.reset();
 
     if (playbackComposition_ != nullptr) {
         QString diagnostic;

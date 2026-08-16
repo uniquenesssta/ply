@@ -1,6 +1,7 @@
 #include "playlist/domain/playlist.h"
 
 #include <algorithm>
+#include <iterator>
 #include <limits>
 #include <utility>
 
@@ -43,6 +44,36 @@ bool Playlist::remove(PlaylistEntryId id)
     return true;
 }
 
+bool Playlist::move(PlaylistEntryId id, std::size_t targetIndex)
+{
+    if (targetIndex >= entries_.size()) {
+        return false;
+    }
+
+    const auto iterator = std::find_if(
+        entries_.begin(),
+        entries_.end(),
+        [id](const PlaylistEntry& entry) {
+            return entry.id() == id;
+        });
+    if (iterator == entries_.end()) {
+        return false;
+    }
+
+    const std::size_t sourceIndex = static_cast<std::size_t>(
+        std::distance(entries_.begin(), iterator));
+    if (sourceIndex == targetIndex) {
+        return true;
+    }
+
+    PlaylistEntry entry = std::move(*iterator);
+    entries_.erase(iterator);
+    entries_.insert(
+        entries_.begin() + static_cast<std::ptrdiff_t>(targetIndex),
+        std::move(entry));
+    return true;
+}
+
 bool Playlist::select(PlaylistEntryId id) noexcept
 {
     if (find(id) == nullptr) {
@@ -51,6 +82,11 @@ bool Playlist::select(PlaylistEntryId id) noexcept
 
     currentId_ = id;
     return true;
+}
+
+void Playlist::clearCurrent() noexcept
+{
+    currentId_.reset();
 }
 
 void Playlist::clear() noexcept

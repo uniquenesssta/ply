@@ -11,6 +11,8 @@
 #include "media/application/open/media_open_coordinator.h"
 #include "media/application/open/url_open_workflow.h"
 #include "playback/infrastructure/mpv/runtime/mpv_runtime_probe.h"
+#include "playlist/application/playlist_controller.h"
+#include "playlist/presentation/playlist_list_model.h"
 #include "presentation/qml/types/presentation_type_registration.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
 #include "presentation/viewmodels/player/media/player_media_view_model.h"
@@ -129,6 +131,14 @@ int ApplicationBootstrap::run(
         QStringLiteral("hudMessageQueue"),
         QVariant::fromValue(
             static_cast<QObject*>(&playbackComposition.hudMessageQueue())));
+    initialProperties.insert(
+        QStringLiteral("playlistController"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.playlistController())));
+    initialProperties.insert(
+        QStringLiteral("playlistModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.playlistListModel())));
     initialProperties.insert(
         QStringLiteral("mediaOpenCoordinator"),
         QVariant::fromValue(

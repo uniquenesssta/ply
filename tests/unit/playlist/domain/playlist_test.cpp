@@ -23,6 +23,9 @@ private slots:
     void invalidSourceIsRejectedWithoutConsumingId();
     void duplicateSourcesReceiveDistinctIds();
     void selectRequiresExistingEntry();
+    void movePreservesStableIdsAndCurrent();
+    void moveRejectsMissingEntryAndOutOfRangeTarget();
+    void clearCurrentKeepsQueue();
     void removeNonCurrentPreservesCurrent();
     void removeCurrentClearsCurrentWithoutDanglingId();
     void clearRemovesQueueButDoesNotReuseIdsOrResetModes();
@@ -104,6 +107,55 @@ void PlaylistTest::selectRequiresExistingEntry()
     QCOMPARE(playlist.currentId()->value(), id->value());
     QVERIFY(playlist.currentEntry() != nullptr);
     QCOMPARE(playlist.currentEntry()->id().value(), id->value());
+}
+
+void PlaylistTest::movePreservesStableIdsAndCurrent()
+{
+    Playlist playlist;
+    const auto firstId = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    const auto secondId = playlist.append(localSource(QStringLiteral("C:/media/b.mp4")));
+    const auto thirdId = playlist.append(localSource(QStringLiteral("C:/media/c.mp4")));
+    QVERIFY(firstId.has_value());
+    QVERIFY(secondId.has_value());
+    QVERIFY(thirdId.has_value());
+    QVERIFY(playlist.select(*secondId));
+
+    QVERIFY(playlist.move(*thirdId, 0));
+    QCOMPARE(playlist.entries().at(0).id().value(), thirdId->value());
+    QCOMPARE(playlist.entries().at(1).id().value(), firstId->value());
+    QCOMPARE(playlist.entries().at(2).id().value(), secondId->value());
+    QCOMPARE(playlist.currentId()->value(), secondId->value());
+
+    QVERIFY(playlist.move(*thirdId, 2));
+    QCOMPARE(playlist.entries().at(0).id().value(), firstId->value());
+    QCOMPARE(playlist.entries().at(1).id().value(), secondId->value());
+    QCOMPARE(playlist.entries().at(2).id().value(), thirdId->value());
+    QCOMPARE(playlist.currentId()->value(), secondId->value());
+}
+
+void PlaylistTest::moveRejectsMissingEntryAndOutOfRangeTarget()
+{
+    Playlist playlist;
+    const auto id = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    QVERIFY(id.has_value());
+
+    QVERIFY(!playlist.move(PlaylistEntryId{9999}, 0));
+    QVERIFY(!playlist.move(*id, 1));
+    QCOMPARE(playlist.entries().at(0).id().value(), id->value());
+}
+
+void PlaylistTest::clearCurrentKeepsQueue()
+{
+    Playlist playlist;
+    const auto id = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    QVERIFY(id.has_value());
+    QVERIFY(playlist.select(*id));
+
+    playlist.clearCurrent();
+
+    QCOMPARE(playlist.size(), std::size_t{1});
+    QVERIFY(!playlist.currentId().has_value());
+    QVERIFY(playlist.find(*id) != nullptr);
 }
 
 void PlaylistTest::removeNonCurrentPreservesCurrent()

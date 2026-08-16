@@ -22,6 +22,8 @@ private slots:
     void validatedRemoteSourceUsesSameSubmissionBoundary();
     void invalidSourceIsRejectedBeforeSubmission();
     void submissionRejectionIsReported();
+    void batchUrlsAreValidatedInOrderAndSubmittedOnce();
+    void invalidBatchUrlRejectsWholeBatchBeforeSubmission();
 };
 
 void MediaOpenCoordinatorTest::emptySelectionIsNoOp()
@@ -186,6 +188,74 @@ void MediaOpenCoordinatorTest::submissionRejectionIsReported()
     QCOMPARE(submissions, 1);
     QCOMPARE(coordinator.lastErrorKey(), QStringLiteral("submission-rejected"));
     QCOMPARE(rejectedSpy.count(), 1);
+}
+
+void MediaOpenCoordinatorTest::batchUrlsAreValidatedInOrderAndSubmittedOnce()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString localPath = directory.filePath(QStringLiteral("local.mp4"));
+    QFile file(localPath);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.close();
+
+    int singleSubmissions = 0;
+    int batchSubmissions = 0;
+    QList<player::media::domain::MediaSource> submittedSources;
+    MediaOpenCoordinator coordinator(
+        [&](const player::media::domain::MediaSource&) {
+            ++singleSubmissions;
+            return true;
+        },
+        [&](const QList<player::media::domain::MediaSource>& sources) {
+            ++batchSubmissions;
+            submittedSources = sources;
+            return true;
+        });
+
+    const QList<QUrl> urls{
+        QUrl::fromLocalFile(localPath),
+        QUrl(QStringLiteral("https://example.com/video.mp4")),
+    };
+
+    QVERIFY(coordinator.openSourceUrls(urls));
+    QCOMPARE(singleSubmissions, 0);
+    QCOMPARE(batchSubmissions, 1);
+    QCOMPARE(submittedSources.size(), 2);
+    QCOMPARE(submittedSources.at(0).location(), QFileInfo(localPath).canonicalFilePath());
+    QCOMPARE(
+        static_cast<int>(submittedSources.at(0).kind()),
+        static_cast<int>(player::media::domain::MediaSourceKind::LocalFile));
+    QCOMPARE(submittedSources.at(1).location(), QStringLiteral("https://example.com/video.mp4"));
+    QCOMPARE(
+        static_cast<int>(submittedSources.at(1).kind()),
+        static_cast<int>(player::media::domain::MediaSourceKind::RemoteUrl));
+    QCOMPARE(coordinator.lastErrorKey(), QString{});
+}
+
+void MediaOpenCoordinatorTest::invalidBatchUrlRejectsWholeBatchBeforeSubmission()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString localPath = directory.filePath(QStringLiteral("local.mp4"));
+    QFile file(localPath);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.close();
+
+    int batchSubmissions = 0;
+    MediaOpenCoordinator coordinator(
+        [](const player::media::domain::MediaSource&) { return true; },
+        [&](const QList<player::media::domain::MediaSource>&) {
+            ++batchSubmissions;
+            return true;
+        });
+
+    QVERIFY(!coordinator.openSourceUrls({
+        QUrl::fromLocalFile(localPath),
+        QUrl(QStringLiteral("ftp://example.com/video.mp4")),
+    }));
+    QCOMPARE(batchSubmissions, 0);
+    QCOMPARE(coordinator.lastErrorKey(), QStringLiteral("unsupported-url-scheme"));
 }
 
 } // namespace player::media::application

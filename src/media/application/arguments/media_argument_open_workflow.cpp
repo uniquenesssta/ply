@@ -11,7 +11,8 @@ namespace player::media::application {
 bool MediaArgumentOpenResult::opened() const noexcept
 {
     return outcome == MediaArgumentOpenOutcome::OpenedLocal
-        || outcome == MediaArgumentOpenOutcome::OpenedRemote;
+        || outcome == MediaArgumentOpenOutcome::OpenedRemote
+        || outcome == MediaArgumentOpenOutcome::OpenedMultiple;
 }
 
 bool MediaArgumentOpenResult::deferred() const noexcept
@@ -42,7 +43,9 @@ MediaArgumentOpenResult MediaArgumentOpenWorkflow::openProcessArguments(
     }
 
     if (result.orderedSources.size() > 1) {
-        result.outcome = MediaArgumentOpenOutcome::DeferredMultiple;
+        result.outcome = mediaOpenCoordinator_.openSourceUrls(result.orderedSources)
+            ? MediaArgumentOpenOutcome::OpenedMultiple
+            : MediaArgumentOpenOutcome::RejectedMultiple;
         return result;
     }
 

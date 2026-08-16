@@ -12,8 +12,6 @@ namespace player::media::application {
 namespace {
 
 const QString kOpened = QStringLiteral("opened");
-const QString kMultipleFilesDeferred = QStringLiteral("multiple-files-deferred");
-const QString kMultipleSourcesDeferred = QStringLiteral("multiple-sources-deferred");
 const QString kDirectoryRejected = QStringLiteral("directory-rejected");
 const QString kUnsupported = QStringLiteral("unsupported");
 const QString kOpenRejected = QStringLiteral("open-rejected");
@@ -72,12 +70,13 @@ bool MediaDropHandler::handleDrop(const QList<QUrl>& sourceUrls)
         emit dropRejected(lastOutcomeKey_);
         return false;
     case Classification::MultipleLocalFiles:
-        setResult(kMultipleFilesDeferred, sourceUrls);
-        emit dropDeferred(lastOutcomeKey_, orderedSourceUrls_);
-        return false;
     case Classification::MultipleSources:
-        setResult(kMultipleSourcesDeferred, sourceUrls);
-        emit dropDeferred(lastOutcomeKey_, orderedSourceUrls_);
+        if (mediaOpenCoordinator_.openSourceUrls(sourceUrls)) {
+            setResult(kOpened, sourceUrls);
+            return true;
+        }
+        setResult(kOpenRejected, sourceUrls);
+        emit dropRejected(lastOutcomeKey_);
         return false;
     case Classification::Directory:
         setResult(kDirectoryRejected, sourceUrls);
