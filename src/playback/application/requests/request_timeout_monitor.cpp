@@ -38,12 +38,16 @@ RequestTimeoutMonitor::RequestTimeoutMonitor(
         &QTimer::timeout,
         this,
         [this]() {
+            if (!timeoutHandler_) {
+                (void)tracker_.cancelExpired(
+                    PlaybackRequestClock::now(),
+                    kRequestTimeout);
+                return;
+            }
+
             const auto expired = tracker_.cancelExpiredRecords(
                 PlaybackRequestClock::now(),
                 kRequestTimeout);
-            if (!timeoutHandler_) {
-                return;
-            }
             for (const PlaybackRequestRecord& record : expired) {
                 timeoutHandler_(record);
             }
