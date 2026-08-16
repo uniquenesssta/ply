@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Player.Presentation.Controls
 import Player.Presentation.Feedback
 
 Item {
@@ -22,6 +23,7 @@ Item {
                                           && !root.bufferingSuppressed
 
     signal openMediaRequested()
+    signal openUrlRequested()
 
     objectName: "playerStatusOverlay"
     visible: root.statusVisible
@@ -53,12 +55,20 @@ Item {
         id: emptyComponent
 
         EmptyFeedback {
+            id: emptyFeedback
             objectName: "playerEmptyFeedback"
             title: qsTr("No media")
-            detail: qsTr("Open a local media file to start playback")
+            detail: qsTr("Open a local file or direct media URL to start playback")
             actionText: qsTr("Open media")
 
             onActionRequested: root.openMediaRequested()
+
+            TextButton {
+                parent: emptyFeedback.contentColumn
+                objectName: "playerOpenUrlAction"
+                text: qsTr("Open URL")
+                onClicked: root.openUrlRequested()
+            }
         }
     }
 
