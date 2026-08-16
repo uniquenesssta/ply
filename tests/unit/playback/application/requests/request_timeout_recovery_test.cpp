@@ -33,6 +33,7 @@ class RequestTimeoutRecoveryTest final : public QObject
 private slots:
     void trackerReturnsTimedOutLoadMetadata();
     void monitorForwardsTimedOutLoadMetadata();
+    void generationCloseCancelsOnlyMatchingPendingMediaRequests();
 };
 
 void RequestTimeoutRecoveryTest::trackerReturnsTimedOutLoadMetadata()
@@ -90,6 +91,37 @@ void RequestTimeoutRecoveryTest::monitorForwardsTimedOutLoadMetadata()
     QVERIFY(timedOut->generation.has_value());
     QCOMPARE(timedOut->generation->value(), generation.value());
     QVERIFY(timedOut->cancellationReason == PlaybackRequestCancellationReason::Timeout);
+}
+
+void RequestTimeoutRecoveryTest::generationCloseCancelsOnlyMatchingPendingMediaRequests()
+{
+    RequestTracker tracker;
+    const MediaGeneration closingGeneration{41};
+    const MediaGeneration otherGeneration{42};
+
+    QVERIFY(tracker.track(
+                makeLoadCommand(301, QStringLiteral("https://example.invalid/cancelled.mp4")),
+                closingGeneration)
+        == RequestTrackStatus::Tracked);
+    QVERIFY(tracker.track(
+                makeLoadCommand(302, QStringLiteral("https://example.invalid/other.mp4")),
+                otherGeneration)
+        == RequestTrackStatus::Tracked);
+
+    QCOMPARE(
+        tracker.cancelMediaRequestsForGeneration(
+            closingGeneration,
+            PlaybackRequestCancellationReason::GenerationChanged),
+        std::size_t{1});
+
+    const auto cancelled = tracker.record(player::ids::RequestId{301});
+    const auto pending = tracker.record(player::ids::RequestId{302});
+    QVERIFY(cancelled.has_value());
+    QVERIFY(pending.has_value());
+    QVERIFY(cancelled->state == PlaybackRequestState::Cancelled);
+    QVERIFY(cancelled->cancellationReason == PlaybackRequestCancellationReason::GenerationChanged);
+    QVERIFY(pending->state == PlaybackRequestState::Pending);
+    QCOMPARE(tracker.pendingCount(), std::size_t{1});
 }
 
 } // namespace player::playback::application
