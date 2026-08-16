@@ -46,3 +46,26 @@ add_test(
     NAME media_open_playback_integration
     COMMAND media_open_playback_integration_tests
 )
+
+add_executable(
+    media_drop_handler_tests
+    media_drop_handler_test.cpp
+)
+
+player_apply_compiler_options(media_drop_handler_tests)
+player_enable_compiler_warnings(media_drop_handler_tests)
+player_enable_sanitizers(media_drop_handler_tests)
+player_enable_static_analysis(media_drop_handler_tests)
+
+target_link_libraries(
+    media_drop_handler_tests
+    PRIVATE
+        player_media_application
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME media_drop_handler
+    COMMAND media_drop_handler_tests
+)
