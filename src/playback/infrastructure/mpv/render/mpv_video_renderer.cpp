@@ -271,6 +271,7 @@ bool MpvVideoRenderer::ensureRenderContext()
     }
 
     renderContext_ = std::move(renderContext);
+    qInfo("mpv video render context active");
     return true;
 }
 
