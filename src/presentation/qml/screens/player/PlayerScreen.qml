@@ -162,6 +162,11 @@ Item {
 
             onOpenMediaRequested: root.openMediaRequested()
             onOpenUrlRequested: root.openUrlRequested()
+            onCancelMediaOpenRequested: {
+                if (root.transportViewModel !== null) {
+                    root.transportViewModel.requestStop()
+                }
+            }
         }
 
         PlayerDropOverlay {
