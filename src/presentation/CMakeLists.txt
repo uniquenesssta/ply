@@ -25,6 +25,7 @@ set(PLAYER_QML_FILES
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/overlays/status/PlayerStatusOverlay.qml
     qml/screens/player/overlays/hud/PlayerHudOverlay.qml
+    qml/screens/player/overlays/drop/PlayerDropOverlay.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
@@ -69,6 +70,7 @@ set_source_files_properties(
     qml/screens/player/overlays/PlayerOverlayStack.qml
     qml/screens/player/overlays/status/PlayerStatusOverlay.qml
     qml/screens/player/overlays/hud/PlayerHudOverlay.qml
+    qml/screens/player/overlays/drop/PlayerDropOverlay.qml
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
