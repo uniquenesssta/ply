@@ -43,6 +43,7 @@ Item {
     readonly property bool cursorHidden: cursorVisibilityController.cursorHidden
 
     signal openMediaRequested()
+    signal openUrlRequested()
     signal minimizeRequested()
     signal maximizeRestoreRequested()
     signal fullscreenToggleRequested()
@@ -160,6 +161,7 @@ Item {
             suppressBuffering: root.timelineInteractionActive
 
             onOpenMediaRequested: root.openMediaRequested()
+            onOpenUrlRequested: root.openUrlRequested()
         }
 
         PlayerDropOverlay {
