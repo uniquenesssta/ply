@@ -10,6 +10,8 @@ target_sources(
         bootstrap/qml_bootstrap.h
         bootstrap/runtime_paths.cpp
         bootstrap/runtime_paths.h
+        bootstrap/startup_media_open_scheduler.cpp
+        bootstrap/startup_media_open_scheduler.h
 )
 
 add_subdirectory(bootstrap/graphics_backend)
