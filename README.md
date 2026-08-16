@@ -187,7 +187,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 依据跨 Stage 强制补充任务书 `成熟播放器行为补强与验收矩阵.md` 重新打开 R6；R6-13 只补强既有 R6-06 Timeline 主链，不建立第二套 Timeline 或 Playback 真值，也未提前进入 R6-14 Controls Visibility、R6-15 Cursor Visibility 或 R6-16 HUD Coalescing。
 - Timeline 状态职责重新拆清：`PlaybackSnapshot.timeline.positionSeconds` 仍是只读 actual truth；`TimelineScrubSession` 只拥有 pointer `Idle/Scrubbing` 与拖动 preview；`TimelineSeekProjection` 单独拥有 commit/relative Seek 的 pending target 与 MediaGeneration。拖动期间 actual update 可以进入 Snapshot，但不能抢回 thumb；cancel、generation change、non-seekable/unknown-duration、提交拒绝或已识别的 backend seek failure 都会回到最新 Snapshot truth。
 - `PlayerTimelineViewModel` 提供 relative Seek 主链与固定 **5 s** presentation step；`TimelineRelativeSeekCoalescer` 以**单一 100 ms single-shot QTimer**合并键盘/滚轮高频输入。短 burst 合成一次请求，持续输入按固定窗口形成有限批次；投影 target 限制在 `0..duration`，最终状态仍由 Snapshot acknowledgement 收敛。
-- `TimelineControls.qml` 保持 generic `Slider` 作为 pointer drag owner，并通过通用 `Slider.keyboardEnabled` 关闭 Timeline 内部 normalized 键盘步进；Timeline Feature 自己将 Left/Right/Up/Down 与 Wheel 转成 relative ±5 s intent。窗口失焦通过 `MainWindow.active → PlayerScreen.windowActive → TimelineControls` 取消正在进行的 Scrub并恢复 actual position。QML 仍不接触 PlaybackSession、CommandBus、SeekCommand 或 libmpv。
+- `TimelineControls.qml` 保持 generic `Slider` 作为 pointer drag owner，并通过通用 `Slider.keyboardEnabled` 关闭 Timeline 内部 normalized 键盘步进；Timeline Feature 自己将 Left/Right/Up/Down 与 Wheel 转成 relative ±5 s intent。窗口失焦通过 `MainWindow.active → PlayerScreen.windowActive → TimelineControls` 取消正在进行的 Scrub 并恢复 actual position。QML 仍不接触 PlaybackSession、CommandBus、SeekCommand 或 libmpv。
 - Playing、Paused、Buffering 都允许真实 seekable Timeline 拖动；Scrubbing 时 Buffering/actual position 更新不夺取 preview。`seekable=false`、无有效 MediaGeneration、unknown/zero/non-finite duration 不能进入有效 Scrubbing/relative Seek。绝对拖动 commit 只提交一个 final Absolute Seek；键盘/滚轮走 Relative Seek；二者复用同一个 `PlaybackComposition::submitSeek(seconds, mode)`、共享 RequestId generator 与单一 PlaybackCommandBus。
 - `Ended → seek earlier` 不使用 QML replay hack：产品 mpv profile 使用 `keep-open=yes` 保留 EOF 后媒体；Reducer 消费 `eof-reached`，Ready+EOF → Ended/Stopped，随后 seek earlier 导致 EOF=false 时恢复 Ready/Paused，MediaGeneration 与 media identity 不重建。真实 libmpv `playback_ended_seek` CTest 使用生成 WAV 覆盖 load → play → EOF Ended → Absolute Seek earlier → same-generation Ready/Paused。
 - Seek 同步提交拒绝以及 tracked backend command failure 都清理 Timeline pending projection并复用既有 R6-12 `HudMessageQueue` 显示 `seekFailed`，没有创建第二套 HUD Timer/queue。通用 request timeout 仍由既有 30 s timeout monitor 管理；timeout-specific request type 回传不属于本次已验证范围，继续作为后续成熟行为矩阵风险项保留。
@@ -427,7 +427,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 
 - Radius、Blur/Material、Elevation、Motion、Opacity、Z-order primitive/semantic token 已建立；Reduce Motion 统一将 transition duration 降为 0 并切换 Linear easing，OSC inactivity hide-delay 继续保持 **2200 ms**。
 - 新增 `theme_effect_tokens` 合同测试与产品 QML raw radius/z/opacity/duration 回流门禁。
-- 锁定 Windows环境实测已确认：configure、Debug build、无 warning `player_qml_lint`、**44/44 CTest PASS（49.52 s）** 与 `Player.exe` 启动 smoke 均通过。当前仍是播放器骨架界面；Panel/Popover/HUD 等实际 Surface 消费属于 R5-08。**R5-03 正式 Complete。**
+- 锁定 Windows 环境实测已确认：configure、Debug build、无 warning `player_qml_lint`、**44/44 CTest PASS（49.52 s）** 与 `Player.exe` 启动 smoke 均通过。当前仍是播放器骨架界面；Panel/Popover/HUD 等实际 Surface 消费属于 R5-08。**R5-03 正式 Complete。**
 
 ### 2026-08-13 — R5-02 Complete
 
