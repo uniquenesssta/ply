@@ -118,6 +118,29 @@ bool RequestTracker::cancel(
     return true;
 }
 
+std::size_t RequestTracker::cancelMediaRequestsForGeneration(
+    MediaGeneration generation,
+    PlaybackRequestCancellationReason reason) noexcept
+{
+    if (!generation.isValid()) {
+        return 0;
+    }
+
+    std::size_t cancelled = 0;
+    for (auto& [id, record] : records_) {
+        Q_UNUSED(id);
+        if (record.state != PlaybackRequestState::Pending
+            || !record.generation.has_value()
+            || *record.generation != generation) {
+            continue;
+        }
+
+        markCancelled(record, reason);
+        ++cancelled;
+    }
+    return cancelled;
+}
+
 std::size_t RequestTracker::cancelMediaRequestsForGenerationChange(
     MediaGeneration nextGeneration) noexcept
 {
