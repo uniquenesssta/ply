@@ -4,6 +4,7 @@
 #include "app/bootstrap/qml_bootstrap.h"
 #include "app/composition/playback_composition.h"
 #include "foundation/logging/log_categories.h"
+#include "media/application/drop/media_drop_handler.h"
 #include "media/application/open/media_open_coordinator.h"
 
 #include <QLoggingCategory>
@@ -32,6 +33,9 @@ ApplicationContainer::ApplicationContainer(
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitMediaLoad(source.location());
             }))
+    , mediaDropHandler_(
+        std::make_unique<player::media::application::MediaDropHandler>(
+            *mediaOpenCoordinator_))
     , qmlBootstrap_(std::make_unique<QmlBootstrap>())
 {
     if (loggingBootstrap_ == nullptr) {
@@ -65,6 +69,12 @@ ApplicationContainer::mediaOpenCoordinator() noexcept
     return *mediaOpenCoordinator_;
 }
 
+player::media::application::MediaDropHandler&
+ApplicationContainer::mediaDropHandler() noexcept
+{
+    return *mediaDropHandler_;
+}
+
 QmlBootstrap& ApplicationContainer::qmlBootstrap() noexcept
 {
     return *qmlBootstrap_;
@@ -81,6 +91,7 @@ void ApplicationContainer::shutdown() noexcept
     }
 
     qmlBootstrap_.reset();
+    mediaDropHandler_.reset();
     mediaOpenCoordinator_.reset();
 
     if (playbackComposition_ != nullptr) {
