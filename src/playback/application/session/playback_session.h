@@ -50,6 +50,7 @@ private:
     void processCommand(player::playback::domain::PlaybackCommand command);
     void handleBackendEvent(const player::playback::domain::PlaybackEvent& event);
     void handleCommandReply(const player::playback::domain::CommandReplyEvent& reply);
+    void handleRequestTimeout(const PlaybackRequestRecord& record);
     void beginMediaLoad(const player::playback::domain::PlaybackCommand& command);
     void submitTrackedCommand(const player::playback::domain::PlaybackCommand& command);
     void commitSnapshot(player::playback::domain::PlaybackSnapshot next);
