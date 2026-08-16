@@ -1,9 +1,11 @@
 #include "playback_session_thread.h"
 
 #include "playback/application/command_bus/playback_command_bus.h"
+#include "playback/application/requests/playback_request.h"
 #include "playback/application/session/playback_session.h"
 #include "playback/application/state_publisher/state_publisher.h"
 
+#include <QDebug>
 #include <QMetaObject>
 #include <QtGlobal>
 
@@ -101,6 +103,18 @@ bool PlaybackSessionThread::start(QString* errorMessage)
         &PlaybackSession::requestFailed,
         this,
         &PlaybackSessionThread::requestFailed,
+        Qt::QueuedConnection);
+    QObject::connect(
+        session,
+        &PlaybackSession::requestFailed,
+        this,
+        [](quint8 requestType, const QString& diagnostic) {
+            if (requestType != static_cast<quint8>(PlaybackRequestType::LoadMedia)) {
+                return;
+            }
+            qWarning().noquote()
+                << "Playback media load request failed:" << diagnostic;
+        },
         Qt::QueuedConnection);
     QObject::connect(
         session,
