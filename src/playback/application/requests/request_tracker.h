@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]] std::vector<PlaybackRequestRecord> cancelExpiredRecords(
         PlaybackRequestClock::time_point now,
-        std::chrono::milliseconds timeout) noexcept;
+        std::chrono::milliseconds timeout);
 
     [[nodiscard]] std::size_t cancelExpired(
         PlaybackRequestClock::time_point now,
