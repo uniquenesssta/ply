@@ -19,16 +19,23 @@ Item {
     z: ZOrderTokens.video
     clip: true
 
-    Rectangle {
-        objectName: "playerVideoViewportBackground"
-        anchors.fill: parent
-        color: root.backgroundColor
-    }
-
+    // Keep the libmpv-backed surface scene-graph active from application startup.
+    // libmpv requires mpv_render_context_create() to complete before video
+    // initialization; media capability therefore controls visual exposure, not
+    // the lifetime of the render surface itself.
     VideoSurface {
         id: videoSurface
         objectName: "playerVideoSurface"
         anchors.fill: parent
-        visible: root.videoVisible
+    }
+
+    // Empty/audio states remain visually unchanged while the render surface is
+    // prewarmed underneath. The cover owns no input handlers and disappears as
+    // soon as the current media is known to contain a video track.
+    Rectangle {
+        objectName: "playerVideoViewportBackground"
+        anchors.fill: parent
+        visible: !root.videoVisible
+        color: root.backgroundColor
     }
 }
