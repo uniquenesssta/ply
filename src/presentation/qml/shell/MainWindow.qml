@@ -13,6 +13,7 @@ ApplicationWindow {
     property var mediaViewModel: null
     property var hudMessageQueue: null
     property var mediaOpenCoordinator: null
+    property var urlOpenWorkflow: null
     property var mediaDropHandler: null
 
     width: LayoutTokens.windowDefaultWidth
@@ -38,6 +39,24 @@ ApplicationWindow {
         }
     }
 
+    UrlMediaOpenDialog {
+        id: urlMediaOpenDialog
+
+        onUrlSubmitted: function(sourceText) {
+            if (window.urlOpenWorkflow === null) {
+                urlMediaOpenDialog.errorKey = "workflow-unavailable"
+                return
+            }
+
+            if (window.urlOpenWorkflow.openUrl(sourceText)) {
+                urlMediaOpenDialog.close()
+                return
+            }
+
+            urlMediaOpenDialog.errorKey = window.urlOpenWorkflow.lastErrorKey
+        }
+    }
+
     PlayerScreen {
         anchors.fill: parent
         transportViewModel: window.transportViewModel
@@ -49,11 +68,12 @@ ApplicationWindow {
         mediaDropHandler: window.mediaDropHandler
         fullScreen: fullscreenWindowController.fullScreen
         windowActive: window.active
-        modalActive: localMediaOpenDialog.visible
+        modalActive: localMediaOpenDialog.visible || urlMediaOpenDialog.visible
         windowExpanded: window.visibility === Window.Maximized
                         || window.visibility === Window.FullScreen
 
         onOpenMediaRequested: localMediaOpenDialog.open()
+        onOpenUrlRequested: urlMediaOpenDialog.open()
         onMinimizeRequested: window.showMinimized()
         onMaximizeRestoreRequested: {
             if (fullscreenWindowController.fullScreen) {
