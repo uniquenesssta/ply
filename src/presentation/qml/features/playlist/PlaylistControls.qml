@@ -11,8 +11,6 @@ Row {
     signal toggleRequested()
 
     objectName: "playlistControls"
-    implicitWidth: playlistButton.implicitWidth
-    implicitHeight: playlistButton.implicitHeight
     width: implicitWidth
     height: implicitHeight
 
