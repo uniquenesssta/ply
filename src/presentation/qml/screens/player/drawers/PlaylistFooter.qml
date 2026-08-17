@@ -14,6 +14,7 @@ Panel {
     objectName: "playlistFooter"
     cornerRadius: RadiusTokens.inspectorFooter
     fillAlpha: MaterialTokens.footerFillAlpha
+    borderAlpha: MaterialTokens.borderStrongAlpha
     backdropBlurRadius: MaterialTokens.footerBlur
     contentPadding: SpacingTokens.none
 
