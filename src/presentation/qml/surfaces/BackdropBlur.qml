@@ -13,11 +13,15 @@ Item {
     property real mappingRevision: 0
 
     readonly property rect mappedSourceRect: {
-        if (root.sourceItem === null || !Number.isFinite(root.mappingRevision)) {
+        if (root.sourceItem === null) {
             return Qt.rect(0, 0, 0, 0)
         }
         const origin = root.sourceItem.mapFromItem(root, 0, 0)
-        return Qt.rect(origin.x, origin.y, root.width, root.height)
+        const revision = root.mappingRevision
+        return Qt.rect(origin.x,
+                       origin.y,
+                       root.width,
+                       root.height + revision - revision)
     }
 
     objectName: "surfaceBackdropBlur"
