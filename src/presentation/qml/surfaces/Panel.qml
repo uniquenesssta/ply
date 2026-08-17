@@ -20,6 +20,7 @@ Rectangle {
     property int backdropBlurRadius: MaterialTokens.inspectorBlur
     property color shadowColor: ElevationTokens.shadowColor
     property int shadowRadius: ElevationTokens.floatingShadowRadius
+    property real shadowXOffset: 0.0
     property real shadowYOffset: ElevationTokens.floatingShadowYOffset
     property real shadowAlpha: ElevationTokens.floatingShadowAlpha
     property int contentPadding: SpacingTokens.surfacePadding
@@ -55,6 +56,7 @@ Rectangle {
         shadowEnabled: true
         shadowBlur: 1.0
         blurMax: root.shadowRadius
+        shadowHorizontalOffset: root.shadowXOffset
         shadowVerticalOffset: root.shadowYOffset
         shadowColor: root.shadowColor
         shadowOpacity: root.effectiveShadowOpacity
