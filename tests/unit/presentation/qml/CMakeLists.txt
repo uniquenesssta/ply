@@ -292,6 +292,11 @@ player_enable_compiler_warnings(surface_control_tests)
 player_enable_sanitizers(surface_control_tests)
 player_enable_static_analysis(surface_control_tests)
 
+add_dependencies(
+    surface_control_tests
+    player_qml_lint
+)
+
 target_compile_definitions(
     surface_control_tests
     PRIVATE
