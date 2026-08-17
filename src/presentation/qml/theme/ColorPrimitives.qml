@@ -15,6 +15,7 @@ QtObject {
 
     readonly property color neutralNight950: "#17141F"
     readonly property color neutralNight900: "#211B29"
+    readonly property color neutralNight875: "#231D2B"
     readonly property color neutralNight850: "#27212F"
     readonly property color neutralLavender50: "#F7F4FB"
     readonly property color neutralLavender100: "#EEE9F3"
