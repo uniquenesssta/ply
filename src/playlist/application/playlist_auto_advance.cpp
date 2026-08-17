@@ -22,11 +22,12 @@ void PlaylistAutoAdvance::acceptPlaybackState(
         return;
     }
 
+    if (handledEndedGeneration_.has_value()
+        && *handledEndedGeneration_ != mediaGeneration) {
+        handledEndedGeneration_.reset();
+    }
+
     if (!naturallyEnded) {
-        if (handledEndedGeneration_.has_value()
-            && *handledEndedGeneration_ == mediaGeneration) {
-            handledEndedGeneration_.reset();
-        }
         return;
     }
 
@@ -35,9 +36,9 @@ void PlaylistAutoAdvance::acceptPlaybackState(
         return;
     }
 
-    // Claim this EOF generation before submitting another load. StatePublisher
-    // can publish more than one Ended snapshot before the next generation is
-    // visible, and those repeats must never create duplicate loads.
+    // Claim this media generation before submitting another load. Late or
+    // repeated snapshots from the same generation must never create a second
+    // automatic load, even if that generation briefly leaves Ended again.
     handledEndedGeneration_ = mediaGeneration;
 
     const domain::PlaylistNavigationDecision decision =

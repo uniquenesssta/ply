@@ -53,7 +53,7 @@ private slots:
     void repeatOneReloadsCurrent();
     void repeatAllWrapsTail();
     void rejectedAdvanceRestoresCurrentAndDoesNotRetrySameGeneration();
-    void sameGenerationCanEndAgainAfterLeavingEndedState();
+    void newGenerationCanAdvanceAfterPreviousEnd();
 };
 
 void PlaylistAutoAdvanceTest::naturalEndAdvancesExactlyOnceWhileStopIsIgnored()
@@ -70,6 +70,7 @@ void PlaylistAutoAdvanceTest::naturalEndAdvancesExactlyOnceWhileStopIsIgnored()
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
     QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
 
+    fixture.autoAdvance.acceptPlaybackState(1, false);
     fixture.autoAdvance.acceptPlaybackState(1, true);
     QCOMPARE(fixture.submissions, 1);
 }
@@ -120,25 +121,28 @@ void PlaylistAutoAdvanceTest::rejectedAdvanceRestoresCurrentAndDoesNotRetrySameG
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.playlist.currentId()->value(), firstId->value());
 
+    fixture.autoAdvance.acceptPlaybackState(13, false);
     fixture.autoAdvance.acceptPlaybackState(13, true);
     QCOMPARE(fixture.submissions, 1);
 }
 
-void PlaylistAutoAdvanceTest::sameGenerationCanEndAgainAfterLeavingEndedState()
+void PlaylistAutoAdvanceTest::newGenerationCanAdvanceAfterPreviousEnd()
 {
     Fixture fixture;
     openTwo(fixture);
-    fixture.rejectedLocation = QStringLiteral("C:/media/b.mp4");
+    const auto firstId = fixture.playlist.entries().at(0).id();
 
     fixture.autoAdvance.acceptPlaybackState(21, true);
     QCOMPARE(fixture.submissions, 1);
+    QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
 
-    fixture.autoAdvance.acceptPlaybackState(21, false);
-    fixture.rejectedLocation.clear();
-    fixture.autoAdvance.acceptPlaybackState(21, true);
+    fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::All);
+    fixture.autoAdvance.acceptPlaybackState(22, false);
+    fixture.autoAdvance.acceptPlaybackState(22, true);
 
     QCOMPARE(fixture.submissions, 2);
-    QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
+    QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/a.mp4"));
+    QCOMPARE(fixture.playlist.currentId()->value(), firstId.value());
 }
 
 } // namespace player::playlist::application
