@@ -32,7 +32,7 @@ private slots:
     void screenInjectsCanonicalHeaderThroughTopRegionHost();
     void headerMatchesCanonicalFigmaStructure();
     void mediaInfoProjectionFeedsHeader();
-    void legacyWindowActionsRemainIsolated();
+    void obsoleteHeaderPodsAreRemoved();
     void windowActionGlyphsMatchCanonicalFigmaGeometry();
     void shellOwnsGenericWindowCommands();
 };
@@ -104,19 +104,12 @@ void PlayerTopRegionTest::mediaInfoProjectionFeedsHeader()
     QVERIFY(mediaHeader.contains(QStringLiteral("Q_PROPERTY(QString metadataText")));
 }
 
-void PlayerTopRegionTest::legacyWindowActionsRemainIsolated()
+void PlayerTopRegionTest::obsoleteHeaderPodsAreRemoved()
 {
-    const QString path = QStringLiteral(
-        "src/presentation/qml/screens/player/header/WindowActionsPod.qml");
-    const QString source = readSource(path);
-    QVERIFY2(!source.isEmpty(), qPrintable(sourcePath(path)));
-
-    QVERIFY(source.contains(QStringLiteral("iconId: \"minimize\"")));
-    QVERIFY(source.contains(QStringLiteral("iconId: \"maximize\"")));
-    QVERIFY(source.contains(QStringLiteral("iconId: \"close\"")));
-    QVERIFY(source.contains(QStringLiteral("signal minimizeRequested()")));
-    QVERIFY(source.contains(QStringLiteral("signal maximizeRestoreRequested()")));
-    QVERIFY(source.contains(QStringLiteral("signal closeRequested()")));
+    QVERIFY(!QFileInfo::exists(sourcePath(QStringLiteral(
+        "src/presentation/qml/screens/player/header/MediaInfoPod.qml"))));
+    QVERIFY(!QFileInfo::exists(sourcePath(QStringLiteral(
+        "src/presentation/qml/screens/player/header/WindowActionsPod.qml"))));
 }
 
 void PlayerTopRegionTest::windowActionGlyphsMatchCanonicalFigmaGeometry()

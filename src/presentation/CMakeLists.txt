@@ -17,8 +17,6 @@ set(PLAYER_QML_FILES
     qml/screens/player/layout/PlayerTopRegion.qml
     qml/screens/player/layout/PlayerBottomRegion.qml
     qml/screens/player/header/PlayerFloatingHeader.qml
-    qml/screens/player/header/MediaInfoPod.qml
-    qml/screens/player/header/WindowActionsPod.qml
     qml/screens/player/fullscreen/FullscreenHeader.qml
     qml/screens/player/osc/PlayerOscLayout.qml
     qml/screens/player/osc/OscControlRow.qml
@@ -71,8 +69,6 @@ set_source_files_properties(
     qml/screens/player/layout/PlayerTopRegion.qml
     qml/screens/player/layout/PlayerBottomRegion.qml
     qml/screens/player/header/PlayerFloatingHeader.qml
-    qml/screens/player/header/MediaInfoPod.qml
-    qml/screens/player/header/WindowActionsPod.qml
     qml/screens/player/fullscreen/FullscreenHeader.qml
     qml/screens/player/osc/PlayerOscLayout.qml
     qml/screens/player/osc/OscControlRow.qml
