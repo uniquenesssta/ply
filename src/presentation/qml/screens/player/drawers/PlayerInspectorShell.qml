@@ -9,6 +9,8 @@ Item {
     property bool opened: false
     property string title: ""
     property string subtitle: ""
+    property Item backdropSource: null
+    property real backdropMappingRevision: 0
     property alias searchContent: searchHost.data
     property alias bodyContent: bodyHost.data
     property alias footerContent: footerHost.data
@@ -21,6 +23,8 @@ Item {
     enabled: root.opened
 
     transform: Translate {
+        id: shellTranslation
+
         x: root.opened ? SpacingTokens.none : SpacingTokens.inspectorContent
 
         Behavior on x {
@@ -54,6 +58,8 @@ Item {
 
     Drawer {
         anchors.fill: parent
+        backdropSource: root.backdropSource
+        backdropMappingRevision: root.backdropMappingRevision + shellTranslation.x
         contentPadding: SpacingTokens.none
 
         TitleText {
