@@ -6,6 +6,8 @@ Item {
     property bool opened: false
     property var playlistModel: null
     property var playlistController: null
+    property Item backdropSource: null
+    property real backdropMappingRevision: 0
 
     signal closeRequested()
     signal addMediaRequested()
@@ -15,6 +17,8 @@ Item {
     PlayerInspectorShell {
         anchors.fill: parent
         opened: root.opened
+        backdropSource: root.backdropSource
+        backdropMappingRevision: root.backdropMappingRevision
         title: qsTr("播放列表")
         subtitle: qsTr("%1 个媒体").arg(root.playlistModel !== null
                                          ? root.playlistModel.count
