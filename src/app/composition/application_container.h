@@ -12,6 +12,7 @@ class UrlOpenWorkflow;
 }
 
 namespace player::playlist::application {
+class PlaylistAutoAdvance;
 class PlaylistController;
 class PlaylistMutation;
 }
@@ -34,9 +35,7 @@ class ApplicationContainer final
 {
 public:
     explicit ApplicationContainer(RuntimePaths runtimePaths);
-    ApplicationContainer(
-        RuntimePaths runtimePaths,
-        std::unique_ptr<LoggingBootstrap> loggingBootstrap);
+    ApplicationContainer(RuntimePaths runtimePaths, std::unique_ptr<LoggingBootstrap> loggingBootstrap);
     ~ApplicationContainer();
 
     ApplicationContainer(const ApplicationContainer&) = delete;
@@ -64,6 +63,7 @@ private:
     std::unique_ptr<player::playlist::domain::Playlist> playlist_;
     std::unique_ptr<player::playlist::application::PlaylistMutation> playlistMutation_;
     std::unique_ptr<player::playlist::application::PlaylistController> playlistController_;
+    std::unique_ptr<player::playlist::application::PlaylistAutoAdvance> playlistAutoAdvance_;
     std::unique_ptr<player::playlist::presentation::PlaylistListModel> playlistListModel_;
     std::unique_ptr<player::media::application::MediaOpenCoordinator> mediaOpenCoordinator_;
     std::unique_ptr<player::media::application::UrlOpenWorkflow> urlOpenWorkflow_;

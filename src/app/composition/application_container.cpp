@@ -8,6 +8,10 @@
 #include "media/application/drop/media_drop_handler.h"
 #include "media/application/open/media_open_coordinator.h"
 #include "media/application/open/url_open_workflow.h"
+#include "playback/application/state_publisher/state_publisher.h"
+#include "playback/domain/state/playback_lifecycle_state.h"
+#include "playback/domain/state/playback_snapshot.h"
+#include "playlist/application/playlist_auto_advance.h"
 #include "playlist/application/playlist_controller.h"
 #include "playlist/application/playlist_mutation.h"
 #include "playlist/domain/playlist.h"
@@ -15,6 +19,7 @@
 
 #include <QList>
 #include <QLoggingCategory>
+#include <QObject>
 #include <QString>
 
 #include <utility>
@@ -45,6 +50,10 @@ ApplicationContainer::ApplicationContainer(
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitMediaLoad(source.location());
             }))
+    , playlistAutoAdvance_(
+        std::make_unique<player::playlist::application::PlaylistAutoAdvance>(
+            *playlist_,
+            *playlistController_))
     , playlistListModel_(
         std::make_unique<player::playlist::presentation::PlaylistListModel>(
             *playlistController_))
@@ -74,6 +83,22 @@ ApplicationContainer::ApplicationContainer(
     if (loggingBootstrap_ == nullptr) {
         loggingBootstrap_ = std::make_unique<LoggingBootstrap>();
     }
+
+    auto& publisher = playbackComposition_->statePublisher();
+    QObject::connect(
+        &publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        &publisher,
+        [this](const player::playback::domain::PlaybackSnapshot& snapshot) {
+            if (playlistAutoAdvance_ == nullptr) {
+                return;
+            }
+
+            playlistAutoAdvance_->acceptPlaybackState(
+                snapshot.generation().value(),
+                snapshot.lifecycle()
+                    == player::playback::domain::PlaybackLifecycleState::Ended);
+        });
 }
 
 ApplicationContainer::~ApplicationContainer()
@@ -153,6 +178,7 @@ void ApplicationContainer::shutdown() noexcept
     urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
     playlistListModel_.reset();
+    playlistAutoAdvance_.reset();
     playlistController_.reset();
     playlistMutation_.reset();
     playlist_.reset();

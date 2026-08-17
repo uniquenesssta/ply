@@ -6,6 +6,8 @@ add_library(
         playlist_entry.cpp
         playlist_entry.h
         playlist_entry_id.h
+        playlist_navigation.cpp
+        playlist_navigation.h
         playlist_repeat_mode.h
 )
 

@@ -1,6 +1,8 @@
 add_library(
     player_playlist_application
     STATIC
+        playlist_auto_advance.cpp
+        playlist_auto_advance.h
         playlist_controller.cpp
         playlist_controller.h
         playlist_mutation.cpp

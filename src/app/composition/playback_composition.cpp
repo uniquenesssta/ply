@@ -253,6 +253,12 @@ void PlaybackComposition::beginVideoRenderShutdown() noexcept
     videoRenderBinding_->beginShutdown();
 }
 
+player::playback::application::StatePublisher&
+PlaybackComposition::statePublisher() noexcept
+{
+    return *playbackThread_->statePublisher();
+}
+
 player::presentation::PlayerTransportViewModel&
 PlaybackComposition::transportViewModel() noexcept
 {

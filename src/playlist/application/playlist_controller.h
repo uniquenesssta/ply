@@ -31,6 +31,7 @@ public:
 
     [[nodiscard]] bool openSource(const media::domain::MediaSource& source);
     [[nodiscard]] bool openSources(const QList<media::domain::MediaSource>& sources);
+    [[nodiscard]] bool reloadCurrentEntry();
 
     Q_INVOKABLE bool removeEntry(quint64 entryId);
     Q_INVOKABLE bool moveEntry(quint64 entryId, int targetIndex);
@@ -40,6 +41,7 @@ signals:
     void playlistChanged();
 
 private:
+    [[nodiscard]] bool submitLoadForEntry(const domain::PlaylistEntry& entry);
     void restoreCurrent(std::optional<domain::PlaylistEntryId> previousCurrent) noexcept;
 
     domain::Playlist& playlist_;

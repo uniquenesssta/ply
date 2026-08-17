@@ -51,7 +51,7 @@ bool PlaylistController::openSources(
     }
 
     const domain::PlaylistEntry* entry = playlist_.currentEntry();
-    if (entry == nullptr || !submitMediaLoad_(entry->source())) {
+    if (entry == nullptr || !submitLoadForEntry(*entry)) {
         mutation_.rollbackAppend(*appendedIds);
         restoreCurrent(previousCurrent);
         return false;
@@ -59,6 +59,12 @@ bool PlaylistController::openSources(
 
     emit playlistChanged();
     return true;
+}
+
+bool PlaylistController::reloadCurrentEntry()
+{
+    const domain::PlaylistEntry* entry = playlist_.currentEntry();
+    return entry != nullptr && submitLoadForEntry(*entry);
 }
 
 bool PlaylistController::removeEntry(quint64 entryId)
@@ -115,13 +121,18 @@ bool PlaylistController::selectEntry(quint64 entryId)
         return false;
     }
 
-    if (!submitMediaLoad_(entry->source())) {
+    if (!submitLoadForEntry(*entry)) {
         restoreCurrent(previousCurrent);
         return false;
     }
 
     emit playlistChanged();
     return true;
+}
+
+bool PlaylistController::submitLoadForEntry(const domain::PlaylistEntry& entry)
+{
+    return submitMediaLoad_ && submitMediaLoad_(entry.source());
 }
 
 void PlaylistController::restoreCurrent(

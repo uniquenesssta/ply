@@ -11,6 +11,7 @@ class QString;
 namespace player::playback::application {
 class PlaybackRequestIdGenerator;
 class PlaybackSessionThread;
+class StatePublisher;
 }
 
 namespace player::presentation {
@@ -42,6 +43,7 @@ public:
     [[nodiscard]] bool attachVideoOutput(QObject* qmlRoot, QString* errorMessage = nullptr);
     void beginVideoRenderShutdown() noexcept;
 
+    [[nodiscard]] player::playback::application::StatePublisher& statePublisher() noexcept;
     [[nodiscard]] player::presentation::PlayerTransportViewModel& transportViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerTimelineViewModel& timelineViewModel() noexcept;
     [[nodiscard]] player::presentation::PlayerVolumeViewModel& volumeViewModel() noexcept;
