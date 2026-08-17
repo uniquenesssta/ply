@@ -12,10 +12,16 @@ Panel {
     signal addMediaRequested()
 
     objectName: "playlistFooter"
+    surfaceColor: ColorTokens.surfaceInspectorFieldDark
+    fillAlpha: MaterialTokens.inspectorDarkFooterFillAlpha
+    borderColor: ColorTokens.borderInspectorDark
+    borderAlpha: MaterialTokens.inspectorDarkFooterBorderAlpha
     cornerRadius: RadiusTokens.inspectorFooter
-    fillAlpha: MaterialTokens.footerFillAlpha
-    borderAlpha: MaterialTokens.borderStrongAlpha
-    backdropBlurRadius: MaterialTokens.footerBlur
+    backdropBlurRadius: MaterialTokens.inspectorDarkFooterBlur
+    shadowColor: ElevationTokens.inspectorDarkFooterShadowColor
+    shadowRadius: ElevationTokens.inspectorDarkFooterShadowRadius
+    shadowYOffset: ElevationTokens.inspectorDarkFooterShadowYOffset
+    shadowAlpha: ElevationTokens.inspectorDarkFooterShadowAlpha
     contentPadding: SpacingTokens.none
 
     CaptionText {
@@ -26,7 +32,7 @@ Panel {
         }
         text: qsTr("拖放排序 · 双击播放")
         variant: CaptionText.Meta
-        color: ColorTokens.textSecondary
+        color: ColorTokens.textInspectorSecondary
     }
 
     CaptionText {
@@ -41,7 +47,7 @@ Panel {
                  : String(root.count))
               : "0"
         variant: CaptionText.CompactStrong
-        color: ColorTokens.accentStrong
+        color: ColorTokens.accentInspectorStrong
         horizontalAlignment: Text.AlignRight
     }
 }
