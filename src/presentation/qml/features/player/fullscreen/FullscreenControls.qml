@@ -10,6 +10,10 @@ Row {
     signal toggleFullscreenRequested()
 
     objectName: "playerFullscreenControls"
+    implicitWidth: fullscreenButton.implicitWidth
+    implicitHeight: fullscreenButton.implicitHeight
+    width: implicitWidth
+    height: implicitHeight
 
     IconButton {
         id: fullscreenButton
