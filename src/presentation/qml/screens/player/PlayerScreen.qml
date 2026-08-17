@@ -304,6 +304,9 @@ Item {
             opened: root.playlistDrawerOpen
             playlistModel: root.playlistModel
             playlistController: root.playlistController
+            backdropSource: videoViewport
+            backdropMappingRevision: drawerHost.x + drawerHost.y
+                                     + drawerHost.width + drawerHost.height
 
             onCloseRequested: root.playlistDrawerOpen = false
             onAddMediaRequested: root.openMediaRequested()
