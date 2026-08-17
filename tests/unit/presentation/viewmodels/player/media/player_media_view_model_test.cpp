@@ -22,11 +22,15 @@ player::playback::domain::PlaybackSnapshot makeSnapshot(
     if (lifecycle != PlaybackLifecycleState::Empty
         && lifecycle != PlaybackLifecycleState::Closing) {
         state.generation = MediaGeneration{1};
-        state.media.source = QStringLiteral("fixture://media");
+        state.media.source = QStringLiteral("fixture://media/example.mkv");
     }
     state.capabilities.hasVideoTrack = withVideoTrack;
     if (withVideoParams) {
-        state.streams.video = VideoStreamInfo{};
+        VideoStreamInfo video;
+        video.displayWidth = 3840;
+        video.displayHeight = 2160;
+        video.pixelFormat = QStringLiteral("yuv420p10le");
+        state.streams.video = video;
     }
     return PlaybackSnapshot{state};
 }
@@ -46,6 +50,7 @@ private slots:
     void videoParamsDoNotReplaceVideoTrackCapability();
     void endedKeepsMediaProjection();
     void failedClearsViewportProjection();
+    void projectsTitleAndTechnicalMetadata();
     void unchangedProjectionDoesNotEmit();
 };
 
@@ -54,6 +59,8 @@ void PlayerMediaViewModelTest::emptyStartsWithoutMedia()
     PlayerMediaViewModel viewModel;
     QVERIFY(!viewModel.hasMedia());
     QVERIFY(!viewModel.hasVideo());
+    QVERIFY(viewModel.title().isEmpty());
+    QVERIFY(viewModel.metadataText().isEmpty());
 }
 
 void PlayerMediaViewModelTest::openingDoesNotExposeUnestablishedMedia()
@@ -64,6 +71,7 @@ void PlayerMediaViewModelTest::openingDoesNotExposeUnestablishedMedia()
     viewModel.acceptSnapshot(makeSnapshot(PlaybackLifecycleState::Opening, true));
     QVERIFY(!viewModel.hasMedia());
     QVERIFY(!viewModel.hasVideo());
+    QCOMPARE(viewModel.title(), QStringLiteral("example.mkv"));
 }
 
 void PlayerMediaViewModelTest::readyWithoutSourceDoesNotExposeMedia()
@@ -135,6 +143,29 @@ void PlayerMediaViewModelTest::failedClearsViewportProjection()
     viewModel.acceptSnapshot(makeSnapshot(PlaybackLifecycleState::Failed, true));
     QVERIFY(!viewModel.hasMedia());
     QVERIFY(!viewModel.hasVideo());
+}
+
+void PlayerMediaViewModelTest::projectsTitleAndTechnicalMetadata()
+{
+    using namespace player::playback::domain;
+
+    PlaybackSnapshotState state;
+    state.lifecycle = PlaybackLifecycleState::Ready;
+    state.generation = MediaGeneration{1};
+    state.media.source = QStringLiteral("file:///C:/Media/fallback.mkv");
+    state.media.title = QStringLiteral("银翼杀手 2049");
+    state.capabilities.hasVideoTrack = true;
+    VideoStreamInfo video;
+    video.displayWidth = 3840;
+    video.displayHeight = 2160;
+    video.pixelFormat = QStringLiteral("yuv420p10le");
+    state.streams.video = video;
+
+    PlayerMediaViewModel viewModel;
+    viewModel.acceptSnapshot(PlaybackSnapshot{state});
+
+    QCOMPARE(viewModel.title(), QStringLiteral("银翼杀手 2049"));
+    QCOMPARE(viewModel.metadataText(), QStringLiteral("3840×2160 · yuv420p10le"));
 }
 
 void PlayerMediaViewModelTest::unchangedProjectionDoesNotEmit()

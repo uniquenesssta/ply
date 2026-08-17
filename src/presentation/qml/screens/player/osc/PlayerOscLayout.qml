@@ -6,6 +6,7 @@ FocusScope {
     id: root
 
     property bool compact: false
+    property bool inspectorOpen: false
 
     property alias timelineContent: timelineHost.data
     property alias transportContent: controlRow.transportContent
@@ -20,10 +21,19 @@ FocusScope {
     readonly property bool controlsFocused: root.activeFocus
     readonly property int maximumSurfaceWidth: root.compact
                                                 ? LayoutTokens.oscMaximumWidthCompact
-                                                : LayoutTokens.oscMaximumWidth
+                                                : root.inspectorOpen
+                                                  ? LayoutTokens.oscMaximumWidthInspector
+                                                  : LayoutTokens.oscMaximumWidth
     readonly property real surfaceWidth: Math.min(
         root.maximumSurfaceWidth,
         Math.max(0, root.width))
+    readonly property real requestedCenterOffset: !root.compact && root.inspectorOpen
+                                                   ? -LayoutTokens.oscInspectorCenterOffset
+                                                   : 0
+    readonly property real maximumCenterOffset: Math.max(0, (root.width - root.surfaceWidth) / 2)
+    readonly property real surfaceCenterOffset: Math.max(
+        -root.maximumCenterOffset,
+        Math.min(root.maximumCenterOffset, root.requestedCenterOffset))
     readonly property bool widthConstrained: root.surfaceWidth < root.maximumSurfaceWidth
                                              || controlRow.contentConstrained
     readonly property int horizontalInset: root.compact
@@ -51,6 +61,7 @@ FocusScope {
         anchors {
             horizontalCenter: parent.horizontalCenter
             verticalCenter: parent.verticalCenter
+            horizontalCenterOffset: root.surfaceCenterOffset
         }
         width: root.surfaceWidth
         height: root.implicitHeight
@@ -74,8 +85,6 @@ FocusScope {
                 topMargin: root.topInset
             }
             height: root.timelineLaneHeight
-            // Standard Figma places the 10px thumb slightly below the 28px
-            // timeline lane. The OSC surface remains the outer clipping owner.
             clip: false
         }
 

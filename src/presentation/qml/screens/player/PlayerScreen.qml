@@ -28,6 +28,24 @@ Item {
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property bool oscCompact: root.fullScreen
+    readonly property string resolvedMediaTitle: root.mediaTitle.trim().length > 0
+                                                  ? root.mediaTitle
+                                                  : root.mediaViewModel !== null
+                                                    ? root.mediaViewModel.title
+                                                    : ""
+    readonly property string resolvedMediaMetadataText: root.mediaMetadataText.trim().length > 0
+                                                         ? root.mediaMetadataText
+                                                         : root.mediaViewModel !== null
+                                                           ? root.mediaViewModel.metadataText
+                                                           : ""
+    readonly property string playbackStatusText: root.resolvedMediaTitle.trim().length === 0
+                                                  || root.transportViewModel === null
+                                                  ? ""
+                                                  : root.transportViewModel.isPlaying
+                                                    ? qsTr("PLAYING")
+                                                    : root.transportViewModel.canPlay
+                                                      ? qsTr("PAUSED")
+                                                      : ""
     readonly property bool playbackPlaying: root.transportViewModel !== null
                                             && root.transportViewModel.isPlaying
     readonly property bool timelineInteractionActive: root.timelineViewModel !== null
@@ -127,15 +145,19 @@ Item {
         }
         height: root.fullScreen
                 ? LayoutTokens.headerHeightCompact
-                : root.headerCompact
-                  ? LayoutTokens.headerHeightCompact
-                  : LayoutTokens.headerHeight
+                : LayoutTokens.headerHeight
 
         PlayerFloatingHeader {
-            anchors.fill: parent
-            visible: !root.fullScreen
-            mediaTitle: root.mediaTitle
-            metadataText: root.mediaMetadataText
+            anchors {
+                top: parent.top
+                horizontalCenter: parent.horizontalCenter
+            }
+            width: Math.min(LayoutTokens.headerWidth, parent.width)
+            height: parent.height
+            visible: !root.fullScreen && root.resolvedMediaTitle.trim().length > 0
+            mediaTitle: root.resolvedMediaTitle
+            metadataText: root.resolvedMediaMetadataText
+            statusText: root.playbackStatusText
             windowExpanded: root.windowExpanded
 
             onMinimizeRequested: root.minimizeRequested()
@@ -151,7 +173,7 @@ Item {
             width: Math.min(LayoutTokens.fullscreenHeaderWidth, parent.width)
             height: parent.height
             active: root.fullScreen
-            mediaTitle: root.mediaTitle
+            mediaTitle: root.resolvedMediaTitle
         }
     }
 
@@ -213,6 +235,7 @@ Item {
 
             anchors.fill: parent
             compact: root.oscCompact
+            inspectorOpen: root.playlistDrawerOpen && !root.fullScreen
             timelineContent: [
                 TimelineControls {
                     anchors.fill: parent

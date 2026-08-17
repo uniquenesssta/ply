@@ -1,4 +1,5 @@
 import QtQuick
+import Player.Presentation.Primitives
 import Player.Presentation.Theme
 
 Row {
@@ -12,9 +13,27 @@ Row {
     signal toggleFullscreenRequested()
 
     objectName: "playerUtilityControls"
-    spacing: SpacingTokens.controlTight
+    spacing: SpacingTokens.utilityControlGap
     width: implicitWidth
     height: implicitHeight
+
+    Item {
+        id: subtitlesPlaceholder
+
+        objectName: "subtitlesUnavailableControl"
+        width: LayoutTokens.controlHitMinimum
+        height: LayoutTokens.controlHitMinimum
+
+        Icon {
+            anchors.centerIn: parent
+            width: root.compact
+                   ? LayoutTokens.controlIconCompact
+                   : LayoutTokens.controlIcon
+            height: width
+            iconId: "subtitles"
+            color: ColorTokens.iconPrimary
+        }
+    }
 
     PlaylistControls {
         id: playlistControls

@@ -6,6 +6,7 @@ QtObject {
     readonly property int controlTight: SpacingPrimitives.space6
     readonly property int controlAdjacent: SpacingPrimitives.space12
     readonly property int controlGroup: SpacingPrimitives.space32
+    readonly property int utilityControlGap: SpacingPrimitives.space22
     readonly property int fullscreenTransportGap: SpacingPrimitives.space18
     readonly property int sliderValueGap: SpacingPrimitives.space12
 
@@ -19,6 +20,10 @@ QtObject {
 
     readonly property int headerContent: SpacingPrimitives.space22
     readonly property int headerContentCompact: SpacingPrimitives.space24
+    readonly property int headerTitleTop: SpacingPrimitives.space11
+    readonly property int headerMetaTop: SpacingPrimitives.space31
+    readonly property int headerStatusTop: SpacingPrimitives.space18
+    readonly property int headerCloseRight: SpacingPrimitives.space15
     readonly property int headerTitleMeta: SpacingPrimitives.space2
     readonly property int headerActionsInset: SpacingPrimitives.space16
 
