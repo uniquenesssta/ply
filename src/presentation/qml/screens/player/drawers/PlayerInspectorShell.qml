@@ -60,6 +60,16 @@ Item {
         anchors.fill: parent
         backdropSource: root.backdropSource
         backdropMappingRevision: root.backdropMappingRevision + shellTranslation.x
+        surfaceColor: ColorTokens.surfaceInspectorDark
+        fillAlpha: MaterialTokens.inspectorDarkFillAlpha
+        borderColor: ColorTokens.borderInspectorDark
+        borderAlpha: MaterialTokens.inspectorDarkBorderAlpha
+        backdropBlurRadius: MaterialTokens.inspectorDarkBlur
+        shadowColor: ElevationTokens.inspectorDarkShadowColor
+        shadowRadius: ElevationTokens.inspectorDarkShadowRadius
+        shadowXOffset: ElevationTokens.inspectorDarkShadowXOffset
+        shadowYOffset: ElevationTokens.inspectorDarkShadowYOffset
+        shadowAlpha: ElevationTokens.inspectorDarkShadowAlpha
         contentPadding: SpacingTokens.none
 
         TitleText {
