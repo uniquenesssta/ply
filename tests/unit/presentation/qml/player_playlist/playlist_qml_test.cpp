@@ -37,6 +37,7 @@ private slots:
     void screenRoutesPlaylistThroughReadonlyPresentationBoundary();
     void utilityControlsMatchCanonicalFigmaOrderAndSpacing();
     void inspectorShellMatchesCanonicalFigmaGeometry();
+    void darkInspectorUsesCanonicalFigmaPalette();
     void playlistContentFiltersReordersAndVirtualizesReadonlyRows();
     void playlistRowSeparatesCurrentSelectedHoverAndFocus();
     void playlistActionsFlowThroughControllerOnly();
@@ -139,6 +140,8 @@ void PlaylistQmlTest::inspectorShellMatchesCanonicalFigmaGeometry()
     QVERIFY(panel.contains(QStringLiteral("BackdropBlur {")));
     QVERIFY(panel.contains(QStringLiteral("sourceItem: root.backdropSource")));
     QVERIFY(panel.contains(QStringLiteral("blurRadius: root.backdropBlurRadius")));
+    QVERIFY(panel.contains(QStringLiteral("property real shadowXOffset: 0.0")));
+    QVERIFY(panel.contains(QStringLiteral("shadowHorizontalOffset: root.shadowXOffset")));
     QVERIFY(drawer.contains(QStringLiteral(
         "borderAlpha: MaterialTokens.borderStrongAlpha")));
 
@@ -151,20 +154,80 @@ void PlaylistQmlTest::inspectorShellMatchesCanonicalFigmaGeometry()
     QVERIFY(search.contains(QStringLiteral("LayoutTokens.inspectorSearchWidth")));
     QVERIFY(search.contains(QStringLiteral("LayoutTokens.inspectorSearchHeight")));
     QVERIFY(search.contains(QStringLiteral("RadiusTokens.controlSearch")));
-    QVERIFY(search.contains(QStringLiteral("MaterialTokens.fieldBlur")));
+    QVERIFY(search.contains(QStringLiteral("MaterialTokens.inspectorDarkFieldBlur")));
     QVERIFY(search.contains(QStringLiteral(
-        "borderAlpha: MaterialTokens.borderStrongAlpha")));
+        "borderAlpha: MaterialTokens.inspectorDarkFieldBorderAlpha")));
     QVERIFY(search.contains(QStringLiteral("iconId: \"search\"")));
     QVERIFY(search.contains(QStringLiteral("qsTr(\"搜索播放列表\")")));
 
     QVERIFY(footer.contains(QStringLiteral("qsTr(\"拖放排序 · 双击播放\")")));
     QVERIFY(footer.contains(QStringLiteral("RadiusTokens.inspectorFooter")));
-    QVERIFY(footer.contains(QStringLiteral("MaterialTokens.footerBlur")));
+    QVERIFY(footer.contains(QStringLiteral("MaterialTokens.inspectorDarkFooterBlur")));
     QVERIFY(footer.contains(QStringLiteral(
-        "borderAlpha: MaterialTokens.borderStrongAlpha")));
+        "borderAlpha: MaterialTokens.inspectorDarkFooterBorderAlpha")));
 
     QVERIFY(surfaceCMake.contains(QStringLiteral("BackdropBlur.qml")));
     QVERIFY(surfaceCMake.contains(QStringLiteral("QT_QML_INTERNAL_TYPE TRUE")));
+}
+
+void PlaylistQmlTest::darkInspectorUsesCanonicalFigmaPalette()
+{
+    const QString colors = readSource(QStringLiteral(
+        "src/presentation/qml/theme/ColorPrimitives.qml"));
+    const QString colorTokens = readSource(QStringLiteral(
+        "src/presentation/qml/theme/ColorTokens.qml"));
+    const QString materials = readSource(QStringLiteral(
+        "src/presentation/qml/theme/MaterialTokens.qml"));
+    const QString elevation = readSource(QStringLiteral(
+        "src/presentation/qml/theme/ElevationTokens.qml"));
+    const QString shell = readSource(QStringLiteral(
+        "src/presentation/qml/screens/player/drawers/PlayerInspectorShell.qml"));
+
+    QVERIFY(!colors.isEmpty());
+    QVERIFY(!colorTokens.isEmpty());
+    QVERIFY(!materials.isEmpty());
+    QVERIFY(!elevation.isEmpty());
+    QVERIFY(!shell.isEmpty());
+
+    QVERIFY(colors.contains(QStringLiteral("neutralNight950: \"#17141F\"")));
+    QVERIFY(colors.contains(QStringLiteral("neutralNight850: \"#27212F\"")));
+    QVERIFY(colors.contains(QStringLiteral("neutralNight900: \"#211B29\"")));
+    QVERIFY(colors.contains(QStringLiteral("violetNightSelected: \"#3A2852\"")));
+    QVERIFY(colors.contains(QStringLiteral("violet300: \"#A879FF\"")));
+    QVERIFY(colors.contains(QStringLiteral("violet200: \"#C49AFF\"")));
+
+    QVERIFY(colorTokens.contains(QStringLiteral(
+        "surfaceInspectorDark: ColorPrimitives.neutralNight950")));
+    QVERIFY(colorTokens.contains(QStringLiteral(
+        "textInspectorPrimary: ColorPrimitives.neutralLavender50")));
+    QVERIFY(colorTokens.contains(QStringLiteral(
+        "borderInspectorSelection: ColorPrimitives.violet300")));
+
+    QVERIFY(materials.contains(QStringLiteral(
+        "inspectorDarkFillAlpha: MaterialAlphaPrimitives.a94")));
+    QVERIFY(materials.contains(QStringLiteral(
+        "inspectorDarkFieldFillAlpha: MaterialAlphaPrimitives.a96")));
+    QVERIFY(materials.contains(QStringLiteral(
+        "inspectorDarkRowFillAlpha: MaterialAlphaPrimitives.a68")));
+    QVERIFY(materials.contains(QStringLiteral(
+        "inspectorDarkSelectionFillAlpha: MaterialAlphaPrimitives.a98")));
+    QVERIFY(materials.contains(QStringLiteral(
+        "inspectorDarkSelectionBorderAlpha: MaterialAlphaPrimitives.a72")));
+
+    QVERIFY(elevation.contains(QStringLiteral(
+        "inspectorDarkShadowXOffset: ShadowPrimitives.xMinus6")));
+    QVERIFY(elevation.contains(QStringLiteral(
+        "inspectorDarkShadowYOffset: ShadowPrimitives.y18")));
+    QVERIFY(elevation.contains(QStringLiteral(
+        "inspectorDarkShadowAlpha: MaterialAlphaPrimitives.a48")));
+
+    QVERIFY(shell.contains(QStringLiteral("surfaceColor: ColorTokens.surfaceInspectorDark")));
+    QVERIFY(shell.contains(QStringLiteral("fillAlpha: MaterialTokens.inspectorDarkFillAlpha")));
+    QVERIFY(shell.contains(QStringLiteral("borderAlpha: MaterialTokens.inspectorDarkBorderAlpha")));
+    QVERIFY(shell.contains(QStringLiteral("backdropBlurRadius: MaterialTokens.inspectorDarkBlur")));
+    QVERIFY(shell.contains(QStringLiteral("shadowXOffset: ElevationTokens.inspectorDarkShadowXOffset")));
+    QVERIFY(shell.contains(QStringLiteral("color: ColorTokens.textInspectorPrimary")));
+    QVERIFY(shell.contains(QStringLiteral("color: ColorTokens.textInspectorSecondary")));
 }
 
 void PlaylistQmlTest::playlistContentFiltersReordersAndVirtualizesReadonlyRows()
@@ -184,6 +247,8 @@ void PlaylistQmlTest::playlistContentFiltersReordersAndVirtualizesReadonlyRows()
     QVERIFY(content.contains(QStringLiteral("root.normalizedFilter.length === 0")));
     QVERIFY(content.contains(QStringLiteral("height: LayoutTokens.listRowHeight")));
     QVERIFY(content.contains(QStringLiteral("visible: root.itemCount === 0")));
+    QVERIFY(content.contains(QStringLiteral("ColorTokens.textInspectorSecondary")));
+    QVERIFY(content.contains(QStringLiteral("ColorTokens.textInspectorMuted")));
 }
 
 void PlaylistQmlTest::playlistRowSeparatesCurrentSelectedHoverAndFocus()
@@ -195,11 +260,15 @@ void PlaylistQmlTest::playlistRowSeparatesCurrentSelectedHoverAndFocus()
     QVERIFY(row.contains(QStringLiteral("property bool selected: false")));
     QVERIFY(row.contains(QStringLiteral("required property bool current")));
     QVERIFY(row.contains(QStringLiteral("readonly property bool highlighted: root.current || root.selected")));
-    QVERIFY(row.contains(QStringLiteral("MaterialTokens.selectionFillAlpha")));
-    QVERIFY(row.contains(QStringLiteral("MaterialTokens.rowFillAlpha")));
-    QVERIFY(row.contains(QStringLiteral("ColorTokens.borderSelection")));
+    QVERIFY(row.contains(QStringLiteral("MaterialTokens.inspectorDarkSelectionFillAlpha")));
+    QVERIFY(row.contains(QStringLiteral("MaterialTokens.inspectorDarkRowFillAlpha")));
+    QVERIFY(row.contains(QStringLiteral("MaterialTokens.inspectorDarkRowHoverAlpha")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.borderInspectorSelection")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.textInspectorStrong")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.textInspectorMuted")));
     QVERIFY(row.contains(QStringLiteral("objectName: \"playlistPlayingRail\"")));
     QVERIFY(row.contains(QStringLiteral("LayoutTokens.listPlayingRailWidth")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.selectionIndicatorInspector")));
     QVERIFY(row.contains(QStringLiteral("visible: root.current")));
     QVERIFY(row.contains(QStringLiteral("TypographyTokens.mediaTitleCompact")));
     QVERIFY(row.contains(QStringLiteral("TypographyTokens.timecodeExtraSmall")));
