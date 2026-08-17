@@ -2,13 +2,17 @@ import QtQuick
 import Player.Presentation.Theme
 
 Panel {
-    fillAlpha: MaterialTokens.inspectorFillAlpha
-    borderAlpha: MaterialTokens.borderStrongAlpha
+    surfaceColor: ColorTokens.surfaceInspectorDark
+    fillAlpha: MaterialTokens.inspectorDarkFillAlpha
+    borderColor: ColorTokens.borderInspectorDark
+    borderAlpha: MaterialTokens.inspectorDarkBorderAlpha
     cornerRadius: RadiusTokens.surfaceInspector
-    backdropBlurRadius: MaterialTokens.inspectorBlur
-    shadowRadius: ElevationTokens.floatingShadowRadius
-    shadowYOffset: ElevationTokens.floatingShadowYOffset
-    shadowAlpha: ElevationTokens.floatingShadowAlpha
+    backdropBlurRadius: MaterialTokens.inspectorDarkBlur
+    shadowColor: ElevationTokens.inspectorDarkShadowColor
+    shadowRadius: ElevationTokens.inspectorDarkShadowRadius
+    shadowXOffset: ElevationTokens.inspectorDarkShadowXOffset
+    shadowYOffset: ElevationTokens.inspectorDarkShadowYOffset
+    shadowAlpha: ElevationTokens.inspectorDarkShadowAlpha
     contentPadding: SpacingTokens.surfacePadding
     z: ZOrderTokens.inspector
 }
