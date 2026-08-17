@@ -30,6 +30,8 @@ set(PLAYER_QML_FILES
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/screens/player/drawers/PlayerInspectorShell.qml
     qml/screens/player/drawers/PlaylistInspector.qml
+    qml/screens/player/drawers/PlaylistSearchField.qml
+    qml/screens/player/drawers/PlaylistFooter.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
     qml/features/player/chrome/PlayerChromeActivityLayer.qml
@@ -42,10 +44,8 @@ set(PLAYER_QML_FILES
     qml/features/player/mediaopen/LocalMediaOpenDialog.qml
     qml/features/player/mediaopen/UrlMediaOpenDialog.qml
     qml/features/playlist/PlaylistControls.qml
-    qml/features/playlist/PlaylistSearchField.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
-    qml/features/playlist/PlaylistFooter.qml
 )
 
 target_sources(
@@ -84,6 +84,8 @@ set_source_files_properties(
     qml/screens/player/drawers/PlayerDrawerHost.qml
     qml/screens/player/drawers/PlayerInspectorShell.qml
     qml/screens/player/drawers/PlaylistInspector.qml
+    qml/screens/player/drawers/PlaylistSearchField.qml
+    qml/screens/player/drawers/PlaylistFooter.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
     qml/features/player/chrome/PlayerChromeActivityLayer.qml
@@ -96,10 +98,8 @@ set_source_files_properties(
     qml/features/player/mediaopen/LocalMediaOpenDialog.qml
     qml/features/player/mediaopen/UrlMediaOpenDialog.qml
     qml/features/playlist/PlaylistControls.qml
-    qml/features/playlist/PlaylistSearchField.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
-    qml/features/playlist/PlaylistFooter.qml
     PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 

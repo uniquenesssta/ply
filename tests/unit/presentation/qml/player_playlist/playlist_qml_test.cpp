@@ -89,9 +89,9 @@ void PlaylistQmlTest::inspectorShellMatchesCanonicalFigmaGeometry()
     const QString inspector = readSource(QStringLiteral(
         "src/presentation/qml/screens/player/drawers/PlaylistInspector.qml"));
     const QString search = readSource(QStringLiteral(
-        "src/presentation/qml/features/playlist/PlaylistSearchField.qml"));
+        "src/presentation/qml/screens/player/drawers/PlaylistSearchField.qml"));
     const QString footer = readSource(QStringLiteral(
-        "src/presentation/qml/features/playlist/PlaylistFooter.qml"));
+        "src/presentation/qml/screens/player/drawers/PlaylistFooter.qml"));
 
     QVERIFY(!shell.isEmpty());
     QVERIFY(!inspector.isEmpty());
@@ -203,12 +203,12 @@ void PlaylistQmlTest::qmlRegistrationIncludesPlaylistModules()
     const QStringList requiredPaths{
         QStringLiteral("qml/screens/player/drawers/PlayerInspectorShell.qml"),
         QStringLiteral("qml/screens/player/drawers/PlaylistInspector.qml"),
+        QStringLiteral("qml/screens/player/drawers/PlaylistSearchField.qml"),
+        QStringLiteral("qml/screens/player/drawers/PlaylistFooter.qml"),
         QStringLiteral("qml/screens/player/osc/PlayerUtilityControls.qml"),
         QStringLiteral("qml/features/playlist/PlaylistControls.qml"),
-        QStringLiteral("qml/features/playlist/PlaylistSearchField.qml"),
         QStringLiteral("qml/features/playlist/PlaylistContent.qml"),
         QStringLiteral("qml/features/playlist/PlaylistRow.qml"),
-        QStringLiteral("qml/features/playlist/PlaylistFooter.qml"),
     };
 
     for (const QString& path : requiredPaths) {
