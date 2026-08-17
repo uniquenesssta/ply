@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | **R5-01 ~ R5-10 全部 Complete**；最终 Windows Debug build PASS、QML lint 门禁通过、**51/51 CTest PASS（53.29 s）**、`Player.exe` startup smoke PASS |
 | R6 — 播放器主界面与基础交互 | Complete | **R6-01 ~ R6-16 全部 Complete**；最终 Windows Debug build **124/124**、QML lint **6/6**、**76/76 CTest PASS（71.23 s）**、`Player.exe` startup/exit smoke PASS |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 / R7-02 / R7-03 / R7-04 / R7-05 Complete**；R7-05 已建立 Playlist/Entry/current/repeat/shuffle 的纯 Domain authoritative queue。Windows Debug build PASS、Quick **84/84 PASS**、完整 **91/91 CTest PASS（72.72 s）**，其中 7 个 `windowed-render` 测试合计 **34.83 s**。R7-06 及之后任务尚未开始 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 / R7-02 / R7-03 / R7-04 / R7-05 / R7-06 Complete**；Playlist Controller、mutation boundary 与 readonly list model 已接通统一 MediaOpenCoordinator/Playback load 主链。Windows Debug configure/build PASS、Quick **86/86 PASS**、完整 **93/93 CTest PASS（73.31 s）**，其中 7 个 `windowed-render` 测试合计 **35.14 s**。R7-07 及之后任务尚未开始 |
 
 R0/R1 属于现有项目基线，R2–R14 快速任务书不重新定义其历史状态。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，仅在明确调用时执行，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线；其中追加的 R6-13 ~ R6-16 已全部完成，Stage R6 已重新关闭。
 
@@ -64,6 +64,8 @@ src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验与统一 workflow 编排
 src/playlist/domain/             播放队列、Entry/current/repeat/shuffle 领域真值
+src/playlist/application/        Playlist Controller、mutation 与 load 编排
+src/playlist/presentation/       Playlist 只读模型投影
 src/presentation/                QML 与 presentation 层
 src/platform/                    平台能力
 src/persistence/                 持久化边界
@@ -114,6 +116,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 不得把未执行、被阻塞或失败的验证描述为通过；具体 Stage 的验收数字记录在对应 Stage 文档中。
 
 ## Change log
+
+### 2026-08-17 — R7-06 Playlist Controller Complete
+
+- 新增独立 `src/playlist/application/` 与 `src/playlist/presentation/`。`PlaylistMutation` 负责结构 mutation 与批量追加回滚；`PlaylistController` 是 Playlist 修改和播放 load 编排的 application boundary；`PlaylistListModel` 只从 Controller/Domain 读取 snapshot 并暴露 Qt roles，没有 mutation API。Playlist Domain 继续唯一拥有队列顺序/current/repeat/shuffle，PlaybackSession 继续唯一拥有实际已加载媒体状态。
+- `MediaOpenCoordinator` 新增批量 source/URL 入口；生产 composition 的单/批媒体提交均先进入 `PlaylistController`，再复用既有 `PlaybackComposition::submitMediaLoad()`，没有保留 UI/Media workflow 直达 Playback 的旁路。多文件 Drop 与多 argv 由此前 deferred 改为真实批量入队，保持输入顺序，并选择/加载首个新条目。
+- `openSources()` 对新增批次使用事务语义：保存 previous current，批量 append、选择首个新条目并提交 load；若即时 submission 被拒绝，则整批回滚并恢复 previous current（无 previous 时清空），避免 queue/current 与实际 load 主链立即分叉。`selectEntry()` 的即时 load 拒绝同样恢复 previous current；选择当前条目不会重复 load。
+- 稳定 Entry ID 下的 reorder 由 Domain `move()` + Controller action 接通。R7-06 只允许删除非 current 条目；删除 current 明确拒绝，避免提前决定 next/stop UX，正式策略继续归 R7-09。R7-07 Playlist QML、R7-08 EOF auto-advance 与 R7-09 current deletion policy 均未提前实现。
+- `ApplicationContainer` 显式拥有 Playlist Domain → Mutation → Controller → readonly Model，并通过 Bootstrap 向 QML 暴露 `playlistController` / `playlistModel` initial properties；本轮只建立注入边界，没有创建 Playlist Drawer。shutdown 顺序保持 consumer 先销毁、其依赖后销毁，未改变 PlaybackSession/Render 生命周期 owner。
+- 验证过程中发现 Quick 测试参数数组改造不再包含既有 `verify-project-layout.ps1` 静态门禁要求的字面 `& $ctest --preset $Preset`，导致 configure 先于 CMake 被拒绝。修复恢复完整测试分支的显式 preset 调用，Quick 分支仍使用 `--label-exclude "windowed-render"`；没有删除、skip 或弱化任何测试。
+- Windows 锁定环境最终验证：`configure.ps1` PASS（CMake Configuring **4.1 s** / Generating **2.8 s**）；Debug `build.ps1` PASS，development runtime marker 与 Qt runtime deployment PASS；`scripts/test.ps1 -Quick -SkipBuild` **86/86 CTest PASS，0 failed，39.79 s**；最终 `scripts/test.ps1 -SkipBuild` **93/93 CTest PASS，0 failed，73.31 s**，其中 7 个真实 `windowed-render` 测试合计 **35.14 s**。R7-06 直接相关 Playlist/Media tests 与既有 Playback/Render/Presentation 全量回归均保持 PASS。没有新增生产依赖。**R7-06 正式 Complete；Stage R7 继续 In Progress；下一任务 R7-07 Playlist QML。**
 
 ### 2026-08-17 — R7-05 Playlist Domain Complete
 
@@ -204,7 +216,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Preset windows-msvc-
 - 依据跨 Stage 强制补充任务书 `成熟播放器行为补强与验收矩阵.md` 重新打开 R6；R6-13 只补强既有 R6-06 Timeline 主链，不建立第二套 Timeline 或 Playback 真值，也未提前进入 R6-14 Controls Visibility、R6-15 Cursor Visibility 或 R6-16 HUD Coalescing。
 - Timeline 状态职责重新拆清：`PlaybackSnapshot.timeline.positionSeconds` 仍是只读 actual truth；`TimelineScrubSession` 只拥有 pointer `Idle/Scrubbing` 与拖动 preview；`TimelineSeekProjection` 单独拥有 commit/relative Seek 的 pending target 与 MediaGeneration。拖动期间 actual update 可以进入 Snapshot，但不能抢回 thumb；cancel、generation change、non-seekable/unknown-duration、提交拒绝或已识别的 backend seek failure 都会回到最新 Snapshot truth。
 - `PlayerTimelineViewModel` 提供 relative Seek 主链与固定 **5 s** presentation step；`TimelineRelativeSeekCoalescer` 以**单一 100 ms single-shot QTimer**合并键盘/滚轮高频输入。短 burst 合成一次请求，持续输入按固定窗口形成有限批次；投影 target 限制在 `0..duration`，最终状态仍由 Snapshot acknowledgement 收敛。
-- `TimelineControls.qml` 保持 generic `Slider` 作为 pointer drag owner，并通过通用 `Slider.keyboardEnabled` 关闭 Timeline 内部 normalized 键盘步进；Timeline Feature 自己将 Left/Right/Up/Down 与 Wheel 转成 relative ±5 s intent。窗口失焦通过 `MainWindow.active → PlayerScreen.windowActive → TimelineControls` 取消正在进行的 Scrub并恢复 actual position。QML 仍不接触 PlaybackSession、CommandBus、SeekCommand 或 libmpv。
+- `TimelineControls.qml` 保持 generic `Slider` 作为 pointer drag owner，并通过通用 `Slider.keyboardEnabled` 关闭 Timeline 内部 normalized 键盘步进；Timeline Feature 自己将 Left/Right/Up/Down 与 Wheel 转成 relative ±5 s intent。窗口失焦通过 `MainWindow.active → PlayerScreen.windowActive → TimelineControls` 取消正在进行的 Scrub 并恢复 actual position。QML 仍不接触 PlaybackSession、CommandBus、SeekCommand 或 libmpv。
 - Playing、Paused、Buffering 都允许真实 seekable Timeline 拖动；Scrubbing 时 Buffering/actual position 更新不夺取 preview。`seekable=false`、无有效 MediaGeneration、unknown/zero/non-finite duration 不能进入有效 Scrubbing/relative Seek。绝对拖动 commit 只提交一个 final Absolute Seek；键盘/滚轮走 Relative Seek；二者复用同一个 `PlaybackComposition::submitSeek(seconds, mode)`、共享 RequestId generator 与单一 PlaybackCommandBus。
 - `Ended → seek earlier` 不使用 QML replay hack：产品 mpv profile 使用 `keep-open=yes` 保留 EOF 后媒体；Reducer 消费 `eof-reached`，Ready+EOF → Ended/Stopped，随后 seek earlier 导致 EOF=false 时恢复 Ready/Paused，MediaGeneration 与 media identity 不重建。真实 libmpv `playback_ended_seek` CTest 使用生成 WAV 覆盖 load → play → EOF Ended → Absolute Seek earlier → same-generation Ready/Paused。
 - Seek 同步提交拒绝以及 tracked backend command failure 都清理 Timeline pending projection并复用既有 R6-12 `HudMessageQueue` 显示 `seekFailed`，没有创建第二套 HUD Timer/queue。通用 request timeout 仍由既有 30 s timeout monitor 管理；timeout-specific request type 回传不属于本次已验证范围，继续作为后续成熟行为矩阵风险项保留。
