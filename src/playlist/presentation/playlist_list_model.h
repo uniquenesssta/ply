@@ -17,6 +17,7 @@ class PlaylistListModel final : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(int currentPosition READ currentPosition NOTIFY currentPositionChanged)
 
 public:
     enum Role {
@@ -37,9 +38,11 @@ public:
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] Qt::ItemFlags flags(const QModelIndex& index) const override;
     [[nodiscard]] int count() const noexcept;
+    [[nodiscard]] int currentPosition() const noexcept;
 
 signals:
     void countChanged();
+    void currentPositionChanged();
 
 private slots:
     void refresh();
@@ -57,6 +60,7 @@ private:
 
     application::PlaylistController& controller_;
     QVector<Row> rows_;
+    int currentPosition_ = 0;
 };
 
 } // namespace player::playlist::presentation

@@ -42,6 +42,7 @@ set(PLAYER_QML_FILES
     qml/features/player/mediaopen/LocalMediaOpenDialog.qml
     qml/features/player/mediaopen/UrlMediaOpenDialog.qml
     qml/features/playlist/PlaylistControls.qml
+    qml/features/playlist/PlaylistSearchField.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
     qml/features/playlist/PlaylistFooter.qml
@@ -95,6 +96,7 @@ set_source_files_properties(
     qml/features/player/mediaopen/LocalMediaOpenDialog.qml
     qml/features/player/mediaopen/UrlMediaOpenDialog.qml
     qml/features/playlist/PlaylistControls.qml
+    qml/features/playlist/PlaylistSearchField.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
     qml/features/playlist/PlaylistFooter.qml

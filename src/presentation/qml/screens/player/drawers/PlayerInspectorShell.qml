@@ -1,13 +1,15 @@
 import QtQuick
-import Player.Presentation.Theme
-import Player.Presentation.Controls
+import Player.Presentation.Primitives
 import Player.Presentation.Surfaces
+import Player.Presentation.Theme
 
 Item {
     id: root
 
     property bool opened: false
     property string title: ""
+    property string subtitle: ""
+    property alias searchContent: searchHost.data
     property alias bodyContent: bodyHost.data
     property alias footerContent: footerHost.data
 
@@ -18,13 +20,8 @@ Item {
     visible: root.opened || opacity > OpacityTokens.hidden
     enabled: root.opened
 
-    function withAlpha(colorValue, alphaValue) {
-        return Qt.rgba(colorValue.r, colorValue.g, colorValue.b,
-                       colorValue.a * alphaValue)
-    }
-
     transform: Translate {
-        x: root.opened ? 0 : SpacingTokens.inspectorContent
+        x: root.opened ? SpacingTokens.none : SpacingTokens.inspectorContent
 
         Behavior on x {
             NumberAnimation {
@@ -57,87 +54,74 @@ Item {
 
     Drawer {
         anchors.fill: parent
+        contentPadding: SpacingTokens.none
+
+        TitleText {
+            anchors {
+                left: parent.left
+                top: parent.top
+                leftMargin: SpacingTokens.inspectorEdge
+                topMargin: SpacingTokens.inspectorTitleTop
+            }
+            width: Math.max(0, parent.width - (SpacingTokens.inspectorEdge * 2))
+            text: root.title
+            variant: TitleText.Inspector
+        }
+
+        CaptionText {
+            anchors {
+                left: parent.left
+                top: parent.top
+                leftMargin: SpacingTokens.inspectorEdge
+                topMargin: SpacingTokens.inspectorMetaTop
+            }
+            width: Math.max(0, parent.width - (SpacingTokens.inspectorEdge * 2))
+            text: root.subtitle
+            variant: CaptionText.Meta
+        }
 
         Item {
-            anchors.fill: parent
+            id: searchHost
 
-            Item {
-                id: header
-
-                anchors {
-                    top: parent.top
-                    left: parent.left
-                    right: parent.right
-                }
-                height: LayoutTokens.headerHeightCompact
-
-                Text {
-                    anchors {
-                        left: parent.left
-                        right: closeButton.left
-                        rightMargin: SpacingTokens.controlAdjacent
-                        verticalCenter: parent.verticalCenter
-                    }
-                    text: root.title
-                    color: ColorTokens.textStrong
-                    font: TypographyTokens.inspectorTitle
-                    elide: Text.ElideRight
-                    wrapMode: Text.NoWrap
-                }
-
-                IconButton {
-                    id: closeButton
-
-                    anchors {
-                        right: parent.right
-                        verticalCenter: parent.verticalCenter
-                    }
-                    iconId: "close"
-                    toolTipText: qsTr("Close inspector")
-                    accessibleName: toolTipText
-                    accessibleDescription: qsTr("Close the current inspector panel")
-
-                    onClicked: root.closeRequested()
-                }
+            anchors {
+                left: parent.left
+                right: parent.right
+                top: parent.top
+                leftMargin: SpacingTokens.inspectorContent
+                rightMargin: SpacingTokens.inspectorContent
+                topMargin: SpacingTokens.inspectorSearchTop
             }
+            height: LayoutTokens.inspectorSearchHeight
+        }
 
-            Item {
-                id: bodyHost
+        Item {
+            id: footerHost
 
-                anchors {
-                    top: header.bottom
-                    left: parent.left
-                    right: parent.right
-                    bottom: footerSurface.top
-                    topMargin: SpacingTokens.inspectorSectionGap
-                    bottomMargin: SpacingTokens.inspectorSectionGap
-                }
-                clip: true
+            anchors {
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+                leftMargin: SpacingTokens.inspectorContent
+                rightMargin: SpacingTokens.inspectorContent
+                bottomMargin: SpacingTokens.inspectorFooterBottom
             }
+            height: LayoutTokens.inspectorFooterHeight
+        }
 
-            Rectangle {
-                id: footerSurface
+        Item {
+            id: bodyHost
 
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    bottom: parent.bottom
-                }
-                height: LayoutTokens.inspectorFooterHeight
-                radius: RadiusTokens.inspectorFooter
-                color: root.withAlpha(ColorTokens.surfaceGlassSubtle,
-                                      MaterialTokens.footerFillAlpha)
-
-                Item {
-                    id: footerHost
-
-                    anchors {
-                        fill: parent
-                        leftMargin: SpacingTokens.footerContent
-                        rightMargin: SpacingTokens.footerContent
-                    }
-                }
+            anchors {
+                left: parent.left
+                right: parent.right
+                top: searchHost.bottom
+                bottom: footerHost.top
+                leftMargin: SpacingTokens.inspectorRowInset
+                rightMargin: SpacingTokens.inspectorRowInset
+                topMargin: SpacingTokens.listSearchToFirst
+                bottomMargin: SpacingTokens.inspectorEdge
             }
+            clip: true
         }
     }
 }

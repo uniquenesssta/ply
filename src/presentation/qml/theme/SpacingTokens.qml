@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 
 QtObject {
+    readonly property int none: SpacingPrimitives.space0
     readonly property int controlTight: SpacingPrimitives.space6
     readonly property int controlAdjacent: SpacingPrimitives.space12
     readonly property int controlGroup: SpacingPrimitives.space32
@@ -43,14 +44,19 @@ QtObject {
     readonly property int inspectorRight: SpacingPrimitives.space28
     readonly property int inspectorContent: SpacingPrimitives.space22
     readonly property int inspectorRowInset: SpacingPrimitives.space18
-    readonly property int inspectorTopWithHeader: SpacingPrimitives.space92
-    readonly property int inspectorTopNarrow: SpacingPrimitives.space88
+    readonly property int inspectorTitleTop: SpacingPrimitives.space24
+    readonly property int inspectorMetaTop: SpacingPrimitives.space56
+    readonly property int inspectorSearchTop: SpacingPrimitives.space88
+    readonly property int inspectorFooterBottom: SpacingPrimitives.space26
     readonly property int inspectorSectionGap: SpacingPrimitives.space14
 
     readonly property int listGap: SpacingPrimitives.space10
     readonly property int listSearchToFirst: SpacingPrimitives.space20
     readonly property int listRowIndex: SpacingPrimitives.space14
     readonly property int listRowContent: SpacingPrimitives.space52
+    readonly property int listRowTitleTop: SpacingPrimitives.space11
+    readonly property int listRowMetaTop: SpacingPrimitives.space31
+    readonly property int searchIconToText: SpacingPrimitives.space10
 
     readonly property int footerContent: SpacingPrimitives.space18
     readonly property int timelineControlOffset: SpacingPrimitives.space12

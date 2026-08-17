@@ -42,6 +42,7 @@ void PlaylistListModelTest::startsEmptyAndReadOnly()
     PlaylistListModel model(controller);
 
     QCOMPARE(model.count(), 0);
+    QCOMPARE(model.currentPosition(), 0);
     QCOMPARE(model.rowCount(), 0);
     QCOMPARE(model.flags(QModelIndex{}), Qt::ItemFlags{});
 }
@@ -62,6 +63,7 @@ void PlaylistListModelTest::projectsOrderIdentityTitleAndCurrent()
     }));
 
     QCOMPARE(model.count(), 2);
+    QCOMPARE(model.currentPosition(), 1);
     const QModelIndex first = model.index(0, 0);
     const QModelIndex second = model.index(1, 0);
     QVERIFY(first.isValid());
@@ -99,10 +101,12 @@ void PlaylistListModelTest::followsCommittedSelectAndMove()
     const quint64 secondId = playlist.entries().at(1).id().value();
 
     QVERIFY(controller.selectEntry(secondId));
+    QCOMPARE(model.currentPosition(), 2);
     QVERIFY(!model.data(model.index(0, 0), PlaylistListModel::CurrentRole).toBool());
     QVERIFY(model.data(model.index(1, 0), PlaylistListModel::CurrentRole).toBool());
 
     QVERIFY(controller.moveEntry(secondId, 0));
+    QCOMPARE(model.currentPosition(), 1);
     QCOMPARE(
         model.data(model.index(0, 0), PlaylistListModel::EntryIdRole).toULongLong(),
         secondId);

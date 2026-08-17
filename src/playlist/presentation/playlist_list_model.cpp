@@ -78,32 +78,49 @@ int PlaylistListModel::count() const noexcept
     return static_cast<int>(rows_.size());
 }
 
+int PlaylistListModel::currentPosition() const noexcept
+{
+    return currentPosition_;
+}
+
 void PlaylistListModel::refresh()
 {
     const qsizetype previousCount = rows_.size();
+    const int previousCurrentPosition = currentPosition_;
 
     QVector<Row> nextRows;
     const domain::Playlist& playlist = controller_.playlist();
     nextRows.reserve(static_cast<qsizetype>(playlist.size()));
 
+    int nextCurrentPosition = 0;
     const std::optional<domain::PlaylistEntryId> currentId = playlist.currentId();
+    int position = 0;
     for (const domain::PlaylistEntry& entry : playlist.entries()) {
+        ++position;
+        const bool current = currentId.has_value() && *currentId == entry.id();
+        if (current) {
+            nextCurrentPosition = position;
+        }
         const int sourceKind = static_cast<int>(entry.source().kind());
         nextRows.push_back(Row{
             entry.id().value(),
             displayTitleFor(entry.source().location(), sourceKind),
             entry.source().location(),
             sourceKind,
-            currentId.has_value() && *currentId == entry.id(),
+            current,
         });
     }
 
     beginResetModel();
     rows_ = std::move(nextRows);
+    currentPosition_ = nextCurrentPosition;
     endResetModel();
 
     if (previousCount != rows_.size()) {
         emit countChanged();
+    }
+    if (previousCurrentPosition != currentPosition_) {
+        emit currentPositionChanged();
     }
 }
 

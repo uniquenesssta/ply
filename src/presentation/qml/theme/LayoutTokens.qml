@@ -58,6 +58,7 @@ QtObject {
     readonly property int inspectorSearchHeight: SizePrimitives.size42
     readonly property int inspectorListWidth: SizePrimitives.size332
     readonly property int listRowHeight: SizePrimitives.size58
+    readonly property int listPlayingRailWidth: SizePrimitives.size3
     readonly property int inspectorFooterHeight: SizePrimitives.size54
 
     readonly property int timelineHitHeight: SizePrimitives.size16

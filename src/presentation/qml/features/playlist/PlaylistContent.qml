@@ -9,12 +9,22 @@ Item {
     property var playlistModel: null
     property var playlistController: null
     property var selectedEntryId: null
+    property string filterText: ""
 
     readonly property int itemCount: root.playlistModel !== null
                                      ? root.playlistModel.count
                                      : 0
+    readonly property string normalizedFilter: root.filterText.trim().toLowerCase()
 
     objectName: "playlistContent"
+
+    function matchesFilter(title, sourceLocation) {
+        if (root.normalizedFilter.length === 0) {
+            return true
+        }
+        return title.toLowerCase().indexOf(root.normalizedFilter) >= 0
+            || sourceLocation.toLowerCase().indexOf(root.normalizedFilter) >= 0
+    }
 
     ListView {
         id: listView
@@ -22,7 +32,7 @@ Item {
         anchors.fill: parent
         model: root.playlistModel
         clip: true
-        spacing: SpacingTokens.listGap
+        spacing: SpacingTokens.none
         boundsBehavior: Flickable.StopAtBounds
         reuseItems: true
         currentIndex: -1
@@ -36,11 +46,26 @@ Item {
             required property bool current
             required property int index
 
+            readonly property bool matchesCurrentFilter: root.matchesFilter(
+                delegateItem.displayTitle,
+                delegateItem.sourceLocation)
+
             width: ListView.view.width
-            height: LayoutTokens.listRowHeight
+            height: delegateItem.matchesCurrentFilter
+                    ? LayoutTokens.listRowHeight
+                      + (delegateItem.index + 1 < root.itemCount
+                         ? SpacingTokens.listGap
+                         : SpacingTokens.none)
+                    : SpacingTokens.none
+            visible: delegateItem.matchesCurrentFilter
 
             PlaylistRow {
-                anchors.fill: parent
+                anchors {
+                    left: parent.left
+                    right: parent.right
+                    top: parent.top
+                }
+                height: LayoutTokens.listRowHeight
                 entryId: delegateItem.entryId
                 displayTitle: delegateItem.displayTitle
                 sourceLocation: delegateItem.sourceLocation
@@ -65,6 +90,32 @@ Item {
                             && root.playlistController.removeEntry(requestedEntryId)
                             && root.selectedEntryId === requestedEntryId) {
                         root.selectedEntryId = null
+                    }
+                }
+            }
+
+            DragHandler {
+                id: reorderDrag
+
+                target: null
+                acceptedButtons: Qt.LeftButton
+                enabled: root.playlistController !== null
+                         && root.normalizedFilter.length === 0
+
+                onActiveChanged: {
+                    if (active || root.playlistController === null) {
+                        return
+                    }
+
+                    const contentPoint = listView.contentItem.mapFromItem(
+                        delegateItem,
+                        centroid.position.x,
+                        centroid.position.y)
+                    const targetIndex = listView.indexAt(contentPoint.x, contentPoint.y)
+                    if (targetIndex >= 0 && targetIndex !== delegateItem.index) {
+                        root.playlistController.moveEntry(
+                            delegateItem.entryId,
+                            targetIndex)
                     }
                 }
             }

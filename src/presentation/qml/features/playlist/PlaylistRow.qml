@@ -1,6 +1,6 @@
 import QtQuick
-import Player.Presentation.Theme
 import Player.Presentation.Controls
+import Player.Presentation.Theme
 
 Item {
     id: root
@@ -13,6 +13,7 @@ Item {
     property string indexText: ""
     property bool selected: false
     readonly property bool hovered: rowHover.hovered
+    readonly property bool highlighted: root.current || root.selected
 
     signal selectionRequested(var entryId)
     signal activationRequested(var entryId)
@@ -30,7 +31,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: RadiusTokens.listRow
-        color: root.selected
+        color: root.highlighted
                ? root.withAlpha(ColorTokens.surfaceSelection,
                                 MaterialTokens.selectionFillAlpha)
                : root.hovered
@@ -38,9 +39,9 @@ Item {
                                   MaterialTokens.rowFillAlpha)
                  : root.withAlpha(ColorTokens.surfaceGlassSubtle,
                                   OpacityTokens.hidden)
-        border.width: root.activeFocus || root.selected
+        border.width: root.activeFocus || root.highlighted
                       ? LayoutTokens.surfaceBorderWidth
-                      : 0
+                      : SpacingTokens.none
         border.color: root.activeFocus
                       ? root.withAlpha(ColorTokens.focusRing,
                                        OpacityTokens.focusRing)
@@ -53,13 +54,13 @@ Item {
 
         anchors {
             left: parent.left
-            leftMargin: SpacingTokens.inspectorRowInset
+            leftMargin: SpacingTokens.listRowIndex
             verticalCenter: parent.verticalCenter
         }
         width: SpacingTokens.listRowIndex
         text: root.indexText
-        color: root.current ? ColorTokens.accentStrong : ColorTokens.textTertiary
-        font: TypographyTokens.technicalMetadata
+        color: root.highlighted ? ColorTokens.accentStrong : ColorTokens.textTertiary
+        font: TypographyTokens.microStrong
         horizontalAlignment: Text.AlignLeft
         verticalAlignment: Text.AlignVCenter
     }
@@ -67,23 +68,23 @@ Item {
     Item {
         anchors {
             left: parent.left
-            leftMargin: SpacingTokens.listRowContent
-            right: removeButton.left
-            rightMargin: SpacingTokens.controlAdjacent
+            right: parent.right
             top: parent.top
             bottom: parent.bottom
+            leftMargin: SpacingTokens.listRowContent
+            rightMargin: SpacingTokens.listRowContent
         }
 
         Text {
             anchors {
                 left: parent.left
                 right: parent.right
-                bottom: parent.verticalCenter
-                bottomMargin: SpacingTokens.controlTight / 2
+                top: parent.top
+                topMargin: SpacingTokens.listRowTitleTop
             }
             text: root.displayTitle
-            color: root.current ? ColorTokens.accentStrong : ColorTokens.textStrong
-            font: TypographyTokens.mediaTitle
+            color: ColorTokens.textStrong
+            font: TypographyTokens.mediaTitleCompact
             elide: Text.ElideRight
             wrapMode: Text.NoWrap
         }
@@ -92,15 +93,31 @@ Item {
             anchors {
                 left: parent.left
                 right: parent.right
-                top: parent.verticalCenter
-                topMargin: SpacingTokens.controlTight / 2
+                top: parent.top
+                topMargin: SpacingTokens.listRowMetaTop
             }
             text: root.sourceLocation
-            color: ColorTokens.textMuted
-            font: TypographyTokens.metaBody
+            color: ColorTokens.textTertiary
+            font: TypographyTokens.timecodeExtraSmall
             elide: Text.ElideMiddle
             wrapMode: Text.NoWrap
         }
+    }
+
+    Rectangle {
+        id: playingRail
+
+        objectName: "playlistPlayingRail"
+        anchors {
+            right: parent.right
+            verticalCenter: parent.verticalCenter
+            rightMargin: SpacingTokens.listRowIndex
+        }
+        width: LayoutTokens.listPlayingRailWidth
+        height: LayoutTokens.controlHitMinimum
+        radius: RadiusTokens.track
+        color: ColorTokens.selectionIndicator
+        visible: root.current
     }
 
     IconButton {
@@ -111,8 +128,11 @@ Item {
             rightMargin: SpacingTokens.controlTight
             verticalCenter: parent.verticalCenter
         }
+        opacity: !root.current && (root.hovered || root.activeFocus)
+                 ? OpacityTokens.visible
+                 : OpacityTokens.hidden
+        enabled: !root.current && opacity > OpacityTokens.hidden
         iconId: "close"
-        enabled: !root.current
         toolTipText: root.current
                      ? qsTr("Current item cannot be removed yet")
                      : qsTr("Remove from Playlist")
