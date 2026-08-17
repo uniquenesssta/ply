@@ -35,7 +35,9 @@ class ApplicationContainer final
 {
 public:
     explicit ApplicationContainer(RuntimePaths runtimePaths);
-    ApplicationContainer(RuntimePaths runtimePaths, std::unique_ptr<LoggingBootstrap> loggingBootstrap);
+    ApplicationContainer(
+        RuntimePaths runtimePaths,
+        std::unique_ptr<LoggingBootstrap> loggingBootstrap);
     ~ApplicationContainer();
 
     ApplicationContainer(const ApplicationContainer&) = delete;

@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | R7-01 ~ R7-06 Complete；R7-07 已完成 canonical Main/Fullscreen/Playlist presentation、真实 Inspector backdrop capture 与全局 Light/Dark semantic theme 候选。最新 runtime theme toggle 提交尚未执行 Windows build / Quick / Full CTest / Dark 实机复核，因此 R7-07 仍未收口 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-07 Complete**。R7-07 由用户在 Windows 实机确认 **95/95 测试通过**且全局主题快捷键可用；剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理。R7-08 已进入自动下一项核心实现，当前候选支持 normal / repeat one / repeat all 与 EOF 去重，Windows build/CTest 尚待执行；shuffle 顺序策略仍属于 R7-08 后续 Atomic 子步骤 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -62,8 +62,8 @@ src/playback/application/        PlaybackSession、请求生命周期与应用�
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验与统一 workflow 编排
-src/playlist/domain/             播放队列、Entry/current/repeat/shuffle 领域真值
-src/playlist/application/        Playlist Controller、mutation 与 load 编排
+src/playlist/domain/             播放队列、Entry/current/repeat/shuffle 领域真值与导航策略
+src/playlist/application/        Playlist Controller、mutation、auto-advance 与 load 编排
 src/playlist/presentation/       Playlist 只读模型投影
 src/presentation/                QML、Theme、Surfaces 与 presentation 层
 src/platform/                    平台能力
@@ -106,14 +106,21 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-17 — Global Light/Dark runtime theme switch (validation pending)
+### 2026-08-18 — R7-07 Complete / R7-08 auto-advance core (validation pending)
+
+- R7-07 按用户提供的 Windows 验证正式收口：**95/95 测试通过**，`Ctrl+Shift+D` 全局 Light/Dark 快捷键可用。用户明确接受当前 UI 状态，Playlist/主题/边界感等剩余视觉问题不继续阻塞功能阶段，统一推迟到软件功能完成后再做 Figma/实机视觉收敛。
+- R7-08 第一 Atomic 子步骤新增独立 `PlaylistNavigation` domain policy 与 `PlaylistAutoAdvance` application workflow；Playlist Domain 仍唯一拥有 queue/current/repeat/shuffle，AutoAdvance 只消费播放结束投影并通过既有 `PlaylistController` 提交下一媒体，不建立第二套 queue 或 Playback owner。
+- `ApplicationContainer` 只把既有 `StatePublisher::snapshotPublished` 的 `MediaGeneration + lifecycle==Ended` 适配给 AutoAdvance。现有 Reducer 对用户 Stop/Shutdown 会清理为非 `Ended`，因此不会触发自动下一项；自然 EOF/Ended 才进入推进链。相同 MediaGeneration 的重复 Ended snapshot 在提交下一次 load 前被去重，防止 double load；同 generation 若先离开 Ended（例如 seek earlier）后再次自然结束，可以重新触发一次。
+- normal 模式按当前实际 queue 顺序推进；尾项 + Repeat Off 停留；Repeat All 在尾项回到第一项；Repeat One 和单项 Repeat All 通过新增的 C++-only `PlaylistController::reloadCurrentEntry()` 复用现有唯一 load callback，QML `selectEntry(current)` 的既有 no-op 语义保持不变。即时 load submission rejection 继续由 Controller 恢复 previous current，AutoAdvance 不重复轰炸同一 Ended generation。
+- Shuffle 尚未用线性顺序冒充：当前 `shuffleEnabled=true` 时除 Repeat One 外不会偷偷执行 normal next。Shuffle 的 visited-order/history/random policy 需要独立状态语义，继续作为 R7-08 下一 Atomic 子步骤实现；R7-09 current deletion policy 未提前修改。
+- 新增 `playlist_navigation` 与 `playlist_auto_advance` 定向 CTest，覆盖 normal 顺序、move 后顺序、尾项、repeat one/all、单项 repeat、Stop/非 Ended、同 generation 去重、提交拒绝恢复与重新离开 Ended 后再次触发。没有新增生产依赖、没有修改 libmpv/Render/QML UI。**本次 R7-08 新源码后的 Windows configure/build/Quick/Full CTest 尚未执行，因此 R7-08 仍为 In Progress。**
+
+### 2026-08-17 — Global Light/Dark runtime theme switch
 
 - 全局主题继续由单一 `ThemeMode` owner 管理；新增 `toggle()` 只在 `lightMode / darkMode` 间切换。Main Player、Fullscreen、Header、OSC、Playlist Inspector、Search、Rows、Footer、文字、图标、Timeline、Selection/Focus 均通过现有 `ColorTokens` / `MaterialTokens` 同步响应，不创建 Playlist 或其他 Feature 私有暗色状态。
 - 新增职责独立的 `qml/shell/theme/ThemeModeShortcut.qml`，由 `MainWindow` 组合应用级 `Ctrl+Shift+D` 快捷键，使当前全局 Dark 设计可在真实运行时直接进入和返回 Light；播放器 canonical 几何没有增加临时主题按钮，也没有修改 Playback/Playlist/Render 主链。
-- Figma 的 global Dark preview 已覆盖 Main Player、Fullscreen 与 Playlist Inspector；代码仍以同一 semantic token system 对应 Light/Dark，而不是复制第二套页面。
-- 当前切换**只作用于本次运行**。主题设置的可见 Preferences UI、`SettingsController` 真值和重启后持久化继续归 R9 Settings；本轮没有用 QSettings/临时 JSON/第二套 repository 提前绕过任务书。
-- `theme_token_test` 已扩展为 Light → Dark → Light round-trip 和应用级 Shortcut 静态 contract；没有删除、skip 或弱化既有门禁，没有新增生产依赖。
-- 本提交之后的 Windows `configure.ps1`、Debug `build.ps1`、Quick / Full CTest 和 Dark 模式实机视觉复核尚未执行，因此 **validation pending，R7-07 不标记 Complete**。
+- 当前切换只作用于本次运行。主题设置的可见 Preferences UI、`SettingsController` 真值和重启后持久化继续归 R9 Settings；本轮没有用 QSettings/临时 JSON/第二套 repository 提前绕过任务书。
+- 后续用户提供的 Windows 验证为 95/95 tests PASS 且快捷键可用；该候选已随 R7-07 正式收口。剩余视觉打磨按用户决定推迟到软件功能完成后处理。
 
 ### 2026-08-17 — Canonical Figma UI reimplementation / global theme foundation
 
