@@ -19,7 +19,6 @@ Panel {
     backdropBlurRadius: MaterialTokens.inspectorDarkFieldBlur
     shadowColor: ElevationTokens.inspectorDarkFieldShadowColor
     shadowRadius: ElevationTokens.inspectorDarkFieldShadowRadius
-    shadowXOffset: SpacingTokens.none
     shadowYOffset: ElevationTokens.inspectorDarkFieldShadowYOffset
     shadowAlpha: ElevationTokens.inspectorDarkFieldShadowAlpha
     contentPadding: SpacingTokens.none
