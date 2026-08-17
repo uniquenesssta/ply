@@ -110,10 +110,10 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 - R7-07 按用户提供的 Windows 验证正式收口：**95/95 测试通过**，`Ctrl+Shift+D` 全局 Light/Dark 快捷键可用。用户明确接受当前 UI 状态，Playlist/主题/边界感等剩余视觉问题不继续阻塞功能阶段，统一推迟到软件功能完成后再做 Figma/实机视觉收敛。
 - R7-08 第一 Atomic 子步骤新增独立 `PlaylistNavigation` domain policy 与 `PlaylistAutoAdvance` application workflow；Playlist Domain 仍唯一拥有 queue/current/repeat/shuffle，AutoAdvance 只消费播放结束投影并通过既有 `PlaylistController` 提交下一媒体，不建立第二套 queue 或 Playback owner。
-- `ApplicationContainer` 只把既有 `StatePublisher::snapshotPublished` 的 `MediaGeneration + lifecycle==Ended` 适配给 AutoAdvance。现有 Reducer 对用户 Stop/Shutdown 会清理为非 `Ended`，因此不会触发自动下一项；自然 EOF/Ended 才进入推进链。相同 MediaGeneration 的重复 Ended snapshot 在提交下一次 load 前被去重，防止 double load；同 generation 若先离开 Ended（例如 seek earlier）后再次自然结束，可以重新触发一次。
+- `ApplicationContainer` 只把既有 `StatePublisher::snapshotPublished` 的 `MediaGeneration + lifecycle==Ended` 适配给 AutoAdvance。现有 Reducer 对用户 Stop/Shutdown 会清理为非 `Ended`，因此不会触发自动下一项；自然 EOF/Ended 才进入推进链。同一 MediaGeneration 一旦处理过 Ended 就不会再次自动提交 load，即使随后又出现同 generation 的非 Ended/Ended 波动也保持去重；只有新的 MediaGeneration 才重新允许一次自动推进，从而优先保证不会 double load。
 - normal 模式按当前实际 queue 顺序推进；尾项 + Repeat Off 停留；Repeat All 在尾项回到第一项；Repeat One 和单项 Repeat All 通过新增的 C++-only `PlaylistController::reloadCurrentEntry()` 复用现有唯一 load callback，QML `selectEntry(current)` 的既有 no-op 语义保持不变。即时 load submission rejection 继续由 Controller 恢复 previous current，AutoAdvance 不重复轰炸同一 Ended generation。
 - Shuffle 尚未用线性顺序冒充：当前 `shuffleEnabled=true` 时除 Repeat One 外不会偷偷执行 normal next。Shuffle 的 visited-order/history/random policy 需要独立状态语义，继续作为 R7-08 下一 Atomic 子步骤实现；R7-09 current deletion policy 未提前修改。
-- 新增 `playlist_navigation` 与 `playlist_auto_advance` 定向 CTest，覆盖 normal 顺序、move 后顺序、尾项、repeat one/all、单项 repeat、Stop/非 Ended、同 generation 去重、提交拒绝恢复与重新离开 Ended 后再次触发。没有新增生产依赖、没有修改 libmpv/Render/QML UI。**本次 R7-08 新源码后的 Windows configure/build/Quick/Full CTest 尚未执行，因此 R7-08 仍为 In Progress。**
+- 新增 `playlist_navigation` 与 `playlist_auto_advance` 定向 CTest，覆盖 normal 顺序、move 后顺序、尾项、repeat one/all、单项 repeat、Stop/非 Ended、同 generation 即使离开 Ended 也不重试、提交拒绝恢复，以及新 MediaGeneration 可重新触发。没有新增生产依赖、没有修改 libmpv/Render/QML UI。**本次 R7-08 新源码后的 Windows configure/build/Quick/Full CTest 尚未执行，因此 R7-08 仍为 In Progress。**
 
 ### 2026-08-17 — Global Light/Dark runtime theme switch
 
