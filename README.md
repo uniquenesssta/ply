@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-07 Complete**。R7-07 由用户在 Windows 实机确认 **95/95 测试通过**且全局主题快捷键可用；剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理。R7-08 已进入自动下一项核心实现，当前候选支持 normal / repeat one / repeat all 与 EOF 去重，Windows build/CTest 尚待执行；shuffle 顺序策略仍属于 R7-08 后续 Atomic 子步骤 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-07 Complete**。R7-08 normal / repeat one / repeat all / EOF 去重核心已在 Windows 完成 configure/build 与 Full **97/97 PASS（77.29 s）**；当前已继续加入独立 Shuffle cycle policy，新的 shuffle 候选尚待 Windows build/Full CTest 验证。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -25,7 +25,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Qt Quick 图形后端固定 OpenGL；视频使用 libmpv OpenGL Render API + `QQuickFramebufferObject`。
 - QML 不直接调用 libmpv。
 - `PlaybackSession` 是播放状态与媒体代际的唯一权威 owner。
-- Playlist Domain 是队列顺序/current/repeat/shuffle 的唯一 owner；QML 只消费 readonly model 并通过 Controller 发 intent。
+- Playlist Domain 是队列顺序/current/repeat/shuffle 的唯一 owner；`PlaylistShuffleState` 只拥有该 Domain 内的 shuffle cycle 状态；QML 只消费 readonly model 并通过 Controller 发 intent。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
 - Persistence/Settings 真值继续按 R9 任务书归 `SettingsController + repository`，当前 R7 不建立第二套设置持久化路径。
@@ -62,7 +62,7 @@ src/playback/application/        PlaybackSession、请求生命周期与应用�
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验与统一 workflow 编排
-src/playlist/domain/             播放队列、Entry/current/repeat/shuffle 领域真值与导航策略
+src/playlist/domain/             播放队列、Entry/current/repeat/shuffle cycle 与导航策略
 src/playlist/application/        Playlist Controller、mutation、auto-advance 与 load 编排
 src/playlist/presentation/       Playlist 只读模型投影
 src/presentation/                QML、Theme、Surfaces 与 presentation 层
@@ -106,14 +106,16 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-18 — R7-07 Complete / R7-08 auto-advance core (validation pending)
+### 2026-08-18 — R7-07 Complete / R7-08 auto-advance + shuffle candidate
 
 - R7-07 按用户提供的 Windows 验证正式收口：**95/95 测试通过**，`Ctrl+Shift+D` 全局 Light/Dark 快捷键可用。用户明确接受当前 UI 状态，Playlist/主题/边界感等剩余视觉问题不继续阻塞功能阶段，统一推迟到软件功能完成后再做 Figma/实机视觉收敛。
 - R7-08 第一 Atomic 子步骤新增独立 `PlaylistNavigation` domain policy 与 `PlaylistAutoAdvance` application workflow；Playlist Domain 仍唯一拥有 queue/current/repeat/shuffle，AutoAdvance 只消费播放结束投影并通过既有 `PlaylistController` 提交下一媒体，不建立第二套 queue 或 Playback owner。
-- `ApplicationContainer` 只把既有 `StatePublisher::snapshotPublished` 的 `MediaGeneration + lifecycle==Ended` 适配给 AutoAdvance。现有 Reducer 对用户 Stop/Shutdown 会清理为非 `Ended`，因此不会触发自动下一项；自然 EOF/Ended 才进入推进链。同一 MediaGeneration 一旦处理过 Ended 就不会再次自动提交 load，即使随后又出现同 generation 的非 Ended/Ended 波动也保持去重；只有新的 MediaGeneration 才重新允许一次自动推进，从而优先保证不会 double load。
-- normal 模式按当前实际 queue 顺序推进；尾项 + Repeat Off 停留；Repeat All 在尾项回到第一项；Repeat One 和单项 Repeat All 通过新增的 C++-only `PlaylistController::reloadCurrentEntry()` 复用现有唯一 load callback，QML `selectEntry(current)` 的既有 no-op 语义保持不变。即时 load submission rejection 继续由 Controller 恢复 previous current，AutoAdvance 不重复轰炸同一 Ended generation。
-- Shuffle 尚未用线性顺序冒充：当前 `shuffleEnabled=true` 时除 Repeat One 外不会偷偷执行 normal next。Shuffle 的 visited-order/history/random policy 需要独立状态语义，继续作为 R7-08 下一 Atomic 子步骤实现；R7-09 current deletion policy 未提前修改。
-- 新增 `playlist_navigation` 与 `playlist_auto_advance` 定向 CTest，覆盖 normal 顺序、move 后顺序、尾项、repeat one/all、单项 repeat、Stop/非 Ended、同 generation 即使离开 Ended 也不重试、提交拒绝恢复，以及新 MediaGeneration 可重新触发。没有新增生产依赖、没有修改 libmpv/Render/QML UI。**本次 R7-08 新源码后的 Windows configure/build/Quick/Full CTest 尚未执行，因此 R7-08 仍为 In Progress。**
+- `ApplicationContainer` 只把既有 `StatePublisher::snapshotPublished` 的 `MediaGeneration + lifecycle==Ended` 适配给 AutoAdvance。现有 Reducer 对用户 Stop/Shutdown 会清理为非 `Ended`，因此不会触发自动下一项；自然 EOF/Ended 才进入推进链。同一 MediaGeneration 一旦处理过 Ended 就不会再次自动提交 load，即使随后又出现同 generation 的非 Ended/Ended 波动也保持去重；只有新的 MediaGeneration 才重新允许一次自动推进，从而保证不会 double load。
+- normal 模式按当前实际 queue 顺序推进；尾项 + Repeat Off 停留；Repeat All 在尾项回到第一项；Repeat One 和单项 Repeat All 通过 C++-only `PlaylistController::reloadCurrentEntry()` 复用现有唯一 load callback，QML `selectEntry(current)` 的既有 no-op 语义保持不变。
+- 第一子步骤已由用户在 Windows 锁定环境完成实际验证：`configure.ps1` PASS、`build.ps1` PASS、完整 `scripts\test.ps1 -SkipBuild` **97/97 PASS，0 failed，77.29 s**。其中新增 `playlist_navigation` 与 `playlist_auto_advance` 均通过；该日志未单独执行 Quick，因此 README 不把 Quick 记为已运行。
+- R7-08 第二 Atomic 子步骤新增独立 `PlaylistShuffleState`，由 Playlist Domain 持有 shuffle enabled 与当前 cycle 的 remaining-entry bag。Repeat Off 在当前 cycle 遍历完其他项后停止；Repeat All 在 cycle 用尽后重新建立排除当前项的新 bag，避免多项列表立即重播刚结束项；Repeat One 继续优先重播 current；单项 Repeat All 继续重播 current。active cycle 对 append/remove/成功 select 同步更新，不使用线性顺序冒充 shuffle。
+- 为保证失败一致性，shuffle candidate 只在成功 selection 后从 cycle bag 消费；`PlaylistController::selectEntry()` 改为先提交现有唯一 load callback，再更新 Playlist current，因此即时 load submission rejection 不会改变 current 或 shuffle history，也不需要建立第二套 rollback 状态。R7-09 的 current deletion policy 未提前修改。
+- 新增 `playlist_shuffle_state` CTest，并扩展 `playlist_navigation` / `playlist_auto_advance` 覆盖 shuffle cycle、Repeat All 新 cycle、无立即重复、append/remove 与 controller load 路径。没有新增生产依赖，没有修改 libmpv/Render/QML UI。**这些 shuffle 新源码后的 Windows configure/build/Full CTest 尚未执行，因此 R7-08 仍为 In Progress。**
 
 ### 2026-08-17 — Global Light/Dark runtime theme switch
 
