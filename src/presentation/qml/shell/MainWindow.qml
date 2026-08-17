@@ -67,6 +67,8 @@ ApplicationWindow {
         statusViewModel: window.statusViewModel
         mediaViewModel: window.mediaViewModel
         hudMessageQueue: window.hudMessageQueue
+        playlistController: window.playlistController
+        playlistModel: window.playlistModel
         mediaDropHandler: window.mediaDropHandler
         fullScreen: fullscreenWindowController.fullScreen
         windowActive: window.active
