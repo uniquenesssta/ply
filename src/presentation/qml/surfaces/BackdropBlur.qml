@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Effects
+import Player.Presentation.Theme
 
 Item {
     id: root
@@ -42,7 +43,7 @@ Item {
 
         anchors.fill: parent
         radius: root.cornerRadius
-        color: "white"
+        color: ColorTokens.surfaceGlass
         visible: false
         layer.enabled: true
     }
