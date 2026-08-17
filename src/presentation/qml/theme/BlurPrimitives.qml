@@ -3,6 +3,8 @@ pragma Singleton
 import QtQuick
 
 QtObject {
+    readonly property int b9: 9
+    readonly property int b10: 10
     readonly property int b18: 18
     readonly property int b20: 20
     readonly property int b24: 24
