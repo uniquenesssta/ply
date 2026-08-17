@@ -11,6 +11,7 @@ add_subdirectory(viewmodels/player/hud)
 set(PLAYER_QML_FILES
     qml/App.qml
     qml/shell/MainWindow.qml
+    qml/shell/theme/ThemeModeShortcut.qml
     qml/shell/window/FullscreenWindowController.qml
     qml/screens/player/PlayerScreen.qml
     qml/screens/player/layout/VideoViewport.qml
@@ -63,6 +64,7 @@ endforeach()
 
 set_source_files_properties(
     qml/shell/MainWindow.qml
+    qml/shell/theme/ThemeModeShortcut.qml
     qml/shell/window/FullscreenWindowController.qml
     qml/screens/player/PlayerScreen.qml
     qml/screens/player/layout/VideoViewport.qml

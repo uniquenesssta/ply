@@ -26,6 +26,9 @@ ApplicationWindow {
     title: qsTr("Player")
     color: ColorTokens.surfaceCanvas
 
+    ThemeModeShortcut {
+    }
+
     FullscreenWindowController {
         id: fullscreenWindowController
         targetWindow: window

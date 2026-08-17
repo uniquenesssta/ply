@@ -16,4 +16,8 @@ QtObject {
         mode = requestedMode
         return true
     }
+
+    function toggle() {
+        return setMode(isDark ? lightMode : darkMode)
+    }
 }

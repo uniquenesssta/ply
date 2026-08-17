@@ -119,6 +119,7 @@ private slots:
     void semanticTokensResolve();
     void globalDarkModeResolvesSharedSemanticTokens();
     void darkModeIsGlobalNotFeatureScoped();
+    void globalThemeShortcutTogglesRuntimeMode();
     void coreQmlUsesSemanticTokens();
 };
 
@@ -216,6 +217,10 @@ QtObject {
     function useDark() {
         return ThemeMode.setMode(ThemeMode.darkMode)
     }
+
+    function toggleTheme() {
+        return ThemeMode.toggle()
+    }
 }
 )QML";
 
@@ -250,6 +255,9 @@ QtObject {
     QCOMPARE(object->property("inspectorFillAlpha").toDouble(), 1.0);
     QCOMPARE(object->property("rowFillAlpha").toDouble(), 1.0);
     QCOMPARE(object->property("borderSoftAlpha").toDouble(), 1.0);
+
+    QVERIFY(QMetaObject::invokeMethod(object.get(), "toggleTheme"));
+    QTRY_COMPARE(object->property("surfaceCanvas").value<QColor>(), QColor(QStringLiteral("#F7F7FC")));
 }
 
 void ThemeTokenTest::darkModeIsGlobalNotFeatureScoped()
@@ -274,6 +282,7 @@ void ThemeTokenTest::darkModeIsGlobalNotFeatureScoped()
     QVERIFY(themeCMake.contains(QStringLiteral("ThemeMode.qml")));
     QVERIFY(mode.contains(QStringLiteral("property int mode: lightMode")));
     QVERIFY(mode.contains(QStringLiteral("readonly property bool isDark")));
+    QVERIFY(mode.contains(QStringLiteral("function toggle()")));
     QVERIFY(colors.contains(QStringLiteral("ThemeMode.isDark")));
     QVERIFY(materials.contains(QStringLiteral("ThemeMode.isDark")));
     QVERIFY(drawer.contains(QStringLiteral("ColorTokens.surfaceInspector")));
@@ -296,6 +305,28 @@ void ThemeTokenTest::darkModeIsGlobalNotFeatureScoped()
         QVERIFY2(!search.contains(token), qPrintable(token));
         QVERIFY2(!row.contains(token), qPrintable(token));
     }
+}
+
+void ThemeTokenTest::globalThemeShortcutTogglesRuntimeMode()
+{
+    const QString mainWindow = readSource(QStringLiteral(
+        "src/presentation/qml/shell/MainWindow.qml"));
+    const QString shortcut = readSource(QStringLiteral(
+        "src/presentation/qml/shell/theme/ThemeModeShortcut.qml"));
+    const QString cmake = readSource(QStringLiteral(
+        "src/presentation/CMakeLists.txt"));
+
+    QVERIFY(!mainWindow.isEmpty());
+    QVERIFY(!shortcut.isEmpty());
+    QVERIFY(!cmake.isEmpty());
+
+    QVERIFY(mainWindow.contains(QStringLiteral("ThemeModeShortcut {")));
+    QVERIFY(shortcut.contains(QStringLiteral("Shortcut {")));
+    QVERIFY(shortcut.contains(QStringLiteral("sequence: \"Ctrl+Shift+D\"")));
+    QVERIFY(shortcut.contains(QStringLiteral("context: Qt.ApplicationShortcut")));
+    QVERIFY(shortcut.contains(QStringLiteral("autoRepeat: false")));
+    QVERIFY(shortcut.contains(QStringLiteral("onActivated: ThemeMode.toggle()")));
+    QVERIFY(cmake.contains(QStringLiteral("qml/shell/theme/ThemeModeShortcut.qml")));
 }
 
 void ThemeTokenTest::coreQmlUsesSemanticTokens()
