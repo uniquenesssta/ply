@@ -72,6 +72,7 @@ Item {
             width: Math.max(0, parent.width - (SpacingTokens.inspectorEdge * 2))
             text: root.title
             variant: TitleText.Inspector
+            color: ColorTokens.textInspectorPrimary
         }
 
         CaptionText {
@@ -84,6 +85,7 @@ Item {
             width: Math.max(0, parent.width - (SpacingTokens.inspectorEdge * 2))
             text: root.subtitle
             variant: CaptionText.Meta
+            color: ColorTokens.textInspectorSecondary
         }
 
         Item {
