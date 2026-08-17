@@ -117,12 +117,14 @@ bool PlaylistController::selectEntry(quint64 entryId)
         return true;
     }
 
-    if (!playlist_.select(id)) {
+    // Submit first so an immediate command-bus rejection cannot mutate Playlist
+    // current/shuffle history. The entry was resolved above and remains owned by
+    // Playlist for the duration of this synchronous call.
+    if (!submitLoadForEntry(*entry)) {
         return false;
     }
 
-    if (!submitLoadForEntry(*entry)) {
-        restoreCurrent(previousCurrent);
+    if (!playlist_.select(id)) {
         return false;
     }
 

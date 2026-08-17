@@ -82,9 +82,7 @@ std::optional<PlaylistEntryId> PlaylistShuffleState::takeNext(
     const quint64 randomValue = QRandomGenerator::global()->generate64();
     const std::size_t index = static_cast<std::size_t>(
         randomValue % static_cast<quint64>(remaining_.size()));
-    const PlaylistEntryId next = remaining_.at(index);
-    remaining_.erase(remaining_.begin() + static_cast<std::ptrdiff_t>(index));
-    return next;
+    return remaining_.at(index);
 }
 
 void PlaylistShuffleState::initializeCycle(
