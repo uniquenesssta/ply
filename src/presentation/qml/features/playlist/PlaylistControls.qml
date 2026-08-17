@@ -11,8 +11,14 @@ Row {
     signal toggleRequested()
 
     objectName: "playlistControls"
+    implicitWidth: playlistButton.implicitWidth
+    implicitHeight: playlistButton.implicitHeight
+    width: implicitWidth
+    height: implicitHeight
 
     IconButton {
+        id: playlistButton
+
         objectName: "playlistToggleButton"
         iconId: "playlist"
         iconSizeOverride: root.compact ? LayoutTokens.controlIconCompact : 0
