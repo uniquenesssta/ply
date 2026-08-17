@@ -32,20 +32,20 @@ Item {
         anchors.fill: parent
         radius: RadiusTokens.listRow
         color: root.highlighted
-               ? root.withAlpha(ColorTokens.surfaceSelection,
-                                MaterialTokens.selectionFillAlpha)
-               : root.withAlpha(ColorTokens.surfaceGlassSubtle,
+               ? root.withAlpha(ColorTokens.surfaceInspectorSelectionDark,
+                                MaterialTokens.inspectorDarkSelectionFillAlpha)
+               : root.withAlpha(ColorTokens.surfaceInspectorRowDark,
                                 root.hovered
-                                ? MaterialTokens.footerFillAlpha
-                                : MaterialTokens.rowFillAlpha)
+                                ? MaterialTokens.inspectorDarkRowHoverAlpha
+                                : MaterialTokens.inspectorDarkRowFillAlpha)
         border.width: root.activeFocus || root.highlighted
                       ? LayoutTokens.surfaceBorderWidth
                       : SpacingTokens.none
         border.color: root.activeFocus
-                      ? root.withAlpha(ColorTokens.focusRing,
+                      ? root.withAlpha(ColorTokens.accentInspector,
                                        OpacityTokens.focusRing)
-                      : root.withAlpha(ColorTokens.borderSelection,
-                                       MaterialTokens.selectionBorderAlpha)
+                      : root.withAlpha(ColorTokens.borderInspectorSelection,
+                                       MaterialTokens.inspectorDarkSelectionBorderAlpha)
     }
 
     Text {
@@ -58,7 +58,9 @@ Item {
         }
         width: SpacingTokens.listRowIndex
         text: root.indexText
-        color: root.highlighted ? ColorTokens.accentStrong : ColorTokens.textTertiary
+        color: root.highlighted
+               ? ColorTokens.accentInspectorStrong
+               : ColorTokens.textInspectorMuted
         font: TypographyTokens.microStrong
         horizontalAlignment: Text.AlignLeft
         verticalAlignment: Text.AlignVCenter
@@ -82,7 +84,7 @@ Item {
                 topMargin: SpacingTokens.listRowTitleTop
             }
             text: root.displayTitle
-            color: ColorTokens.textStrong
+            color: ColorTokens.textInspectorStrong
             font: TypographyTokens.mediaTitleCompact
             elide: Text.ElideRight
             wrapMode: Text.NoWrap
@@ -96,7 +98,7 @@ Item {
                 topMargin: SpacingTokens.listRowMetaTop
             }
             text: root.sourceLocation
-            color: ColorTokens.textTertiary
+            color: ColorTokens.textInspectorMuted
             font: TypographyTokens.timecodeExtraSmall
             elide: Text.ElideMiddle
             wrapMode: Text.NoWrap
@@ -115,7 +117,7 @@ Item {
         width: LayoutTokens.listPlayingRailWidth
         height: LayoutTokens.controlHitMinimum
         radius: RadiusTokens.track
-        color: ColorTokens.selectionIndicator
+        color: ColorTokens.selectionIndicatorInspector
         visible: root.current
     }
 
