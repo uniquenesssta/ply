@@ -2,6 +2,7 @@ import QtQuick
 import Player.Presentation.Theme
 
 Panel {
+    surfaceColor: ColorTokens.surfaceInspector
     fillAlpha: MaterialTokens.inspectorFillAlpha
     borderAlpha: MaterialTokens.borderStrongAlpha
     cornerRadius: RadiusTokens.surfaceInspector

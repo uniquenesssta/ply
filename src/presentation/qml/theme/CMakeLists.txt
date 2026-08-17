@@ -1,5 +1,6 @@
 set(PLAYER_THEME_SINGLETONS
     Theme.qml
+    ThemeMode.qml
     ColorPrimitives.qml
     ColorTokens.qml
     TypographyPrimitives.qml

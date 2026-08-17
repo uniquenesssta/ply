@@ -135,7 +135,7 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: qsTr("Playlist is empty")
-                color: ColorTokens.textInspectorSecondary
+                color: ColorTokens.textSecondary
                 font: TypographyTokens.mediaTitle
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -143,7 +143,7 @@ Item {
             Text {
                 width: parent.width
                 text: qsTr("Add media to build a queue.")
-                color: ColorTokens.textInspectorMuted
+                color: ColorTokens.textMuted
                 font: TypographyTokens.metaBody
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter

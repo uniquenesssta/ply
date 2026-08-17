@@ -3,6 +3,7 @@
 #include <QFile>
 #include <QFont>
 #include <QGuiApplication>
+#include <QMetaObject>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
@@ -39,6 +40,20 @@ bool waitForComponentResolution(QQmlComponent& component)
 
     QSignalSpy statusSpy(&component, &QQmlComponent::statusChanged);
     return statusSpy.wait(5000);
+}
+
+QString sourcePath(const QString& relativePath)
+{
+    return QStringLiteral(PLAYER_SOURCE_DIR) + QLatin1Char('/') + relativePath;
+}
+
+QString readSource(const QString& relativePath)
+{
+    QFile file(sourcePath(relativePath));
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return {};
+    }
+    return QString::fromUtf8(file.readAll());
 }
 
 QStringList styleLiteralViolations()
@@ -102,6 +117,8 @@ class ThemeTokenTest final : public QObject
 
 private slots:
     void semanticTokensResolve();
+    void globalDarkModeResolvesSharedSemanticTokens();
+    void darkModeIsGlobalNotFeatureScoped();
     void coreQmlUsesSemanticTokens();
 };
 
@@ -166,6 +183,119 @@ QtObject {
     QCOMPARE(object->property("headerHeight").toInt(), 54);
     QCOMPARE(object->property("oscHeight").toInt(), 124);
     QCOMPARE(object->property("referenceWidth").toInt(), 1320);
+}
+
+void ThemeTokenTest::globalDarkModeResolvesSharedSemanticTokens()
+{
+    QQmlEngine engine;
+    QQmlComponent component(&engine);
+
+    const QByteArray source = R"QML(
+import QtQuick
+import Player.Presentation.Theme
+
+QtObject {
+    readonly property color surfaceCanvas: ColorTokens.surfaceCanvas
+    readonly property color surfaceGlass: ColorTokens.surfaceGlass
+    readonly property color surfaceGlassStrong: ColorTokens.surfaceGlassStrong
+    readonly property color surfaceInspector: ColorTokens.surfaceInspector
+    readonly property color surfaceInspectorSearch: ColorTokens.surfaceInspectorSearch
+    readonly property color surfaceInspectorRow: ColorTokens.surfaceInspectorRow
+    readonly property color surfaceInspectorSelection: ColorTokens.surfaceInspectorSelection
+    readonly property color textPrimary: ColorTokens.textPrimary
+    readonly property color textSecondary: ColorTokens.textSecondary
+    readonly property color accentPrimary: ColorTokens.accentPrimary
+    readonly property color accentStrong: ColorTokens.accentStrong
+    readonly property color controlProgress: ColorTokens.controlProgress
+    readonly property real headerFillAlpha: MaterialTokens.headerFillAlpha
+    readonly property real oscFillAlpha: MaterialTokens.oscFillAlpha
+    readonly property real inspectorFillAlpha: MaterialTokens.inspectorFillAlpha
+    readonly property real rowFillAlpha: MaterialTokens.rowFillAlpha
+    readonly property real borderSoftAlpha: MaterialTokens.borderSoftAlpha
+
+    function useDark() {
+        return ThemeMode.setMode(ThemeMode.Dark)
+    }
+}
+)QML";
+
+    component.setData(source, QUrl(QStringLiteral("qrc:/GlobalDarkThemeContract.qml")));
+
+    const bool resolved = waitForComponentResolution(component);
+    const QString loadDiagnostics = componentDiagnostics(component);
+    QVERIFY2(resolved, qPrintable(loadDiagnostics));
+    QVERIFY2(component.isReady(), qPrintable(loadDiagnostics));
+
+    std::unique_ptr<QObject> object(component.create());
+    const QString createDiagnostics = componentDiagnostics(component);
+    QVERIFY2(object != nullptr, qPrintable(createDiagnostics));
+
+    QCOMPARE(object->property("surfaceCanvas").value<QColor>(), QColor(QStringLiteral("#F7F7FC")));
+    QVERIFY(QMetaObject::invokeMethod(object.get(), "useDark"));
+
+    QTRY_COMPARE(object->property("surfaceCanvas").value<QColor>(), QColor(QStringLiteral("#17141F")));
+    QCOMPARE(object->property("surfaceGlass").value<QColor>(), QColor(QStringLiteral("#211B29")));
+    QCOMPARE(object->property("surfaceGlassStrong").value<QColor>(), QColor(QStringLiteral("#27212F")));
+    QCOMPARE(object->property("surfaceInspector").value<QColor>(), QColor(QStringLiteral("#17141F")));
+    QCOMPARE(object->property("surfaceInspectorSearch").value<QColor>(), QColor(QStringLiteral("#27212F")));
+    QCOMPARE(object->property("surfaceInspectorRow").value<QColor>(), QColor(QStringLiteral("#211B29")));
+    QCOMPARE(object->property("surfaceInspectorSelection").value<QColor>(), QColor(QStringLiteral("#3A2852")));
+    QCOMPARE(object->property("textPrimary").value<QColor>(), QColor(QStringLiteral("#F7F4FB")));
+    QCOMPARE(object->property("textSecondary").value<QColor>(), QColor(QStringLiteral("#B6ADBC")));
+    QCOMPARE(object->property("accentPrimary").value<QColor>(), QColor(QStringLiteral("#A879FF")));
+    QCOMPARE(object->property("accentStrong").value<QColor>(), QColor(QStringLiteral("#C49AFF")));
+    QCOMPARE(object->property("controlProgress").value<QColor>(), QColor(QStringLiteral("#A879FF")));
+    QCOMPARE(object->property("headerFillAlpha").toDouble(), 1.0);
+    QCOMPARE(object->property("oscFillAlpha").toDouble(), 1.0);
+    QCOMPARE(object->property("inspectorFillAlpha").toDouble(), 1.0);
+    QCOMPARE(object->property("rowFillAlpha").toDouble(), 1.0);
+    QCOMPARE(object->property("borderSoftAlpha").toDouble(), 1.0);
+}
+
+void ThemeTokenTest::darkModeIsGlobalNotFeatureScoped()
+{
+    const QString themeCMake = readSource(QStringLiteral(
+        "src/presentation/qml/theme/CMakeLists.txt"));
+    const QString mode = readSource(QStringLiteral(
+        "src/presentation/qml/theme/ThemeMode.qml"));
+    const QString colors = readSource(QStringLiteral(
+        "src/presentation/qml/theme/ColorTokens.qml"));
+    const QString materials = readSource(QStringLiteral(
+        "src/presentation/qml/theme/MaterialTokens.qml"));
+    const QString drawer = readSource(QStringLiteral(
+        "src/presentation/qml/surfaces/Drawer.qml"));
+    const QString shell = readSource(QStringLiteral(
+        "src/presentation/qml/screens/player/drawers/PlayerInspectorShell.qml"));
+    const QString search = readSource(QStringLiteral(
+        "src/presentation/qml/screens/player/drawers/PlaylistSearchField.qml"));
+    const QString row = readSource(QStringLiteral(
+        "src/presentation/qml/features/playlist/PlaylistRow.qml"));
+
+    QVERIFY(themeCMake.contains(QStringLiteral("ThemeMode.qml")));
+    QVERIFY(mode.contains(QStringLiteral("property int mode: ThemeMode.Light")));
+    QVERIFY(mode.contains(QStringLiteral("readonly property bool dark")));
+    QVERIFY(colors.contains(QStringLiteral("ThemeMode.dark")));
+    QVERIFY(materials.contains(QStringLiteral("ThemeMode.dark")));
+    QVERIFY(drawer.contains(QStringLiteral("ColorTokens.surfaceInspector")));
+    QVERIFY(search.contains(QStringLiteral("ColorTokens.surfaceInspectorSearch")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.surfaceInspectorRow")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.surfaceInspectorSelection")));
+
+    const QStringList forbiddenFeatureDarkTokens{
+        QStringLiteral("surfaceInspectorDark"),
+        QStringLiteral("textInspector"),
+        QStringLiteral("accentInspector"),
+        QStringLiteral("borderInspector"),
+        QStringLiteral("inspectorDark"),
+    };
+    for (const QString& token : forbiddenFeatureDarkTokens) {
+        QVERIFY2(!colors.contains(token), qPrintable(token));
+        QVERIFY2(!materials.contains(token), qPrintable(token));
+        QVERIFY2(!drawer.contains(token), qPrintable(token));
+        QVERIFY2(!shell.contains(token), qPrintable(token));
+        QVERIFY2(!search.contains(token), qPrintable(token));
+        QVERIFY2(!row.contains(token), qPrintable(token));
+    }
 }
 
 void ThemeTokenTest::coreQmlUsesSemanticTokens()

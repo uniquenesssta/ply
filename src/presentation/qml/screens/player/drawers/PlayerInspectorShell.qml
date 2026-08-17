@@ -60,16 +60,6 @@ Item {
         anchors.fill: parent
         backdropSource: root.backdropSource
         backdropMappingRevision: root.backdropMappingRevision + shellTranslation.x
-        surfaceColor: ColorTokens.surfaceInspectorDark
-        fillAlpha: MaterialTokens.inspectorDarkFillAlpha
-        borderColor: ColorTokens.borderInspectorDark
-        borderAlpha: MaterialTokens.inspectorDarkBorderAlpha
-        backdropBlurRadius: MaterialTokens.inspectorDarkBlur
-        shadowColor: ElevationTokens.inspectorDarkShadowColor
-        shadowRadius: ElevationTokens.inspectorDarkShadowRadius
-        shadowXOffset: ElevationTokens.inspectorDarkShadowXOffset
-        shadowYOffset: ElevationTokens.inspectorDarkShadowYOffset
-        shadowAlpha: ElevationTokens.inspectorDarkShadowAlpha
         contentPadding: SpacingTokens.none
 
         TitleText {
@@ -82,7 +72,6 @@ Item {
             width: Math.max(0, parent.width - (SpacingTokens.inspectorEdge * 2))
             text: root.title
             variant: TitleText.Inspector
-            color: ColorTokens.textInspectorPrimary
         }
 
         CaptionText {
@@ -95,7 +84,6 @@ Item {
             width: Math.max(0, parent.width - (SpacingTokens.inspectorEdge * 2))
             text: root.subtitle
             variant: CaptionText.Meta
-            color: ColorTokens.textInspectorSecondary
         }
 
         Item {
