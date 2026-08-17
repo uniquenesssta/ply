@@ -12,6 +12,14 @@ Panel {
     property string statusText: ""
     property bool windowExpanded: false
 
+    readonly property bool compact: root.height <= LayoutTokens.headerHeightCompact
+    readonly property int preferredInfoWidth: root.compact
+                                               ? LayoutTokens.headerInfoWidthCompact
+                                               : LayoutTokens.headerInfoWidth
+    readonly property int podHeight: root.compact
+                                     ? LayoutTokens.headerHeightCompact
+                                     : LayoutTokens.headerHeight
+
     signal minimizeRequested()
     signal maximizeRestoreRequested()
     signal closeRequested()

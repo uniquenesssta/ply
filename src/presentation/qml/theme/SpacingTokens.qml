@@ -44,6 +44,8 @@ QtObject {
     readonly property int inspectorRight: SpacingPrimitives.space28
     readonly property int inspectorContent: SpacingPrimitives.space22
     readonly property int inspectorRowInset: SpacingPrimitives.space18
+    readonly property int inspectorTopWithHeader: SpacingPrimitives.space92
+    readonly property int inspectorTopNarrow: SpacingPrimitives.space88
     readonly property int inspectorTitleTop: SpacingPrimitives.space24
     readonly property int inspectorMetaTop: SpacingPrimitives.space56
     readonly property int inspectorSearchTop: SpacingPrimitives.space88
