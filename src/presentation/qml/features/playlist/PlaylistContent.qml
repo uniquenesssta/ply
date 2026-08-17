@@ -27,7 +27,9 @@ Item {
         reuseItems: true
         currentIndex: -1
 
-        delegate: PlaylistRow {
+        delegate: Item {
+            id: delegateItem
+
             required property var entryId
             required property string displayTitle
             required property string sourceLocation
@@ -35,26 +37,35 @@ Item {
             required property int index
 
             width: ListView.view.width
-            indexText: index < 9
-                       ? "0" + String(index + 1)
-                       : String(index + 1)
-            selected: root.selectedEntryId !== null
-                      && root.selectedEntryId === entryId
+            height: LayoutTokens.listRowHeight
 
-            onSelectionRequested: function(requestedEntryId) {
-                root.selectedEntryId = requestedEntryId
-            }
-            onActivationRequested: function(requestedEntryId) {
-                root.selectedEntryId = requestedEntryId
-                if (root.playlistController !== null) {
-                    root.playlistController.selectEntry(requestedEntryId)
+            PlaylistRow {
+                anchors.fill: parent
+                entryId: delegateItem.entryId
+                displayTitle: delegateItem.displayTitle
+                sourceLocation: delegateItem.sourceLocation
+                current: delegateItem.current
+                indexText: delegateItem.index < 9
+                           ? "0" + String(delegateItem.index + 1)
+                           : String(delegateItem.index + 1)
+                selected: root.selectedEntryId !== null
+                          && root.selectedEntryId === delegateItem.entryId
+
+                onSelectionRequested: function(requestedEntryId) {
+                    root.selectedEntryId = requestedEntryId
                 }
-            }
-            onRemoveRequested: function(requestedEntryId) {
-                if (root.playlistController !== null
-                        && root.playlistController.removeEntry(requestedEntryId)
-                        && root.selectedEntryId === requestedEntryId) {
-                    root.selectedEntryId = null
+                onActivationRequested: function(requestedEntryId) {
+                    root.selectedEntryId = requestedEntryId
+                    if (root.playlistController !== null) {
+                        root.playlistController.selectEntry(requestedEntryId)
+                    }
+                }
+                onRemoveRequested: function(requestedEntryId) {
+                    if (root.playlistController !== null
+                            && root.playlistController.removeEntry(requestedEntryId)
+                            && root.selectedEntryId === requestedEntryId) {
+                        root.selectedEntryId = null
+                    }
                 }
             }
         }

@@ -152,8 +152,16 @@ void PlaylistQmlTest::playlistContentSeparatesSelectionFromCurrentAndVirtualizes
     QVERIFY(content.contains(QStringLiteral("ListView {")));
     QVERIFY(content.contains(QStringLiteral("reuseItems: true")));
     QVERIFY(content.contains(QStringLiteral("model: root.playlistModel")));
+    QVERIFY(content.contains(QStringLiteral("delegate: Item {")));
+    QVERIFY(content.contains(QStringLiteral("id: delegateItem")));
+    QVERIFY(content.contains(QStringLiteral("entryId: delegateItem.entryId")));
+    QVERIFY(content.contains(QStringLiteral("displayTitle: delegateItem.displayTitle")));
+    QVERIFY(content.contains(QStringLiteral("sourceLocation: delegateItem.sourceLocation")));
+    QVERIFY(content.contains(QStringLiteral("current: delegateItem.current")));
     QVERIFY(content.contains(QStringLiteral("selected: root.selectedEntryId")));
     QVERIFY(content.contains(QStringLiteral("required property bool current")));
+    QVERIFY(content.contains(QStringLiteral("height: LayoutTokens.listRowHeight")));
+    QVERIFY(!content.contains(QStringLiteral("delegate: PlaylistRow {")));
     QVERIFY(content.contains(QStringLiteral("visible: root.itemCount === 0")));
     QVERIFY(content.contains(QStringLiteral("qsTr(\"Playlist is empty\")")));
 

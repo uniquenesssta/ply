@@ -35,6 +35,7 @@ public:
         const QList<player::media::domain::MediaSource>& sources);
     [[nodiscard]] bool openSourceUrls(const QList<QUrl>& sourceUrls);
     Q_INVOKABLE bool openLocalFile(const QUrl& sourceUrl);
+    Q_INVOKABLE bool openLocalFiles(const QList<QUrl>& sourceUrls);
 
 signals:
     void lastErrorKeyChanged();

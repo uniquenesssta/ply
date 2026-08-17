@@ -115,6 +115,22 @@ bool MediaOpenCoordinator::openLocalFile(const QUrl& sourceUrl)
     return openSource(std::get<player::media::domain::MediaSource>(validation));
 }
 
+bool MediaOpenCoordinator::openLocalFiles(const QList<QUrl>& sourceUrls)
+{
+    if (sourceUrls.isEmpty()) {
+        return false;
+    }
+
+    for (const QUrl& sourceUrl : sourceUrls) {
+        if (!sourceUrl.isLocalFile()) {
+            setError(MediaOpenError::NotLocalFile);
+            return false;
+        }
+    }
+
+    return openSourceUrls(sourceUrls);
+}
+
 void MediaOpenCoordinator::setError(MediaOpenError error)
 {
     if (lastError_ == error) {

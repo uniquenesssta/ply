@@ -34,9 +34,9 @@ ApplicationWindow {
     LocalMediaOpenDialog {
         id: localMediaOpenDialog
 
-        onLocalFileSelected: function(sourceUrl) {
+        onLocalFilesSelected: function(sourceUrls) {
             if (window.mediaOpenCoordinator !== null) {
-                window.mediaOpenCoordinator.openLocalFile(sourceUrl)
+                window.mediaOpenCoordinator.openLocalFiles(sourceUrls)
             }
         }
     }

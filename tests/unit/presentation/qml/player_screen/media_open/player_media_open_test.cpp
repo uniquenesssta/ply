@@ -21,7 +21,7 @@ class PlayerMediaOpenTest final : public QObject
     Q_OBJECT
 
 private slots:
-    void nativePickerOnlyPublishesAcceptedLocalSelection();
+    void nativePickerPublishesAcceptedLocalSelections();
     void mainWindowRoutesIntentThroughCoordinator();
     void playbackScreenAndOverlayRemainPresentationOnly();
     void bootstrapInjectsSingleCoordinatorBoundary();
@@ -30,7 +30,7 @@ private slots:
     void productVideoOutputUsesExistingRenderBoundary();
 };
 
-void PlayerMediaOpenTest::nativePickerOnlyPublishesAcceptedLocalSelection()
+void PlayerMediaOpenTest::nativePickerPublishesAcceptedLocalSelections()
 {
     const QString source = readSource(QStringLiteral(
         "src/presentation/qml/features/player/mediaopen/LocalMediaOpenDialog.qml"));
@@ -41,9 +41,9 @@ void PlayerMediaOpenTest::nativePickerOnlyPublishesAcceptedLocalSelection()
 
     QVERIFY(source.contains(QStringLiteral("import QtQuick.Dialogs")));
     QVERIFY(source.contains(QStringLiteral("FileDialog {")));
-    QVERIFY(source.contains(QStringLiteral("fileMode: FileDialog.OpenFile")));
-    QVERIFY(source.contains(QStringLiteral("signal localFileSelected(url sourceUrl)")));
-    QVERIFY(source.contains(QStringLiteral("onAccepted: root.localFileSelected(root.selectedFile)")));
+    QVERIFY(source.contains(QStringLiteral("fileMode: FileDialog.OpenFiles")));
+    QVERIFY(source.contains(QStringLiteral("signal localFilesSelected(var sourceUrls)")));
+    QVERIFY(source.contains(QStringLiteral("onAccepted: root.localFilesSelected(root.selectedFiles)")));
     QVERIFY(presentationCmake.contains(QStringLiteral("QtQuick.Dialogs")));
     QVERIFY(!source.contains(QStringLiteral("onRejected")));
     QVERIFY(!source.contains(QStringLiteral("PlaybackSession")));
@@ -60,7 +60,7 @@ void PlayerMediaOpenTest::mainWindowRoutesIntentThroughCoordinator()
     QVERIFY(source.contains(QStringLiteral("property var mediaOpenCoordinator: null")));
     QVERIFY(source.contains(QStringLiteral("property var mediaViewModel: null")));
     QVERIFY(source.contains(QStringLiteral("LocalMediaOpenDialog {")));
-    QVERIFY(source.contains(QStringLiteral("window.mediaOpenCoordinator.openLocalFile(sourceUrl)")));
+    QVERIFY(source.contains(QStringLiteral("window.mediaOpenCoordinator.openLocalFiles(sourceUrls)")));
     QVERIFY(source.contains(QStringLiteral("mediaViewModel: window.mediaViewModel")));
     QVERIFY(source.contains(QStringLiteral("modalActive: localMediaOpenDialog.visible")));
     QVERIFY(source.contains(QStringLiteral("onOpenMediaRequested: localMediaOpenDialog.open()")));
@@ -144,6 +144,7 @@ void PlayerMediaOpenTest::localValidationAndCoordinationStaySeparated()
     QVERIFY(!validator.isEmpty());
 
     QVERIFY(coordinator.contains(QStringLiteral("LocalMediaValidator::validate")));
+    QVERIFY(coordinator.contains(QStringLiteral("MediaOpenCoordinator::openLocalFiles")));
     QVERIFY(!coordinator.contains(QStringLiteral("QFileInfo")));
     QVERIFY(validator.contains(QStringLiteral("QFileInfo")));
     QVERIFY(validator.contains(QStringLiteral("canonicalFilePath")));

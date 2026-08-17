@@ -19,6 +19,8 @@ private slots:
     void rejectsMissingFile();
     void rejectsDirectory();
     void canonicalizesAndSubmitsExistingFile();
+    void localFileBatchUsesBatchSubmissionInOrder();
+    void localFileBatchRejectsNonLocalUrl();
     void validatedRemoteSourceUsesSameSubmissionBoundary();
     void invalidSourceIsRejectedBeforeSubmission();
     void submissionRejectionIsReported();
@@ -37,6 +39,7 @@ void MediaOpenCoordinatorTest::emptySelectionIsNoOp()
     QSignalSpy rejectedSpy(&coordinator, &MediaOpenCoordinator::openRejected);
 
     QVERIFY(!coordinator.openLocalFile(QUrl{}));
+    QVERIFY(!coordinator.openLocalFiles({}));
     QCOMPARE(submissions, 0);
     QCOMPARE(coordinator.lastErrorKey(), QString{});
     QCOMPARE(rejectedSpy.count(), 0);
@@ -125,6 +128,68 @@ void MediaOpenCoordinatorTest::canonicalizesAndSubmitsExistingFile()
         static_cast<int>(player::media::domain::MediaSourceKind::LocalFile));
     QCOMPARE(submittedLocation, expectedCanonicalPath);
     QCOMPARE(coordinator.lastErrorKey(), QString{});
+}
+
+void MediaOpenCoordinatorTest::localFileBatchUsesBatchSubmissionInOrder()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+
+    const QString firstPath = directory.filePath(QStringLiteral("first.mp4"));
+    const QString secondPath = directory.filePath(QStringLiteral("second.mp4"));
+    for (const QString& path : {firstPath, secondPath}) {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+    }
+
+    int singleSubmissions = 0;
+    int batchSubmissions = 0;
+    QList<player::media::domain::MediaSource> submittedSources;
+    MediaOpenCoordinator coordinator(
+        [&](const player::media::domain::MediaSource&) {
+            ++singleSubmissions;
+            return true;
+        },
+        [&](const QList<player::media::domain::MediaSource>& sources) {
+            ++batchSubmissions;
+            submittedSources = sources;
+            return true;
+        });
+
+    QVERIFY(coordinator.openLocalFiles({
+        QUrl::fromLocalFile(firstPath),
+        QUrl::fromLocalFile(secondPath),
+    }));
+    QCOMPARE(singleSubmissions, 0);
+    QCOMPARE(batchSubmissions, 1);
+    QCOMPARE(submittedSources.size(), 2);
+    QCOMPARE(submittedSources.at(0).location(), QFileInfo(firstPath).canonicalFilePath());
+    QCOMPARE(submittedSources.at(1).location(), QFileInfo(secondPath).canonicalFilePath());
+    QCOMPARE(
+        static_cast<int>(submittedSources.at(0).kind()),
+        static_cast<int>(player::media::domain::MediaSourceKind::LocalFile));
+    QCOMPARE(
+        static_cast<int>(submittedSources.at(1).kind()),
+        static_cast<int>(player::media::domain::MediaSourceKind::LocalFile));
+    QCOMPARE(coordinator.lastErrorKey(), QString{});
+}
+
+void MediaOpenCoordinatorTest::localFileBatchRejectsNonLocalUrl()
+{
+    int batchSubmissions = 0;
+    MediaOpenCoordinator coordinator(
+        [](const player::media::domain::MediaSource&) { return true; },
+        [&](const QList<player::media::domain::MediaSource>&) {
+            ++batchSubmissions;
+            return true;
+        });
+
+    QVERIFY(!coordinator.openLocalFiles({
+        QUrl(QStringLiteral("https://example.com/video.mp4")),
+    }));
+    QCOMPARE(batchSubmissions, 0);
+    QCOMPARE(coordinator.lastErrorKey(), QStringLiteral("not-local-file"));
 }
 
 void MediaOpenCoordinatorTest::validatedRemoteSourceUsesSameSubmissionBoundary()

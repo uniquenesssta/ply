@@ -4,10 +4,10 @@ import QtQuick.Dialogs
 FileDialog {
     id: root
 
-    signal localFileSelected(url sourceUrl)
+    signal localFilesSelected(var sourceUrls)
 
     title: qsTr("Open media")
-    fileMode: FileDialog.OpenFile
+    fileMode: FileDialog.OpenFiles
 
-    onAccepted: root.localFileSelected(root.selectedFile)
+    onAccepted: root.localFilesSelected(root.selectedFiles)
 }
