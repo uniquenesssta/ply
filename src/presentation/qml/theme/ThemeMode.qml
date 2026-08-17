@@ -3,17 +3,14 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    enum Mode {
-        Light,
-        Dark
-    }
+    readonly property int lightMode: 0
+    readonly property int darkMode: 1
 
-    property int mode: ThemeMode.Light
-    readonly property bool dark: mode === ThemeMode.Dark
+    property int mode: lightMode
+    readonly property bool isDark: mode === darkMode
 
     function setMode(requestedMode) {
-        if (requestedMode !== ThemeMode.Light
-                && requestedMode !== ThemeMode.Dark) {
+        if (requestedMode !== lightMode && requestedMode !== darkMode) {
             return false
         }
         mode = requestedMode

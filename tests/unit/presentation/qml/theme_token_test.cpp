@@ -214,7 +214,7 @@ QtObject {
     readonly property real borderSoftAlpha: MaterialTokens.borderSoftAlpha
 
     function useDark() {
-        return ThemeMode.setMode(ThemeMode.Dark)
+        return ThemeMode.setMode(ThemeMode.darkMode)
     }
 }
 )QML";
@@ -272,10 +272,10 @@ void ThemeTokenTest::darkModeIsGlobalNotFeatureScoped()
         "src/presentation/qml/features/playlist/PlaylistRow.qml"));
 
     QVERIFY(themeCMake.contains(QStringLiteral("ThemeMode.qml")));
-    QVERIFY(mode.contains(QStringLiteral("property int mode: ThemeMode.Light")));
-    QVERIFY(mode.contains(QStringLiteral("readonly property bool dark")));
-    QVERIFY(colors.contains(QStringLiteral("ThemeMode.dark")));
-    QVERIFY(materials.contains(QStringLiteral("ThemeMode.dark")));
+    QVERIFY(mode.contains(QStringLiteral("property int mode: lightMode")));
+    QVERIFY(mode.contains(QStringLiteral("readonly property bool isDark")));
+    QVERIFY(colors.contains(QStringLiteral("ThemeMode.isDark")));
+    QVERIFY(materials.contains(QStringLiteral("ThemeMode.isDark")));
     QVERIFY(drawer.contains(QStringLiteral("ColorTokens.surfaceInspector")));
     QVERIFY(search.contains(QStringLiteral("ColorTokens.surfaceInspectorSearch")));
     QVERIFY(row.contains(QStringLiteral("ColorTokens.surfaceInspectorRow")));
