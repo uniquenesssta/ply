@@ -35,7 +35,7 @@ class PlaylistQmlTest final : public QObject
 
 private slots:
     void screenRoutesPlaylistThroughReadonlyPresentationBoundary();
-    void utilityControlsKeepConcreteGeometry();
+    void utilityControlsKeepConcreteGeometryWithoutOverridingImplicitSize();
     void inspectorShellOwnsSharedDrawerSurfaceAndMotion();
     void playlistContentSeparatesSelectionFromCurrentAndVirtualizes();
     void playlistRowSeparatesCurrentSelectedHoverAndFocus();
@@ -78,7 +78,7 @@ void PlaylistQmlTest::screenRoutesPlaylistThroughReadonlyPresentationBoundary()
             < utility.indexOf(QStringLiteral("FullscreenControls {")));
 }
 
-void PlaylistQmlTest::utilityControlsKeepConcreteGeometry()
+void PlaylistQmlTest::utilityControlsKeepConcreteGeometryWithoutOverridingImplicitSize()
 {
     const QString utility = readSource(QStringLiteral(
         "src/presentation/qml/screens/player/osc/PlayerUtilityControls.qml"));
@@ -96,19 +96,19 @@ void PlaylistQmlTest::utilityControlsKeepConcreteGeometry()
     QVERIFY(utility.contains(QStringLiteral("id: playlistControls")));
     QVERIFY(utility.contains(QStringLiteral("id: fullscreenControls")));
 
-    QVERIFY(playlistControls.contains(QStringLiteral(
-        "implicitWidth: playlistButton.implicitWidth")));
-    QVERIFY(playlistControls.contains(QStringLiteral(
-        "implicitHeight: playlistButton.implicitHeight")));
     QVERIFY(playlistControls.contains(QStringLiteral("width: implicitWidth")));
     QVERIFY(playlistControls.contains(QStringLiteral("height: implicitHeight")));
+    QVERIFY(!playlistControls.contains(QStringLiteral(
+        "implicitWidth: playlistButton.implicitWidth")));
+    QVERIFY(!playlistControls.contains(QStringLiteral(
+        "implicitHeight: playlistButton.implicitHeight")));
 
-    QVERIFY(fullscreenControls.contains(QStringLiteral(
-        "implicitWidth: fullscreenButton.implicitWidth")));
-    QVERIFY(fullscreenControls.contains(QStringLiteral(
-        "implicitHeight: fullscreenButton.implicitHeight")));
     QVERIFY(fullscreenControls.contains(QStringLiteral("width: implicitWidth")));
     QVERIFY(fullscreenControls.contains(QStringLiteral("height: implicitHeight")));
+    QVERIFY(!fullscreenControls.contains(QStringLiteral(
+        "implicitWidth: fullscreenButton.implicitWidth")));
+    QVERIFY(!fullscreenControls.contains(QStringLiteral(
+        "implicitHeight: fullscreenButton.implicitHeight")));
 }
 
 void PlaylistQmlTest::inspectorShellOwnsSharedDrawerSurfaceAndMotion()
