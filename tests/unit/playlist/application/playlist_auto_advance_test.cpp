@@ -52,6 +52,7 @@ private slots:
     void naturalEndAdvancesExactlyOnceWhileStopIsIgnored();
     void repeatOneReloadsCurrent();
     void repeatAllWrapsTail();
+    void shuffleAdvancesThroughControllerWithoutImmediateReplay();
     void rejectedAdvanceRestoresCurrentAndDoesNotRetrySameGeneration();
     void newGenerationCanAdvanceAfterPreviousEnd();
 };
@@ -106,6 +107,26 @@ void PlaylistAutoAdvanceTest::repeatAllWrapsTail()
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/a.mp4"));
     QCOMPARE(fixture.playlist.currentId()->value(), firstId.value());
+}
+
+void PlaylistAutoAdvanceTest::shuffleAdvancesThroughControllerWithoutImmediateReplay()
+{
+    Fixture fixture;
+    openTwo(fixture);
+    const auto firstId = fixture.playlist.currentId();
+    const auto secondId = fixture.playlist.entries().at(1).id();
+    QVERIFY(firstId.has_value());
+    fixture.playlist.setShuffleEnabled(true);
+
+    fixture.autoAdvance.acceptPlaybackState(11, true);
+
+    QCOMPARE(fixture.submissions, 1);
+    QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
+    QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
+    QVERIFY(fixture.playlist.currentId()->value() != firstId->value());
+
+    fixture.autoAdvance.acceptPlaybackState(12, true);
+    QCOMPARE(fixture.submissions, 1);
 }
 
 void PlaylistAutoAdvanceTest::rejectedAdvanceRestoresCurrentAndDoesNotRetrySameGeneration()

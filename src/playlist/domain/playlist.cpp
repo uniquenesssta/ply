@@ -20,6 +20,7 @@ std::optional<PlaylistEntryId> Playlist::append(
     }
 
     entries_.emplace_back(*id, std::move(source));
+    shuffleState_.onEntryAdded(*id);
     return id;
 }
 
@@ -36,6 +37,7 @@ bool Playlist::remove(PlaylistEntryId id)
         return false;
     }
 
+    shuffleState_.onEntryRemoved(id);
     if (currentId_.has_value() && *currentId_ == id) {
         currentId_.reset();
     }
@@ -81,6 +83,7 @@ bool Playlist::select(PlaylistEntryId id) noexcept
     }
 
     currentId_ = id;
+    shuffleState_.onEntrySelected(id);
     return true;
 }
 
@@ -93,6 +96,7 @@ void Playlist::clear() noexcept
 {
     entries_.clear();
     currentId_.reset();
+    shuffleState_.resetCycle();
 }
 
 bool Playlist::empty() const noexcept
@@ -144,12 +148,18 @@ void Playlist::setRepeatMode(PlaylistRepeatMode mode) noexcept
 
 bool Playlist::shuffleEnabled() const noexcept
 {
-    return shuffleEnabled_;
+    return shuffleState_.enabled();
 }
 
 void Playlist::setShuffleEnabled(bool enabled) noexcept
 {
-    shuffleEnabled_ = enabled;
+    shuffleState_.setEnabled(enabled);
+}
+
+std::optional<PlaylistEntryId> Playlist::takeNextShuffledId(
+    bool allowCycleRestart)
+{
+    return shuffleState_.takeNext(entries_, currentId_, allowCycleRestart);
 }
 
 std::optional<PlaylistEntryId> Playlist::allocateEntryId() noexcept

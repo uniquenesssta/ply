@@ -9,6 +9,8 @@ add_library(
         playlist_navigation.cpp
         playlist_navigation.h
         playlist_repeat_mode.h
+        playlist_shuffle_state.cpp
+        playlist_shuffle_state.h
 )
 
 player_apply_compiler_options(player_playlist_domain)

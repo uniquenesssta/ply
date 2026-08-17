@@ -25,7 +25,7 @@ class PlaylistNavigation final
 {
 public:
     [[nodiscard]] static PlaylistNavigationDecision afterNaturalEnd(
-        const Playlist& playlist) noexcept;
+        Playlist& playlist);
 };
 
 } // namespace player::playlist::domain

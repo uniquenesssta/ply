@@ -8,7 +8,7 @@
 namespace player::playlist::domain {
 
 PlaylistNavigationDecision PlaylistNavigation::afterNaturalEnd(
-    const Playlist& playlist) noexcept
+    Playlist& playlist)
 {
     const auto currentId = playlist.currentId();
     const auto& entries = playlist.entries();
@@ -20,11 +20,20 @@ PlaylistNavigationDecision PlaylistNavigation::afterNaturalEnd(
         return {PlaylistNavigationAction::ReloadCurrent, *currentId};
     }
 
-    // Shuffle requires its own visited-order/history policy. Until that R7-08
-    // sub-step exists, never silently fall back to linear advancement while
-    // shuffle is enabled.
-    if (playlist.shuffleEnabled()) {
+    if (entries.size() == 1) {
+        if (playlist.repeatMode() == PlaylistRepeatMode::All) {
+            return {PlaylistNavigationAction::ReloadCurrent, *currentId};
+        }
         return {};
+    }
+
+    if (playlist.shuffleEnabled()) {
+        const std::optional<PlaylistEntryId> next = playlist.takeNextShuffledId(
+            playlist.repeatMode() == PlaylistRepeatMode::All);
+        if (!next.has_value()) {
+            return {};
+        }
+        return {PlaylistNavigationAction::SelectEntry, *next};
     }
 
     const auto current = std::find_if(
@@ -44,10 +53,6 @@ PlaylistNavigationDecision PlaylistNavigation::afterNaturalEnd(
 
     if (playlist.repeatMode() != PlaylistRepeatMode::All) {
         return {};
-    }
-
-    if (entries.size() == 1) {
-        return {PlaylistNavigationAction::ReloadCurrent, *currentId};
     }
 
     return {PlaylistNavigationAction::SelectEntry, entries.front().id()};

@@ -2,6 +2,7 @@
 #include "playlist/domain/playlist.h"
 #include "playlist/domain/playlist_navigation.h"
 
+#include <QSet>
 #include <QtTest>
 
 namespace player::playlist::domain {
@@ -32,7 +33,8 @@ private slots:
     void noCurrentProducesNoAction();
     void normalOrderAdvancesAndHonorsMove();
     void repeatModesHandleTailAndSingleItem();
-    void shuffleDoesNotSilentlyFallBackToLinearOrder();
+    void shuffleVisitsEachRemainingEntryBeforeStopping();
+    void shuffleRepeatAllStartsFreshCycleWithoutImmediateReplay();
 };
 
 void PlaylistNavigationTest::noCurrentProducesNoAction()
@@ -93,23 +95,63 @@ void PlaylistNavigationTest::repeatModesHandleTailAndSingleItem()
     QVERIFY(only.has_value());
     QVERIFY(single.select(*only));
     single.setRepeatMode(PlaylistRepeatMode::All);
+    single.setShuffleEnabled(true);
 
     decision = decisionFor(single);
     QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::ReloadCurrent));
     QCOMPARE(decision.targetEntryId.value(), only->value());
 }
 
-void PlaylistNavigationTest::shuffleDoesNotSilentlyFallBackToLinearOrder()
+void PlaylistNavigationTest::shuffleVisitsEachRemainingEntryBeforeStopping()
 {
     Playlist playlist;
     const auto first = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
     QVERIFY(playlist.append(localSource(QStringLiteral("C:/media/b.mp4"))).has_value());
+    QVERIFY(playlist.append(localSource(QStringLiteral("C:/media/c.mp4"))).has_value());
+    QVERIFY(playlist.append(localSource(QStringLiteral("C:/media/d.mp4"))).has_value());
     QVERIFY(first.has_value());
     QVERIFY(playlist.select(*first));
     playlist.setShuffleEnabled(true);
 
-    const auto decision = decisionFor(playlist);
-    QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::None));
+    QSet<quint64> visited;
+    for (int index = 0; index < 3; ++index) {
+        const auto decision = decisionFor(playlist);
+        QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::SelectEntry));
+        QVERIFY(decision.targetEntryId.isValid());
+        QVERIFY(decision.targetEntryId.value() != playlist.currentId()->value());
+        QVERIFY(!visited.contains(decision.targetEntryId.value()));
+        visited.insert(decision.targetEntryId.value());
+        QVERIFY(playlist.select(decision.targetEntryId));
+    }
+
+    QCOMPARE(visited.size(), 3);
+    const auto tailDecision = decisionFor(playlist);
+    QCOMPARE(actionValue(tailDecision.action), actionValue(PlaylistNavigationAction::None));
+}
+
+void PlaylistNavigationTest::shuffleRepeatAllStartsFreshCycleWithoutImmediateReplay()
+{
+    Playlist playlist;
+    const auto first = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    QVERIFY(playlist.append(localSource(QStringLiteral("C:/media/b.mp4"))).has_value());
+    QVERIFY(playlist.append(localSource(QStringLiteral("C:/media/c.mp4"))).has_value());
+    QVERIFY(first.has_value());
+    QVERIFY(playlist.select(*first));
+    playlist.setShuffleEnabled(true);
+    playlist.setRepeatMode(PlaylistRepeatMode::All);
+
+    for (int index = 0; index < 2; ++index) {
+        const auto decision = decisionFor(playlist);
+        QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::SelectEntry));
+        QVERIFY(playlist.select(decision.targetEntryId));
+    }
+
+    const auto previousCurrent = playlist.currentId();
+    QVERIFY(previousCurrent.has_value());
+    const auto nextCycle = decisionFor(playlist);
+    QCOMPARE(actionValue(nextCycle.action), actionValue(PlaylistNavigationAction::SelectEntry));
+    QVERIFY(nextCycle.targetEntryId.isValid());
+    QVERIFY(nextCycle.targetEntryId != *previousCurrent);
 }
 
 } // namespace player::playlist::domain

@@ -4,6 +4,7 @@
 #include "playlist/domain/playlist_entry.h"
 #include "playlist/domain/playlist_entry_id.h"
 #include "playlist/domain/playlist_repeat_mode.h"
+#include "playlist/domain/playlist_shuffle_state.h"
 
 #include <cstddef>
 #include <optional>
@@ -35,6 +36,8 @@ public:
 
     [[nodiscard]] bool shuffleEnabled() const noexcept;
     void setShuffleEnabled(bool enabled) noexcept;
+    [[nodiscard]] std::optional<PlaylistEntryId> takeNextShuffledId(
+        bool allowCycleRestart);
 
 private:
     [[nodiscard]] std::optional<PlaylistEntryId> allocateEntryId() noexcept;
@@ -43,7 +46,7 @@ private:
     std::optional<PlaylistEntryId> currentId_;
     quint64 nextEntryId_ = 1;
     PlaylistRepeatMode repeatMode_ = PlaylistRepeatMode::Off;
-    bool shuffleEnabled_ = false;
+    PlaylistShuffleState shuffleState_;
 };
 
 } // namespace player::playlist::domain

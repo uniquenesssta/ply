@@ -43,3 +43,26 @@ add_test(
     NAME playlist_navigation
     COMMAND playlist_navigation_tests
 )
+
+add_executable(
+    playlist_shuffle_state_tests
+    playlist_shuffle_state_test.cpp
+)
+
+player_apply_compiler_options(playlist_shuffle_state_tests)
+player_enable_compiler_warnings(playlist_shuffle_state_tests)
+player_enable_sanitizers(playlist_shuffle_state_tests)
+player_enable_static_analysis(playlist_shuffle_state_tests)
+
+target_link_libraries(
+    playlist_shuffle_state_tests
+    PRIVATE
+        player_playlist_domain
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME playlist_shuffle_state
+    COMMAND playlist_shuffle_state_tests
+)
