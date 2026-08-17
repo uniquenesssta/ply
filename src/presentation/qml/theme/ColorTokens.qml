@@ -14,6 +14,11 @@ QtObject {
     readonly property color surfaceEmpty: ColorPrimitives.neutralMist50
     readonly property color surfaceSeekPreview: ColorPrimitives.neutralWhite
 
+    readonly property color surfaceInspectorDark: ColorPrimitives.neutralNight950
+    readonly property color surfaceInspectorFieldDark: ColorPrimitives.neutralNight850
+    readonly property color surfaceInspectorRowDark: ColorPrimitives.neutralNight900
+    readonly property color surfaceInspectorSelectionDark: ColorPrimitives.violetNightSelected
+
     readonly property color textPrimary: ColorPrimitives.neutralInk950
     readonly property color textStrong: ColorPrimitives.neutralInk900
     readonly property color textEmphasis: ColorPrimitives.neutralInk800
@@ -22,12 +27,19 @@ QtObject {
     readonly property color textTertiary: ColorPrimitives.neutralInk500
     readonly property color textInverse: ColorPrimitives.neutralWhite
 
+    readonly property color textInspectorPrimary: ColorPrimitives.neutralLavender50
+    readonly property color textInspectorStrong: ColorPrimitives.neutralLavender100
+    readonly property color textInspectorSecondary: ColorPrimitives.neutralLavender400
+    readonly property color textInspectorMuted: ColorPrimitives.neutralLavender500
+
     readonly property color iconPrimary: ColorPrimitives.neutralInk950
     readonly property color iconSecondary: ColorPrimitives.neutralInk600
 
     readonly property color borderGlass: ColorPrimitives.neutralWhite
     readonly property color borderSelection: ColorPrimitives.violet400
     readonly property color borderFocus: ColorPrimitives.violet400
+    readonly property color borderInspectorDark: ColorPrimitives.neutralWhite
+    readonly property color borderInspectorSelection: ColorPrimitives.violet300
 
     readonly property color accentPrimary: ColorPrimitives.violet600
     readonly property color accentStrong: ColorPrimitives.violet700
@@ -35,10 +47,16 @@ QtObject {
     readonly property color accentGlow: ColorPrimitives.violetGlow
     readonly property color accentCyan: ColorPrimitives.cyan400
     readonly property color accentWarm: ColorPrimitives.warm400
+    readonly property color accentInspector: ColorPrimitives.violet300
+    readonly property color accentInspectorStrong: ColorPrimitives.violet200
 
     readonly property color selectionBackground: ColorPrimitives.violet100
     readonly property color selectionIndicator: ColorPrimitives.violet600
     readonly property color focusRing: ColorPrimitives.violet400
+    readonly property color selectionIndicatorInspector: ColorPrimitives.violet300
+
+    readonly property color shadowInspectorDark: ColorPrimitives.shadowNight
+    readonly property color shadowInspectorControlDark: ColorPrimitives.shadowNightSoft
 
     readonly property color feedbackInfo: ColorPrimitives.cyan400
     readonly property color feedbackWarning: ColorPrimitives.warm400
