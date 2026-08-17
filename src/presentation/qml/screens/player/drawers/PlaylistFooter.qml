@@ -12,7 +12,7 @@ Panel {
     signal addMediaRequested()
 
     objectName: "playlistFooter"
-    surfaceColor: ColorTokens.surfaceInspectorFieldDark
+    surfaceColor: ColorTokens.surfaceInspectorFooterDark
     fillAlpha: MaterialTokens.inspectorDarkFooterFillAlpha
     borderColor: ColorTokens.borderInspectorDark
     borderAlpha: MaterialTokens.inspectorDarkFooterBorderAlpha
