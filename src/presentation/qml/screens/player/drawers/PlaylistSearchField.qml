@@ -13,6 +13,7 @@ Panel {
     implicitHeight: LayoutTokens.inspectorSearchHeight
     cornerRadius: RadiusTokens.controlSearch
     fillAlpha: MaterialTokens.fieldFillAlpha
+    borderAlpha: MaterialTokens.borderStrongAlpha
     backdropBlurRadius: MaterialTokens.fieldBlur
     contentPadding: SpacingTokens.none
 
