@@ -15,6 +15,10 @@ QtObject {
     readonly property int dialogBlur: BlurPrimitives.b42
     readonly property int popoverBlur: BlurPrimitives.b18
 
+    readonly property int inspectorDarkBlur: BlurPrimitives.b18
+    readonly property int inspectorDarkFieldBlur: BlurPrimitives.b9
+    readonly property int inspectorDarkFooterBlur: BlurPrimitives.b10
+
     readonly property int atmosphereFieldBlur: BlurPrimitives.b24
     readonly property int atmosphereLavenderBlur: BlurPrimitives.b90
     readonly property int atmosphereWarmBlur: BlurPrimitives.b95
@@ -34,6 +38,17 @@ QtObject {
     readonly property real borderStrongAlpha: MaterialAlphaPrimitives.a100
     readonly property real selectionBorderAlpha: MaterialAlphaPrimitives.a28
     readonly property real popoverFillAlpha: MaterialAlphaPrimitives.a52
+
+    readonly property real inspectorDarkFillAlpha: MaterialAlphaPrimitives.a94
+    readonly property real inspectorDarkBorderAlpha: MaterialAlphaPrimitives.a16
+    readonly property real inspectorDarkFieldFillAlpha: MaterialAlphaPrimitives.a96
+    readonly property real inspectorDarkFieldBorderAlpha: MaterialAlphaPrimitives.a14
+    readonly property real inspectorDarkFooterFillAlpha: MaterialAlphaPrimitives.a96
+    readonly property real inspectorDarkFooterBorderAlpha: MaterialAlphaPrimitives.a14
+    readonly property real inspectorDarkRowFillAlpha: MaterialAlphaPrimitives.a68
+    readonly property real inspectorDarkRowHoverAlpha: MaterialAlphaPrimitives.a72
+    readonly property real inspectorDarkSelectionFillAlpha: MaterialAlphaPrimitives.a98
+    readonly property real inspectorDarkSelectionBorderAlpha: MaterialAlphaPrimitives.a72
 
     readonly property real atmosphereVignetteAlpha: MaterialAlphaPrimitives.a03
     readonly property real atmosphereLavenderAlpha: MaterialAlphaPrimitives.a34
