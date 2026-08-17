@@ -131,8 +131,11 @@ Item {
                 Item {
                     id: footerHost
 
-                    anchors.fill: parent
-                    anchors.margins: SpacingTokens.footerContent
+                    anchors {
+                        fill: parent
+                        leftMargin: SpacingTokens.footerContent
+                        rightMargin: SpacingTokens.footerContent
+                    }
                 }
             }
         }
