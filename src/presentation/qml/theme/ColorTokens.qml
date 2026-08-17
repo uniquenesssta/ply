@@ -16,6 +16,7 @@ QtObject {
 
     readonly property color surfaceInspectorDark: ColorPrimitives.neutralNight950
     readonly property color surfaceInspectorFieldDark: ColorPrimitives.neutralNight850
+    readonly property color surfaceInspectorFooterDark: ColorPrimitives.neutralNight875
     readonly property color surfaceInspectorRowDark: ColorPrimitives.neutralNight900
     readonly property color surfaceInspectorSelectionDark: ColorPrimitives.violetNightSelected
 
