@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include <QProcess>
+#include <QString>
 #include <QTextStream>
 
 namespace {
@@ -15,10 +16,12 @@ void writeProcessDiagnostics(QProcess& process)
                 << " exitCode=" << process.exitCode() << '\n';
 
     if (!standardError.isEmpty()) {
-        errorStream << "stderr:\n" << standardError << '\n';
+        errorStream << "stderr:\n"
+                    << QString::fromLocal8Bit(standardError) << '\n';
     }
     if (!standardOutput.isEmpty()) {
-        errorStream << "stdout:\n" << standardOutput << '\n';
+        errorStream << "stdout:\n"
+                    << QString::fromLocal8Bit(standardOutput) << '\n';
     }
 }
 
@@ -27,6 +30,8 @@ void writeProcessDiagnostics(QProcess& process)
 int main(int argc, char* argv[])
 {
     QCoreApplication application(argc, argv);
+    (void)application;
+
     QTextStream errorStream(stderr);
 
     if (argc != 2) {
