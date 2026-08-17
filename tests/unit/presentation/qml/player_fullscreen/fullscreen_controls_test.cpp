@@ -75,12 +75,15 @@ void FullscreenControlsTest::screenRoutesButtonDoubleClickAndWindowState()
 {
     const QString screen = readSource(QStringLiteral(
         "src/presentation/qml/screens/player/PlayerScreen.qml"));
+    const QString utility = readSource(QStringLiteral(
+        "src/presentation/qml/screens/player/osc/PlayerUtilityControls.qml"));
     const QString gesture = readSource(QStringLiteral(
         "src/presentation/qml/features/player/fullscreen/FullscreenGestureLayer.qml"));
     const QString controls = readSource(QStringLiteral(
         "src/presentation/qml/features/player/fullscreen/FullscreenControls.qml"));
 
     QVERIFY(!screen.isEmpty());
+    QVERIFY(!utility.isEmpty());
     QVERIFY(!gesture.isEmpty());
     QVERIFY(!controls.isEmpty());
 
@@ -88,10 +91,15 @@ void FullscreenControlsTest::screenRoutesButtonDoubleClickAndWindowState()
     QVERIFY(screen.contains(QStringLiteral("signal fullscreenToggleRequested()")));
     QVERIFY(screen.contains(QStringLiteral("FullscreenGestureLayer {")));
     QVERIFY(screen.contains(QStringLiteral("parent: videoViewport")));
-    QVERIFY(screen.contains(QStringLiteral("FullscreenControls {")));
+    QVERIFY(screen.contains(QStringLiteral("PlayerUtilityControls {")));
     QVERIFY(screen.contains(QStringLiteral("fullScreen: root.fullScreen")));
     QVERIFY(screen.contains(QStringLiteral(
         "onToggleFullscreenRequested: root.fullscreenToggleRequested()")));
+
+    QVERIFY(utility.contains(QStringLiteral("FullscreenControls {")));
+    QVERIFY(utility.contains(QStringLiteral("fullScreen: root.fullScreen")));
+    QVERIFY(utility.contains(QStringLiteral(
+        "onToggleFullscreenRequested: root.toggleFullscreenRequested()")));
 
     QVERIFY(gesture.contains(QStringLiteral("TapHandler {")));
     QVERIFY(gesture.contains(QStringLiteral("acceptedButtons: Qt.LeftButton")));
