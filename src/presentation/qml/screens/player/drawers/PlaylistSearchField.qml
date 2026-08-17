@@ -11,10 +11,17 @@ Panel {
     objectName: "playlistSearchField"
     implicitWidth: LayoutTokens.inspectorSearchWidth
     implicitHeight: LayoutTokens.inspectorSearchHeight
+    surfaceColor: ColorTokens.surfaceInspectorFieldDark
+    fillAlpha: MaterialTokens.inspectorDarkFieldFillAlpha
+    borderColor: ColorTokens.borderInspectorDark
+    borderAlpha: MaterialTokens.inspectorDarkFieldBorderAlpha
     cornerRadius: RadiusTokens.controlSearch
-    fillAlpha: MaterialTokens.fieldFillAlpha
-    borderAlpha: MaterialTokens.borderStrongAlpha
-    backdropBlurRadius: MaterialTokens.fieldBlur
+    backdropBlurRadius: MaterialTokens.inspectorDarkFieldBlur
+    shadowColor: ElevationTokens.inspectorDarkFieldShadowColor
+    shadowRadius: ElevationTokens.inspectorDarkFieldShadowRadius
+    shadowXOffset: SpacingTokens.none
+    shadowYOffset: ElevationTokens.inspectorDarkFieldShadowYOffset
+    shadowAlpha: ElevationTokens.inspectorDarkFieldShadowAlpha
     contentPadding: SpacingTokens.none
 
     Icon {
@@ -28,7 +35,7 @@ Panel {
         width: LayoutTokens.controlIcon
         height: LayoutTokens.controlIcon
         iconId: "search"
-        color: ColorTokens.iconSecondary
+        color: ColorTokens.textInspectorMuted
     }
 
     TextInput {
@@ -42,9 +49,9 @@ Panel {
             leftMargin: SpacingTokens.searchIconToText
             rightMargin: SpacingTokens.listRowIndex
         }
-        color: ColorTokens.textStrong
-        selectionColor: ColorTokens.selectionBackground
-        selectedTextColor: ColorTokens.textStrong
+        color: ColorTokens.textInspectorStrong
+        selectionColor: ColorTokens.accentInspector
+        selectedTextColor: ColorTokens.textInspectorPrimary
         font: TypographyTokens.controlBody
         verticalAlignment: TextInput.AlignVCenter
         clip: true
@@ -56,7 +63,7 @@ Panel {
         anchors.fill: input
         visible: input.text.length === 0
         text: qsTr("搜索播放列表")
-        color: ColorTokens.textMuted
+        color: ColorTokens.textInspectorMuted
         font: TypographyTokens.controlBody
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
