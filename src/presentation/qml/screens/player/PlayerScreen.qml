@@ -22,6 +22,9 @@ Item {
     property var mediaViewModel: null
     property var hudMessageQueue: null
     property var mediaDropHandler: null
+    property var playlistController: null
+    property var playlistModel: null
+    property bool playlistDrawerOpen: false
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property bool oscCompact: root.fullScreen
@@ -41,6 +44,7 @@ Item {
     readonly property bool pointerInsideWindow: chromeActivityLayer.pointerInside
     readonly property bool oscVisible: chromeVisibilityController.chromeVisible
     readonly property bool cursorHidden: cursorVisibilityController.cursorHidden
+    readonly property bool anyDrawerOpen: root.drawerOpen || root.playlistDrawerOpen
 
     signal openMediaRequested()
     signal openUrlRequested()
@@ -76,7 +80,7 @@ Item {
         controlsFocused: root.chromeControlsFocused
         popupOpen: root.popupOpen
         menuOpen: root.menuOpen
-        drawerOpen: root.drawerOpen
+        drawerOpen: root.anyDrawerOpen
         modalActive: root.modalActive
         errorVisible: root.errorOverlayVisible
         fullScreen: root.fullScreen
@@ -91,7 +95,7 @@ Item {
         dragActive: root.controlsDragActive
         popupOpen: root.popupOpen
         menuOpen: root.menuOpen
-        drawerOpen: root.drawerOpen
+        drawerOpen: root.anyDrawerOpen
         modalActive: root.modalActive
         errorVisible: root.errorOverlayVisible
         cursorHideSuppressed: root.cursorHideSuppressed
@@ -232,9 +236,12 @@ Item {
                 }
             ]
             utilityContent: [
-                FullscreenControls {
+                PlayerUtilityControls {
+                    compact: root.oscCompact
                     fullScreen: root.fullScreen
+                    playlistOpen: root.playlistDrawerOpen
 
+                    onTogglePlaylistRequested: root.playlistDrawerOpen = !root.playlistDrawerOpen
                     onToggleFullscreenRequested: root.fullscreenToggleRequested()
                 }
             ]
@@ -268,5 +275,15 @@ Item {
         width: Math.min(
             LayoutTokens.inspectorWidth,
             Math.max(0, root.width - (SpacingTokens.windowSafeMinimum * 2)))
+
+        PlaylistInspector {
+            anchors.fill: parent
+            opened: root.playlistDrawerOpen
+            playlistModel: root.playlistModel
+            playlistController: root.playlistController
+
+            onCloseRequested: root.playlistDrawerOpen = false
+            onAddMediaRequested: root.openMediaRequested()
+        }
     }
 }
