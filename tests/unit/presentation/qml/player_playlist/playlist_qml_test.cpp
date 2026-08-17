@@ -71,6 +71,7 @@ void PlaylistQmlTest::utilityControlsMatchCanonicalFigmaOrderAndSpacing()
 
     QVERIFY(!utility.isEmpty());
     QVERIFY(utility.contains(QStringLiteral("SpacingTokens.utilityControlGap")));
+    QVERIFY(utility.contains(QStringLiteral("SpacingTokens.fullscreenTransportGap")));
     QVERIFY(utility.contains(QStringLiteral("objectName: \"subtitlesUnavailableControl\"")));
     QVERIFY(utility.contains(QStringLiteral("iconId: \"subtitles\"")));
     QVERIFY(utility.contains(QStringLiteral("PlaylistControls {")));
@@ -154,6 +155,7 @@ void PlaylistQmlTest::playlistRowSeparatesCurrentSelectedHoverAndFocus()
     QVERIFY(row.contains(QStringLiteral("required property bool current")));
     QVERIFY(row.contains(QStringLiteral("readonly property bool highlighted: root.current || root.selected")));
     QVERIFY(row.contains(QStringLiteral("MaterialTokens.selectionFillAlpha")));
+    QVERIFY(row.contains(QStringLiteral("MaterialTokens.rowFillAlpha")));
     QVERIFY(row.contains(QStringLiteral("ColorTokens.borderSelection")));
     QVERIFY(row.contains(QStringLiteral("objectName: \"playlistPlayingRail\"")));
     QVERIFY(row.contains(QStringLiteral("LayoutTokens.listPlayingRailWidth")));

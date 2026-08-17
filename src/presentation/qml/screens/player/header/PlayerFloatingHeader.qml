@@ -23,7 +23,7 @@ Panel {
     cornerRadius: RadiusTokens.header
     fillAlpha: MaterialTokens.headerFillAlpha
     backdropBlurRadius: MaterialTokens.headerBlur
-    contentPadding: 0
+    contentPadding: SpacingTokens.none
 
     TitleText {
         anchors {
@@ -57,7 +57,8 @@ Panel {
         id: statusLabel
 
         x: Math.min(LayoutTokens.headerStatusX,
-                    Math.max(0, closeButton.x - implicitWidth - SpacingTokens.controlAdjacent))
+                    Math.max(SpacingTokens.none,
+                             closeButton.x - implicitWidth - SpacingTokens.controlAdjacent))
         anchors.top: parent.top
         anchors.topMargin: SpacingTokens.headerStatusTop
         visible: root.statusText.trim().length > 0

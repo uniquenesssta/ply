@@ -13,7 +13,9 @@ Row {
     signal toggleFullscreenRequested()
 
     objectName: "playerUtilityControls"
-    spacing: SpacingTokens.utilityControlGap
+    spacing: root.compact
+             ? SpacingTokens.fullscreenTransportGap
+             : SpacingTokens.utilityControlGap
     width: implicitWidth
     height: implicitHeight
 

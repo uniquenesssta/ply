@@ -34,11 +34,10 @@ Item {
         color: root.highlighted
                ? root.withAlpha(ColorTokens.surfaceSelection,
                                 MaterialTokens.selectionFillAlpha)
-               : root.hovered
-                 ? root.withAlpha(ColorTokens.surfaceGlassSubtle,
-                                  MaterialTokens.rowFillAlpha)
-                 : root.withAlpha(ColorTokens.surfaceGlassSubtle,
-                                  OpacityTokens.hidden)
+               : root.withAlpha(ColorTokens.surfaceGlassSubtle,
+                                root.hovered
+                                ? MaterialTokens.footerFillAlpha
+                                : MaterialTokens.rowFillAlpha)
         border.width: root.activeFocus || root.highlighted
                       ? LayoutTokens.surfaceBorderWidth
                       : SpacingTokens.none
