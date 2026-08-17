@@ -266,7 +266,10 @@ void PlayerControlsVisibilityPolicyTest::playerScreenRoutesHoverFocusAndOverlayL
 
     QVERIFY(screen.contains(QStringLiteral("property bool menuOpen: false")));
     QVERIFY(screen.contains(QStringLiteral("property bool drawerOpen: false")));
+    QVERIFY(screen.contains(QStringLiteral("property bool playlistDrawerOpen: false")));
     QVERIFY(screen.contains(QStringLiteral("property bool modalActive: false")));
+    QVERIFY(screen.contains(QStringLiteral(
+        "readonly property bool anyDrawerOpen: root.drawerOpen || root.playlistDrawerOpen")));
     QVERIFY(screen.contains(QStringLiteral(
         "readonly property bool chromeControlsHovered: playerOscLayout.controlsHovered")));
     QVERIFY(screen.contains(QStringLiteral("topRegion.controlsFocused")));
@@ -274,7 +277,7 @@ void PlayerControlsVisibilityPolicyTest::playerScreenRoutesHoverFocusAndOverlayL
     QVERIFY(screen.contains(QStringLiteral("controlsHovered: root.chromeControlsHovered")));
     QVERIFY(screen.contains(QStringLiteral("controlsFocused: root.chromeControlsFocused")));
     QVERIFY(screen.contains(QStringLiteral("menuOpen: root.menuOpen")));
-    QVERIFY(screen.contains(QStringLiteral("drawerOpen: root.drawerOpen")));
+    QCOMPARE(screen.count(QStringLiteral("drawerOpen: root.anyDrawerOpen")), 2);
     QVERIFY(screen.contains(QStringLiteral("modalActive: root.modalActive")));
     QVERIFY(screen.contains(QStringLiteral("id: playerOscLayout")));
 
