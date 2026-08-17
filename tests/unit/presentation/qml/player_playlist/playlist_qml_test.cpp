@@ -62,6 +62,8 @@ void PlaylistQmlTest::screenRoutesPlaylistThroughReadonlyPresentationBoundary()
     QVERIFY(screen.contains(QStringLiteral("playlistModel: root.playlistModel")));
     QVERIFY(screen.contains(QStringLiteral("playlistController: root.playlistController")));
     QVERIFY(screen.contains(QStringLiteral("inspectorOpen: root.playlistDrawerOpen && !root.fullScreen")));
+    QVERIFY(screen.contains(QStringLiteral("backdropSource: videoViewport")));
+    QVERIFY(screen.contains(QStringLiteral("backdropMappingRevision: drawerHost.x + drawerHost.y")));
 }
 
 void PlaylistQmlTest::utilityControlsMatchCanonicalFigmaOrderAndSpacing()
@@ -92,13 +94,30 @@ void PlaylistQmlTest::inspectorShellMatchesCanonicalFigmaGeometry()
         "src/presentation/qml/screens/player/drawers/PlaylistSearchField.qml"));
     const QString footer = readSource(QStringLiteral(
         "src/presentation/qml/screens/player/drawers/PlaylistFooter.qml"));
+    const QString panel = readSource(QStringLiteral(
+        "src/presentation/qml/surfaces/Panel.qml"));
+    const QString drawer = readSource(QStringLiteral(
+        "src/presentation/qml/surfaces/Drawer.qml"));
+    const QString backdropBlur = readSource(QStringLiteral(
+        "src/presentation/qml/surfaces/BackdropBlur.qml"));
+    const QString surfaceCMake = readSource(QStringLiteral(
+        "src/presentation/qml/surfaces/CMakeLists.txt"));
 
     QVERIFY(!shell.isEmpty());
     QVERIFY(!inspector.isEmpty());
     QVERIFY(!search.isEmpty());
     QVERIFY(!footer.isEmpty());
+    QVERIFY(!panel.isEmpty());
+    QVERIFY(!drawer.isEmpty());
+    QVERIFY(!backdropBlur.isEmpty());
+    QVERIFY(!surfaceCMake.isEmpty());
 
     QVERIFY(shell.contains(QStringLiteral("Drawer {")));
+    QVERIFY(shell.contains(QStringLiteral("property Item backdropSource: null")));
+    QVERIFY(shell.contains(QStringLiteral("property real backdropMappingRevision: 0")));
+    QVERIFY(shell.contains(QStringLiteral("backdropSource: root.backdropSource")));
+    QVERIFY(shell.contains(QStringLiteral(
+        "backdropMappingRevision: root.backdropMappingRevision + shellTranslation.x")));
     QVERIFY(shell.contains(QStringLiteral("property alias searchContent: searchHost.data")));
     QVERIFY(shell.contains(QStringLiteral("SpacingTokens.inspectorTitleTop")));
     QVERIFY(shell.contains(QStringLiteral("SpacingTokens.inspectorMetaTop")));
@@ -109,21 +128,43 @@ void PlaylistQmlTest::inspectorShellMatchesCanonicalFigmaGeometry()
     QVERIFY(shell.contains(QStringLiteral("LayoutTokens.inspectorFooterHeight")));
     QVERIFY(!shell.contains(QStringLiteral("iconId: \"close\"")));
 
+    QVERIFY(inspector.contains(QStringLiteral("property Item backdropSource: null")));
+    QVERIFY(inspector.contains(QStringLiteral("backdropSource: root.backdropSource")));
     QVERIFY(inspector.contains(QStringLiteral("qsTr(\"播放列表\")")));
     QVERIFY(inspector.contains(QStringLiteral("PlaylistSearchField {")));
     QVERIFY(inspector.contains(QStringLiteral("filterText: searchField.text")));
     QVERIFY(inspector.contains(QStringLiteral("currentPosition")));
 
+    QVERIFY(panel.contains(QStringLiteral("property Item backdropSource: null")));
+    QVERIFY(panel.contains(QStringLiteral("BackdropBlur {")));
+    QVERIFY(panel.contains(QStringLiteral("sourceItem: root.backdropSource")));
+    QVERIFY(panel.contains(QStringLiteral("blurRadius: root.backdropBlurRadius")));
+    QVERIFY(drawer.contains(QStringLiteral(
+        "borderAlpha: MaterialTokens.borderStrongAlpha")));
+
+    QVERIFY(backdropBlur.contains(QStringLiteral("ShaderEffectSource {")));
+    QVERIFY(backdropBlur.contains(QStringLiteral("sourceRect: root.mappedSourceRect")));
+    QVERIFY(backdropBlur.contains(QStringLiteral("blurEnabled: true")));
+    QVERIFY(backdropBlur.contains(QStringLiteral("blurMax: root.blurRadius")));
+    QVERIFY(backdropBlur.contains(QStringLiteral("maskSource: roundedMask")));
+
     QVERIFY(search.contains(QStringLiteral("LayoutTokens.inspectorSearchWidth")));
     QVERIFY(search.contains(QStringLiteral("LayoutTokens.inspectorSearchHeight")));
     QVERIFY(search.contains(QStringLiteral("RadiusTokens.controlSearch")));
     QVERIFY(search.contains(QStringLiteral("MaterialTokens.fieldBlur")));
+    QVERIFY(search.contains(QStringLiteral(
+        "borderAlpha: MaterialTokens.borderStrongAlpha")));
     QVERIFY(search.contains(QStringLiteral("iconId: \"search\"")));
     QVERIFY(search.contains(QStringLiteral("qsTr(\"搜索播放列表\")")));
 
     QVERIFY(footer.contains(QStringLiteral("qsTr(\"拖放排序 · 双击播放\")")));
     QVERIFY(footer.contains(QStringLiteral("RadiusTokens.inspectorFooter")));
     QVERIFY(footer.contains(QStringLiteral("MaterialTokens.footerBlur")));
+    QVERIFY(footer.contains(QStringLiteral(
+        "borderAlpha: MaterialTokens.borderStrongAlpha")));
+
+    QVERIFY(surfaceCMake.contains(QStringLiteral("BackdropBlur.qml")));
+    QVERIFY(surfaceCMake.contains(QStringLiteral("QT_QML_INTERNAL_TYPE TRUE")));
 }
 
 void PlaylistQmlTest::playlistContentFiltersReordersAndVirtualizesReadonlyRows()
