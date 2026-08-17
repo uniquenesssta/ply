@@ -324,6 +324,39 @@ set_tests_properties(
     PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
 
+add_executable(
+    player_app_startup_smoke_tests
+    player_app_startup_smoke_test.cpp
+)
+
+player_apply_compiler_options(player_app_startup_smoke_tests)
+player_enable_compiler_warnings(player_app_startup_smoke_tests)
+player_enable_sanitizers(player_app_startup_smoke_tests)
+player_enable_static_analysis(player_app_startup_smoke_tests)
+
+add_dependencies(
+    player_app_startup_smoke_tests
+    player_app
+)
+
+target_link_libraries(
+    player_app_startup_smoke_tests
+    PRIVATE
+        Qt6::Core
+)
+
+add_test(
+    NAME player_app_startup_smoke
+    COMMAND player_app_startup_smoke_tests "$<TARGET_FILE:player_app>"
+)
+
+set_tests_properties(
+    player_app_startup_smoke
+    PROPERTIES
+        LABELS "windowed-render;startup-smoke"
+        TIMEOUT 15
+)
+
 add_subdirectory(accessibility)
 add_subdirectory(feedback)
 add_subdirectory(player_chrome)
