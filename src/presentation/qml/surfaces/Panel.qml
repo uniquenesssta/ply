@@ -9,6 +9,8 @@ Rectangle {
 
     default property alias contentData: contentHost.data
 
+    property Item backdropSource: null
+    property real backdropMappingRevision: 0
     property color surfaceColor: ColorTokens.surfaceGlass
     property real fillAlpha: MaterialTokens.inspectorFillAlpha
     property color borderColor: ColorTokens.borderGlass
@@ -29,6 +31,15 @@ Rectangle {
     border.color: Qt.rgba(borderColor.r, borderColor.g, borderColor.b,
                           borderColor.a * borderAlpha)
     z: ZOrderTokens.overlay
+
+    BackdropBlur {
+        anchors.fill: parent
+        z: -1
+        sourceItem: root.backdropSource
+        blurRadius: root.backdropBlurRadius
+        cornerRadius: root.cornerRadius
+        mappingRevision: root.backdropMappingRevision
+    }
 
     layer.enabled: shadowAlpha > 0.0 && shadowRadius > 0
     layer.effect: MultiEffect {
