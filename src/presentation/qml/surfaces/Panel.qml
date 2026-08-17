@@ -24,6 +24,15 @@ Rectangle {
     property real shadowAlpha: ElevationTokens.floatingShadowAlpha
     property int contentPadding: SpacingTokens.surfacePadding
 
+    readonly property real effectiveShadowOpacity: {
+        const fillSourceAlpha = root.surfaceColor.a * root.fillAlpha
+        const borderSourceAlpha = root.borderColor.a * root.borderAlpha
+        const sourceAlpha = fillSourceAlpha > 0.0 ? fillSourceAlpha : borderSourceAlpha
+        return sourceAlpha > 0.0
+            ? Math.min(1.0, root.shadowAlpha / sourceAlpha)
+            : 0.0
+    }
+
     color: Qt.rgba(surfaceColor.r, surfaceColor.g, surfaceColor.b,
                    surfaceColor.a * fillAlpha)
     radius: cornerRadius
@@ -48,12 +57,7 @@ Rectangle {
         blurMax: root.shadowRadius
         shadowVerticalOffset: root.shadowYOffset
         shadowColor: root.shadowColor
-        shadowOpacity: {
-            const sourceAlpha = Math.max(root.fillAlpha, root.borderAlpha)
-            return sourceAlpha > 0.0
-                ? Math.min(1.0, root.shadowAlpha / sourceAlpha)
-                : 0.0
-        }
+        shadowOpacity: root.effectiveShadowOpacity
     }
 
     readonly property Item contentItem: Item {
