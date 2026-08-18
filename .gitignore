@@ -32,6 +32,8 @@ ui_*.h
 *.sqlite
 *.sqlite3
 *.log
+*.patch
+*.zip
 
 # IDE and editor
 .vscode/
@@ -60,3 +62,6 @@ Desktop.ini
 .env
 .env.*
 !.env.example
+
+# Local diagnostics
+/r4-04-qml-diagnostics/

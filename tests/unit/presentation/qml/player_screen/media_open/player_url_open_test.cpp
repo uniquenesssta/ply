@@ -140,8 +140,16 @@ void PlayerUrlOpenTest::urlWorkflowUsesUnifiedCoordinatorBoundary()
     QVERIFY(!coordinator.isEmpty());
 
     QVERIFY(workflow.contains(QStringLiteral("UrlMediaValidator::validate")));
-    QVERIFY(workflow.contains(QStringLiteral("mediaOpenCoordinator_.openSource(source)")));
-    QVERIFY(coordinator.contains(QStringLiteral("MediaOpenCoordinator::openSource")));
+    QVERIFY(workflow.contains(QStringLiteral(
+        "mediaOpenCoordinator_.beginReplaceOpenOperation()")));
+    QVERIFY(workflow.contains(QStringLiteral(
+        "mediaOpenCoordinator_.completeOpenSource(operationId, source)")));
+    QVERIFY(workflow.contains(QStringLiteral(
+        "mediaOpenCoordinator_.cancelOpenOperation(operationId)")));
+    QVERIFY(coordinator.contains(QStringLiteral(
+        "MediaOpenCoordinator::beginReplaceOpenOperation")));
+    QVERIFY(coordinator.contains(QStringLiteral(
+        "MediaOpenCoordinator::completeOpenSource")));
     QVERIFY(coordinator.contains(QStringLiteral("submitMedia_(source)")));
     QVERIFY(!workflow.contains(QStringLiteral("PlaybackSession")));
     QVERIFY(!workflow.contains(QStringLiteral("libmpv"), Qt::CaseInsensitive));
