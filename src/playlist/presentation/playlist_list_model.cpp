@@ -2,6 +2,7 @@
 
 #include "media/domain/media_source.h"
 #include "playlist/application/playlist_controller.h"
+#include "playlist/domain/playlist_snapshot.h"
 
 #include <QFileInfo>
 #include <QUrl>
@@ -88,19 +89,18 @@ void PlaylistListModel::refresh()
     const qsizetype previousCount = rows_.size();
     const int previousCurrentPosition = currentPosition_;
 
+    const domain::PlaylistSnapshot snapshot = controller_.snapshot();
     QVector<Row> nextRows;
-    const domain::Playlist& playlist = controller_.playlist();
-    nextRows.reserve(static_cast<qsizetype>(playlist.size()));
+    nextRows.reserve(static_cast<qsizetype>(snapshot.size()));
 
-    int nextCurrentPosition = 0;
-    const std::optional<domain::PlaylistEntryId> currentId = playlist.currentId();
-    int position = 0;
-    for (const domain::PlaylistEntry& entry : playlist.entries()) {
-        ++position;
+    const std::optional<std::size_t> currentIndex = snapshot.currentIndex();
+    const int nextCurrentPosition = currentIndex.has_value()
+        ? static_cast<int>(*currentIndex + 1)
+        : 0;
+    const std::optional<domain::PlaylistEntryId> currentId = snapshot.currentId();
+
+    for (const domain::PlaylistEntry& entry : snapshot.entries()) {
         const bool current = currentId.has_value() && *currentId == entry.id();
-        if (current) {
-            nextCurrentPosition = position;
-        }
         const int sourceKind = static_cast<int>(entry.source().kind());
         nextRows.push_back(Row{
             entry.id().value(),
