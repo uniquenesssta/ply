@@ -12,6 +12,7 @@
 
 namespace player::playlist::application {
 
+class PlaylistAdvanceArbiter;
 class PlaylistMutation;
 
 class PlaylistController final : public QObject
@@ -32,7 +33,8 @@ public:
         PlaylistMutation& mutation,
         SubmitMediaLoad submitMediaLoad,
         SubmitMediaStop submitMediaStop,
-        QObject* parent);
+        QObject* parent,
+        PlaylistAdvanceArbiter* advanceArbiter = nullptr);
 
     [[nodiscard]] const domain::Playlist& playlist() const noexcept;
     [[nodiscard]] domain::PlaylistSnapshot snapshot() const;
@@ -59,6 +61,8 @@ signals:
     void playlistChanged();
 
 private:
+    [[nodiscard]] bool claimManualNavigation();
+    void releaseManualNavigationClaim() noexcept;
     [[nodiscard]] bool submitLoadForEntry(const domain::PlaylistEntry& entry);
     void restoreCurrent(std::optional<domain::PlaylistEntryId> previousCurrent) noexcept;
 
@@ -66,6 +70,7 @@ private:
     PlaylistMutation& mutation_;
     SubmitMediaLoad submitMediaLoad_;
     SubmitMediaStop submitMediaStop_;
+    PlaylistAdvanceArbiter* advanceArbiter_ = nullptr;
 };
 
 } // namespace player::playlist::application
