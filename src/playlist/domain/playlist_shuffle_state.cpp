@@ -12,6 +12,16 @@ bool PlaylistShuffleState::enabled() const noexcept
     return enabled_;
 }
 
+bool PlaylistShuffleState::cycleInitialized() const noexcept
+{
+    return cycleInitialized_;
+}
+
+const std::vector<PlaylistEntryId>& PlaylistShuffleState::remainingEntryIds() const noexcept
+{
+    return remaining_;
+}
+
 void PlaylistShuffleState::setEnabled(bool enabled) noexcept
 {
     if (enabled_ == enabled) {
