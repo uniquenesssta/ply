@@ -109,6 +109,11 @@ int TrackListModel::count() const noexcept
     return static_cast<int>(rows_.size());
 }
 
+qint64 TrackListModel::selectedTrackId() const noexcept
+{
+    return selectedTrackId_;
+}
+
 player::playback::domain::TrackKind TrackListModel::kind() const noexcept
 {
     return kind_;
@@ -120,6 +125,7 @@ void TrackListModel::acceptSnapshot(
     const auto& trackState = snapshot.tracks();
     const std::optional<qint64> selectedTrackId = selectedTrackIdFor(trackState, kind_);
 
+    bool selectedTrackExists = false;
     QVector<Row> nextRows;
     nextRows.reserve(trackState.tracks.size());
     for (const player::playback::domain::TrackDescriptor& track : trackState.tracks) {
@@ -127,12 +133,14 @@ void TrackListModel::acceptSnapshot(
             continue;
         }
 
+        const bool selected = selectedTrackId.has_value() && *selectedTrackId == track.id;
+        selectedTrackExists = selectedTrackExists || selected;
         nextRows.push_back(Row{
             track.id,
             optionalText(track.title),
             optionalText(track.language),
             optionalText(track.codec),
-            selectedTrackId.has_value() && *selectedTrackId == track.id,
+            selected,
             track.defaultTrack,
             track.forced,
             track.external,
@@ -140,17 +148,25 @@ void TrackListModel::acceptSnapshot(
         });
     }
 
-    if (nextRows == rows_) {
+    const qint64 nextSelectedTrackId = selectedTrackExists && selectedTrackId.has_value()
+        ? *selectedTrackId
+        : qint64{0};
+    if (nextRows == rows_ && nextSelectedTrackId == selectedTrackId_) {
         return;
     }
 
     const qsizetype previousCount = rows_.size();
+    const qint64 previousSelectedTrackId = selectedTrackId_;
     beginResetModel();
     rows_ = std::move(nextRows);
+    selectedTrackId_ = nextSelectedTrackId;
     endResetModel();
 
     if (previousCount != rows_.size()) {
         emit countChanged();
+    }
+    if (previousSelectedTrackId != selectedTrackId_) {
+        emit selectedTrackIdChanged();
     }
 }
 
