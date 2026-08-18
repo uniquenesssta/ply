@@ -102,8 +102,8 @@ void PlaylistMutationSemanticsTest::replaceQueueCommitsOnlyAfterAcceptedLoad()
         localSource(QStringLiteral("C:/media/b.mp4")),
     }));
     oldCurrent = *playlist.currentId();
-    controller.setRepeatMode(domain::PlaylistRepeatMode::All);
-    controller.setShuffleEnabled(true);
+    QVERIFY(controller.setRepeatMode(domain::PlaylistRepeatMode::All));
+    QVERIFY(controller.setShuffleEnabled(true));
 
     replacing = true;
     submittedLocation.clear();
@@ -191,8 +191,8 @@ void PlaylistMutationSemanticsTest::clearStopsBeforeMutationAndRejectedStopIsAto
     }));
     const auto current = playlist.currentId();
     QVERIFY(current.has_value());
-    controller.setRepeatMode(domain::PlaylistRepeatMode::All);
-    controller.setShuffleEnabled(true);
+    QVERIFY(controller.setRepeatMode(domain::PlaylistRepeatMode::All));
+    QVERIFY(controller.setShuffleEnabled(true));
 
     QVERIFY(!controller.clearQueue());
     QCOMPARE(stopSubmissions, 1);
