@@ -27,6 +27,10 @@ class PlaylistEntryPlaybackState;
 class PlaylistListModel;
 }
 
+namespace player::tracks::application {
+class TrackSelectionController;
+}
+
 namespace player::tracks::presentation {
 class TrackListModel;
 }
@@ -56,6 +60,7 @@ public:
     [[nodiscard]] PlaybackComposition& playbackComposition() noexcept;
     [[nodiscard]] player::playlist::application::PlaylistController& playlistController() noexcept;
     [[nodiscard]] player::playlist::presentation::PlaylistListModel& playlistListModel() noexcept;
+    [[nodiscard]] player::tracks::application::TrackSelectionController& trackSelectionController() noexcept;
     [[nodiscard]] player::tracks::presentation::TrackListModel& audioTrackListModel() noexcept;
     [[nodiscard]] player::tracks::presentation::TrackListModel& subtitleTrackListModel() noexcept;
     [[nodiscard]] player::media::application::MediaOpenCoordinator& mediaOpenCoordinator() noexcept;
@@ -77,6 +82,7 @@ private:
     std::unique_ptr<player::playlist::presentation::PlaylistEntryPlaybackState> playlistEntryPlaybackState_;
     std::unique_ptr<player::playlist::application::PlaylistAutoAdvance> playlistAutoAdvance_;
     std::unique_ptr<player::playlist::presentation::PlaylistListModel> playlistListModel_;
+    std::unique_ptr<player::tracks::application::TrackSelectionController> trackSelectionController_;
     std::unique_ptr<player::tracks::presentation::TrackListModel> audioTrackListModel_;
     std::unique_ptr<player::tracks::presentation::TrackListModel> subtitleTrackListModel_;
     std::unique_ptr<player::media::application::MediaOpenCoordinator> mediaOpenCoordinator_;
