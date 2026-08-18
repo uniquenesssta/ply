@@ -3,6 +3,8 @@
 
 #include <QtTest>
 
+#include <utility>
+
 namespace player::playlist::domain {
 namespace {
 
@@ -22,6 +24,8 @@ private slots:
     void appendPreservesOrderAndAllocatesStableIds();
     void invalidSourceIsRejectedWithoutConsumingId();
     void duplicateSourcesReceiveDistinctIds();
+    void insertPreservesCurrentAndStableIdentity();
+    void insertRejectsInvalidInputWithoutConsumingId();
     void selectRequiresExistingEntry();
     void movePreservesStableIdsAndCurrent();
     void moveRejectsMissingEntryAndOutOfRangeTarget();
@@ -30,6 +34,7 @@ private slots:
     void removeCurrentClearsCurrentWithoutDanglingId();
     void removeCurrentAndSelectIsAtomicForValidReplacement();
     void removeCurrentAndSelectRejectsInvalidTransitionWithoutMutation();
+    void preparedReplacementCommitsAtomicallyAndPreservesModes();
     void clearRemovesQueueButDoesNotReuseIdsOrResetModes();
 };
 
@@ -91,6 +96,55 @@ void PlaylistTest::duplicateSourcesReceiveDistinctIds()
     QVERIFY(firstId.has_value());
     QVERIFY(secondId.has_value());
     QVERIFY(*firstId != *secondId);
+    QCOMPARE(playlist.size(), std::size_t{2});
+}
+
+void PlaylistTest::insertPreservesCurrentAndStableIdentity()
+{
+    Playlist playlist;
+    const auto firstId = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    QVERIFY(firstId.has_value());
+    QVERIFY(playlist.select(*firstId));
+
+    const auto inserted = playlist.insert(
+        localSource(QStringLiteral("C:/media/b.mp4")),
+        0);
+    QVERIFY(inserted.has_value());
+    QCOMPARE(inserted->value(), quint64{2});
+    QCOMPARE(playlist.entries().at(0).id().value(), inserted->value());
+    QCOMPARE(playlist.entries().at(1).id().value(), firstId->value());
+    QVERIFY(playlist.currentId().has_value());
+    QCOMPARE(playlist.currentId()->value(), firstId->value());
+
+    const PlaylistSnapshot snapshot = playlist.snapshot();
+    QVERIFY(snapshot.currentIndex().has_value());
+    QCOMPARE(*snapshot.currentIndex(), std::size_t{1});
+
+    const auto tail = playlist.insert(
+        localSource(QStringLiteral("C:/media/c.mp4")),
+        playlist.size());
+    QVERIFY(tail.has_value());
+    QCOMPARE(tail->value(), quint64{3});
+    QCOMPARE(playlist.entries().back().id().value(), tail->value());
+    QCOMPARE(playlist.currentId()->value(), firstId->value());
+}
+
+void PlaylistTest::insertRejectsInvalidInputWithoutConsumingId()
+{
+    Playlist playlist;
+    const auto firstId = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    QVERIFY(firstId.has_value());
+
+    QVERIFY(!playlist.insert(localSource(QString{}), 0).has_value());
+    QVERIFY(!playlist.insert(
+        localSource(QStringLiteral("C:/media/out-of-range.mp4")),
+        2).has_value());
+
+    const auto inserted = playlist.insert(
+        localSource(QStringLiteral("C:/media/b.mp4")),
+        1);
+    QVERIFY(inserted.has_value());
+    QCOMPARE(inserted->value(), quint64{2});
     QCOMPARE(playlist.size(), std::size_t{2});
 }
 
@@ -234,6 +288,53 @@ void PlaylistTest::removeCurrentAndSelectRejectsInvalidTransitionWithoutMutation
     QVERIFY(playlist.find(*secondId) != nullptr);
     QVERIFY(playlist.currentId().has_value());
     QCOMPARE(playlist.currentId()->value(), firstId->value());
+}
+
+void PlaylistTest::preparedReplacementCommitsAtomicallyAndPreservesModes()
+{
+    Playlist playlist;
+    const auto firstId = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    const auto secondId = playlist.append(localSource(QStringLiteral("C:/media/b.mp4")));
+    QVERIFY(firstId.has_value());
+    QVERIFY(secondId.has_value());
+    QVERIFY(playlist.select(*secondId));
+    playlist.setRepeatMode(PlaylistRepeatMode::All);
+    playlist.setShuffleEnabled(true);
+    QVERIFY(playlist.takeNextShuffledId(false).has_value());
+    QVERIFY(playlist.snapshot().shuffleCycleInitialized());
+
+    auto replacement = playlist.prepareReplacement({
+        localSource(QStringLiteral("C:/media/c.mp4")),
+        localSource(QStringLiteral("C:/media/d.mp4")),
+    });
+    QVERIFY(replacement.has_value());
+
+    // Preparation is detached: the authoritative queue/current remains intact
+    // until the application has accepted the target load and commits it.
+    QCOMPARE(playlist.size(), std::size_t{2});
+    QCOMPARE(playlist.currentId()->value(), secondId->value());
+    QCOMPARE(playlist.entries().at(0).id().value(), firstId->value());
+    QCOMPARE(playlist.entries().at(1).id().value(), secondId->value());
+    QCOMPARE(replacement->entries().at(0).id().value(), quint64{3});
+    QCOMPARE(replacement->entries().at(1).id().value(), quint64{4});
+    QCOMPARE(replacement->currentId().value(), quint64{3});
+
+    playlist.commitReplacement(std::move(*replacement));
+
+    QCOMPARE(playlist.size(), std::size_t{2});
+    QCOMPARE(playlist.entries().at(0).source().location(), QStringLiteral("C:/media/c.mp4"));
+    QCOMPARE(playlist.entries().at(1).source().location(), QStringLiteral("C:/media/d.mp4"));
+    QVERIFY(playlist.currentId().has_value());
+    QCOMPARE(playlist.currentId()->value(), quint64{3});
+    QCOMPARE(
+        static_cast<int>(playlist.repeatMode()),
+        static_cast<int>(PlaylistRepeatMode::All));
+    QVERIFY(playlist.shuffleEnabled());
+    QVERIFY(!playlist.snapshot().shuffleCycleInitialized());
+
+    const auto nextId = playlist.append(localSource(QStringLiteral("C:/media/e.mp4")));
+    QVERIFY(nextId.has_value());
+    QCOMPARE(nextId->value(), quint64{5});
 }
 
 void PlaylistTest::clearRemovesQueueButDoesNotReuseIdsOrResetModes()
