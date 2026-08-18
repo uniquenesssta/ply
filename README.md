@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-07 Complete**。R7-08 normal / repeat one / repeat all / shuffle / EOF 去重已在 Windows 完成 configure/build 与 Full **98/98 PASS（94.96 s）**；根任务书同时要求“错误跳过”，当前已补入 Failed 媒体跳过候选，新的 Windows build/Full CTest 尚待执行。R7-09 尚未开始；剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-08 Complete**。R7-08 最终 error-skip 候选已在 Windows 完成 configure/build 与 Full **98/98 PASS（77.61 s）**，EOF、normal/repeat、shuffle、Failed fail-forward 与同 generation 终态去重均保持通过。R7-09 尚未实施，当前需先冻结删除 current 的 UX 策略；剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -106,7 +106,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-18 — R7-08 auto-advance / error-skip candidate
+### 2026-08-18 — R7-08 Complete / R7-09 policy pending
 
 - R7-07 已按用户此前 Windows 验证收口：**95/95 测试通过**，`Ctrl+Shift+D` 全局 Light/Dark 快捷键可用；剩余 Playlist/Figma 视觉打磨不阻塞当前功能阶段。
 - R7-08 已建立独立 `PlaylistNavigation` domain policy 与 `PlaylistAutoAdvance` application workflow；Playlist Domain 继续唯一拥有 queue/current/repeat/shuffle，AutoAdvance 只消费 PlaybackSnapshot 的终态投影并通过既有 `PlaylistController` 提交下一媒体，不建立第二套 queue 或 Playback owner。
@@ -115,7 +115,8 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 - 用户最新 Windows 锁定环境验证确认 shuffle 候选：`configure.ps1` PASS、`build.ps1` PASS、完整 `scripts\test.ps1 -SkipBuild` **98/98 PASS，0 failed，94.96 s**；`playlist_navigation`、`playlist_shuffle_state`、`playlist_auto_advance` 均实际通过。
 - 复核根任务书发现 R7-08 验收还明确包含“错误跳过”，因此 R7-08 不能仅凭上述 98/98 提前关闭。本候选新增 `PlaybackLifecycleState::Failed → PlaylistAutoAdvance::acceptPlaybackFailure()` 链，并把 Ended/Failed 统一到同一 generation terminal 去重门禁。
 - Failed 媒体采用 fail-forward 策略：normal 只向后跳过，不因 Repeat One 重试失败 current，也不因 Repeat All 在队尾回绕；shuffle 只消费当前未完成 cycle，不在 failure 路径重启 Repeat All cycle。这样连续损坏媒体会向后收敛而不是形成无限自动重载环。
-- 扩展 `playlist_navigation` 与 `playlist_auto_advance` 测试覆盖 Failed、Repeat One/All、shuffle failure cycle、同 generation Ended/Failed 双终态去重。没有新增生产依赖，没有修改 libmpv/Render/QML UI。**这些 error-skip 新源码后的 Windows configure/build/Full CTest 尚未执行，因此 R7-08 仍为 In Progress；R7-09 未提前实施。**
+- 扩展 `playlist_navigation` 与 `playlist_auto_advance` 测试覆盖 Failed、Repeat One/All、shuffle failure cycle、同 generation Ended/Failed 双终态去重。没有新增生产依赖，没有修改 libmpv/Render/QML UI。最终 error-skip 候选已由用户在 Windows 锁定环境验证：`configure.ps1` PASS、`build.ps1` PASS、完整 `scripts\test.ps1 -SkipBuild` **98/98 PASS，0 failed，77.61 s**；其中 `playlist_navigation`、`playlist_shuffle_state`、`playlist_auto_advance` 均 PASS。**R7-08 正式 Complete。**
+- R7-09 按强制补充矩阵必须在实现前冻结删除 current 的 UX：仅一项时 stop/unload + current=null；中间项删除后选 next 还是 previous；最后一项删除后选 previous 还是 stop；以及 load 失败后的 current identity 语义。该策略尚未由用户确认，因此 R7-09 当前不实施。
 
 ### 2026-08-17 — Global Light/Dark runtime theme switch
 
