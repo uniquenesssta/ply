@@ -5,6 +5,7 @@
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/speed_command.h"
+#include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
 #include "playback/domain/commands/volume_command.h"
 
@@ -22,6 +23,7 @@ using PlaybackCommandPayload = std::variant<
     SetVolumeCommand,
     SetMutedCommand,
     SetSpeedCommand,
+    TrackSelectionCommand,
     LifecycleCommand>;
 
 enum class PlaybackCommandValidationError : quint8
@@ -32,6 +34,8 @@ enum class PlaybackCommandValidationError : quint8
     NonFiniteSeek,
     InvalidVolume,
     InvalidSpeed,
+    InvalidTrackId,
+    AudioTrackCannotBeDisabled,
 };
 
 class PlaybackCommand final
