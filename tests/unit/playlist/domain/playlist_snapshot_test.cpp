@@ -88,6 +88,18 @@ void PlaylistSnapshotTest::snapshotKeepsStableOrderAndDerivedCurrentIndex()
     QCOMPARE(snapshot.entries().at(2).id().value(), second->value());
     QCOMPARE(snapshot.currentId()->value(), second->value());
     QCOMPARE(*snapshot.currentIndex(), std::size_t{2});
+
+    // A fresh snapshot always derives index from the post-mutation stable ID
+    // and order instead of carrying a separately mutable currentIndex field.
+    QVERIFY(playlist.removeCurrentAndSelect(*first, *third));
+    const PlaylistSnapshot afterRemoval = playlist.snapshot();
+    QCOMPARE(afterRemoval.size(), std::size_t{2});
+    QVERIFY(afterRemoval.currentId().has_value());
+    QCOMPARE(afterRemoval.currentId()->value(), third->value());
+    QVERIFY(afterRemoval.currentIndex().has_value());
+    QCOMPARE(*afterRemoval.currentIndex(), std::size_t{1});
+    QCOMPARE(afterRemoval.entries().at(0).id().value(), second->value());
+    QCOMPARE(afterRemoval.entries().at(1).id().value(), third->value());
 }
 
 void PlaylistSnapshotTest::snapshotCapturesShuffleBookkeepingWithoutBecomingWritableState()
