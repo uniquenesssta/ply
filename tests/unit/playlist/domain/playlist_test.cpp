@@ -28,6 +28,8 @@ private slots:
     void clearCurrentKeepsQueue();
     void removeNonCurrentPreservesCurrent();
     void removeCurrentClearsCurrentWithoutDanglingId();
+    void removeCurrentAndSelectIsAtomicForValidReplacement();
+    void removeCurrentAndSelectRejectsInvalidTransitionWithoutMutation();
     void clearRemovesQueueButDoesNotReuseIdsOrResetModes();
 };
 
@@ -190,6 +192,48 @@ void PlaylistTest::removeCurrentClearsCurrentWithoutDanglingId()
     QCOMPARE(playlist.size(), std::size_t{1});
     QVERIFY(playlist.find(*secondId) != nullptr);
     QVERIFY(!playlist.remove(*firstId));
+}
+
+void PlaylistTest::removeCurrentAndSelectIsAtomicForValidReplacement()
+{
+    Playlist playlist;
+    const auto firstId = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    const auto secondId = playlist.append(localSource(QStringLiteral("C:/media/b.mp4")));
+    const auto thirdId = playlist.append(localSource(QStringLiteral("C:/media/c.mp4")));
+    QVERIFY(firstId.has_value());
+    QVERIFY(secondId.has_value());
+    QVERIFY(thirdId.has_value());
+    QVERIFY(playlist.select(*secondId));
+    playlist.setShuffleEnabled(true);
+
+    QVERIFY(playlist.removeCurrentAndSelect(*secondId, *thirdId));
+
+    QCOMPARE(playlist.size(), std::size_t{2});
+    QVERIFY(playlist.find(*secondId) == nullptr);
+    QVERIFY(playlist.currentId().has_value());
+    QCOMPARE(playlist.currentId()->value(), thirdId->value());
+    QCOMPARE(playlist.entries().at(0).id().value(), firstId->value());
+    QCOMPARE(playlist.entries().at(1).id().value(), thirdId->value());
+}
+
+void PlaylistTest::removeCurrentAndSelectRejectsInvalidTransitionWithoutMutation()
+{
+    Playlist playlist;
+    const auto firstId = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    const auto secondId = playlist.append(localSource(QStringLiteral("C:/media/b.mp4")));
+    QVERIFY(firstId.has_value());
+    QVERIFY(secondId.has_value());
+    QVERIFY(playlist.select(*firstId));
+
+    QVERIFY(!playlist.removeCurrentAndSelect(*secondId, *firstId));
+    QVERIFY(!playlist.removeCurrentAndSelect(*firstId, PlaylistEntryId{9999}));
+    QVERIFY(!playlist.removeCurrentAndSelect(*firstId, *firstId));
+
+    QCOMPARE(playlist.size(), std::size_t{2});
+    QVERIFY(playlist.find(*firstId) != nullptr);
+    QVERIFY(playlist.find(*secondId) != nullptr);
+    QVERIFY(playlist.currentId().has_value());
+    QCOMPARE(playlist.currentId()->value(), firstId->value());
 }
 
 void PlaylistTest::clearRemovesQueueButDoesNotReuseIdsOrResetModes()

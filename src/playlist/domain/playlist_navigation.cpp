@@ -96,4 +96,39 @@ PlaylistNavigationDecision PlaylistNavigation::afterPlaybackFailure(
     return {PlaylistNavigationAction::SelectEntry, next->id()};
 }
 
+PlaylistNavigationDecision PlaylistNavigation::forCurrentRemoval(
+    const Playlist& playlist,
+    PlaylistEntryId currentId)
+{
+    const auto authoritativeCurrent = playlist.currentId();
+    const auto& entries = playlist.entries();
+    if (!currentId.isValid()
+        || !authoritativeCurrent.has_value()
+        || *authoritativeCurrent != currentId
+        || entries.empty()) {
+        return {};
+    }
+
+    const auto current = std::find_if(
+        entries.cbegin(),
+        entries.cend(),
+        [currentId](const PlaylistEntry& entry) {
+            return entry.id() == currentId;
+        });
+    if (current == entries.cend()) {
+        return {};
+    }
+
+    if (entries.size() == 1) {
+        return {PlaylistNavigationAction::StopPlayback, PlaylistEntryId{}};
+    }
+
+    const auto next = std::next(current);
+    if (next != entries.cend()) {
+        return {PlaylistNavigationAction::SelectEntry, next->id()};
+    }
+
+    return {PlaylistNavigationAction::SelectEntry, std::prev(current)->id()};
+}
+
 } // namespace player::playlist::domain

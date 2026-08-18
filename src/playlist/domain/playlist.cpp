@@ -46,6 +46,35 @@ bool Playlist::remove(PlaylistEntryId id)
     return true;
 }
 
+bool Playlist::removeCurrentAndSelect(
+    PlaylistEntryId id,
+    PlaylistEntryId replacementId)
+{
+    if (!currentId_.has_value()
+        || *currentId_ != id
+        || !replacementId.isValid()
+        || replacementId == id
+        || find(replacementId) == nullptr) {
+        return false;
+    }
+
+    const auto iterator = std::find_if(
+        entries_.begin(),
+        entries_.end(),
+        [id](const PlaylistEntry& entry) {
+            return entry.id() == id;
+        });
+    if (iterator == entries_.end()) {
+        return false;
+    }
+
+    shuffleState_.onEntryRemoved(id);
+    entries_.erase(iterator);
+    currentId_ = replacementId;
+    shuffleState_.onEntrySelected(replacementId);
+    return true;
+}
+
 bool Playlist::move(PlaylistEntryId id, std::size_t targetIndex)
 {
     if (targetIndex >= entries_.size()) {

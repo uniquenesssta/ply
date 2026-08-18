@@ -44,6 +44,13 @@ bool PlaylistMutation::remove(domain::PlaylistEntryId id)
     return playlist_.remove(id);
 }
 
+bool PlaylistMutation::removeCurrentAndSelect(
+    domain::PlaylistEntryId id,
+    domain::PlaylistEntryId replacementId)
+{
+    return playlist_.removeCurrentAndSelect(id, replacementId);
+}
+
 bool PlaylistMutation::move(domain::PlaylistEntryId id, std::size_t targetIndex)
 {
     return playlist_.move(id, targetIndex);

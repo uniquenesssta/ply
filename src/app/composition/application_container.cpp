@@ -49,6 +49,10 @@ ApplicationContainer::ApplicationContainer(
             [this](const player::media::domain::MediaSource& source) {
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitMediaLoad(source.location());
+            },
+            [this]() {
+                return playbackComposition_ != nullptr
+                    && playbackComposition_->submitMediaStop();
             }))
     , playlistAutoAdvance_(
         std::make_unique<player::playlist::application::PlaylistAutoAdvance>(

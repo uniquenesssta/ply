@@ -18,6 +18,9 @@ public:
     [[nodiscard]] std::optional<PlaylistEntryId> append(
         media::domain::MediaSource source);
     [[nodiscard]] bool remove(PlaylistEntryId id);
+    [[nodiscard]] bool removeCurrentAndSelect(
+        PlaylistEntryId id,
+        PlaylistEntryId replacementId);
     [[nodiscard]] bool move(PlaylistEntryId id, std::size_t targetIndex);
     [[nodiscard]] bool select(PlaylistEntryId id) noexcept;
     void clearCurrent() noexcept;

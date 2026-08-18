@@ -129,17 +129,17 @@ PlaybackComposition::PlaybackComposition()
         transportViewModel_.get(),
         &player::presentation::PlayerTransportViewModel::playRequested,
         playbackThread_.get(),
-        [this]() { submitTransport(TransportAction::Play); });
+        [this]() { (void)submitTransport(TransportAction::Play); });
     QObject::connect(
         transportViewModel_.get(),
         &player::presentation::PlayerTransportViewModel::pauseRequested,
         playbackThread_.get(),
-        [this]() { submitTransport(TransportAction::Pause); });
+        [this]() { (void)submitTransport(TransportAction::Pause); });
     QObject::connect(
         transportViewModel_.get(),
         &player::presentation::PlayerTransportViewModel::stopRequested,
         playbackThread_.get(),
-        [this]() { submitTransport(TransportAction::Stop); });
+        [this]() { (void)submitTransport(TransportAction::Stop); });
     QObject::connect(
         timelineViewModel_.get(),
         &player::presentation::PlayerTimelineViewModel::seekRequested,
@@ -321,14 +321,19 @@ bool PlaybackComposition::submitMediaLoad(const QString& canonicalSource)
     return true;
 }
 
-void PlaybackComposition::submitTransport(TransportAction action)
+bool PlaybackComposition::submitMediaStop()
+{
+    return submitTransport(TransportAction::Stop);
+}
+
+bool PlaybackComposition::submitTransport(TransportAction action)
 {
     auto* bus = playbackThread_->commandBus();
     if (bus == nullptr || !bus->isAcceptingCommands()) {
         qCWarning(player::logging::uiInteraction).noquote()
             << "Transport intent ignored because PlaybackCommandBus is unavailable:"
             << transportActionName(action);
-        return;
+        return false;
     }
 
     QString diagnostic;
@@ -340,7 +345,10 @@ void PlaybackComposition::submitTransport(TransportAction action)
             << "Transport command submission failed:"
             << transportActionName(action)
             << diagnostic;
+        return false;
     }
+
+    return true;
 }
 
 bool PlaybackComposition::submitSeek(double seconds, SeekMode mode)

@@ -25,6 +25,9 @@ public:
     void rollbackAppend(const std::vector<domain::PlaylistEntryId>& appendedIds);
 
     [[nodiscard]] bool remove(domain::PlaylistEntryId id);
+    [[nodiscard]] bool removeCurrentAndSelect(
+        domain::PlaylistEntryId id,
+        domain::PlaylistEntryId replacementId);
     [[nodiscard]] bool move(domain::PlaylistEntryId id, std::size_t targetIndex);
 
 private:

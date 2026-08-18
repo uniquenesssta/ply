@@ -52,9 +52,10 @@ public:
     [[nodiscard]] player::presentation::HudMessageQueue& hudMessageQueue() noexcept;
 
     [[nodiscard]] bool submitMediaLoad(const QString& canonicalSource);
+    [[nodiscard]] bool submitMediaStop();
 
 private:
-    void submitTransport(player::playback::domain::TransportAction action);
+    [[nodiscard]] bool submitTransport(player::playback::domain::TransportAction action);
     [[nodiscard]] bool submitSeek(
         double seconds,
         player::playback::domain::SeekMode mode);

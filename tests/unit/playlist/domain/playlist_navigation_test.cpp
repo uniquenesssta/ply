@@ -23,6 +23,13 @@ PlaylistNavigationDecision failureDecisionFor(Playlist& playlist)
     return PlaylistNavigation::afterPlaybackFailure(playlist);
 }
 
+PlaylistNavigationDecision removalDecisionFor(
+    const Playlist& playlist,
+    PlaylistEntryId currentId)
+{
+    return PlaylistNavigation::forCurrentRemoval(playlist, currentId);
+}
+
 int actionValue(PlaylistNavigationAction action)
 {
     return static_cast<int>(action);
@@ -42,6 +49,8 @@ private slots:
     void shuffleRepeatAllStartsFreshCycleWithoutImmediateReplay();
     void failureSkipsForwardWithoutRepeatLoop();
     void shuffleFailureConsumesRemainingCycleWithoutRestart();
+    void currentRemovalUsesNextThenPreviousAndStopsSingle();
+    void currentRemovalRejectsNonCurrentIdentity();
 };
 
 void PlaylistNavigationTest::noCurrentProducesNoAction()
@@ -220,6 +229,53 @@ void PlaylistNavigationTest::shuffleFailureConsumesRemainingCycleWithoutRestart(
     QCOMPARE(skipped.size(), 2);
     const auto exhausted = failureDecisionFor(playlist);
     QCOMPARE(actionValue(exhausted.action), actionValue(PlaylistNavigationAction::None));
+}
+
+void PlaylistNavigationTest::currentRemovalUsesNextThenPreviousAndStopsSingle()
+{
+    Playlist playlist;
+    const auto first = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    const auto second = playlist.append(localSource(QStringLiteral("C:/media/b.mp4")));
+    const auto third = playlist.append(localSource(QStringLiteral("C:/media/c.mp4")));
+    QVERIFY(first.has_value());
+    QVERIFY(second.has_value());
+    QVERIFY(third.has_value());
+
+    QVERIFY(playlist.select(*second));
+    auto decision = removalDecisionFor(playlist, *second);
+    QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::SelectEntry));
+    QCOMPARE(decision.targetEntryId.value(), third->value());
+
+    QVERIFY(playlist.select(*third));
+    decision = removalDecisionFor(playlist, *third);
+    QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::SelectEntry));
+    QCOMPARE(decision.targetEntryId.value(), second->value());
+
+    Playlist single;
+    const auto only = single.append(localSource(QStringLiteral("C:/media/only.mp4")));
+    QVERIFY(only.has_value());
+    QVERIFY(single.select(*only));
+
+    decision = removalDecisionFor(single, *only);
+    QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::StopPlayback));
+    QVERIFY(!decision.targetEntryId.isValid());
+}
+
+void PlaylistNavigationTest::currentRemovalRejectsNonCurrentIdentity()
+{
+    Playlist playlist;
+    const auto first = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    const auto second = playlist.append(localSource(QStringLiteral("C:/media/b.mp4")));
+    QVERIFY(first.has_value());
+    QVERIFY(second.has_value());
+    QVERIFY(playlist.select(*first));
+
+    auto decision = removalDecisionFor(playlist, *second);
+    QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::None));
+    QVERIFY(!decision.targetEntryId.isValid());
+
+    decision = removalDecisionFor(playlist, PlaylistEntryId{9999});
+    QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::None));
 }
 
 } // namespace player::playlist::domain

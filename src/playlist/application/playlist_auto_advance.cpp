@@ -69,6 +69,7 @@ void PlaylistAutoAdvance::acceptTerminalState(
 
     switch (decision.action) {
     case domain::PlaylistNavigationAction::None:
+    case domain::PlaylistNavigationAction::StopPlayback:
         return;
     case domain::PlaylistNavigationAction::SelectEntry:
         (void)controller_.selectEntry(decision.targetEntryId.value());

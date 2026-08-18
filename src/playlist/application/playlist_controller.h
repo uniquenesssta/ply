@@ -20,11 +20,18 @@ class PlaylistController final : public QObject
 
 public:
     using SubmitMediaLoad = std::function<bool(const media::domain::MediaSource&)>;
+    using SubmitMediaStop = std::function<bool()>;
 
     PlaylistController(
         domain::Playlist& playlist,
         PlaylistMutation& mutation,
         SubmitMediaLoad submitMediaLoad,
+        QObject* parent = nullptr);
+    PlaylistController(
+        domain::Playlist& playlist,
+        PlaylistMutation& mutation,
+        SubmitMediaLoad submitMediaLoad,
+        SubmitMediaStop submitMediaStop,
         QObject* parent = nullptr);
 
     [[nodiscard]] const domain::Playlist& playlist() const noexcept;
@@ -47,6 +54,7 @@ private:
     domain::Playlist& playlist_;
     PlaylistMutation& mutation_;
     SubmitMediaLoad submitMediaLoad_;
+    SubmitMediaStop submitMediaStop_;
 };
 
 } // namespace player::playlist::application

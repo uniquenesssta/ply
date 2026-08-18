@@ -1,6 +1,7 @@
 #include "playlist/application/playlist_controller.h"
 
 #include "playlist/application/playlist_mutation.h"
+#include "playlist/domain/playlist_navigation.h"
 
 #include <utility>
 #include <vector>
@@ -12,10 +13,26 @@ PlaylistController::PlaylistController(
     PlaylistMutation& mutation,
     SubmitMediaLoad submitMediaLoad,
     QObject* parent)
+    : PlaylistController(
+        playlist,
+        mutation,
+        std::move(submitMediaLoad),
+        SubmitMediaStop{},
+        parent)
+{
+}
+
+PlaylistController::PlaylistController(
+    domain::Playlist& playlist,
+    PlaylistMutation& mutation,
+    SubmitMediaLoad submitMediaLoad,
+    SubmitMediaStop submitMediaStop,
+    QObject* parent)
     : QObject(parent)
     , playlist_(playlist)
     , mutation_(mutation)
     , submitMediaLoad_(std::move(submitMediaLoad))
+    , submitMediaStop_(std::move(submitMediaStop))
 {
 }
 
@@ -74,15 +91,40 @@ bool PlaylistController::removeEntry(quint64 entryId)
         return false;
     }
 
-    // R7-09 owns the next/stop policy for deleting the actively playing entry.
-    // Until that policy exists, reject the operation rather than desynchronizing
-    // Playlist current state from PlaybackSession's actually loaded media.
-    if (playlist_.currentId().has_value() && *playlist_.currentId() == id) {
-        return false;
+    const std::optional<domain::PlaylistEntryId> currentId = playlist_.currentId();
+    if (!currentId.has_value() || *currentId != id) {
+        if (!mutation_.remove(id)) {
+            return false;
+        }
+
+        emit playlistChanged();
+        return true;
     }
 
-    if (!mutation_.remove(id)) {
+    const domain::PlaylistNavigationDecision decision =
+        domain::PlaylistNavigation::forCurrentRemoval(playlist_, id);
+    switch (decision.action) {
+    case domain::PlaylistNavigationAction::None:
+    case domain::PlaylistNavigationAction::ReloadCurrent:
         return false;
+    case domain::PlaylistNavigationAction::StopPlayback:
+        if (!submitMediaStop_ || !submitMediaStop_()) {
+            return false;
+        }
+        if (!mutation_.remove(id)) {
+            return false;
+        }
+        break;
+    case domain::PlaylistNavigationAction::SelectEntry: {
+        const domain::PlaylistEntry* replacement = playlist_.find(decision.targetEntryId);
+        if (replacement == nullptr || !submitLoadForEntry(*replacement)) {
+            return false;
+        }
+        if (!mutation_.removeCurrentAndSelect(id, decision.targetEntryId)) {
+            return false;
+        }
+        break;
+    }
     }
 
     emit playlistChanged();
