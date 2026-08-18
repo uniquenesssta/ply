@@ -14,6 +14,8 @@ ApplicationWindow {
     property var hudMessageQueue: null
     property var playlistController: null
     property var playlistModel: null
+    property var audioTrackModel: null
+    property var subtitleTrackModel: null
     property var mediaOpenCoordinator: null
     property var urlOpenWorkflow: null
     property var mediaDropHandler: null
@@ -72,6 +74,8 @@ ApplicationWindow {
         hudMessageQueue: window.hudMessageQueue
         playlistController: window.playlistController
         playlistModel: window.playlistModel
+        audioTrackModel: window.audioTrackModel
+        subtitleTrackModel: window.subtitleTrackModel
         mediaDropHandler: window.mediaDropHandler
         fullScreen: fullscreenWindowController.fullScreen
         windowActive: window.active

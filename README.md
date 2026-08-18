@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 Track decoder Complete**：`track-list` 结构解析已收敛到独立 `MpvTrackListDecoder`，输出既有 `TrackDescriptor` 并继续经 PlaybackEvent/PlaybackSnapshot 主链；Windows configure/build PASS，Quick **95/95 PASS（40.58 s）**、Full **103/103 PASS（78.87 s）**。真实多音轨/多字幕本地媒体 smoke 因 R0-06 fixture 跳过且 R8-02 尚未建立可观察的 Track model，保留为 R8 阶段本地验证项，不阻断进入 R8-02 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 Complete；R8-02 Track list models candidate**：新增 Snapshot-backed audio/subtitle readonly models，媒体替换时整表清空/替换并通过稳定 backend Track ID 投影 selected；已接到 QML root/PlayerScreen 数据边界但未增加可见 UI。Windows configure/build/Quick/Full 尚待验证，新增 1 个 CTest 后预计 Quick **96**、Full **104** |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -30,6 +30,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Playlist Domain 是队列顺序/current/repeat/shuffle 的唯一 owner；`PlaylistSnapshot` 只提供从该权威状态生成的脱离式只读观测，`currentIndex` 由稳定 `EntryId + order` 推导，不成为第二真值；`PlaylistShuffleState` 只拥有该 Domain 内的 shuffle cycle 状态；QML 只消费 readonly model 并通过 Controller 发 intent。
 - Playlist row 的 `selected / keyboard focus / hover` 继续属于 QML interaction state；`PlaylistEntryPlaybackState` 只从已 generation-gated 的 `PlaybackSnapshot` 投影 `pendingLoading / unavailable` 到稳定 EntryId，不拥有 queue/current/generation，也不建立第二套播放真值。
 - Track 的 raw `mpv_node` 只在 infrastructure 内转换；`MpvTrackListDecoder` 只把已经复制为 Qt value tree 的 `track-list` 映射为 `TrackDescriptor`，稳定 backend track ID 保持为产品身份，PlaybackSnapshot 继续是 track list/selection 的唯一播放真值，上层与 QML 不解析 mpv node。
+- `TrackListModel` 只消费已 generation-gated 的 `PlaybackSnapshot` 并按 Audio/Subtitle kind 投影只读行；`selected` 由 Snapshot 的 `selectedAudioId / selectedSubtitleId` 推导，model 不拥有 generation、selection mutation 或第二套 Track 真值。Opening/new-media Snapshot 清空旧轨道后，后续 current-generation Snapshot 整表替换新轨道。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
@@ -65,6 +66,7 @@ src/foundation/                  通用基础设施与稳定值类型
 src/playback/domain/             后端无关的播放命令、事件、状态与规则
 src/playback/application/        PlaybackSession、请求生命周期与应用编排
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
+src/tracks/presentation/         Audio/Subtitle Track 的 Snapshot 只读列表投影
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验、operation supersession 与统一 workflow 编排
 src/playlist/domain/             播放队列、Entry/current/repeat/shuffle cycle、Queue Snapshot 与导航策略
@@ -110,6 +112,14 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-18 — R8-02 Track list models candidate
+
+- 新增独立 `src/tracks/presentation/TrackListModel` responsibility，并按 Audio / Subtitle 创建两个实例。Model 只消费 `PlaybackSnapshot::tracks()`，按 kind 过滤并整表投影 backend stable `trackId`、title/language/codec、selected/default/forced/external/external filename；没有 mutation API、mpv property 字符串、visual index 命令参数或第二套 Track owner。
+- selection 不直接信任 `TrackDescriptor.selected` 缓存字段，而是由 Snapshot 权威的 `selectedAudioId / selectedSubtitleId` 推导；selected ID 不存在于当前列表时所有行均为未选中，避免 UI 假选中。R8-03 才负责 selection command / failure / subtitle-off 的写入链，本轮不提前实现。
+- 两个 model 直接订阅现有 `StatePublisher::snapshotPublished`。PlaybackSession 的 MediaGeneration gate 继续在上游拒绝 stale media event；现有 reducer 在 Opening/Stop/Failed 时清空 `state.tracks`，因此 A→B 时 model 先收到空列表，再由 B current-generation Snapshot 整表替换，不在 presentation 层创建第二个 generation gate。
+- `ApplicationBootstrap → MainWindow → PlayerScreen` 已增加只读 `audioTrackModel / subtitleTrackModel` 数据边界，供后续 R8-03 Track feature 使用；本轮没有增加可见 Track 面板、选择控件或 Figma/视觉修改。新增独立 `track_list_model` CTest，覆盖 Audio/Subtitle 分离、stable ID/metadata roles、Snapshot selected-ID 真值、selected ID 缺失时无假选中、A→Opening B→Ready B 清空替换、readonly flags。没有新增生产依赖。
+- 当前只完成源码/CMake/调用链/测试契约静态复核；新增 module 与 CTest target 后必须重新 configure。Windows configure/build/Quick/Full 尚未执行，基于 R8-01 收口预计 Quick **96**、Full **104**。真实多音轨/多字幕媒体 smoke 继续保留为 R8 阶段本地验证项，待后续具备可交互 Track 功能时执行。**R8-02 仍为 In Progress / validation pending。**
 
 ### 2026-08-18 — R8-01 Track decoder Complete
 

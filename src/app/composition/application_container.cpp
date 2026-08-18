@@ -18,6 +18,7 @@
 #include "playlist/domain/playlist.h"
 #include "playlist/presentation/playlist_entry_playback_state.h"
 #include "playlist/presentation/playlist_list_model.h"
+#include "tracks/presentation/track_list_model.h"
 
 #include <QList>
 #include <QLoggingCategory>
@@ -72,6 +73,12 @@ ApplicationContainer::ApplicationContainer(
         std::make_unique<player::playlist::presentation::PlaylistListModel>(
             *playlistController_,
             *playlistEntryPlaybackState_))
+    , audioTrackListModel_(
+        std::make_unique<player::tracks::presentation::TrackListModel>(
+            player::playback::domain::TrackKind::Audio))
+    , subtitleTrackListModel_(
+        std::make_unique<player::tracks::presentation::TrackListModel>(
+            player::playback::domain::TrackKind::Subtitle))
     , mediaOpenCoordinator_(
         std::make_unique<player::media::application::MediaOpenCoordinator>(
             [this](const player::media::domain::MediaSource& source) {
@@ -106,6 +113,16 @@ ApplicationContainer::ApplicationContainer(
     });
 
     auto& publisher = playbackComposition_->statePublisher();
+    QObject::connect(
+        &publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        audioTrackListModel_.get(),
+        &player::tracks::presentation::TrackListModel::acceptSnapshot);
+    QObject::connect(
+        &publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        subtitleTrackListModel_.get(),
+        &player::tracks::presentation::TrackListModel::acceptSnapshot);
     QObject::connect(
         &publisher,
         &player::playback::application::StatePublisher::snapshotPublished,
@@ -162,6 +179,18 @@ ApplicationContainer::playlistListModel() noexcept
     return *playlistListModel_;
 }
 
+player::tracks::presentation::TrackListModel&
+ApplicationContainer::audioTrackListModel() noexcept
+{
+    return *audioTrackListModel_;
+}
+
+player::tracks::presentation::TrackListModel&
+ApplicationContainer::subtitleTrackListModel() noexcept
+{
+    return *subtitleTrackListModel_;
+}
+
 player::media::application::MediaOpenCoordinator&
 ApplicationContainer::mediaOpenCoordinator() noexcept
 {
@@ -210,6 +239,8 @@ void ApplicationContainer::shutdown() noexcept
     mediaArgumentOpenWorkflow_.reset();
     urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
+    subtitleTrackListModel_.reset();
+    audioTrackListModel_.reset();
     playlistListModel_.reset();
     playlistEntryPlaybackState_.reset();
     if (playbackComposition_ != nullptr) {

@@ -2,6 +2,7 @@ qt_add_executable(player_app MANUAL_FINALIZATION)
 
 add_subdirectory(foundation)
 add_subdirectory(playback)
+add_subdirectory(tracks)
 add_subdirectory(media)
 add_subdirectory(playlist)
 add_subdirectory(app)

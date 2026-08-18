@@ -24,6 +24,8 @@ Item {
     property var mediaDropHandler: null
     property var playlistController: null
     property var playlistModel: null
+    property var audioTrackModel: null
+    property var subtitleTrackModel: null
     property bool playlistDrawerOpen: false
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth

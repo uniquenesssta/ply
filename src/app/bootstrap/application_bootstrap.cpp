@@ -20,6 +20,7 @@
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
+#include "tracks/presentation/track_list_model.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -139,6 +140,14 @@ int ApplicationBootstrap::run(
         QStringLiteral("playlistModel"),
         QVariant::fromValue(
             static_cast<QObject*>(&container.playlistListModel())));
+    initialProperties.insert(
+        QStringLiteral("audioTrackModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.audioTrackListModel())));
+    initialProperties.insert(
+        QStringLiteral("subtitleTrackModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.subtitleTrackListModel())));
     initialProperties.insert(
         QStringLiteral("mediaOpenCoordinator"),
         QVariant::fromValue(
