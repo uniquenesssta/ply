@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-13 Complete**。R7-14 Queue UI 状态解耦候选已实现：current、selected、keyboard focus、hover、pending loading、unavailable 分离；新增 `PlaylistEntryPlaybackState` 与只读 model roles，Windows configure/build/Quick/Full CTest 尚待执行。新增 1 个 CTest target 后预计 Quick **94**、Full **102** 项；剩余 UI/Figma 视觉打磨继续推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -109,13 +109,13 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-18 — R7-14 Queue UI state decoupling candidate
+### 2026-08-18 — R7-14 Queue UI state decoupling Complete
 
 - 按 `成熟播放器行为补强与验收矩阵.md` 把 Playlist row 的状态所有权明确拆开：Playlist Domain 继续唯一拥有 `current EntryId`；QML 只拥有 selected、keyboard focus、hover 交互状态；新增独立 presentation responsibility `PlaylistEntryPlaybackState`，只从现有 generation-gated `PlaybackSnapshot` + 当前稳定 EntryId 投影 pending loading / unavailable。没有新增 MediaGeneration、RequestId 或第二套 queue/playback owner。
 - `PlaylistListModel` 新增只读 `pendingLoading` / `unavailable` roles，并保留既有构造路径与原 role 编号；ApplicationContainer 在同一 `StatePublisher` 主链中先把 Snapshot 投影给 row state，再执行 Auto Advance，因此失败项可在 current 推进前被标记。Opening 进入 pending，Ready 清 pending/unavailable，Failed 清 pending 并标 unavailable；切换 current 会清理旧 pending，删除 entry 会裁剪 unavailable，重试 Opening 会清除该 entry 的 unavailable。由于输入来自 PlaybackSession 已过滤后的 Snapshot，不新增 stale generation 写入路径。
 - `PlaylistRow.qml` 不再用 `current || selected` 合并蓝色高亮：selected 只控制 selection fill，activeFocus 只控制 focus ring，hover 使用独立 hover fill，current 只显示 playing rail；pending/unavailable 通过单独状态 indicator 与现有 `ColorTokens/MaterialTokens` 表达。R7-09 已验证的 current 删除语义现已恢复到 UI：current row 的删除动作继续只经 `PlaylistController::removeEntry()`，不增加 QML→Playback/mpv 旁路。
 - 新增 `playlist_entry_playback_state` CTest，并扩展 `playlist_list_model` 与 `player_playlist_qml`，覆盖 current+unavailable 共存、Opening/Ready/Failed、retry、current change、removed-entry prune、只读 roles，以及 current/selected/focus/hover/pending/unavailable 不再共用单一 highlighted 状态。shutdown 时 `PlaylistListModel` 和 `PlaylistEntryPlaybackState` 均在 Playlist/PlaybackComposition 销毁前释放；没有新增 timer、thread、callback owner 或生产依赖。
-- 当前仅完成源码、调用链、CMake 和测试契约静态复核；因新增 source 与 CTest target 必须重新 configure。Windows configure/build/Quick/Full 尚未执行，预计 Quick 从 **93 增至 94**、Full 从 **101 增至 102**。**R7-14 仍为 In Progress / Windows validation pending。**
+- 用户在 HEAD `d1fa23dc12c71e9c31c8c3b520d8b50d86894507` 的 Windows 锁定环境完成 configure/build；Quick **94/94 PASS，0 failed，55.79 s**，Full **102/102 PASS，0 failed，82.32 s**。`playlist_list_model`、`playlist_entry_playback_state`、`player_playlist_qml` 均在 Quick/Full 通过；Full 的 startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。Build 仅继续出现此前多轮构建已存在的 Qt 6.8 / MSVC 生成 QML 路径 `C4702` unreachable-code 警告，没有项目源码编译错误或测试失败。**R7-14 正式 Complete；Stage R7 正式 Complete。**
 
 ### 2026-08-18 — R7-13 Async Media Open Supersession Complete
 
