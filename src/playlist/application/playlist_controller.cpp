@@ -83,10 +83,141 @@ bool PlaylistController::openSources(
     return true;
 }
 
+bool PlaylistController::appendSources(
+    const QList<media::domain::MediaSource>& sources)
+{
+    const std::optional<std::vector<domain::PlaylistEntryId>> appendedIds =
+        mutation_.appendAll(sources);
+    if (!appendedIds.has_value() || appendedIds->empty()) {
+        return false;
+    }
+
+    emit playlistChanged();
+    return true;
+}
+
+bool PlaylistController::insertSource(
+    const media::domain::MediaSource& source,
+    int targetIndex)
+{
+    if (targetIndex < 0) {
+        return false;
+    }
+
+    const std::optional<domain::PlaylistEntryId> insertedId = mutation_.insert(
+        source,
+        static_cast<std::size_t>(targetIndex));
+    if (!insertedId.has_value()) {
+        return false;
+    }
+
+    emit playlistChanged();
+    return true;
+}
+
+bool PlaylistController::replaceSources(
+    const QList<media::domain::MediaSource>& sources)
+{
+    if (!submitMediaLoad_) {
+        return false;
+    }
+
+    std::optional<domain::PlaylistReplacement> replacement =
+        mutation_.prepareReplacement(sources);
+    if (!replacement.has_value() || replacement->entries().empty()) {
+        return false;
+    }
+
+    const domain::PlaylistEntry& firstEntry = replacement->entries().front();
+    if (!submitLoadForEntry(firstEntry)) {
+        return false;
+    }
+
+    mutation_.commitReplacement(std::move(*replacement));
+    emit playlistChanged();
+    return true;
+}
+
+bool PlaylistController::clearQueue()
+{
+    if (playlist_.empty()) {
+        return true;
+    }
+
+    if (playlist_.currentId().has_value()
+        && (!submitMediaStop_ || !submitMediaStop_())) {
+        return false;
+    }
+
+    mutation_.clear();
+    emit playlistChanged();
+    return true;
+}
+
 bool PlaylistController::reloadCurrentEntry()
 {
     const domain::PlaylistEntry* entry = playlist_.currentEntry();
     return entry != nullptr && submitLoadForEntry(*entry);
+}
+
+bool PlaylistController::nextEntry()
+{
+    const domain::PlaylistNavigationDecision decision =
+        domain::PlaylistNavigation::forManualNext(playlist_);
+    if (decision.action != domain::PlaylistNavigationAction::SelectEntry) {
+        return false;
+    }
+
+    const domain::PlaylistEntry* target = playlist_.find(decision.targetEntryId);
+    if (target == nullptr || !submitLoadForEntry(*target)) {
+        return false;
+    }
+
+    const bool selected = playlist_.shuffleEnabled()
+        ? playlist_.selectNextShuffled(
+            decision.targetEntryId,
+            playlist_.repeatMode() == domain::PlaylistRepeatMode::All)
+        : playlist_.select(decision.targetEntryId);
+    Q_ASSERT(selected);
+    if (!selected) {
+        return false;
+    }
+
+    emit playlistChanged();
+    return true;
+}
+
+bool PlaylistController::previousEntry()
+{
+    const domain::PlaylistNavigationDecision decision =
+        domain::PlaylistNavigation::forManualPrevious(playlist_);
+    if (decision.action != domain::PlaylistNavigationAction::SelectEntry) {
+        return false;
+    }
+
+    return selectEntry(decision.targetEntryId.value());
+}
+
+bool PlaylistController::setRepeatMode(domain::PlaylistRepeatMode mode)
+{
+    if (playlist_.repeatMode() == mode) {
+        return true;
+    }
+
+    mutation_.setRepeatMode(mode);
+    emit playlistChanged();
+    return true;
+}
+
+bool PlaylistController::setShuffleEnabled(bool enabled)
+{
+    if (playlist_.shuffleEnabled() == enabled) {
+        return true;
+    }
+
+    mutation_.setShuffleEnabled(enabled);
+    emit playlistChanged();
+    return true;
 }
 
 bool PlaylistController::removeEntry(quint64 entryId)
