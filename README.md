@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-11 Complete**。R7-11 已在 Windows 锁定环境完成 configure/build 与 Full **100/100 PASS（79.20 s）**。R7-12 Auto Advance generation arbitration 候选已实现；新增 application 源文件后需重新 configure，Windows build/Quick/Full CTest 尚待执行。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-12 Complete**。R7-12 已在 Windows 锁定环境完成 configure/build 与 Full **100/100 PASS（79.64 s）**；该日志未包含 Quick 单独运行，但 Full 已覆盖正式收口门禁。R7-13 Async Media Open Supersession 尚未开始。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -107,13 +107,14 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-18 — R7-12 Auto Advance arbitration candidate
+### 2026-08-18 — R7-12 Auto Advance arbitration Complete
 
 - 按 `成熟播放器行为补强与验收矩阵.md` 新增独立 application responsibility `PlaylistAdvanceArbiter`，只对当前已观测 `MediaGeneration` 的 terminal advance 与 manual Next/Previous 做一次性竞争仲裁。Playlist 继续唯一拥有 queue/current/repeat/shuffle，PlaybackSession 继续唯一拥有媒体 generation；Arbiter 不复制任何队列或播放状态。
 - 同一已观测 generation 内，manual Next/Previous 与 Ended/Failed 只有第一个有效推进可以取得 claim；新的 generation 被 Snapshot 观测后自动重新武装。低于当前已观测 generation 的 late terminal 直接拒绝，因此旧 A 的 EOF 不会在 B 已开始后再次推进。
 - `PlaybackComposition` 仅增加 accepted Load/Stop supersession observer：LoadMedia 或 Stop 成功进入现有 PlaybackCommandBus 后通知 Arbiter 抑制当前已观测 generation，覆盖“手动选 B / Next 已排队，但 PlaybackSession 尚未来得及分配 B generation，此时 A late EOF 到达”的 command-queue 窗口。Play/Pause/Seek/Volume/Mute 不进入该门禁。
 - `PlaylistController::nextEntry()/previousEntry()` 复用同一 Arbiter；manual load 即时拒绝会释放该 manual claim，使同 generation 后续真实 EOF 仍可执行正常 Auto Advance；accepted load 则由上述 observer 固化 claim。Repeat One/All、Shuffle cycle、R7-09 current-removal UX 与现有 navigation policy 均未改写。
-- 扩展 `playlist_auto_advance` 既有测试覆盖两种竞态顺序：manual Next→late EOF、EOF→manual Next；同时覆盖 rapid Next×10 每 generation 至多一次推进、Stop suppression、stale generation、新 generation re-arm、manual load rejection release，以及既有 Repeat/Shuffle/Failure 去重回归。没有新增生产依赖，也没有新增 CTest target，因此重新 configure 后标准 Full 套件仍应为 **100**。由于新增 application 源文件，Windows configure/build/Quick/Full CTest 尚未执行，**R7-12 当前仍为 In Progress**。
+- 扩展 `playlist_auto_advance` 既有测试覆盖两种竞态顺序：manual Next→late EOF、EOF→manual Next；同时覆盖 rapid Next×10 每 generation 至多一次推进、Stop suppression、stale generation、新 generation re-arm、manual load rejection release，以及既有 Repeat/Shuffle/Failure 去重回归。没有新增生产依赖，也没有新增 CTest target。
+- 用户随后在 HEAD `eea42d39ab62a219ed0c80aa2381cb1f5fbac36a` 的 Windows 锁定环境完成重新 configure 与 build，并执行完整 `scripts\test.ps1 -SkipBuild`：**100/100 PASS，0 failed，79.64 s**；`playlist_mutation_semantics` PASS（0.12 s），`playlist_auto_advance` PASS（0.12 s），startup-smoke **3.02 s**，8 项 windowed-render 合计 **38.56 s**。该日志未包含 Quick 单独运行，但 Full 已覆盖正式收口门禁。**R7-12 正式 Complete。**
 
 ### 2026-08-18 — R7-11 Queue Mutation semantics Complete
 
