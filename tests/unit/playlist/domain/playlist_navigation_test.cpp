@@ -109,8 +109,9 @@ void PlaylistNavigationTest::manualOrderedNavigationUsesStableOrderAndRepeatAllW
     QVERIFY(playlist.move(*third, 0));
     next = manualNextFor(playlist);
     previous = manualPreviousFor(playlist);
-    QCOMPARE(next.targetEntryId.value(), first->value());
-    QCOMPARE(previous.targetEntryId.value(), third->value());
+    QCOMPARE(actionValue(next.action), actionValue(PlaylistNavigationAction::None));
+    QVERIFY(!next.targetEntryId.isValid());
+    QCOMPARE(previous.targetEntryId.value(), first->value());
 
     playlist.setRepeatMode(PlaylistRepeatMode::All);
     QVERIFY(playlist.select(*first));
@@ -389,6 +390,7 @@ void PlaylistNavigationTest::currentRemovalRejectsNonCurrentIdentity()
 
     decision = removalDecisionFor(playlist, PlaylistEntryId{9999});
     QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::None));
+    QVERIFY(!decision.targetEntryId.isValid());
 }
 
 } // namespace player::playlist::domain
