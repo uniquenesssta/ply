@@ -152,7 +152,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ### 2026-08-18 — R7-09 Complete
 
-- 用户已冻结 R7-09 删除 current 的 UX：队列仅 1 项时先提交 Stop/Unload，再删除并令 `current=null`；删除中间 current 时切到下一项；删除最后 current 则切到 previous；目标媒体 load 的即时提交失败时删除整体不提交并保留原 queue/current。为保持同一原子语义，单项 Stop 的即时提交失败也不修改 queue/current。
+- 用户已冻结 R7-09 删除 current 的 UX：队列仅 1 项时先提交 Stop/Unload，再删除并令 `current=null`；删除中间 current 时切到下一项；删除最后一项 current 时切到前一项；目标媒体 load 的即时提交失败时删除整体不提交并保留原 queue/current。为保持同一原子语义，单项 Stop 的即时提交失败也不修改 queue/current。
 - `PlaylistNavigation::forCurrentRemoval()` 集中计算上述 next/previous/stop 决策；`Playlist::removeCurrentAndSelect()` 在 Playlist Domain 内原子删除 current 并切换稳定 EntryId，避免任何对外可见的 dangling current。Repeat/Shuffle 不改变用户显式删除 current 时的 next/previous UX；shuffle bookkeeping 随实际 remove/select 同步更新。
 - `PlaylistController::removeEntry()` 现在对 current 走协调链：replacement load 或 Stop 必须先被现有 PlaybackCommandBus 接受，之后才提交 Playlist mutation；即时 command submission rejection 不修改 queue/current。非 current 删除和 reorder 语义保持不变。
 - `PlaybackComposition` 新增返回提交结果的 `submitMediaStop()`，ApplicationContainer 只把该应用级 Stop callback 注入 PlaylistController；QML 继续只调用现有 `removeEntry()`，没有新增 QML→Playback/mpv 旁路，也没有新增生产依赖。
