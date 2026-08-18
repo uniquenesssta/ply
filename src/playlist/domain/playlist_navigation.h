@@ -34,6 +34,10 @@ class PlaylistNavigation final
 public:
     [[nodiscard]] static PlaylistNavigationCapabilities capabilities(
         const PlaylistSnapshot& snapshot) noexcept;
+    [[nodiscard]] static PlaylistNavigationDecision forManualNext(
+        Playlist& playlist);
+    [[nodiscard]] static PlaylistNavigationDecision forManualPrevious(
+        const Playlist& playlist);
     [[nodiscard]] static PlaylistNavigationDecision afterNaturalEnd(
         Playlist& playlist);
     [[nodiscard]] static PlaylistNavigationDecision afterPlaybackFailure(
