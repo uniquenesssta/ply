@@ -44,7 +44,7 @@ Row {
 
         parent: root
         x: 0
-        y: -height - SpacingTokens.controlGap
+        y: -height - SpacingTokens.controlTight
         audioTrackModel: root.audioTrackModel
         subtitleTrackModel: root.subtitleTrackModel
         trackSelectionController: root.trackSelectionController
