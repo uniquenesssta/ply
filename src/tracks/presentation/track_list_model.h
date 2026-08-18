@@ -16,6 +16,7 @@ class TrackListModel final : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(qint64 selectedTrackId READ selectedTrackId NOTIFY selectedTrackIdChanged)
 
 public:
     enum Role {
@@ -40,6 +41,7 @@ public:
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] Qt::ItemFlags flags(const QModelIndex& index) const override;
     [[nodiscard]] int count() const noexcept;
+    [[nodiscard]] qint64 selectedTrackId() const noexcept;
     [[nodiscard]] player::playback::domain::TrackKind kind() const noexcept;
 
 public slots:
@@ -47,6 +49,7 @@ public slots:
 
 signals:
     void countChanged();
+    void selectedTrackIdChanged();
 
 private:
     struct Row final
@@ -66,6 +69,7 @@ private:
 
     player::playback::domain::TrackKind kind_;
     QVector<Row> rows_;
+    qint64 selectedTrackId_ = 0;
 };
 
 } // namespace player::tracks::presentation
