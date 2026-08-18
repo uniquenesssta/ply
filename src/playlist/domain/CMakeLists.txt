@@ -11,6 +11,8 @@ add_library(
         playlist_repeat_mode.h
         playlist_shuffle_state.cpp
         playlist_shuffle_state.h
+        playlist_snapshot.cpp
+        playlist_snapshot.h
 )
 
 player_apply_compiler_options(player_playlist_domain)
