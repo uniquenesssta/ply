@@ -2,10 +2,9 @@
 
 #include <QtGlobal>
 
-#include <optional>
-
 namespace player::playlist::application {
 
+class PlaylistAdvanceArbiter;
 class PlaylistController;
 
 }
@@ -23,11 +22,11 @@ class PlaylistAutoAdvance final
 public:
     PlaylistAutoAdvance(
         domain::Playlist& playlist,
-        PlaylistController& controller) noexcept;
+        PlaylistController& controller,
+        PlaylistAdvanceArbiter& advanceArbiter) noexcept;
 
     void acceptPlaybackState(quint64 mediaGeneration, bool naturallyEnded);
     void acceptPlaybackFailure(quint64 mediaGeneration);
-    void suppressObservedGeneration() noexcept;
 
 private:
     enum class TerminalReason : quint8
@@ -36,14 +35,11 @@ private:
         Failure,
     };
 
-    [[nodiscard]] bool observeGeneration(quint64 mediaGeneration) noexcept;
     void acceptTerminalState(quint64 mediaGeneration, TerminalReason reason);
 
     domain::Playlist& playlist_;
     PlaylistController& controller_;
-    std::optional<quint64> observedGeneration_;
-    std::optional<quint64> supersededGeneration_;
-    std::optional<quint64> handledTerminalGeneration_;
+    PlaylistAdvanceArbiter& advanceArbiter_;
 };
 
 } // namespace player::playlist::application
