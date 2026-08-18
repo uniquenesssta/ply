@@ -4,6 +4,7 @@
 #include "playback/domain/commands/lifecycle_command.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
+#include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
 #include "playback/domain/commands/volume_command.h"
 
@@ -38,6 +39,7 @@ private slots:
     void tracksTypeGenerationAndSubmissionTime();
     void rejectsDuplicateAndLifecycleCommands();
     void generationChangeCancelsOnlyOldMediaRequests();
+    void trackSelectionUsesGenerationAndSameKindSupersession();
     void replyCompletesOnlyOnce();
     void staleCancelledAndUnknownRepliesAreIgnored();
     void timeoutAndShutdownCancelPending();
@@ -162,6 +164,52 @@ void RequestTrackerTest::generationChangeCancelsOnlyOldMediaRequests()
     QVERIFY(currentReply.accepted());
     QVERIFY(currentReply.record.has_value());
     QVERIFY(currentReply.record->state == PlaybackRequestState::Completed);
+}
+
+void RequestTrackerTest::trackSelectionUsesGenerationAndSameKindSupersession()
+{
+    RequestTracker tracker;
+    const MediaGeneration generation{20};
+
+    const PlaybackCommand firstAudio = makeCommand(
+        50,
+        TrackSelectionCommand{TrackSelectionKind::Audio, qint64{2}});
+    QVERIFY(tracker.track(firstAudio, generation) == RequestTrackStatus::Tracked);
+    const auto firstAudioRecord = tracker.record(player::ids::RequestId{50});
+    QVERIFY(firstAudioRecord.has_value());
+    QVERIFY(firstAudioRecord->type == PlaybackRequestType::SelectAudioTrack);
+    QVERIFY(firstAudioRecord->generation.has_value());
+    QCOMPARE(firstAudioRecord->generation->value(), generation.value());
+
+    const PlaybackCommand secondAudio = makeCommand(
+        51,
+        TrackSelectionCommand{TrackSelectionKind::Audio, qint64{3}});
+    QVERIFY(tracker.track(secondAudio, generation) == RequestTrackStatus::Tracked);
+    QCOMPARE(tracker.supersedePendingFor(secondAudio, generation), std::size_t{1});
+
+    const auto supersededAudio = tracker.record(player::ids::RequestId{50});
+    QVERIFY(supersededAudio.has_value());
+    QVERIFY(supersededAudio->state == PlaybackRequestState::Cancelled);
+    QVERIFY(supersededAudio->cancellationReason == PlaybackRequestCancellationReason::Superseded);
+
+    const auto currentAudio = tracker.record(player::ids::RequestId{51});
+    QVERIFY(currentAudio.has_value());
+    QVERIFY(currentAudio->state == PlaybackRequestState::Pending);
+
+    const PlaybackCommand subtitle = makeCommand(
+        52,
+        TrackSelectionCommand{TrackSelectionKind::Subtitle, qint64{7}});
+    QVERIFY(tracker.track(subtitle, generation) == RequestTrackStatus::Tracked);
+    QCOMPARE(tracker.supersedePendingFor(subtitle, generation), std::size_t{0});
+
+    const auto subtitleRecord = tracker.record(player::ids::RequestId{52});
+    QVERIFY(subtitleRecord.has_value());
+    QVERIFY(subtitleRecord->type == PlaybackRequestType::SelectSubtitleTrack);
+    QVERIFY(subtitleRecord->state == PlaybackRequestState::Pending);
+
+    const auto stillPendingAudio = tracker.record(player::ids::RequestId{51});
+    QVERIFY(stillPendingAudio.has_value());
+    QVERIFY(stillPendingAudio->state == PlaybackRequestState::Pending);
 }
 
 void RequestTrackerTest::replyCompletesOnlyOnce()
