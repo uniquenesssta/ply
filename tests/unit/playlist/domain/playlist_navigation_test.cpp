@@ -18,6 +18,11 @@ PlaylistNavigationDecision decisionFor(Playlist& playlist)
     return PlaylistNavigation::afterNaturalEnd(playlist);
 }
 
+PlaylistNavigationDecision failureDecisionFor(Playlist& playlist)
+{
+    return PlaylistNavigation::afterPlaybackFailure(playlist);
+}
+
 int actionValue(PlaylistNavigationAction action)
 {
     return static_cast<int>(action);
@@ -35,6 +40,8 @@ private slots:
     void repeatModesHandleTailAndSingleItem();
     void shuffleVisitsEachRemainingEntryBeforeStopping();
     void shuffleRepeatAllStartsFreshCycleWithoutImmediateReplay();
+    void failureSkipsForwardWithoutRepeatLoop();
+    void shuffleFailureConsumesRemainingCycleWithoutRestart();
 };
 
 void PlaylistNavigationTest::noCurrentProducesNoAction()
@@ -45,6 +52,11 @@ void PlaylistNavigationTest::noCurrentProducesNoAction()
     const auto decision = decisionFor(playlist);
     QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::None));
     QVERIFY(!decision.targetEntryId.isValid());
+
+    const auto failureDecision = failureDecisionFor(playlist);
+    QCOMPARE(
+        actionValue(failureDecision.action),
+        actionValue(PlaylistNavigationAction::None));
 }
 
 void PlaylistNavigationTest::normalOrderAdvancesAndHonorsMove()
@@ -152,6 +164,62 @@ void PlaylistNavigationTest::shuffleRepeatAllStartsFreshCycleWithoutImmediateRep
     QCOMPARE(actionValue(nextCycle.action), actionValue(PlaylistNavigationAction::SelectEntry));
     QVERIFY(nextCycle.targetEntryId.isValid());
     QVERIFY(nextCycle.targetEntryId != *previousCurrent);
+}
+
+void PlaylistNavigationTest::failureSkipsForwardWithoutRepeatLoop()
+{
+    Playlist playlist;
+    const auto first = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    const auto second = playlist.append(localSource(QStringLiteral("C:/media/b.mp4")));
+    const auto third = playlist.append(localSource(QStringLiteral("C:/media/c.mp4")));
+    QVERIFY(first.has_value());
+    QVERIFY(second.has_value());
+    QVERIFY(third.has_value());
+    QVERIFY(playlist.select(*second));
+
+    playlist.setRepeatMode(PlaylistRepeatMode::One);
+    auto decision = failureDecisionFor(playlist);
+    QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::SelectEntry));
+    QCOMPARE(decision.targetEntryId.value(), third->value());
+    QVERIFY(playlist.select(decision.targetEntryId));
+
+    playlist.setRepeatMode(PlaylistRepeatMode::All);
+    decision = failureDecisionFor(playlist);
+    QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::None));
+
+    Playlist single;
+    const auto only = single.append(localSource(QStringLiteral("C:/media/only.mp4")));
+    QVERIFY(only.has_value());
+    QVERIFY(single.select(*only));
+    single.setRepeatMode(PlaylistRepeatMode::One);
+    decision = failureDecisionFor(single);
+    QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::None));
+}
+
+void PlaylistNavigationTest::shuffleFailureConsumesRemainingCycleWithoutRestart()
+{
+    Playlist playlist;
+    const auto first = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    QVERIFY(playlist.append(localSource(QStringLiteral("C:/media/b.mp4"))).has_value());
+    QVERIFY(playlist.append(localSource(QStringLiteral("C:/media/c.mp4"))).has_value());
+    QVERIFY(first.has_value());
+    QVERIFY(playlist.select(*first));
+    playlist.setShuffleEnabled(true);
+    playlist.setRepeatMode(PlaylistRepeatMode::All);
+
+    QSet<quint64> skipped;
+    for (int index = 0; index < 2; ++index) {
+        const auto decision = failureDecisionFor(playlist);
+        QCOMPARE(actionValue(decision.action), actionValue(PlaylistNavigationAction::SelectEntry));
+        QVERIFY(decision.targetEntryId.isValid());
+        QVERIFY(!skipped.contains(decision.targetEntryId.value()));
+        skipped.insert(decision.targetEntryId.value());
+        QVERIFY(playlist.select(decision.targetEntryId));
+    }
+
+    QCOMPARE(skipped.size(), 2);
+    const auto exhausted = failureDecisionFor(playlist);
+    QCOMPARE(actionValue(exhausted.action), actionValue(PlaylistNavigationAction::None));
 }
 
 } // namespace player::playlist::domain

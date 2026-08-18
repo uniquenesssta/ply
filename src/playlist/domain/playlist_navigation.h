@@ -26,6 +26,8 @@ class PlaylistNavigation final
 public:
     [[nodiscard]] static PlaylistNavigationDecision afterNaturalEnd(
         Playlist& playlist);
+    [[nodiscard]] static PlaylistNavigationDecision afterPlaybackFailure(
+        Playlist& playlist);
 };
 
 } // namespace player::playlist::domain

@@ -22,27 +22,51 @@ void PlaylistAutoAdvance::acceptPlaybackState(
         return;
     }
 
-    if (handledEndedGeneration_.has_value()
-        && *handledEndedGeneration_ != mediaGeneration) {
-        handledEndedGeneration_.reset();
+    if (handledTerminalGeneration_.has_value()
+        && *handledTerminalGeneration_ != mediaGeneration) {
+        handledTerminalGeneration_.reset();
     }
 
     if (!naturallyEnded) {
         return;
     }
 
-    if (handledEndedGeneration_.has_value()
-        && *handledEndedGeneration_ == mediaGeneration) {
+    acceptTerminalState(mediaGeneration, TerminalReason::NaturalEnd);
+}
+
+void PlaylistAutoAdvance::acceptPlaybackFailure(quint64 mediaGeneration)
+{
+    acceptTerminalState(mediaGeneration, TerminalReason::Failure);
+}
+
+void PlaylistAutoAdvance::acceptTerminalState(
+    quint64 mediaGeneration,
+    TerminalReason reason)
+{
+    if (mediaGeneration == 0) {
         return;
     }
 
-    // Claim this media generation before submitting another load. Late or
-    // repeated snapshots from the same generation must never create a second
-    // automatic load, even if that generation briefly leaves Ended again.
-    handledEndedGeneration_ = mediaGeneration;
+    if (handledTerminalGeneration_.has_value()
+        && *handledTerminalGeneration_ != mediaGeneration) {
+        handledTerminalGeneration_.reset();
+    }
+
+    if (handledTerminalGeneration_.has_value()
+        && *handledTerminalGeneration_ == mediaGeneration) {
+        return;
+    }
+
+    // Claim this media generation before submitting another load. A terminal
+    // snapshot must never create a second automatic load, even if late Ended
+    // and Failed projections for the same generation are both observed.
+    handledTerminalGeneration_ = mediaGeneration;
 
     const domain::PlaylistNavigationDecision decision =
-        domain::PlaylistNavigation::afterNaturalEnd(playlist_);
+        reason == TerminalReason::NaturalEnd
+        ? domain::PlaylistNavigation::afterNaturalEnd(playlist_)
+        : domain::PlaylistNavigation::afterPlaybackFailure(playlist_);
+
     switch (decision.action) {
     case domain::PlaylistNavigationAction::None:
         return;

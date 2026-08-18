@@ -26,11 +26,20 @@ public:
         PlaylistController& controller) noexcept;
 
     void acceptPlaybackState(quint64 mediaGeneration, bool naturallyEnded);
+    void acceptPlaybackFailure(quint64 mediaGeneration);
 
 private:
+    enum class TerminalReason : quint8
+    {
+        NaturalEnd,
+        Failure,
+    };
+
+    void acceptTerminalState(quint64 mediaGeneration, TerminalReason reason);
+
     domain::Playlist& playlist_;
     PlaylistController& controller_;
-    std::optional<quint64> handledEndedGeneration_;
+    std::optional<quint64> handledTerminalGeneration_;
 };
 
 } // namespace player::playlist::application

@@ -94,10 +94,14 @@ ApplicationContainer::ApplicationContainer(
                 return;
             }
 
+            const quint64 mediaGeneration = snapshot.generation().value();
+            const auto lifecycle = snapshot.lifecycle();
             playlistAutoAdvance_->acceptPlaybackState(
-                snapshot.generation().value(),
-                snapshot.lifecycle()
-                    == player::playback::domain::PlaybackLifecycleState::Ended);
+                mediaGeneration,
+                lifecycle == player::playback::domain::PlaybackLifecycleState::Ended);
+            if (lifecycle == player::playback::domain::PlaybackLifecycleState::Failed) {
+                playlistAutoAdvance_->acceptPlaybackFailure(mediaGeneration);
+            }
         });
 }
 

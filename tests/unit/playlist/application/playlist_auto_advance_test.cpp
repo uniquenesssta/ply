@@ -53,6 +53,8 @@ private slots:
     void repeatOneReloadsCurrent();
     void repeatAllWrapsTail();
     void shuffleAdvancesThroughControllerWithoutImmediateReplay();
+    void failureSkipsNextAndDoesNotRetryOrWrap();
+    void shuffleFailureDoesNotRestartRepeatAllCycle();
     void rejectedAdvanceRestoresCurrentAndDoesNotRetrySameGeneration();
     void newGenerationCanAdvanceAfterPreviousEnd();
 };
@@ -127,6 +129,50 @@ void PlaylistAutoAdvanceTest::shuffleAdvancesThroughControllerWithoutImmediateRe
 
     fixture.autoAdvance.acceptPlaybackState(12, true);
     QCOMPARE(fixture.submissions, 1);
+}
+
+void PlaylistAutoAdvanceTest::failureSkipsNextAndDoesNotRetryOrWrap()
+{
+    Fixture fixture;
+    openTwo(fixture);
+    const auto secondId = fixture.playlist.entries().at(1).id();
+    fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::One);
+
+    fixture.autoAdvance.acceptPlaybackFailure(15);
+
+    QCOMPARE(fixture.submissions, 1);
+    QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
+    QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
+
+    fixture.autoAdvance.acceptPlaybackFailure(15);
+    fixture.autoAdvance.acceptPlaybackState(15, true);
+    QCOMPARE(fixture.submissions, 1);
+
+    fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::All);
+    fixture.autoAdvance.acceptPlaybackState(16, false);
+    fixture.autoAdvance.acceptPlaybackFailure(16);
+    QCOMPARE(fixture.submissions, 1);
+    QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
+}
+
+void PlaylistAutoAdvanceTest::shuffleFailureDoesNotRestartRepeatAllCycle()
+{
+    Fixture fixture;
+    openTwo(fixture);
+    const auto secondId = fixture.playlist.entries().at(1).id();
+    fixture.playlist.setShuffleEnabled(true);
+    fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::All);
+
+    fixture.autoAdvance.acceptPlaybackFailure(17);
+
+    QCOMPARE(fixture.submissions, 1);
+    QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
+    QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
+
+    fixture.autoAdvance.acceptPlaybackState(18, false);
+    fixture.autoAdvance.acceptPlaybackFailure(18);
+    QCOMPARE(fixture.submissions, 1);
+    QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
 }
 
 void PlaylistAutoAdvanceTest::rejectedAdvanceRestoresCurrentAndDoesNotRetrySameGeneration()
