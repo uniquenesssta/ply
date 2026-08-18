@@ -21,6 +21,8 @@
 #include <QObject>
 #include <QString>
 
+#include <utility>
+
 namespace player::app {
 namespace {
 
@@ -295,6 +297,12 @@ PlaybackComposition::hudMessageQueue() noexcept
     return *hudMessageQueue_;
 }
 
+void PlaybackComposition::setPlaybackSupersessionObserver(
+    PlaybackSupersessionObserver observer)
+{
+    playbackSupersessionObserver_ = std::move(observer);
+}
+
 bool PlaybackComposition::submitMediaLoad(const QString& canonicalSource)
 {
     if (canonicalSource.isEmpty()) {
@@ -318,6 +326,7 @@ bool PlaybackComposition::submitMediaLoad(const QString& canonicalSource)
         return false;
     }
 
+    notifyPlaybackSupersessionAccepted();
     return true;
 }
 
@@ -348,6 +357,9 @@ bool PlaybackComposition::submitTransport(TransportAction action)
         return false;
     }
 
+    if (action == TransportAction::Stop) {
+        notifyPlaybackSupersessionAccepted();
+    }
     return true;
 }
 
@@ -426,6 +438,13 @@ bool PlaybackComposition::submitMuted(bool muted)
     }
 
     return true;
+}
+
+void PlaybackComposition::notifyPlaybackSupersessionAccepted()
+{
+    if (playbackSupersessionObserver_) {
+        playbackSupersessionObserver_();
+    }
 }
 
 } // namespace player::app
