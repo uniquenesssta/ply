@@ -89,6 +89,12 @@ ApplicationContainer::ApplicationContainer(
         loggingBootstrap_ = std::make_unique<LoggingBootstrap>();
     }
 
+    playbackComposition_->setPlaybackSupersessionObserver([this]() {
+        if (playlistAutoAdvance_ != nullptr) {
+            playlistAutoAdvance_->suppressObservedGeneration();
+        }
+    });
+
     auto& publisher = playbackComposition_->statePublisher();
     QObject::connect(
         &publisher,
@@ -187,6 +193,9 @@ void ApplicationContainer::shutdown() noexcept
     urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
     playlistListModel_.reset();
+    if (playbackComposition_ != nullptr) {
+        playbackComposition_->setPlaybackSupersessionObserver({});
+    }
     playlistAutoAdvance_.reset();
     playlistController_.reset();
     playlistMutation_.reset();
