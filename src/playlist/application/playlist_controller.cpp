@@ -1,5 +1,6 @@
 #include "playlist/application/playlist_controller.h"
 
+#include "playlist/application/playlist_advance_arbiter.h"
 #include "playlist/application/playlist_mutation.h"
 #include "playlist/domain/playlist_navigation.h"
 
@@ -18,7 +19,8 @@ PlaylistController::PlaylistController(
         mutation,
         std::move(submitMediaLoad),
         SubmitMediaStop{},
-        parent)
+        parent,
+        nullptr)
 {
 }
 
@@ -27,12 +29,14 @@ PlaylistController::PlaylistController(
     PlaylistMutation& mutation,
     SubmitMediaLoad submitMediaLoad,
     SubmitMediaStop submitMediaStop,
-    QObject* parent)
+    QObject* parent,
+    PlaylistAdvanceArbiter* advanceArbiter)
     : QObject(parent)
     , playlist_(playlist)
     , mutation_(mutation)
     , submitMediaLoad_(std::move(submitMediaLoad))
     , submitMediaStop_(std::move(submitMediaStop))
+    , advanceArbiter_(advanceArbiter)
 {
 }
 
@@ -162,14 +166,20 @@ bool PlaylistController::reloadCurrentEntry()
 
 bool PlaylistController::nextEntry()
 {
+    if (!claimManualNavigation()) {
+        return false;
+    }
+
     const domain::PlaylistNavigationDecision decision =
         domain::PlaylistNavigation::forManualNext(playlist_);
     if (decision.action != domain::PlaylistNavigationAction::SelectEntry) {
+        releaseManualNavigationClaim();
         return false;
     }
 
     const domain::PlaylistEntry* target = playlist_.find(decision.targetEntryId);
     if (target == nullptr || !submitLoadForEntry(*target)) {
+        releaseManualNavigationClaim();
         return false;
     }
 
@@ -189,13 +199,23 @@ bool PlaylistController::nextEntry()
 
 bool PlaylistController::previousEntry()
 {
-    const domain::PlaylistNavigationDecision decision =
-        domain::PlaylistNavigation::forManualPrevious(playlist_);
-    if (decision.action != domain::PlaylistNavigationAction::SelectEntry) {
+    if (!claimManualNavigation()) {
         return false;
     }
 
-    return selectEntry(decision.targetEntryId.value());
+    const domain::PlaylistNavigationDecision decision =
+        domain::PlaylistNavigation::forManualPrevious(playlist_);
+    if (decision.action != domain::PlaylistNavigationAction::SelectEntry) {
+        releaseManualNavigationClaim();
+        return false;
+    }
+
+    if (!selectEntry(decision.targetEntryId.value())) {
+        releaseManualNavigationClaim();
+        return false;
+    }
+
+    return true;
 }
 
 bool PlaylistController::setRepeatMode(domain::PlaylistRepeatMode mode)
@@ -308,6 +328,19 @@ bool PlaylistController::selectEntry(quint64 entryId)
 
     emit playlistChanged();
     return true;
+}
+
+bool PlaylistController::claimManualNavigation()
+{
+    return advanceArbiter_ == nullptr
+        || advanceArbiter_->tryClaimManualNavigation();
+}
+
+void PlaylistController::releaseManualNavigationClaim() noexcept
+{
+    if (advanceArbiter_ != nullptr) {
+        advanceArbiter_->releaseManualNavigationClaim();
+    }
 }
 
 bool PlaylistController::submitLoadForEntry(const domain::PlaylistEntry& entry)
