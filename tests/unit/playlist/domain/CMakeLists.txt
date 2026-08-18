@@ -66,3 +66,26 @@ add_test(
     NAME playlist_shuffle_state
     COMMAND playlist_shuffle_state_tests
 )
+
+add_executable(
+    playlist_snapshot_tests
+    playlist_snapshot_test.cpp
+)
+
+player_apply_compiler_options(playlist_snapshot_tests)
+player_enable_compiler_warnings(playlist_snapshot_tests)
+player_enable_sanitizers(playlist_snapshot_tests)
+player_enable_static_analysis(playlist_snapshot_tests)
+
+target_link_libraries(
+    playlist_snapshot_tests
+    PRIVATE
+        player_playlist_domain
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME playlist_snapshot
+    COMMAND playlist_snapshot_tests
+)
