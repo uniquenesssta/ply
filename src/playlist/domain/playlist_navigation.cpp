@@ -1,11 +1,39 @@
 #include "playlist/domain/playlist_navigation.h"
 
 #include "playlist/domain/playlist.h"
+#include "playlist/domain/playlist_snapshot.h"
 
 #include <algorithm>
 #include <iterator>
 
 namespace player::playlist::domain {
+
+PlaylistNavigationCapabilities PlaylistNavigation::capabilities(
+    const PlaylistSnapshot& snapshot) noexcept
+{
+    const std::optional<std::size_t> currentIndex = snapshot.currentIndex();
+    if (!currentIndex.has_value()
+        || *currentIndex >= snapshot.size()
+        || snapshot.size() < 2) {
+        return {};
+    }
+
+    if (snapshot.shuffleEnabled()) {
+        // Shuffle currently owns only a forward cycle bag. Until R7-12 adds a
+        // unified manual Previous history policy, advertising Previous here
+        // would claim a capability the queue cannot execute deterministically.
+        const bool canNext = !snapshot.shuffleCycleInitialized()
+            || !snapshot.shuffleRemainingEntryIds().empty()
+            || snapshot.repeatMode() == PlaylistRepeatMode::All;
+        return {canNext, false};
+    }
+
+    const bool wrap = snapshot.repeatMode() == PlaylistRepeatMode::All;
+    return {
+        *currentIndex + 1 < snapshot.size() || wrap,
+        *currentIndex > 0 || wrap,
+    };
+}
 
 PlaylistNavigationDecision PlaylistNavigation::afterNaturalEnd(
     Playlist& playlist)
