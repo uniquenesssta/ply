@@ -18,16 +18,7 @@ void PlaylistAutoAdvance::acceptPlaybackState(
     quint64 mediaGeneration,
     bool naturallyEnded)
 {
-    if (mediaGeneration == 0) {
-        return;
-    }
-
-    if (handledTerminalGeneration_.has_value()
-        && *handledTerminalGeneration_ != mediaGeneration) {
-        handledTerminalGeneration_.reset();
-    }
-
-    if (!naturallyEnded) {
+    if (!observeGeneration(mediaGeneration) || !naturallyEnded) {
         return;
     }
 
@@ -39,17 +30,50 @@ void PlaylistAutoAdvance::acceptPlaybackFailure(quint64 mediaGeneration)
     acceptTerminalState(mediaGeneration, TerminalReason::Failure);
 }
 
+void PlaylistAutoAdvance::suppressObservedGeneration() noexcept
+{
+    if (!observedGeneration_.has_value()) {
+        return;
+    }
+
+    supersededGeneration_ = observedGeneration_;
+}
+
+bool PlaylistAutoAdvance::observeGeneration(quint64 mediaGeneration) noexcept
+{
+    if (mediaGeneration == 0) {
+        return false;
+    }
+
+    if (!observedGeneration_.has_value()) {
+        observedGeneration_ = mediaGeneration;
+        return true;
+    }
+
+    if (mediaGeneration < *observedGeneration_) {
+        return false;
+    }
+
+    if (mediaGeneration > *observedGeneration_) {
+        observedGeneration_ = mediaGeneration;
+        supersededGeneration_.reset();
+        handledTerminalGeneration_.reset();
+    }
+
+    return true;
+}
+
 void PlaylistAutoAdvance::acceptTerminalState(
     quint64 mediaGeneration,
     TerminalReason reason)
 {
-    if (mediaGeneration == 0) {
+    if (!observeGeneration(mediaGeneration)) {
         return;
     }
 
-    if (handledTerminalGeneration_.has_value()
-        && *handledTerminalGeneration_ != mediaGeneration) {
-        handledTerminalGeneration_.reset();
+    if (supersededGeneration_.has_value()
+        && *supersededGeneration_ == mediaGeneration) {
+        return;
     }
 
     if (handledTerminalGeneration_.has_value()
