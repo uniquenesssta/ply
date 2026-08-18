@@ -1,5 +1,7 @@
 #include "playlist/domain/playlist.h"
 
+#include <QtGlobal>
+
 #include <algorithm>
 #include <iterator>
 #include <limits>
@@ -153,6 +155,35 @@ const PlaylistEntry* Playlist::find(PlaylistEntryId id) const noexcept
         });
 
     return iterator == entries_.cend() ? nullptr : &(*iterator);
+}
+
+PlaylistSnapshot Playlist::snapshot() const
+{
+    std::optional<std::size_t> currentIndex;
+    if (currentId_.has_value()) {
+        const auto current = std::find_if(
+            entries_.cbegin(),
+            entries_.cend(),
+            [this](const PlaylistEntry& entry) {
+                return entry.id() == *currentId_;
+            });
+        if (current != entries_.cend()) {
+            currentIndex = static_cast<std::size_t>(
+                std::distance(entries_.cbegin(), current));
+        }
+    }
+
+    Q_ASSERT(!currentId_.has_value() || currentIndex.has_value());
+
+    return PlaylistSnapshot{
+        entries_,
+        currentId_,
+        currentIndex,
+        repeatMode_,
+        shuffleState_.enabled(),
+        shuffleState_.cycleInitialized(),
+        shuffleState_.remainingEntryIds(),
+    };
 }
 
 std::optional<PlaylistEntryId> Playlist::currentId() const noexcept
