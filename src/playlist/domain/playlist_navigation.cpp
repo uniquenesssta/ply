@@ -19,9 +19,9 @@ PlaylistNavigationCapabilities PlaylistNavigation::capabilities(
     }
 
     if (snapshot.shuffleEnabled()) {
-        // Shuffle currently owns only a forward cycle bag. Until R7-12 adds a
-        // unified manual Previous history policy, advertising Previous here
-        // would claim a capability the queue cannot execute deterministically.
+        // Shuffle currently owns only a forward cycle bag. Without an explicit
+        // shuffle Previous history owner, advertising Previous here would claim
+        // a capability the queue cannot execute deterministically.
         const bool canNext = !snapshot.shuffleCycleInitialized()
             || !snapshot.shuffleRemainingEntryIds().empty()
             || snapshot.repeatMode() == PlaylistRepeatMode::All;
@@ -104,8 +104,8 @@ PlaylistNavigationDecision PlaylistNavigation::forManualPrevious(
         return {PlaylistNavigationAction::SelectEntry, entries.back().id()};
     }
 
-    // Shuffle Previous requires explicit history ownership and is intentionally
-    // deferred to R7-12 rather than inferred from visual order.
+    // Shuffle Previous requires explicit history ownership and must not be
+    // inferred from visual order or the forward shuffle cycle bag.
     return {};
 }
 
