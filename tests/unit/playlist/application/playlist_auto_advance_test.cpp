@@ -1,4 +1,5 @@
 #include "media/domain/media_source.h"
+#include "playlist/application/playlist_advance_arbiter.h"
 #include "playlist/application/playlist_auto_advance.h"
 #include "playlist/application/playlist_controller.h"
 #include "playlist/application/playlist_mutation.h"
@@ -18,10 +19,10 @@ struct Fixture final
 {
     domain::Playlist playlist;
     PlaylistMutation mutation{playlist};
+    PlaylistAdvanceArbiter advanceArbiter;
     int submissions = 0;
     QString submittedLocation;
     QString rejectedLocation;
-    PlaylistAutoAdvance* autoAdvanceObserver = nullptr;
     PlaylistController controller{
         playlist,
         mutation,
@@ -29,17 +30,17 @@ struct Fixture final
             ++submissions;
             submittedLocation = source.location();
             const bool accepted = source.location() != rejectedLocation;
-            if (accepted && autoAdvanceObserver != nullptr) {
-                autoAdvanceObserver->suppressObservedGeneration();
+            if (accepted) {
+                // Production PlaybackComposition notifies this same arbiter
+                // after an accepted LoadMedia command enters the command bus.
+                advanceArbiter.suppressObservedGeneration();
             }
             return accepted;
-        }};
-    PlaylistAutoAdvance autoAdvance{playlist, controller};
-
-    Fixture()
-    {
-        autoAdvanceObserver = &autoAdvance;
-    }
+        },
+        PlaylistController::SubmitMediaStop{},
+        nullptr,
+        &advanceArbiter};
+    PlaylistAutoAdvance autoAdvance{playlist, controller, advanceArbiter};
 };
 
 void openTwo(Fixture& fixture)
@@ -63,6 +64,18 @@ void openThree(Fixture& fixture)
     fixture.submittedLocation.clear();
 }
 
+void openFour(Fixture& fixture)
+{
+    QVERIFY(fixture.controller.openSources({
+        localSource(QStringLiteral("C:/media/a.mp4")),
+        localSource(QStringLiteral("C:/media/b.mp4")),
+        localSource(QStringLiteral("C:/media/c.mp4")),
+        localSource(QStringLiteral("C:/media/d.mp4")),
+    }));
+    fixture.submissions = 0;
+    fixture.submittedLocation.clear();
+}
+
 } // namespace
 
 class PlaylistAutoAdvanceTest final : public QObject
@@ -70,10 +83,12 @@ class PlaylistAutoAdvanceTest final : public QObject
     Q_OBJECT
 
 private slots:
-    void naturalEndAdvancesExactlyOnceWhileStopIsIgnored();
+    void naturalEndAdvancesExactlyOnce();
     void manualNextSuppressesLateEndAndNewGenerationRearms();
+    void eofFirstBlocksManualNextUntilNewGeneration();
+    void rapidManualNextAllowsOnlyOneAdvancePerObservedGeneration();
     void acceptedStopSuppressesLateNaturalEnd();
-    void rejectedManualNextDoesNotSuppressNaturalEnd();
+    void rejectedManualNextReleasesClaimForNaturalEnd();
     void repeatOneReloadsCurrent();
     void repeatAllWrapsTail();
     void shuffleAdvancesThroughControllerWithoutImmediateReplay();
@@ -83,7 +98,7 @@ private slots:
     void newGenerationCanAdvanceAfterPreviousEnd();
 };
 
-void PlaylistAutoAdvanceTest::naturalEndAdvancesExactlyOnceWhileStopIsIgnored()
+void PlaylistAutoAdvanceTest::naturalEndAdvancesExactlyOnce()
 {
     Fixture fixture;
     openTwo(fixture);
@@ -116,14 +131,12 @@ void PlaylistAutoAdvanceTest::manualNextSuppressesLateEndAndNewGenerationRearms(
     QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
 
     // The old generation may still publish Ended before the queued B load has
-    // reached PlaybackSession. The already-accepted manual Next owns that
+    // reached PlaybackSession. The already accepted manual Next owns A's
     // transition, so A must not auto-advance B again to C.
     fixture.autoAdvance.acceptPlaybackState(30, true);
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
 
-    // Once B's newer generation is observed, stale A terminal state remains
-    // rejected and B regains normal automatic advancement authority.
     fixture.autoAdvance.acceptPlaybackState(31, false);
     fixture.autoAdvance.acceptPlaybackState(30, true);
     QCOMPARE(fixture.submissions, 1);
@@ -134,6 +147,53 @@ void PlaylistAutoAdvanceTest::manualNextSuppressesLateEndAndNewGenerationRearms(
     QCOMPARE(fixture.playlist.currentId()->value(), thirdId.value());
 }
 
+void PlaylistAutoAdvanceTest::eofFirstBlocksManualNextUntilNewGeneration()
+{
+    Fixture fixture;
+    openThree(fixture);
+    const auto secondId = fixture.playlist.entries().at(1).id();
+    const auto thirdId = fixture.playlist.entries().at(2).id();
+
+    fixture.autoAdvance.acceptPlaybackState(40, false);
+    fixture.autoAdvance.acceptPlaybackState(40, true);
+    QCOMPARE(fixture.submissions, 1);
+    QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
+
+    // EOF already claimed generation 40 and queued B. A user Next arriving in
+    // the same command-queue window must not advance the Playlist to C.
+    QVERIFY(!fixture.controller.nextEntry());
+    QCOMPARE(fixture.submissions, 1);
+    QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
+
+    fixture.autoAdvance.acceptPlaybackState(41, false);
+    QVERIFY(fixture.controller.nextEntry());
+    QCOMPARE(fixture.submissions, 2);
+    QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/c.mp4"));
+    QCOMPARE(fixture.playlist.currentId()->value(), thirdId.value());
+}
+
+void PlaylistAutoAdvanceTest::rapidManualNextAllowsOnlyOneAdvancePerObservedGeneration()
+{
+    Fixture fixture;
+    openFour(fixture);
+    const auto secondId = fixture.playlist.entries().at(1).id();
+    const auto thirdId = fixture.playlist.entries().at(2).id();
+
+    fixture.autoAdvance.acceptPlaybackState(50, false);
+    QVERIFY(fixture.controller.nextEntry());
+    for (int index = 0; index < 9; ++index) {
+        QVERIFY(!fixture.controller.nextEntry());
+    }
+
+    QCOMPARE(fixture.submissions, 1);
+    QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
+
+    fixture.autoAdvance.acceptPlaybackState(51, false);
+    QVERIFY(fixture.controller.nextEntry());
+    QCOMPARE(fixture.submissions, 2);
+    QCOMPARE(fixture.playlist.currentId()->value(), thirdId.value());
+}
+
 void PlaylistAutoAdvanceTest::acceptedStopSuppressesLateNaturalEnd()
 {
     Fixture fixture;
@@ -141,31 +201,30 @@ void PlaylistAutoAdvanceTest::acceptedStopSuppressesLateNaturalEnd()
     const auto currentId = fixture.playlist.currentId();
     QVERIFY(currentId.has_value());
 
-    fixture.autoAdvance.acceptPlaybackState(40, false);
-    fixture.autoAdvance.suppressObservedGeneration();
-    fixture.autoAdvance.acceptPlaybackState(40, true);
+    fixture.autoAdvance.acceptPlaybackState(60, false);
+    fixture.advanceArbiter.suppressObservedGeneration();
+    fixture.autoAdvance.acceptPlaybackState(60, true);
 
     QCOMPARE(fixture.submissions, 0);
     QCOMPARE(fixture.playlist.currentId()->value(), currentId->value());
 }
 
-void PlaylistAutoAdvanceTest::rejectedManualNextDoesNotSuppressNaturalEnd()
+void PlaylistAutoAdvanceTest::rejectedManualNextReleasesClaimForNaturalEnd()
 {
     Fixture fixture;
     openTwo(fixture);
-    const auto currentId = fixture.playlist.currentId();
-    QVERIFY(currentId.has_value());
+    const auto secondId = fixture.playlist.entries().at(1).id();
     fixture.rejectedLocation = QStringLiteral("C:/media/b.mp4");
 
-    fixture.autoAdvance.acceptPlaybackState(45, false);
+    fixture.autoAdvance.acceptPlaybackState(65, false);
     QVERIFY(!fixture.controller.nextEntry());
     QCOMPARE(fixture.submissions, 1);
-    QCOMPARE(fixture.playlist.currentId()->value(), currentId->value());
 
-    fixture.autoAdvance.acceptPlaybackState(45, true);
+    fixture.rejectedLocation.clear();
+    fixture.autoAdvance.acceptPlaybackState(65, true);
     QCOMPARE(fixture.submissions, 2);
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
-    QCOMPARE(fixture.playlist.currentId()->value(), currentId->value());
+    QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
 }
 
 void PlaylistAutoAdvanceTest::repeatOneReloadsCurrent()
@@ -176,7 +235,7 @@ void PlaylistAutoAdvanceTest::repeatOneReloadsCurrent()
     QVERIFY(currentId.has_value());
     fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::One);
 
-    fixture.autoAdvance.acceptPlaybackState(5, true);
+    fixture.autoAdvance.acceptPlaybackState(70, true);
 
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/a.mp4"));
@@ -194,7 +253,7 @@ void PlaylistAutoAdvanceTest::repeatAllWrapsTail()
     fixture.submittedLocation.clear();
     fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::All);
 
-    fixture.autoAdvance.acceptPlaybackState(8, true);
+    fixture.autoAdvance.acceptPlaybackState(80, true);
 
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/a.mp4"));
@@ -210,14 +269,14 @@ void PlaylistAutoAdvanceTest::shuffleAdvancesThroughControllerWithoutImmediateRe
     QVERIFY(firstId.has_value());
     fixture.playlist.setShuffleEnabled(true);
 
-    fixture.autoAdvance.acceptPlaybackState(11, true);
+    fixture.autoAdvance.acceptPlaybackState(90, true);
 
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
     QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
     QVERIFY(fixture.playlist.currentId()->value() != firstId->value());
 
-    fixture.autoAdvance.acceptPlaybackState(12, true);
+    fixture.autoAdvance.acceptPlaybackState(91, true);
     QCOMPARE(fixture.submissions, 1);
 }
 
@@ -228,19 +287,19 @@ void PlaylistAutoAdvanceTest::failureSkipsNextAndDoesNotRetryOrWrap()
     const auto secondId = fixture.playlist.entries().at(1).id();
     fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::One);
 
-    fixture.autoAdvance.acceptPlaybackFailure(15);
+    fixture.autoAdvance.acceptPlaybackFailure(100);
 
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
     QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
 
-    fixture.autoAdvance.acceptPlaybackFailure(15);
-    fixture.autoAdvance.acceptPlaybackState(15, true);
+    fixture.autoAdvance.acceptPlaybackFailure(100);
+    fixture.autoAdvance.acceptPlaybackState(100, true);
     QCOMPARE(fixture.submissions, 1);
 
     fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::All);
-    fixture.autoAdvance.acceptPlaybackState(16, false);
-    fixture.autoAdvance.acceptPlaybackFailure(16);
+    fixture.autoAdvance.acceptPlaybackState(101, false);
+    fixture.autoAdvance.acceptPlaybackFailure(101);
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
 }
@@ -253,14 +312,14 @@ void PlaylistAutoAdvanceTest::shuffleFailureDoesNotRestartRepeatAllCycle()
     fixture.playlist.setShuffleEnabled(true);
     fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::All);
 
-    fixture.autoAdvance.acceptPlaybackFailure(17);
+    fixture.autoAdvance.acceptPlaybackFailure(110);
 
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
     QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
 
-    fixture.autoAdvance.acceptPlaybackState(18, false);
-    fixture.autoAdvance.acceptPlaybackFailure(18);
+    fixture.autoAdvance.acceptPlaybackState(111, false);
+    fixture.autoAdvance.acceptPlaybackFailure(111);
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.playlist.currentId()->value(), secondId.value());
 }
@@ -273,13 +332,13 @@ void PlaylistAutoAdvanceTest::rejectedAdvanceRestoresCurrentAndDoesNotRetrySameG
     QVERIFY(firstId.has_value());
     fixture.rejectedLocation = QStringLiteral("C:/media/b.mp4");
 
-    fixture.autoAdvance.acceptPlaybackState(13, true);
+    fixture.autoAdvance.acceptPlaybackState(120, true);
 
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.playlist.currentId()->value(), firstId->value());
 
-    fixture.autoAdvance.acceptPlaybackState(13, false);
-    fixture.autoAdvance.acceptPlaybackState(13, true);
+    fixture.autoAdvance.acceptPlaybackState(120, false);
+    fixture.autoAdvance.acceptPlaybackState(120, true);
     QCOMPARE(fixture.submissions, 1);
 }
 
@@ -289,13 +348,13 @@ void PlaylistAutoAdvanceTest::newGenerationCanAdvanceAfterPreviousEnd()
     openTwo(fixture);
     const auto firstId = fixture.playlist.entries().at(0).id();
 
-    fixture.autoAdvance.acceptPlaybackState(21, true);
+    fixture.autoAdvance.acceptPlaybackState(130, true);
     QCOMPARE(fixture.submissions, 1);
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/b.mp4"));
 
     fixture.playlist.setRepeatMode(domain::PlaylistRepeatMode::All);
-    fixture.autoAdvance.acceptPlaybackState(22, false);
-    fixture.autoAdvance.acceptPlaybackState(22, true);
+    fixture.autoAdvance.acceptPlaybackState(131, false);
+    fixture.autoAdvance.acceptPlaybackState(131, true);
 
     QCOMPARE(fixture.submissions, 2);
     QCOMPARE(fixture.submittedLocation, QStringLiteral("C:/media/a.mp4"));
