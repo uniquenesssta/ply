@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | R8-01 Track decoder 候选已实现：`track-list` 的结构解析收敛到独立 `MpvTrackListDecoder`，输出既有 `TrackDescriptor` 并继续经 PlaybackEvent/PlaybackSnapshot 主链；Windows configure/build/Quick/Full 与真实多音轨/字幕本地媒体 smoke 尚待执行 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 Track decoder Complete**：`track-list` 结构解析已收敛到独立 `MpvTrackListDecoder`，输出既有 `TrackDescriptor` 并继续经 PlaybackEvent/PlaybackSnapshot 主链；Windows configure/build PASS，Quick **95/95 PASS（40.58 s）**、Full **103/103 PASS（78.87 s）**。真实多音轨/多字幕本地媒体 smoke 因 R0-06 fixture 跳过且 R8-02 尚未建立可观察的 Track model，保留为 R8 阶段本地验证项，不阻断进入 R8-02 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -111,12 +111,12 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-18 — R8-01 Track decoder candidate
+### 2026-08-18 — R8-01 Track decoder Complete
 
 - R8-01 不重建第二套 Tracks 真值：既有 `TrackDescriptor` / `PlaybackTrackState` / reducer / MediaGeneration gate 继续保持。新增独立 infrastructure responsibility `MpvTrackListDecoder`，只负责把 `MpvNodeDecoder` 已经复制出的 `QVariantList/QVariantMap` track tree 解码为 `QList<TrackDescriptor>`；`MpvTrackModelMapper` 保留 property unavailable 与 selection-property 适配，只把 `track-list` 的结构解析委托给 decoder。上层没有新增 `mpv_node`、property 字符串或 UI index 依赖。
 - decoder 保留既有产品语义：track `id` 必须是 backend 正整数稳定 ID；支持 video/audio/subtitle kind；title/language/codec/external filename 为 optional；selected/default/forced/external/image/album-art 缺失时为 false；未知额外 backend 字段忽略；非法顶层、非法 entry、缺失/非法 id/type、错误 optional 字段类型会整体拒绝，不输出半解析列表。没有新增生产依赖。
 - 新增独立 `mpv_track_list_decoder` CTest，覆盖多 audio/subtitle metadata、最小字段、未知字段兼容、空列表、malformed payload 原子拒绝，以及 mapper 对有效列表与 unavailable property 的既有语义。现有主链仍为 `mpv node → MpvNodeDecoder → MpvPropertyChange → MpvTrackListDecoder/Mapper → TrackListChangedEvent → MediaGeneration gate → reducer → PlaybackSnapshot`。
-- 本候选涉及新增 source 与 CTest target，必须重新 configure。Windows configure/build/Quick/Full 尚未执行；基于 R7 收口 **94 Quick / 102 Full**，预计本候选为 **95 Quick / 103 Full**。任务书要求的真实多音轨/多字幕媒体基本验证仍需本地合法媒体执行；项目因 R0-06 已跳过而没有可合法分发的对应 fixture，因此此项明确记录为 **local validation pending**，不伪称自动化已覆盖。**R8-01 仍为 In Progress / validation pending。**
+- 用户在 HEAD `c19632945f886603b292daecd3a2e98a98554033` 的 Windows 锁定环境完成重新 configure 与 build；Quick **95/95 PASS，0 failed，40.58 s**，Full **103/103 PASS，0 failed，78.87 s**；新增 `mpv_track_list_decoder` 在 Quick/Full 均 PASS，Full 的 startup-smoke **3.05 s**，8 项 windowed-render 合计 **38.90 s**。任务书要求的真实多音轨/多字幕媒体基本验证尚未执行：项目因 R0-06 已跳过而没有可合法分发 fixture，且 R8-02 前没有面向 QML 的只读 Track model 可用于稳定观察真实媒体列表，因此该 smoke 明确保留为 R8 阶段本地验证项，不伪称已覆盖，也不阻断 R8-02。**R8-01 正式 Complete。**
 
 ### 2026-08-18 — R7-14 Queue UI state decoupling Complete
 
