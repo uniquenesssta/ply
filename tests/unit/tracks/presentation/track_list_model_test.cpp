@@ -112,6 +112,8 @@ void TrackListModelTest::separatesAudioAndSubtitleRows()
 
     QCOMPARE(audioModel.count(), 2);
     QCOMPARE(subtitleModel.count(), 1);
+    QCOMPARE(audioModel.selectedTrackId(), qint64{3});
+    QCOMPARE(subtitleModel.selectedTrackId(), qint64{7});
 
     const QModelIndex commentaryIndex = audioModel.index(1, 0);
     QCOMPARE(audioModel.data(commentaryIndex, TrackListModel::TrackIdRole).toLongLong(), qint64{3});
@@ -150,6 +152,7 @@ void TrackListModelTest::selectionComesFromSnapshotSelectedIds()
         QList<TrackDescriptor>{first, second},
         qint64{3}));
 
+    QCOMPARE(model.selectedTrackId(), qint64{3});
     QVERIFY(!model.data(model.index(0, 0), TrackListModel::SelectedRole).toBool());
     QVERIFY(model.data(model.index(1, 0), TrackListModel::SelectedRole).toBool());
 
@@ -158,6 +161,7 @@ void TrackListModelTest::selectionComesFromSnapshotSelectedIds()
         QList<TrackDescriptor>{first, second},
         qint64{2}));
 
+    QCOMPARE(model.selectedTrackId(), qint64{2});
     QVERIFY(model.data(model.index(0, 0), TrackListModel::SelectedRole).toBool());
     QVERIFY(!model.data(model.index(1, 0), TrackListModel::SelectedRole).toBool());
 }
@@ -175,6 +179,7 @@ void TrackListModelTest::missingSelectedIdProducesNoFakeSelection()
         qint64{99}));
 
     QCOMPARE(model.count(), 2);
+    QCOMPARE(model.selectedTrackId(), qint64{0});
     QVERIFY(!model.data(model.index(0, 0), TrackListModel::SelectedRole).toBool());
     QVERIFY(!model.data(model.index(1, 0), TrackListModel::SelectedRole).toBool());
 }
@@ -194,6 +199,8 @@ void TrackListModelTest::mediaSwitchClearsThenReplacesRows()
 
     QCOMPARE(audioModel.count(), 1);
     QCOMPARE(subtitleModel.count(), 1);
+    QCOMPARE(audioModel.selectedTrackId(), qint64{2});
+    QCOMPARE(subtitleModel.selectedTrackId(), qint64{7});
 
     const PlaybackSnapshot openingB = PlaybackSnapshot::opening(
         MediaGeneration{2},
@@ -203,6 +210,8 @@ void TrackListModelTest::mediaSwitchClearsThenReplacesRows()
 
     QCOMPARE(audioModel.count(), 0);
     QCOMPARE(subtitleModel.count(), 0);
+    QCOMPARE(audioModel.selectedTrackId(), qint64{0});
+    QCOMPARE(subtitleModel.selectedTrackId(), qint64{0});
 
     const PlaybackSnapshot readyB = makeSnapshot(
         2,
@@ -213,6 +222,8 @@ void TrackListModelTest::mediaSwitchClearsThenReplacesRows()
 
     QCOMPARE(audioModel.count(), 1);
     QCOMPARE(subtitleModel.count(), 0);
+    QCOMPARE(audioModel.selectedTrackId(), qint64{11});
+    QCOMPARE(subtitleModel.selectedTrackId(), qint64{0});
     QCOMPARE(
         audioModel.data(audioModel.index(0, 0), TrackListModel::TrackIdRole).toLongLong(),
         qint64{11});
