@@ -11,6 +11,7 @@
 #include "playback/application/state_publisher/state_publisher.h"
 #include "playback/domain/state/playback_lifecycle_state.h"
 #include "playback/domain/state/playback_snapshot.h"
+#include "playlist/application/playlist_advance_arbiter.h"
 #include "playlist/application/playlist_auto_advance.h"
 #include "playlist/application/playlist_controller.h"
 #include "playlist/application/playlist_mutation.h"
@@ -42,6 +43,8 @@ ApplicationContainer::ApplicationContainer(
     , playlist_(std::make_unique<player::playlist::domain::Playlist>())
     , playlistMutation_(
         std::make_unique<player::playlist::application::PlaylistMutation>(*playlist_))
+    , playlistAdvanceArbiter_(
+        std::make_unique<player::playlist::application::PlaylistAdvanceArbiter>())
     , playlistController_(
         std::make_unique<player::playlist::application::PlaylistController>(
             *playlist_,
@@ -54,11 +57,13 @@ ApplicationContainer::ApplicationContainer(
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitMediaStop();
             },
-            nullptr))
+            nullptr,
+            playlistAdvanceArbiter_.get()))
     , playlistAutoAdvance_(
         std::make_unique<player::playlist::application::PlaylistAutoAdvance>(
             *playlist_,
-            *playlistController_))
+            *playlistController_,
+            *playlistAdvanceArbiter_))
     , playlistListModel_(
         std::make_unique<player::playlist::presentation::PlaylistListModel>(
             *playlistController_))
@@ -90,8 +95,8 @@ ApplicationContainer::ApplicationContainer(
     }
 
     playbackComposition_->setPlaybackSupersessionObserver([this]() {
-        if (playlistAutoAdvance_ != nullptr) {
-            playlistAutoAdvance_->suppressObservedGeneration();
+        if (playlistAdvanceArbiter_ != nullptr) {
+            playlistAdvanceArbiter_->suppressObservedGeneration();
         }
     });
 
@@ -198,6 +203,7 @@ void ApplicationContainer::shutdown() noexcept
     }
     playlistAutoAdvance_.reset();
     playlistController_.reset();
+    playlistAdvanceArbiter_.reset();
     playlistMutation_.reset();
     playlist_.reset();
 
