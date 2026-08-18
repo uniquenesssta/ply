@@ -6,6 +6,39 @@
 #include <cstddef>
 
 namespace player::playlist::domain {
+namespace {
+
+std::vector<PlaylistEntryId> freshCycleCandidates(
+    const std::vector<PlaylistEntry>& entries,
+    std::optional<PlaylistEntryId> currentId)
+{
+    std::vector<PlaylistEntryId> candidates;
+    candidates.reserve(entries.size());
+
+    for (const PlaylistEntry& entry : entries) {
+        if (currentId.has_value() && entry.id() == *currentId) {
+            continue;
+        }
+        candidates.push_back(entry.id());
+    }
+
+    return candidates;
+}
+
+std::optional<PlaylistEntryId> randomCandidate(
+    const std::vector<PlaylistEntryId>& candidates)
+{
+    if (candidates.empty()) {
+        return std::nullopt;
+    }
+
+    const quint64 randomValue = QRandomGenerator::global()->generate64();
+    const std::size_t index = static_cast<std::size_t>(
+        randomValue % static_cast<quint64>(candidates.size()));
+    return candidates.at(index);
+}
+
+} // namespace
 
 bool PlaylistShuffleState::enabled() const noexcept
 {
@@ -65,6 +98,62 @@ void PlaylistShuffleState::onEntrySelected(PlaylistEntryId id) noexcept
     std::erase(remaining_, id);
 }
 
+std::optional<PlaylistEntryId> PlaylistShuffleState::previewNext(
+    const std::vector<PlaylistEntry>& entries,
+    std::optional<PlaylistEntryId> currentId,
+    bool allowCycleRestart) const
+{
+    if (!enabled_ || !currentId.has_value() || entries.empty()) {
+        return std::nullopt;
+    }
+
+    if (!cycleInitialized_) {
+        return randomCandidate(freshCycleCandidates(entries, currentId));
+    }
+
+    if (!remaining_.empty()) {
+        return randomCandidate(remaining_);
+    }
+
+    if (!allowCycleRestart) {
+        return std::nullopt;
+    }
+
+    return randomCandidate(freshCycleCandidates(entries, currentId));
+}
+
+bool PlaylistShuffleState::commitNextSelection(
+    const std::vector<PlaylistEntry>& entries,
+    std::optional<PlaylistEntryId> currentId,
+    PlaylistEntryId selectedId,
+    bool allowCycleRestart)
+{
+    if (!enabled_
+        || !currentId.has_value()
+        || !selectedId.isValid()
+        || selectedId == *currentId
+        || entries.empty()) {
+        return false;
+    }
+
+    if (!cycleInitialized_) {
+        initializeCycle(entries, currentId);
+    } else if (remaining_.empty()) {
+        if (!allowCycleRestart) {
+            return false;
+        }
+        initializeCycle(entries, currentId);
+    }
+
+    const auto selected = std::find(remaining_.cbegin(), remaining_.cend(), selectedId);
+    if (selected == remaining_.cend()) {
+        return false;
+    }
+
+    remaining_.erase(selected);
+    return true;
+}
+
 std::optional<PlaylistEntryId> PlaylistShuffleState::takeNext(
     const std::vector<PlaylistEntry>& entries,
     std::optional<PlaylistEntryId> currentId,
@@ -89,26 +178,14 @@ std::optional<PlaylistEntryId> PlaylistShuffleState::takeNext(
         }
     }
 
-    const quint64 randomValue = QRandomGenerator::global()->generate64();
-    const std::size_t index = static_cast<std::size_t>(
-        randomValue % static_cast<quint64>(remaining_.size()));
-    return remaining_.at(index);
+    return randomCandidate(remaining_);
 }
 
 void PlaylistShuffleState::initializeCycle(
     const std::vector<PlaylistEntry>& entries,
     std::optional<PlaylistEntryId> currentId)
 {
-    remaining_.clear();
-    remaining_.reserve(entries.size());
-
-    for (const PlaylistEntry& entry : entries) {
-        if (currentId.has_value() && entry.id() == *currentId) {
-            continue;
-        }
-        remaining_.push_back(entry.id());
-    }
-
+    remaining_ = freshCycleCandidates(entries, currentId);
     cycleInitialized_ = true;
 }
 
