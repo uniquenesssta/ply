@@ -21,6 +21,16 @@ public:
     void onEntryRemoved(PlaylistEntryId id) noexcept;
     void onEntrySelected(PlaylistEntryId id) noexcept;
 
+    [[nodiscard]] std::optional<PlaylistEntryId> previewNext(
+        const std::vector<PlaylistEntry>& entries,
+        std::optional<PlaylistEntryId> currentId,
+        bool allowCycleRestart) const;
+    [[nodiscard]] bool commitNextSelection(
+        const std::vector<PlaylistEntry>& entries,
+        std::optional<PlaylistEntryId> currentId,
+        PlaylistEntryId selectedId,
+        bool allowCycleRestart);
+
     [[nodiscard]] std::optional<PlaylistEntryId> takeNext(
         const std::vector<PlaylistEntry>& entries,
         std::optional<PlaylistEntryId> currentId,
