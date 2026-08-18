@@ -18,6 +18,7 @@
 #include "playlist/domain/playlist.h"
 #include "playlist/presentation/playlist_entry_playback_state.h"
 #include "playlist/presentation/playlist_list_model.h"
+#include "tracks/application/track_selection_controller.h"
 #include "tracks/presentation/track_list_model.h"
 
 #include <QList>
@@ -73,6 +74,12 @@ ApplicationContainer::ApplicationContainer(
         std::make_unique<player::playlist::presentation::PlaylistListModel>(
             *playlistController_,
             *playlistEntryPlaybackState_))
+    , trackSelectionController_(
+        std::make_unique<player::tracks::application::TrackSelectionController>(
+            [this](const player::playback::domain::TrackSelectionCommand& selection) {
+                return playbackComposition_ != nullptr
+                    && playbackComposition_->submitTrackSelection(selection);
+            }))
     , audioTrackListModel_(
         std::make_unique<player::tracks::presentation::TrackListModel>(
             player::playback::domain::TrackKind::Audio))
@@ -179,6 +186,12 @@ ApplicationContainer::playlistListModel() noexcept
     return *playlistListModel_;
 }
 
+player::tracks::application::TrackSelectionController&
+ApplicationContainer::trackSelectionController() noexcept
+{
+    return *trackSelectionController_;
+}
+
 player::tracks::presentation::TrackListModel&
 ApplicationContainer::audioTrackListModel() noexcept
 {
@@ -239,6 +252,7 @@ void ApplicationContainer::shutdown() noexcept
     mediaArgumentOpenWorkflow_.reset();
     urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
+    trackSelectionController_.reset();
     subtitleTrackListModel_.reset();
     audioTrackListModel_.reset();
     playlistListModel_.reset();
