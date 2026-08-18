@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-12 Complete**。R7-12 已在 Windows 锁定环境完成 configure/build 与 Full **100/100 PASS（79.64 s）**；该日志未包含 Quick 单独运行，但 Full 已覆盖正式收口门禁。R7-13 Async Media Open Supersession 尚未开始。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-12 Complete**。R7-12 已在 Windows 锁定环境完成 configure/build 与 Full **100/100 PASS（79.64 s）**。R7-13 Async Media Open Supersession 候选已实现；新增 operation identity 与独立测试目标后需重新 configure，Windows build/Quick/Full CTest 尚待执行。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -25,6 +25,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Qt Quick 图形后端固定 OpenGL；视频使用 libmpv OpenGL Render API + `QQuickFramebufferObject`。
 - QML 不直接调用 libmpv。
 - `PlaybackSession` 是播放状态与媒体代际的唯一权威 owner。
+- `MediaOpenCoordinator` 是媒体打开 operation identity / supersession 的唯一 owner；异步 worker 只携带 operation id 与解析结果，结果回到 Coordinator 时必须再次校验 identity，stale result 不得提交 Playlist/Playback，也不得覆盖新 operation 的错误状态。
 - Playlist Domain 是队列顺序/current/repeat/shuffle 的唯一 owner；`PlaylistSnapshot` 只提供从该权威状态生成的脱离式只读观测，`currentIndex` 由稳定 `EntryId + order` 推导，不成为第二真值；`PlaylistShuffleState` 只拥有该 Domain 内的 shuffle cycle 状态；QML 只消费 readonly model 并通过 Controller 发 intent。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
@@ -62,7 +63,7 @@ src/playback/domain/             后端无关的播放命令、事件、状态�
 src/playback/application/        PlaybackSession、请求生命周期与应用编排
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
 src/media/domain/                规范化媒体来源值对象
-src/media/application/           媒体打开校验与统一 workflow 编排
+src/media/application/           媒体打开校验、operation supersession 与统一 workflow 编排
 src/playlist/domain/             播放队列、Entry/current/repeat/shuffle cycle、Queue Snapshot 与导航策略
 src/playlist/application/        Playlist Controller、mutation、advance arbitration、auto-advance 与 load 编排
 src/playlist/presentation/       Playlist 只读模型投影
@@ -106,6 +107,14 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-18 — R7-13 Async Media Open Supersession candidate
+
+- 按 `成熟播放器行为补强与验收矩阵.md` 为 `MediaOpenCoordinator` 增加单一、单调的 `MediaOpenOperationId`。每次 replace-open workflow 开始都会生成新 identity 并立即使前一 operation stale；异步解析完成只能通过 `completeOpenSource(s)` 回到 Coordinator，提交前再次校验 identity。stale completion 直接拒绝，不进入 Playlist/Playback submission，也不覆盖较新 operation 的 `lastErrorKey`。
+- 现有同步 `openSource/openSources/openLocalFile(s)/openSourceUrls` 继续保持原公共行为，但内部统一走 begin→validate/resolve→complete operation 主链；`UrlOpenWorkflow` 在 URL validation **之前**获取 operation identity，因此新的 URL 请求即使验证失败，也已经使旧异步 open 结果失效。没有让 QML、drawer 或 readonly model 承担取消职责。
+- `ApplicationContainer::shutdown()` 在销毁 media workflows/coordinator 前先调用 `MediaOpenCoordinator::beginShutdown()`，永久停止接收新 operation 并使当前 pending identity 失效；之后到达的旧解析结果无法再提交。
+- 新增独立 `media_open_supersession` 测试目标，覆盖 A→B supersession、stale single/batch completion、stale result 不污染错误状态、operation single-use、同步 open supersede pending async、URL workflow 在 validation 前 supersede、scoped cancel、shutdown cancel/reject。没有新增生产依赖，也没有实现当前不存在的虚假异步 parser/thread；后续真正的 file/URL/playlist async parser 必须携带此 operation id 并在 Coordinator 线程回交结果。
+- 因新增 source-list header 与 CTest target，本候选需要重新 configure；标准 Full 套件预计从 **100 增至 101**。当前仅完成源码/调用链/测试契约静态复核，Windows configure/build/Quick/Full 尚未执行，因此 **R7-13 仍为 In Progress**。
 
 ### 2026-08-18 — R7-12 Auto Advance arbitration Complete
 
