@@ -53,7 +53,8 @@ ApplicationContainer::ApplicationContainer(
             [this]() {
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitMediaStop();
-            }))
+            },
+            nullptr))
     , playlistAutoAdvance_(
         std::make_unique<player::playlist::application::PlaylistAutoAdvance>(
             *playlist_,

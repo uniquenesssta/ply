@@ -32,7 +32,7 @@ public:
         PlaylistMutation& mutation,
         SubmitMediaLoad submitMediaLoad,
         SubmitMediaStop submitMediaStop,
-        QObject* parent = nullptr);
+        QObject* parent);
 
     [[nodiscard]] const domain::Playlist& playlist() const noexcept;
 

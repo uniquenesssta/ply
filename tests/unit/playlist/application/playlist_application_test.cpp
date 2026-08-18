@@ -189,7 +189,8 @@ void PlaylistApplicationTest::removeCurrentMiddleLoadsNextBeforeMutation()
             }
             return true;
         },
-        []() { return true; });
+        []() { return true; },
+        nullptr);
 
     QVERIFY(controller.openSources({
         localSource(QStringLiteral("C:/media/a.mp4")),
@@ -225,7 +226,8 @@ void PlaylistApplicationTest::removeCurrentTailLoadsPrevious()
             submittedLocation = source.location();
             return true;
         },
-        []() { return true; });
+        []() { return true; },
+        nullptr);
 
     QVERIFY(controller.openSources({
         localSource(QStringLiteral("C:/media/a.mp4")),
@@ -264,7 +266,8 @@ void PlaylistApplicationTest::removeOnlyCurrentStopsBeforeMutation()
                 && *current == onlyId
                 && playlist.find(onlyId) != nullptr;
             return true;
-        });
+        },
+        nullptr);
 
     QVERIFY(controller.openSource(localSource(QStringLiteral("C:/media/only.mp4"))));
     onlyId = playlist.entries().front().id();
@@ -289,7 +292,8 @@ void PlaylistApplicationTest::rejectedCurrentReplacementLoadPreservesQueueAndCur
             return !(rejectReplacement
                 && source.location() == QStringLiteral("C:/media/c.mp4"));
         },
-        []() { return true; });
+        []() { return true; },
+        nullptr);
 
     QVERIFY(controller.openSources({
         localSource(QStringLiteral("C:/media/a.mp4")),
@@ -320,7 +324,8 @@ void PlaylistApplicationTest::rejectedCurrentStopPreservesQueueAndCurrent()
         playlist,
         mutation,
         [](const media::domain::MediaSource&) { return true; },
-        []() { return false; });
+        []() { return false; },
+        nullptr);
 
     QVERIFY(controller.openSource(localSource(QStringLiteral("C:/media/only.mp4"))));
     const auto onlyId = playlist.entries().front().id();
