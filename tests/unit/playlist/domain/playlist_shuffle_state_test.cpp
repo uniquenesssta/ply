@@ -5,6 +5,7 @@
 #include <QSet>
 #include <QtTest>
 
+#include <algorithm>
 #include <optional>
 #include <vector>
 
