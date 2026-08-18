@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-08 Complete**。R7-09 删除 current 的 UX 已由用户冻结并完成代码候选：单项先 Stop 再清空；中间项加载 next；最后项加载 previous；目标 load/stop 的即时提交失败均不修改 queue/current。Windows build/Full CTest 尚待执行；剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-09 Complete**。R7-09 已在 Windows 锁定环境完成 build 与 Full **98/98 PASS（79.52 s）**。R7-10 Queue Snapshot 与稳定身份候选已实现，新增 `playlist_snapshot` 测试目标后需重新 configure；Windows build/Full CTest 尚待执行。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -25,7 +25,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Qt Quick 图形后端固定 OpenGL；视频使用 libmpv OpenGL Render API + `QQuickFramebufferObject`。
 - QML 不直接调用 libmpv。
 - `PlaybackSession` 是播放状态与媒体代际的唯一权威 owner。
-- Playlist Domain 是队列顺序/current/repeat/shuffle 的唯一 owner；`PlaylistShuffleState` 只拥有该 Domain 内的 shuffle cycle 状态；QML 只消费 readonly model 并通过 Controller 发 intent。
+- Playlist Domain 是队列顺序/current/repeat/shuffle 的唯一 owner；`PlaylistSnapshot` 只提供从该权威状态生成的脱离式只读观测，`currentIndex` 由稳定 `EntryId + order` 推导，不成为第二真值；`PlaylistShuffleState` 只拥有该 Domain 内的 shuffle cycle 状态；QML 只消费 readonly model 并通过 Controller 发 intent。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
 - Persistence/Settings 真值继续按 R9 任务书归 `SettingsController + repository`，当前 R7 不建立第二套设置持久化路径。
@@ -62,7 +62,7 @@ src/playback/application/        PlaybackSession、请求生命周期与应用�
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验与统一 workflow 编排
-src/playlist/domain/             播放队列、Entry/current/repeat/shuffle cycle 与导航策略
+src/playlist/domain/             播放队列、Entry/current/repeat/shuffle cycle、Queue Snapshot 与导航策略
 src/playlist/application/        Playlist Controller、mutation、auto-advance 与 load 编排
 src/playlist/presentation/       Playlist 只读模型投影
 src/presentation/                QML、Theme、Surfaces 与 presentation 层
@@ -106,13 +106,20 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-18 — R7-09 current-removal candidate
+### 2026-08-18 — R7-10 Queue Snapshot candidate
+
+- 按 `成熟播放器行为补强与验收矩阵.md` 新增独立 Domain 值对象 `PlaylistSnapshot`，一次性复制 ordered entries、稳定 `EntryId`、current `EntryId`、由 `EntryId + order` 推导的 0-based current index、Repeat mode、Shuffle mode 以及当前 shuffle cycle 的只读 bookkeeping。Playlist 仍是唯一可写 owner，Snapshot 不持有 mutation API，也不建立第二套 queue/current 真值。
+- `PlaylistShuffleState` 只新增 cycle initialized 与 remaining EntryId 的 const 读取，用于构造 Snapshot；shuffle cycle 的创建、消费与重置仍由原 Domain 状态机负责。`PlaylistNavigation::capabilities(snapshot)` 从同一快照推导 `CanNext / CanPrevious`：顺序模式尊重队列边界与 Repeat All；现有 shuffle 仅有 forward cycle bag，因此在 R7-12 建立统一手动 Previous 历史/策略前不虚假宣称 shuffle Previous 可用。
+- `PlaylistController` 保留既有 `playlist()` const accessor 兼容路径，同时新增 `snapshot()`；`PlaylistListModel::refresh()` 改为每次只消费一个脱离式 Snapshot，再从其 current index/current ID 投影现有 1-based `currentPosition` 与 row `current`，避免一次刷新期间分别读取多份可变队列状态。
+- 新增独立 `playlist_snapshot` 单元测试目标，覆盖空队列、稳定 ID 与 reorder 后 current index 推导、Snapshot 脱离性、shuffle bookkeeping、顺序/Repeat All/Shuffle navigation capability。没有新增生产依赖，没有修改 QML、libmpv、PlaybackSession 或 R7-09 删除策略。新增源码与 CTest target 后必须重新 configure；Windows configure/build/Quick/Full CTest 尚未执行，重新 configure 后标准 Full 套件预计从 98 增至 **99**，因此 **R7-10 当前仍为 In Progress**。
+
+### 2026-08-18 — R7-09 Complete
 
 - 用户已冻结 R7-09 删除 current 的 UX：队列仅 1 项时先提交 Stop/Unload，再删除并令 `current=null`；删除中间 current 时切到下一项；删除最后一项 current 时切到前一项；目标媒体 load 的即时提交失败时删除整体不提交并保留原 queue/current。为保持同一原子语义，单项 Stop 的即时提交失败也不修改 queue/current。
 - `PlaylistNavigation::forCurrentRemoval()` 集中计算上述 next/previous/stop 决策；`Playlist::removeCurrentAndSelect()` 在 Playlist Domain 内原子删除 current 并切换稳定 EntryId，避免任何对外可见的 dangling current。Repeat/Shuffle 不改变用户显式删除 current 时的 next/previous UX；shuffle bookkeeping 随实际 remove/select 同步更新。
 - `PlaylistController::removeEntry()` 现在对 current 走协调链：replacement load 或 Stop 必须先被现有 PlaybackCommandBus 接受，之后才提交 Playlist mutation；即时 command submission rejection 不修改 queue/current。非 current 删除和 reorder 语义保持不变。
 - `PlaybackComposition` 新增返回提交结果的 `submitMediaStop()`，ApplicationContainer 只把该应用级 Stop callback 注入 PlaylistController；QML 继续只调用现有 `removeEntry()`，没有新增 QML→Playback/mpv 旁路，也没有新增生产依赖。
-- 扩展 `playlist_domain`、`playlist_navigation`、`playlist_application` 现有测试覆盖：中间 current→next、尾项 current→previous、单项 current→Stop+empty、replacement load rejection、Stop rejection、原子 current replacement 与非 current 回归。**当前候选尚未在 Windows 执行 build/Full CTest，因此 R7-09 仍为 In Progress。**
+- 扩展 `playlist_domain`、`playlist_navigation`、`playlist_application` 现有测试覆盖：中间 current→next、尾项 current→previous、单项 current→Stop+empty、replacement load rejection、Stop rejection、原子 current replacement 与非 current 回归。用户随后在 HEAD `99ec6363956425aa55a4b2df0531e13cfc08c89a` 的 Windows 锁定环境完成 `scripts\build.ps1`，并执行完整 `scripts\test.ps1 -SkipBuild`：**98/98 PASS，0 failed，79.52 s**；Playlist Domain/Navigation/Shuffle/Application/AutoAdvance 与其余回归均通过。**R7-09 正式 Complete。**
 
 ### 2026-08-18 — R7-08 Complete / R7-09 policy pending
 
