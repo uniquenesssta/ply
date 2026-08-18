@@ -12,6 +12,8 @@ class PlaylistShuffleState final
 {
 public:
     [[nodiscard]] bool enabled() const noexcept;
+    [[nodiscard]] bool cycleInitialized() const noexcept;
+    [[nodiscard]] const std::vector<PlaylistEntryId>& remainingEntryIds() const noexcept;
     void setEnabled(bool enabled) noexcept;
     void resetCycle() noexcept;
 
