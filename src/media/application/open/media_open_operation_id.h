@@ -25,7 +25,10 @@ public:
 
     friend constexpr bool operator==(
         MediaOpenOperationId lhs,
-        MediaOpenOperationId rhs) noexcept = default;
+        MediaOpenOperationId rhs) noexcept
+    {
+        return lhs.value_ == rhs.value_;
+    }
 
 private:
     quint64 value_ = 0;
