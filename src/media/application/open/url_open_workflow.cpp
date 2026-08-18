@@ -22,14 +22,22 @@ QString UrlOpenWorkflow::lastErrorKey() const
 
 bool UrlOpenWorkflow::openUrl(const QString& sourceText)
 {
+    const MediaOpenOperationId operationId =
+        mediaOpenCoordinator_.beginReplaceOpenOperation();
+    if (!operationId.isValid()) {
+        setError(MediaOpenError::SubmissionRejected);
+        return false;
+    }
+
     UrlMediaValidationResult validation = UrlMediaValidator::validate(sourceText);
     if (const auto* error = std::get_if<MediaOpenError>(&validation)) {
+        (void)mediaOpenCoordinator_.cancelOpenOperation(operationId);
         setError(*error);
         return false;
     }
 
     const auto& source = std::get<player::media::domain::MediaSource>(validation);
-    if (!mediaOpenCoordinator_.openSource(source)) {
+    if (!mediaOpenCoordinator_.completeOpenSource(operationId, source)) {
         setError(MediaOpenError::SubmissionRejected);
         return false;
     }
