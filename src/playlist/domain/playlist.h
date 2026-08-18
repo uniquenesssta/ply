@@ -5,6 +5,7 @@
 #include "playlist/domain/playlist_entry_id.h"
 #include "playlist/domain/playlist_repeat_mode.h"
 #include "playlist/domain/playlist_shuffle_state.h"
+#include "playlist/domain/playlist_snapshot.h"
 
 #include <cstddef>
 #include <optional>
@@ -30,6 +31,7 @@ public:
     [[nodiscard]] std::size_t size() const noexcept;
     [[nodiscard]] const std::vector<PlaylistEntry>& entries() const noexcept;
     [[nodiscard]] const PlaylistEntry* find(PlaylistEntryId id) const noexcept;
+    [[nodiscard]] PlaylistSnapshot snapshot() const;
 
     [[nodiscard]] std::optional<PlaylistEntryId> currentId() const noexcept;
     [[nodiscard]] const PlaylistEntry* currentEntry() const noexcept;
