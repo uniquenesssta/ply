@@ -3,6 +3,7 @@
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/transport_command.h"
 
+#include <functional>
 #include <memory>
 
 class QObject;
@@ -30,6 +31,8 @@ class PlayerVideoRenderBinding;
 class PlaybackComposition final
 {
 public:
+    using PlaybackSupersessionObserver = std::function<void()>;
+
     PlaybackComposition();
     ~PlaybackComposition();
 
@@ -51,6 +54,7 @@ public:
     [[nodiscard]] player::presentation::PlayerMediaViewModel& mediaViewModel() noexcept;
     [[nodiscard]] player::presentation::HudMessageQueue& hudMessageQueue() noexcept;
 
+    void setPlaybackSupersessionObserver(PlaybackSupersessionObserver observer);
     [[nodiscard]] bool submitMediaLoad(const QString& canonicalSource);
     [[nodiscard]] bool submitMediaStop();
 
@@ -61,6 +65,7 @@ private:
         player::playback::domain::SeekMode mode);
     [[nodiscard]] bool submitVolume(double percent);
     [[nodiscard]] bool submitMuted(bool muted);
+    void notifyPlaybackSupersessionAccepted();
 
     std::unique_ptr<player::playback::application::PlaybackSessionThread> playbackThread_;
     std::unique_ptr<PlayerVideoRenderBinding> videoRenderBinding_;
@@ -71,6 +76,7 @@ private:
     std::unique_ptr<player::presentation::PlayerStatusViewModel> statusViewModel_;
     std::unique_ptr<player::presentation::PlayerMediaViewModel> mediaViewModel_;
     std::unique_ptr<player::presentation::HudMessageQueue> hudMessageQueue_;
+    PlaybackSupersessionObserver playbackSupersessionObserver_;
 };
 
 } // namespace player::app
