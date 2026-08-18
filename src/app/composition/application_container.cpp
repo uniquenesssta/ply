@@ -192,6 +192,10 @@ void ApplicationContainer::shutdown() noexcept
         playbackComposition_->beginVideoRenderShutdown();
     }
 
+    if (mediaOpenCoordinator_ != nullptr) {
+        mediaOpenCoordinator_->beginShutdown();
+    }
+
     qmlBootstrap_.reset();
     mediaDropHandler_.reset();
     mediaArgumentOpenWorkflow_.reset();
