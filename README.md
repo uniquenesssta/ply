@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-08 Complete**。R7-08 最终 error-skip 候选已在 Windows 完成 configure/build 与 Full **98/98 PASS（77.61 s）**，EOF、normal/repeat、shuffle、Failed fail-forward 与同 generation 终态去重均保持通过。R7-09 尚未实施，当前需先冻结删除 current 的 UX 策略；剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-08 Complete**。R7-09 删除 current 的 UX 已由用户冻结并完成代码候选：单项先 Stop 再清空；中间项加载 next；最后项加载 previous；目标 load/stop 的即时提交失败均不修改 queue/current。Windows build/Full CTest 尚待执行；剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -106,6 +106,14 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
+### 2026-08-18 — R7-09 current-removal candidate
+
+- 用户已冻结 R7-09 删除 current 的 UX：队列仅 1 项时先提交 Stop/Unload，再删除并令 `current=null`；删除中间 current 时切到下一项；删除最后一项 current 时切到前一项；目标媒体 load 的即时提交失败时删除整体不提交并保留原 queue/current。为保持同一原子语义，单项 Stop 的即时提交失败也不修改 queue/current。
+- `PlaylistNavigation::forCurrentRemoval()` 集中计算上述 next/previous/stop 决策；`Playlist::removeCurrentAndSelect()` 在 Playlist Domain 内原子删除 current 并切换稳定 EntryId，避免任何对外可见的 dangling current。Repeat/Shuffle 不改变用户显式删除 current 时的 next/previous UX；shuffle bookkeeping 随实际 remove/select 同步更新。
+- `PlaylistController::removeEntry()` 现在对 current 走协调链：replacement load 或 Stop 必须先被现有 PlaybackCommandBus 接受，之后才提交 Playlist mutation；即时 command submission rejection 不修改 queue/current。非 current 删除和 reorder 语义保持不变。
+- `PlaybackComposition` 新增返回提交结果的 `submitMediaStop()`，ApplicationContainer 只把该应用级 Stop callback 注入 PlaylistController；QML 继续只调用现有 `removeEntry()`，没有新增 QML→Playback/mpv 旁路，也没有新增生产依赖。
+- 扩展 `playlist_domain`、`playlist_navigation`、`playlist_application` 现有测试覆盖：中间 current→next、尾项 current→previous、单项 current→Stop+empty、replacement load rejection、Stop rejection、原子 current replacement 与非 current 回归。**当前候选尚未在 Windows 执行 build/Full CTest，因此 R7-09 仍为 In Progress。**
+
 ### 2026-08-18 — R7-08 Complete / R7-09 policy pending
 
 - R7-07 已按用户此前 Windows 验证收口：**95/95 测试通过**，`Ctrl+Shift+D` 全局 Light/Dark 快捷键可用；剩余 Playlist/Figma 视觉打磨不阻塞当前功能阶段。
@@ -116,7 +124,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 - 复核根任务书发现 R7-08 验收还明确包含“错误跳过”，因此 R7-08 不能仅凭上述 98/98 提前关闭。本候选新增 `PlaybackLifecycleState::Failed → PlaylistAutoAdvance::acceptPlaybackFailure()` 链，并把 Ended/Failed 统一到同一 generation terminal 去重门禁。
 - Failed 媒体采用 fail-forward 策略：normal 只向后跳过，不因 Repeat One 重试失败 current，也不因 Repeat All 在队尾回绕；shuffle 只消费当前未完成 cycle，不在 failure 路径重启 Repeat All cycle。这样连续损坏媒体会向后收敛而不是形成无限自动重载环。
 - 扩展 `playlist_navigation` 与 `playlist_auto_advance` 测试覆盖 Failed、Repeat One/All、shuffle failure cycle、同 generation Ended/Failed 双终态去重。没有新增生产依赖，没有修改 libmpv/Render/QML UI。最终 error-skip 候选已由用户在 Windows 锁定环境验证：`configure.ps1` PASS、`build.ps1` PASS、完整 `scripts\test.ps1 -SkipBuild` **98/98 PASS，0 failed，77.61 s**；其中 `playlist_navigation`、`playlist_shuffle_state`、`playlist_auto_advance` 均 PASS。**R7-08 正式 Complete。**
-- R7-09 按强制补充矩阵必须在实现前冻结删除 current 的 UX：仅一项时 stop/unload + current=null；中间项删除后选 next 还是 previous；最后一项删除后选 previous 还是 stop；以及 load 失败后的 current identity 语义。该策略尚未由用户确认，因此 R7-09 当前不实施。
+- R7-09 按强制补充矩阵必须在实现前冻结删除 current 的 UX：仅一项时 stop/unload + current=null；中间项删除后选 next 还是 previous；最后一项删除后选 previous 还是 stop；以及 load 失败后的 current identity 语义。该策略随后已由用户确认，并在上方 R7-09 候选中实施。
 
 ### 2026-08-17 — Global Light/Dark runtime theme switch
 
