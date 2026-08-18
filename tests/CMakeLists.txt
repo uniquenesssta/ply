@@ -378,6 +378,32 @@ add_test(
 )
 
 add_executable(
+    mpv_track_list_decoder_tests
+    unit/playback/infrastructure/mpv/events/mpv_track_list_decoder_test.cpp
+)
+
+player_apply_compiler_options(mpv_track_list_decoder_tests)
+player_enable_compiler_warnings(mpv_track_list_decoder_tests)
+player_enable_sanitizers(mpv_track_list_decoder_tests)
+player_enable_static_analysis(mpv_track_list_decoder_tests)
+
+target_link_libraries(
+    mpv_track_list_decoder_tests
+    PRIVATE
+        player_mpv_infrastructure
+        LibMpv::LibMpv
+        Qt6::Core
+        Qt6::Test
+)
+
+player_stage_libmpv_runtime(mpv_track_list_decoder_tests)
+
+add_test(
+    NAME mpv_track_list_decoder
+    COMMAND mpv_track_list_decoder_tests
+)
+
+add_executable(
     mpv_runtime_probe_tests
     unit/playback/infrastructure/mpv/runtime/mpv_runtime_probe_test.cpp
 )

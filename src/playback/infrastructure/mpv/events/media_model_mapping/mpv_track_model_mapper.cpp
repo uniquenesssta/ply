@@ -1,12 +1,12 @@
 #include "mpv_track_model_mapper.h"
 
 #include "mpv_media_model_value_reader.h"
+#include "mpv_track_list_decoder.h"
 #include "playback/domain/events/track_event.h"
 
 #include <QMetaType>
 #include <QString>
-#include <QVariantList>
-#include <QVariantMap>
+#include <QVariant>
 
 #include <optional>
 #include <utility>
@@ -15,61 +15,6 @@ namespace player::playback::mpv {
 namespace {
 
 using namespace player::playback::domain;
-
-bool readRequiredPositiveId(
-    const QVariantMap& map,
-    qint64* output,
-    QString* errorMessage)
-{
-    const auto it = map.constFind(QStringLiteral("id"));
-    if (it == map.cend() || !it->isValid() || !MpvMediaModelValueReader::isInteger(*it)) {
-        MpvMediaModelValueReader::setError(
-            errorMessage,
-            QStringLiteral("Track entry is missing a numeric 'id' field."));
-        return false;
-    }
-
-    bool converted = false;
-    const qint64 value = it->toLongLong(&converted);
-    if (!converted || value <= 0) {
-        MpvMediaModelValueReader::setError(
-            errorMessage,
-            QStringLiteral("Track entry contains an invalid 'id' value."));
-        return false;
-    }
-    *output = value;
-    return true;
-}
-
-bool readRequiredType(
-    const QVariantMap& map,
-    QString* output,
-    QString* errorMessage)
-{
-    const auto it = map.constFind(QStringLiteral("type"));
-    if (it == map.cend() || !it->isValid() || it->metaType().id() != QMetaType::QString) {
-        MpvMediaModelValueReader::setError(
-            errorMessage,
-            QStringLiteral("Track entry is missing a string 'type' field."));
-        return false;
-    }
-    *output = it->toString();
-    return true;
-}
-
-std::optional<TrackKind> kindFromString(const QString& type)
-{
-    if (type == QStringLiteral("video")) {
-        return TrackKind::Video;
-    }
-    if (type == QStringLiteral("audio")) {
-        return TrackKind::Audio;
-    }
-    if (type == QStringLiteral("sub")) {
-        return TrackKind::Subtitle;
-    }
-    return std::nullopt;
-}
 
 bool readSelectionId(
     const MpvPropertyValue& value,
@@ -144,58 +89,12 @@ std::optional<PlaybackEvent> MpvTrackModelMapper::mapTrackList(
     if (node == nullptr) {
         return std::nullopt;
     }
-    if (node->metaType().id() != QMetaType::QVariantList) {
-        MpvMediaModelValueReader::setError(
-            errorMessage,
-            QStringLiteral("track-list must be an mpv node array."));
+
+    auto tracks = MpvTrackListDecoder::decode(*node, errorMessage);
+    if (!tracks.has_value()) {
         return std::nullopt;
     }
-
-    QList<TrackDescriptor> tracks;
-    const QVariantList list = node->toList();
-    tracks.reserve(list.size());
-    for (const QVariant& item : list) {
-        if (item.metaType().id() != QMetaType::QVariantMap) {
-            MpvMediaModelValueReader::setError(
-                errorMessage,
-                QStringLiteral("track-list contains a non-map entry."));
-            return std::nullopt;
-        }
-
-        const QVariantMap map = item.toMap();
-        TrackDescriptor track;
-        QString type;
-        if (!readRequiredPositiveId(map, &track.id, errorMessage)
-            || !readRequiredType(map, &type, errorMessage)) {
-            return std::nullopt;
-        }
-
-        const auto kind = kindFromString(type);
-        if (!kind.has_value()) {
-            MpvMediaModelValueReader::setError(
-                errorMessage,
-                QStringLiteral("track-list contains an unsupported track type '%1'.").arg(type));
-            return std::nullopt;
-        }
-        track.kind = *kind;
-
-        if (!MpvMediaModelValueReader::optionalString(map, QStringLiteral("title"), &track.title, errorMessage)
-            || !MpvMediaModelValueReader::optionalString(map, QStringLiteral("lang"), &track.language, errorMessage)
-            || !MpvMediaModelValueReader::optionalString(map, QStringLiteral("codec"), &track.codec, errorMessage)
-            || !MpvMediaModelValueReader::optionalString(map, QStringLiteral("external-filename"), &track.externalFilename, errorMessage)
-            || !MpvMediaModelValueReader::optionalBool(map, QStringLiteral("selected"), &track.selected, errorMessage)
-            || !MpvMediaModelValueReader::optionalBool(map, QStringLiteral("default"), &track.defaultTrack, errorMessage)
-            || !MpvMediaModelValueReader::optionalBool(map, QStringLiteral("forced"), &track.forced, errorMessage)
-            || !MpvMediaModelValueReader::optionalBool(map, QStringLiteral("external"), &track.external, errorMessage)
-            || !MpvMediaModelValueReader::optionalBool(map, QStringLiteral("image"), &track.image, errorMessage)
-            || !MpvMediaModelValueReader::optionalBool(map, QStringLiteral("albumart"), &track.albumArt, errorMessage)) {
-            return std::nullopt;
-        }
-
-        tracks.append(std::move(track));
-    }
-
-    return PlaybackEvent{TrackListChangedEvent{std::move(tracks)}};
+    return PlaybackEvent{TrackListChangedEvent{std::move(*tracks)}};
 }
 
 std::optional<PlaybackEvent> MpvTrackModelMapper::mapSelection(

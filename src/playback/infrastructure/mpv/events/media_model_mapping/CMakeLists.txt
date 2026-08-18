@@ -9,6 +9,8 @@ target_sources(
         mpv_media_model_value_reader.h
         mpv_stream_info_mapper.cpp
         mpv_stream_info_mapper.h
+        mpv_track_list_decoder.cpp
+        mpv_track_list_decoder.h
         mpv_track_model_mapper.cpp
         mpv_track_model_mapper.h
 )

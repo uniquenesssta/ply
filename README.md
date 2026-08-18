@@ -14,6 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
+| R8 — 音轨、字幕、章节 | In Progress | R8-01 Track decoder 候选已实现：`track-list` 的结构解析收敛到独立 `MpvTrackListDecoder`，输出既有 `TrackDescriptor` 并继续经 PlaybackEvent/PlaybackSnapshot 主链；Windows configure/build/Quick/Full 与真实多音轨/字幕本地媒体 smoke 尚待执行 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -28,6 +29,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - `MediaOpenCoordinator` 是媒体打开 operation identity / supersession 的唯一 owner；异步 worker 只携带 operation id 与解析结果，结果回到 Coordinator 时必须再次校验 identity，stale result 不得提交 Playlist/Playback，也不得覆盖新 operation 的错误状态。
 - Playlist Domain 是队列顺序/current/repeat/shuffle 的唯一 owner；`PlaylistSnapshot` 只提供从该权威状态生成的脱离式只读观测，`currentIndex` 由稳定 `EntryId + order` 推导，不成为第二真值；`PlaylistShuffleState` 只拥有该 Domain 内的 shuffle cycle 状态；QML 只消费 readonly model 并通过 Controller 发 intent。
 - Playlist row 的 `selected / keyboard focus / hover` 继续属于 QML interaction state；`PlaylistEntryPlaybackState` 只从已 generation-gated 的 `PlaybackSnapshot` 投影 `pendingLoading / unavailable` 到稳定 EntryId，不拥有 queue/current/generation，也不建立第二套播放真值。
+- Track 的 raw `mpv_node` 只在 infrastructure 内转换；`MpvTrackListDecoder` 只把已经复制为 Qt value tree 的 `track-list` 映射为 `TrackDescriptor`，稳定 backend track ID 保持为产品身份，PlaybackSnapshot 继续是 track list/selection 的唯一播放真值，上层与 QML 不解析 mpv node。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
@@ -108,6 +110,13 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-18 — R8-01 Track decoder candidate
+
+- R8-01 不重建第二套 Tracks 真值：既有 `TrackDescriptor` / `PlaybackTrackState` / reducer / MediaGeneration gate 继续保持。新增独立 infrastructure responsibility `MpvTrackListDecoder`，只负责把 `MpvNodeDecoder` 已经复制出的 `QVariantList/QVariantMap` track tree 解码为 `QList<TrackDescriptor>`；`MpvTrackModelMapper` 保留 property unavailable 与 selection-property 适配，只把 `track-list` 的结构解析委托给 decoder。上层没有新增 `mpv_node`、property 字符串或 UI index 依赖。
+- decoder 保留既有产品语义：track `id` 必须是 backend 正整数稳定 ID；支持 video/audio/subtitle kind；title/language/codec/external filename 为 optional；selected/default/forced/external/image/album-art 缺失时为 false；未知额外 backend 字段忽略；非法顶层、非法 entry、缺失/非法 id/type、错误 optional 字段类型会整体拒绝，不输出半解析列表。没有新增生产依赖。
+- 新增独立 `mpv_track_list_decoder` CTest，覆盖多 audio/subtitle metadata、最小字段、未知字段兼容、空列表、malformed payload 原子拒绝，以及 mapper 对有效列表与 unavailable property 的既有语义。现有主链仍为 `mpv node → MpvNodeDecoder → MpvPropertyChange → MpvTrackListDecoder/Mapper → TrackListChangedEvent → MediaGeneration gate → reducer → PlaybackSnapshot`。
+- 本候选涉及新增 source 与 CTest target，必须重新 configure。Windows configure/build/Quick/Full 尚未执行；基于 R7 收口 **94 Quick / 102 Full**，预计本候选为 **95 Quick / 103 Full**。任务书要求的真实多音轨/多字幕媒体基本验证仍需本地合法媒体执行；项目因 R0-06 已跳过而没有可合法分发的对应 fixture，因此此项明确记录为 **local validation pending**，不伪称自动化已覆盖。**R8-01 仍为 In Progress / validation pending。**
 
 ### 2026-08-18 — R7-14 Queue UI state decoupling Complete
 
