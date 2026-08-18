@@ -39,7 +39,17 @@ public:
 
     [[nodiscard]] bool openSource(const media::domain::MediaSource& source);
     [[nodiscard]] bool openSources(const QList<media::domain::MediaSource>& sources);
+    [[nodiscard]] bool appendSources(const QList<media::domain::MediaSource>& sources);
+    [[nodiscard]] bool insertSource(
+        const media::domain::MediaSource& source,
+        int targetIndex);
+    [[nodiscard]] bool replaceSources(const QList<media::domain::MediaSource>& sources);
+    [[nodiscard]] bool clearQueue();
     [[nodiscard]] bool reloadCurrentEntry();
+    [[nodiscard]] bool nextEntry();
+    [[nodiscard]] bool previousEntry();
+    [[nodiscard]] bool setRepeatMode(domain::PlaylistRepeatMode mode);
+    [[nodiscard]] bool setShuffleEnabled(bool enabled);
 
     Q_INVOKABLE bool removeEntry(quint64 entryId);
     Q_INVOKABLE bool moveEntry(quint64 entryId, int targetIndex);
