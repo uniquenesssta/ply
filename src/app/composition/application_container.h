@@ -12,6 +12,7 @@ class UrlOpenWorkflow;
 }
 
 namespace player::playlist::application {
+class PlaylistAdvanceArbiter;
 class PlaylistAutoAdvance;
 class PlaylistController;
 class PlaylistMutation;
@@ -64,6 +65,7 @@ private:
     std::unique_ptr<PlaybackComposition> playbackComposition_;
     std::unique_ptr<player::playlist::domain::Playlist> playlist_;
     std::unique_ptr<player::playlist::application::PlaylistMutation> playlistMutation_;
+    std::unique_ptr<player::playlist::application::PlaylistAdvanceArbiter> playlistAdvanceArbiter_;
     std::unique_ptr<player::playlist::application::PlaylistController> playlistController_;
     std::unique_ptr<player::playlist::application::PlaylistAutoAdvance> playlistAutoAdvance_;
     std::unique_ptr<player::playlist::presentation::PlaylistListModel> playlistListModel_;
