@@ -26,6 +26,26 @@ std::optional<PlaylistEntryId> Playlist::append(
     return id;
 }
 
+std::optional<PlaylistEntryId> Playlist::insert(
+    media::domain::MediaSource source,
+    std::size_t targetIndex)
+{
+    if (!source.isValid() || targetIndex > entries_.size()) {
+        return std::nullopt;
+    }
+
+    const std::optional<PlaylistEntryId> id = allocateEntryId();
+    if (!id.has_value()) {
+        return std::nullopt;
+    }
+
+    entries_.insert(
+        entries_.begin() + static_cast<std::ptrdiff_t>(targetIndex),
+        PlaylistEntry{*id, std::move(source)});
+    shuffleState_.onEntryAdded(*id);
+    return id;
+}
+
 bool Playlist::remove(PlaylistEntryId id)
 {
     const auto iterator = std::find_if(
@@ -116,6 +136,54 @@ bool Playlist::select(PlaylistEntryId id) noexcept
     currentId_ = id;
     shuffleState_.onEntrySelected(id);
     return true;
+}
+
+std::optional<PlaylistReplacement> Playlist::prepareReplacement(
+    const std::vector<media::domain::MediaSource>& sources) const
+{
+    if (sources.empty()) {
+        return std::nullopt;
+    }
+
+    for (const media::domain::MediaSource& source : sources) {
+        if (!source.isValid()) {
+            return std::nullopt;
+        }
+    }
+
+    std::vector<PlaylistEntry> replacementEntries;
+    replacementEntries.reserve(sources.size());
+
+    quint64 candidateNextId = nextEntryId_;
+    for (const media::domain::MediaSource& source : sources) {
+        if (candidateNextId == 0) {
+            return std::nullopt;
+        }
+
+        const PlaylistEntryId id{candidateNextId};
+        replacementEntries.emplace_back(id, source);
+
+        if (candidateNextId == std::numeric_limits<quint64>::max()) {
+            candidateNextId = 0;
+        } else {
+            ++candidateNextId;
+        }
+    }
+
+    const PlaylistEntryId replacementCurrent = replacementEntries.front().id();
+    return PlaylistReplacement{
+        std::move(replacementEntries),
+        replacementCurrent,
+        candidateNextId,
+    };
+}
+
+void Playlist::commitReplacement(PlaylistReplacement replacement) noexcept
+{
+    entries_ = std::move(replacement.entries_);
+    currentId_ = replacement.currentId_;
+    nextEntryId_ = replacement.nextEntryId_;
+    shuffleState_.resetCycle();
 }
 
 void Playlist::clearCurrent() noexcept
@@ -214,6 +282,29 @@ bool Playlist::shuffleEnabled() const noexcept
 void Playlist::setShuffleEnabled(bool enabled) noexcept
 {
     shuffleState_.setEnabled(enabled);
+}
+
+std::optional<PlaylistEntryId> Playlist::previewNextShuffledId(
+    bool allowCycleRestart) const
+{
+    return shuffleState_.previewNext(entries_, currentId_, allowCycleRestart);
+}
+
+bool Playlist::selectNextShuffled(
+    PlaylistEntryId id,
+    bool allowCycleRestart) noexcept
+{
+    if (find(id) == nullptr
+        || !shuffleState_.commitNextSelection(
+            entries_,
+            currentId_,
+            id,
+            allowCycleRestart)) {
+        return false;
+    }
+
+    currentId_ = id;
+    return true;
 }
 
 std::optional<PlaylistEntryId> Playlist::takeNextShuffledId(
