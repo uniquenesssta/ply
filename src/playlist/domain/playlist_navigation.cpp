@@ -35,6 +35,80 @@ PlaylistNavigationCapabilities PlaylistNavigation::capabilities(
     };
 }
 
+PlaylistNavigationDecision PlaylistNavigation::forManualNext(
+    Playlist& playlist)
+{
+    const auto currentId = playlist.currentId();
+    const auto& entries = playlist.entries();
+    if (!currentId.has_value() || entries.size() < 2) {
+        return {};
+    }
+
+    if (playlist.shuffleEnabled()) {
+        const std::optional<PlaylistEntryId> next = playlist.previewNextShuffledId(
+            playlist.repeatMode() == PlaylistRepeatMode::All);
+        if (!next.has_value()) {
+            return {};
+        }
+        return {PlaylistNavigationAction::SelectEntry, *next};
+    }
+
+    const auto current = std::find_if(
+        entries.cbegin(),
+        entries.cend(),
+        [currentId](const PlaylistEntry& entry) {
+            return entry.id() == *currentId;
+        });
+    if (current == entries.cend()) {
+        return {};
+    }
+
+    const auto next = std::next(current);
+    if (next != entries.cend()) {
+        return {PlaylistNavigationAction::SelectEntry, next->id()};
+    }
+
+    if (playlist.repeatMode() == PlaylistRepeatMode::All) {
+        return {PlaylistNavigationAction::SelectEntry, entries.front().id()};
+    }
+
+    // Repeat One affects natural EOF only. An explicit user Next must never
+    // be converted into a reload of the current entry.
+    return {};
+}
+
+PlaylistNavigationDecision PlaylistNavigation::forManualPrevious(
+    const Playlist& playlist)
+{
+    const auto currentId = playlist.currentId();
+    const auto& entries = playlist.entries();
+    if (!currentId.has_value() || entries.size() < 2 || playlist.shuffleEnabled()) {
+        return {};
+    }
+
+    const auto current = std::find_if(
+        entries.cbegin(),
+        entries.cend(),
+        [currentId](const PlaylistEntry& entry) {
+            return entry.id() == *currentId;
+        });
+    if (current == entries.cend()) {
+        return {};
+    }
+
+    if (current != entries.cbegin()) {
+        return {PlaylistNavigationAction::SelectEntry, std::prev(current)->id()};
+    }
+
+    if (playlist.repeatMode() == PlaylistRepeatMode::All) {
+        return {PlaylistNavigationAction::SelectEntry, entries.back().id()};
+    }
+
+    // Shuffle Previous requires explicit history ownership and is intentionally
+    // deferred to R7-12 rather than inferred from visual order.
+    return {};
+}
+
 PlaylistNavigationDecision PlaylistNavigation::afterNaturalEnd(
     Playlist& playlist)
 {
