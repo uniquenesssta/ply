@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 Complete；R8-02 Track list models candidate**：新增 Snapshot-backed audio/subtitle readonly models，媒体替换时整表清空/替换并通过稳定 backend Track ID 投影 selected；已接到 QML root/PlayerScreen 数据边界但未增加可见 UI。Windows configure/build/Quick/Full 尚待验证，新增 1 个 CTest 后预计 Quick **96**、Full **104** |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-02 Complete**。R8-02 Snapshot-backed audio/subtitle readonly models 已完成；Windows configure/build PASS，Quick **96/96 PASS（40.86 s）**、Full **104/104 PASS（79.84 s）**，`track_list_model` 在 Quick/Full 均 PASS。真实多音轨/多字幕本地媒体 smoke 继续保留为 R8 阶段本地验证项，待具备可交互 Track selection 后执行 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -113,13 +113,13 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-18 — R8-02 Track list models candidate
+### 2026-08-18 — R8-02 Track list models Complete
 
 - 新增独立 `src/tracks/presentation/TrackListModel` responsibility，并按 Audio / Subtitle 创建两个实例。Model 只消费 `PlaybackSnapshot::tracks()`，按 kind 过滤并整表投影 backend stable `trackId`、title/language/codec、selected/default/forced/external/external filename；没有 mutation API、mpv property 字符串、visual index 命令参数或第二套 Track owner。
 - selection 不直接信任 `TrackDescriptor.selected` 缓存字段，而是由 Snapshot 权威的 `selectedAudioId / selectedSubtitleId` 推导；selected ID 不存在于当前列表时所有行均为未选中，避免 UI 假选中。R8-03 才负责 selection command / failure / subtitle-off 的写入链，本轮不提前实现。
 - 两个 model 直接订阅现有 `StatePublisher::snapshotPublished`。PlaybackSession 的 MediaGeneration gate 继续在上游拒绝 stale media event；现有 reducer 在 Opening/Stop/Failed 时清空 `state.tracks`，因此 A→B 时 model 先收到空列表，再由 B current-generation Snapshot 整表替换，不在 presentation 层创建第二个 generation gate。
 - `ApplicationBootstrap → MainWindow → PlayerScreen` 已增加只读 `audioTrackModel / subtitleTrackModel` 数据边界，供后续 R8-03 Track feature 使用；本轮没有增加可见 Track 面板、选择控件或 Figma/视觉修改。新增独立 `track_list_model` CTest，覆盖 Audio/Subtitle 分离、stable ID/metadata roles、Snapshot selected-ID 真值、selected ID 缺失时无假选中、A→Opening B→Ready B 清空替换、readonly flags。没有新增生产依赖。
-- 当前只完成源码/CMake/调用链/测试契约静态复核；新增 module 与 CTest target 后必须重新 configure。Windows configure/build/Quick/Full 尚未执行，基于 R8-01 收口预计 Quick **96**、Full **104**。真实多音轨/多字幕媒体 smoke 继续保留为 R8 阶段本地验证项，待后续具备可交互 Track 功能时执行。**R8-02 仍为 In Progress / validation pending。**
+- 用户在 HEAD `101df83ab84d64ae97c505ce03d667eeb12ae33c` 的 Windows 锁定环境完成重新 configure 与 build；Quick **96/96 PASS，0 failed，40.86 s**，Full **104/104 PASS，0 failed，79.84 s**；`track_list_model` 在 Quick/Full 均 PASS，Full 的 startup-smoke **3.04 s**，8 项 windowed-render 合计 **38.99 s**。任务书 R8-02 的 A→B model replace / old-track cleanup 已由该 CTest 覆盖并进入全量回归。真实多音轨/多字幕媒体 smoke 继续保留为 R8 阶段本地验证项，待后续具备可交互 Track selection 后执行。**R8-02 正式 Complete。**
 
 ### 2026-08-18 — R8-01 Track decoder Complete
 
@@ -182,7 +182,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 - R7-07 已按用户此前 Windows 验证收口：**95/95 测试通过**，`Ctrl+Shift+D` 全局 Light/Dark 快捷键可用；剩余 Playlist/Figma 视觉打磨不阻塞当前功能阶段。
 - R7-08 已建立独立 `PlaylistNavigation` domain policy 与 `PlaylistAutoAdvance` application workflow；Playlist Domain 继续唯一拥有 queue/current/repeat/shuffle，AutoAdvance 只消费 PlaybackSnapshot 的终态投影并通过既有 `PlaylistController` 提交下一媒体，不建立第二套 queue 或 Playback owner。
 - normal 模式按实际 queue 顺序推进；尾项 + Repeat Off 停留；Repeat All 尾项回到第一项；Repeat One 与单项 Repeat All 复用现有 load callback 重载 current。同一 MediaGeneration 的终态只允许一次自动提交，避免 late/repeated Ended 造成 double load。
-- Shuffle 使用独立 `PlaylistShuffleState` cycle bag；Repeat Off 遍历当前 cycle 后停止，Repeat All 在自然 EOF 时可建立新 cycle 且排除刚结束项；成功 selection 才消费候选，因此即时 load submission rejection 不改变 current 或 shuffle history。
+- Shuffle 使用独立 `PlaylistShuffleState` cycle bag；Repeat Off 遍历当前 cycle 后停止，Repeat All 在自然 EOF 时可建立新 cycle且排除刚结束项；成功 selection 才消费候选，因此即时 load submission rejection 不改变 current 或 shuffle history。
 - 用户最新 Windows 锁定环境验证确认 shuffle 候选：`configure.ps1` PASS、`build.ps1` PASS、完整 `scripts\test.ps1 -SkipBuild` **98/98 PASS，0 failed，94.96 s**；`playlist_navigation`、`playlist_shuffle_state`、`playlist_auto_advance` 均实际通过。
 - 复核根任务书发现 R7-08 验收还明确包含“错误跳过”，因此 R7-08 不能仅凭上述 98/98 提前关闭。本候选新增 `PlaybackLifecycleState::Failed → PlaylistAutoAdvance::acceptPlaybackFailure()` 链，并把 Ended/Failed 统一到同一 generation terminal 去重门禁。
 - Failed 媒体采用 fail-forward 策略：normal 只向后跳过，不因 Repeat One 重试失败 current，也不因 Repeat All 在队尾回绕；shuffle 只消费当前未完成 cycle，不在 failure 路径重启 Repeat All cycle。这样连续损坏媒体会向后收敛而不是形成无限自动重载环。
