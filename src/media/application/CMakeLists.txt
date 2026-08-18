@@ -13,6 +13,7 @@ add_library(
         open/media_open_coordinator.h
         open/media_open_error.cpp
         open/media_open_error.h
+        open/media_open_operation_id.h
         open/url_media_validator.cpp
         open/url_media_validator.h
         open/url_open_workflow.cpp
