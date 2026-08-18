@@ -2,6 +2,8 @@ import QtQuick
 
 QtObject {
     readonly property var iconIds: [
+        "audio",
+        "chapters",
         "close",
         "fullscreen",
         "maximize",
@@ -21,6 +23,10 @@ QtObject {
 
     function sourceFor(iconId) {
         switch (iconId) {
+        case "audio":
+            return Qt.resolvedUrl("assets/icons/audio.svg")
+        case "chapters":
+            return Qt.resolvedUrl("assets/icons/chapters.svg")
         case "close":
             return Qt.resolvedUrl("assets/icons/close.svg")
         case "fullscreen":

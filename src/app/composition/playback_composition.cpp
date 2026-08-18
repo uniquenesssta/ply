@@ -7,8 +7,11 @@
 #include "playback/application/requests/playback_request_id_generator.h"
 #include "playback/application/session/playback_session_thread.h"
 #include "playback/application/state_publisher/state_publisher.h"
+#include "playback/domain/commands/delay_command.h"
+#include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/playback_command.h"
+#include "playback/domain/commands/track_command.h"
 #include "playback/domain/commands/volume_command.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
 #include "presentation/viewmodels/player/media/player_media_view_model.h"
@@ -16,6 +19,12 @@
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
+#include "tracks/application/audio_delay_controller.h"
+#include "tracks/application/external_subtitle_loader.h"
+#include "tracks/application/subtitle_delay_controller.h"
+#include "tracks/application/track_selection_controller.h"
+#include "tracks/presentation/chapter_list_model.h"
+#include "tracks/presentation/track_list_model.h"
 
 #include <QLoggingCategory>
 #include <QObject>
@@ -27,6 +36,7 @@ namespace player::app {
 namespace {
 
 using player::playback::domain::SeekMode;
+using player::playback::domain::TrackKind;
 using player::playback::domain::TransportAction;
 
 QString transportActionName(TransportAction action)
@@ -49,6 +59,19 @@ QString seekModeName(SeekMode mode)
         return QStringLiteral("absolute");
     case SeekMode::Relative:
         return QStringLiteral("relative");
+    }
+    return QStringLiteral("unknown");
+}
+
+QString trackKindName(TrackKind kind)
+{
+    switch (kind) {
+    case TrackKind::Video:
+        return QStringLiteral("video");
+    case TrackKind::Audio:
+        return QStringLiteral("audio");
+    case TrackKind::Subtitle:
+        return QStringLiteral("subtitle");
     }
     return QStringLiteral("unknown");
 }
@@ -81,6 +104,22 @@ PlaybackComposition::PlaybackComposition()
         std::make_unique<player::presentation::PlayerMediaViewModel>())
     , hudMessageQueue_(
         std::make_unique<player::presentation::HudMessageQueue>())
+    , trackSelectionController_(
+        std::make_unique<player::tracks::application::TrackSelectionController>())
+    , subtitleDelayController_(
+        std::make_unique<player::tracks::application::SubtitleDelayController>())
+    , audioDelayController_(
+        std::make_unique<player::tracks::application::AudioDelayController>())
+    , externalSubtitleLoader_(
+        std::make_unique<player::tracks::application::ExternalSubtitleLoader>())
+    , audioTrackListModel_(
+        std::make_unique<player::tracks::presentation::TrackListModel>(TrackKind::Audio))
+    , subtitleTrackListModel_(
+        std::make_unique<player::tracks::presentation::TrackListModel>(TrackKind::Subtitle))
+    , videoTrackListModel_(
+        std::make_unique<player::tracks::presentation::TrackListModel>(TrackKind::Video))
+    , chapterListModel_(
+        std::make_unique<player::tracks::presentation::ChapterListModel>())
 {
     auto* publisher = playbackThread_->statePublisher();
     QObject::connect(
@@ -108,6 +147,51 @@ PlaybackComposition::PlaybackComposition()
         &player::playback::application::StatePublisher::snapshotPublished,
         mediaViewModel_.get(),
         &player::presentation::PlayerMediaViewModel::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        audioTrackListModel_.get(),
+        &player::tracks::presentation::TrackListModel::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        subtitleTrackListModel_.get(),
+        &player::tracks::presentation::TrackListModel::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        videoTrackListModel_.get(),
+        &player::tracks::presentation::TrackListModel::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        chapterListModel_.get(),
+        &player::tracks::presentation::ChapterListModel::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        subtitleDelayController_.get(),
+        &player::tracks::application::SubtitleDelayController::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        audioDelayController_.get(),
+        &player::tracks::application::AudioDelayController::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        externalSubtitleLoader_.get(),
+        &player::tracks::application::ExternalSubtitleLoader::acceptSnapshot);
+    QObject::connect(
+        publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        trackSelectionController_.get(),
+        [this](const player::playback::domain::PlaybackSnapshot& snapshot) {
+            trackSelectionController_->acceptCapabilities(
+                snapshot.capabilities().hasAudioTrack,
+                snapshot.capabilities().hasSubtitleTrack,
+                snapshot.capabilities().hasVideoTrack);
+        });
 
     QObject::connect(
         playbackThread_.get(),
@@ -193,6 +277,49 @@ PlaybackComposition::PlaybackComposition()
             hudMessageQueue_->showVolume(
                 volumeViewModel_->volumePercent(),
                 volumeViewModel_->muted());
+        });
+
+    QObject::connect(
+        trackSelectionController_.get(),
+        &player::tracks::application::TrackSelectionController::trackSelectionRequested,
+        playbackThread_.get(),
+        [this](int kind, qint64 trackId) {
+            const TrackKind typedKind = static_cast<TrackKind>(kind);
+            if (!submitTrackSelection(typedKind, trackId)) {
+                qCWarning(player::logging::uiInteraction).noquote()
+                    << "Track selection submission failed:"
+                    << trackKindName(typedKind)
+                    << trackId;
+            }
+        });
+    QObject::connect(
+        subtitleDelayController_.get(),
+        &player::tracks::application::SubtitleDelayController::subtitleDelayRequested,
+        playbackThread_.get(),
+        [this](double seconds) {
+            if (!submitSubtitleDelay(seconds)) {
+                (void)subtitleDelayController_->rejectPending();
+            }
+        });
+    QObject::connect(
+        audioDelayController_.get(),
+        &player::tracks::application::AudioDelayController::audioDelayRequested,
+        playbackThread_.get(),
+        [this](double seconds) {
+            if (!submitAudioDelay(seconds)) {
+                (void)audioDelayController_->rejectPending();
+            }
+        });
+    QObject::connect(
+        externalSubtitleLoader_.get(),
+        &player::tracks::application::ExternalSubtitleLoader::externalSubtitleLoadRequested,
+        playbackThread_.get(),
+        [this](const QString& path) {
+            if (!submitExternalSubtitle(path)) {
+                qCWarning(player::logging::uiInteraction).noquote()
+                    << "External subtitle load submission failed:"
+                    << path;
+            }
         });
 
     QObject::connect(
@@ -295,6 +422,54 @@ player::presentation::HudMessageQueue&
 PlaybackComposition::hudMessageQueue() noexcept
 {
     return *hudMessageQueue_;
+}
+
+player::tracks::application::TrackSelectionController&
+PlaybackComposition::trackSelectionController() noexcept
+{
+    return *trackSelectionController_;
+}
+
+player::tracks::application::SubtitleDelayController&
+PlaybackComposition::subtitleDelayController() noexcept
+{
+    return *subtitleDelayController_;
+}
+
+player::tracks::application::AudioDelayController&
+PlaybackComposition::audioDelayController() noexcept
+{
+    return *audioDelayController_;
+}
+
+player::tracks::application::ExternalSubtitleLoader&
+PlaybackComposition::externalSubtitleLoader() noexcept
+{
+    return *externalSubtitleLoader_;
+}
+
+player::tracks::presentation::TrackListModel&
+PlaybackComposition::audioTrackListModel() noexcept
+{
+    return *audioTrackListModel_;
+}
+
+player::tracks::presentation::TrackListModel&
+PlaybackComposition::subtitleTrackListModel() noexcept
+{
+    return *subtitleTrackListModel_;
+}
+
+player::tracks::presentation::TrackListModel&
+PlaybackComposition::videoTrackListModel() noexcept
+{
+    return *videoTrackListModel_;
+}
+
+player::tracks::presentation::ChapterListModel&
+PlaybackComposition::chapterListModel() noexcept
+{
+    return *chapterListModel_;
 }
 
 void PlaybackComposition::setPlaybackSupersessionObserver(
@@ -433,6 +608,110 @@ bool PlaybackComposition::submitMuted(bool muted)
         qCWarning(player::logging::uiInteraction).noquote()
             << "Mute command submission failed:"
             << muted
+            << diagnostic;
+        return false;
+    }
+
+    return true;
+}
+
+bool PlaybackComposition::submitTrackSelection(TrackKind kind, qint64 trackId)
+{
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Track selection intent ignored because PlaybackCommandBus is unavailable:"
+            << trackKindName(kind)
+            << trackId;
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        player::playback::domain::SelectTrackCommand{kind, trackId > 0
+            ? std::optional<qint64>{trackId}
+            : std::nullopt}};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Track selection command submission failed:"
+            << trackKindName(kind)
+            << trackId
+            << diagnostic;
+        return false;
+    }
+
+    return true;
+}
+
+bool PlaybackComposition::submitSubtitleDelay(double seconds)
+{
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Subtitle delay intent ignored because PlaybackCommandBus is unavailable:"
+            << seconds;
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        player::playback::domain::SetSubtitleDelayCommand{seconds}};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Subtitle delay command submission failed:"
+            << seconds
+            << diagnostic;
+        return false;
+    }
+
+    return true;
+}
+
+bool PlaybackComposition::submitAudioDelay(double seconds)
+{
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Audio delay intent ignored because PlaybackCommandBus is unavailable:"
+            << seconds;
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        player::playback::domain::SetAudioDelayCommand{seconds}};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Audio delay command submission failed:"
+            << seconds
+            << diagnostic;
+        return false;
+    }
+
+    return true;
+}
+
+bool PlaybackComposition::submitExternalSubtitle(const QString& path)
+{
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "External subtitle intent ignored because PlaybackCommandBus is unavailable:"
+            << path;
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        player::playback::domain::LoadExternalSubtitleCommand{path}};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "External subtitle command submission failed:"
+            << path
             << diagnostic;
         return false;
     }

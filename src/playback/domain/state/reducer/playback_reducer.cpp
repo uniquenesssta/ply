@@ -144,6 +144,10 @@ PlaybackSnapshot reducePlaybackSnapshot(
                 state.controls.muted = payload.muted;
             } else if constexpr (std::is_same_v<Payload, SpeedChangedEvent>) {
                 state.controls.speed = payload.rate;
+            } else if constexpr (std::is_same_v<Payload, SubtitleDelayChangedEvent>) {
+                state.controls.subtitleDelaySeconds = payload.seconds;
+            } else if constexpr (std::is_same_v<Payload, AudioDelayChangedEvent>) {
+                state.controls.audioDelaySeconds = payload.seconds;
             } else if constexpr (std::is_same_v<Payload, TrackListChangedEvent>) {
                 state.tracks.tracks = payload.tracks;
                 rebuildTrackSelectionsAndCapabilities(state);

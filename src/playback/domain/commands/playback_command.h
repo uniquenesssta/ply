@@ -1,10 +1,13 @@
 #pragma once
 
 #include "foundation/ids/request_id.h"
+#include "playback/domain/commands/delay_command.h"
+#include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/lifecycle_command.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/speed_command.h"
+#include "playback/domain/commands/track_command.h"
 #include "playback/domain/commands/transport_command.h"
 #include "playback/domain/commands/volume_command.h"
 
@@ -22,6 +25,10 @@ using PlaybackCommandPayload = std::variant<
     SetVolumeCommand,
     SetMutedCommand,
     SetSpeedCommand,
+    SelectTrackCommand,
+    SetSubtitleDelayCommand,
+    SetAudioDelayCommand,
+    LoadExternalSubtitleCommand,
     LifecycleCommand>;
 
 enum class PlaybackCommandValidationError : quint8
@@ -32,6 +39,9 @@ enum class PlaybackCommandValidationError : quint8
     NonFiniteSeek,
     InvalidVolume,
     InvalidSpeed,
+    InvalidTrackSelection,
+    NonFiniteDelay,
+    InvalidExternalSubtitlePath,
 };
 
 class PlaybackCommand final

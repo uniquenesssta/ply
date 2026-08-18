@@ -57,6 +57,24 @@ std::optional<PlaybackCommandValidationError> validatePlaybackCommand(
                 if (!std::isfinite(payload.rate) || payload.rate <= 0.0) {
                     return PlaybackCommandValidationError::InvalidSpeed;
                 }
+            } else if constexpr (std::is_same_v<Command, SelectTrackCommand>) {
+                if (payload.trackId.has_value() && *payload.trackId <= 0) {
+                    return PlaybackCommandValidationError::InvalidTrackSelection;
+                }
+            } else if constexpr (
+                std::is_same_v<Command, SetSubtitleDelayCommand>
+                || std::is_same_v<Command, SetAudioDelayCommand>) {
+                if (!std::isfinite(payload.seconds)) {
+                    return PlaybackCommandValidationError::NonFiniteDelay;
+                }
+            } else if constexpr (std::is_same_v<Command, LoadExternalSubtitleCommand>) {
+                const QByteArray path = payload.path.toUtf8();
+                if (path.isEmpty()) {
+                    return PlaybackCommandValidationError::InvalidExternalSubtitlePath;
+                }
+                if (path.contains('\0')) {
+                    return PlaybackCommandValidationError::InvalidExternalSubtitlePath;
+                }
             }
 
             return std::nullopt;

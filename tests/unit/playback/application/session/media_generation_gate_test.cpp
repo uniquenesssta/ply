@@ -86,9 +86,13 @@ void MediaGenerationTest::gateRejectsStaleAndUnattributedMediaEvents()
         MediaGeneration{41})));
     QVERIFY(!gate.accepts(mediaEvent(TrackListChangedEvent{}, MediaGeneration{41})));
     QVERIFY(!gate.accepts(mediaEvent(ChapterListChangedEvent{}, MediaGeneration{41})));
+    QVERIFY(!gate.accepts(mediaEvent(SubtitleDelayChangedEvent{1.0}, MediaGeneration{41})));
+    QVERIFY(!gate.accepts(mediaEvent(AudioDelayChangedEvent{-1.0}, MediaGeneration{41})));
 
     QVERIFY(gate.accepts(mediaEvent(MediaPathChangedEvent{QStringLiteral("B.wav")}, MediaGeneration{42})));
     QVERIFY(gate.accepts(mediaEvent(TrackListChangedEvent{}, MediaGeneration{42})));
+    QVERIFY(gate.accepts(mediaEvent(SubtitleDelayChangedEvent{0.5}, MediaGeneration{42})));
+    QVERIFY(gate.accepts(mediaEvent(AudioDelayChangedEvent{-0.5}, MediaGeneration{42})));
     QVERIFY(gate.accepts(PlaybackEvent{VolumeChangedEvent{50.0}}));
     QVERIFY(!gate.accepts(PlaybackEvent{DurationChangedEvent{12.0}}));
 
@@ -100,7 +104,7 @@ void MediaGenerationTest::gateRejectsStaleAndUnattributedMediaEvents()
     QVERIFY(gate.accepts(PlaybackEvent{PlaybackFailureEvent{protocolFailure}}));
 
     QCOMPARE(gate.currentGeneration().value(), quint64{42});
-    QCOMPARE(gate.diagnostics().staleGenerationEventCount, quint64{6});
+    QCOMPARE(gate.diagnostics().staleGenerationEventCount, quint64{8});
     QCOMPARE(gate.diagnostics().missingGenerationEventCount, quint64{1});
 }
 

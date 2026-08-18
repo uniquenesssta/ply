@@ -45,6 +45,9 @@ set(PLAYER_QML_FILES
     qml/features/playlist/PlaylistControls.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
+    qml/features/tracks/SubtitleMenu.qml
+    qml/features/tracks/AudioMenu.qml
+    qml/features/chapters/ChapterMenu.qml
 )
 
 target_sources(
@@ -98,6 +101,9 @@ set_source_files_properties(
     qml/features/playlist/PlaylistControls.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
+    qml/features/tracks/SubtitleMenu.qml
+    qml/features/tracks/AudioMenu.qml
+    qml/features/chapters/ChapterMenu.qml
     PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 

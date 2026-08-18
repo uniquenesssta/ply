@@ -27,6 +27,9 @@ enum class PlaybackRequestType : quint8
     SelectAudioTrack,
     SelectSubtitleTrack,
     SelectVideoTrack,
+    SetSubtitleDelay,
+    SetAudioDelay,
+    LoadExternalSubtitle,
 };
 
 enum class PlaybackRequestState : quint8

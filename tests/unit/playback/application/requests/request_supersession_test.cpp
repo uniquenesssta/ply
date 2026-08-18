@@ -49,6 +49,7 @@ private slots:
     void loadReplacementCancelsOlderLoadAcrossGenerations();
     void seekReplacementIsLatestWinsWithinGeneration();
     void trackSelectionPolicyUsesIndependentLanes();
+    void delayPolicyUsesIndependentLanes();
     void shutdownCancelsAllRemainingPendingRequests();
 };
 
@@ -74,6 +75,15 @@ void RequestSupersessionTest::classifiesSupersessionGroups()
     QVERIFY(*audio == PlaybackRequestSupersessionGroup::AudioTrackSelection);
     QVERIFY(*subtitle == PlaybackRequestSupersessionGroup::SubtitleTrackSelection);
     QVERIFY(*video == PlaybackRequestSupersessionGroup::VideoTrackSelection);
+
+    const auto subtitleDelay =
+        requestSupersessionGroupFor(PlaybackRequestType::SetSubtitleDelay);
+    const auto audioDelay = requestSupersessionGroupFor(PlaybackRequestType::SetAudioDelay);
+    QVERIFY(subtitleDelay.has_value());
+    QVERIFY(audioDelay.has_value());
+    QVERIFY(*subtitleDelay == PlaybackRequestSupersessionGroup::SubtitleDelay);
+    QVERIFY(*audioDelay == PlaybackRequestSupersessionGroup::AudioDelay);
+    QVERIFY(!requestSupersessionGroupFor(PlaybackRequestType::LoadExternalSubtitle).has_value());
 
     QVERIFY(!requestSupersessionGroupFor(PlaybackRequestType::Play).has_value());
     QVERIFY(!requestSupersessionGroupFor(PlaybackRequestType::Pause).has_value());
@@ -219,6 +229,43 @@ void RequestSupersessionTest::trackSelectionPolicyUsesIndependentLanes()
     QVERIFY(!shouldSupersedeRequest(
         completedAudio,
         PlaybackRequestType::SelectAudioTrack,
+        generation));
+}
+
+void RequestSupersessionTest::delayPolicyUsesIndependentLanes()
+{
+    const MediaGeneration generation{57};
+    const MediaGeneration nextGeneration{58};
+
+    const PlaybackRequestRecord subtitleDelay = makePendingRecord(
+        23,
+        PlaybackRequestType::SetSubtitleDelay,
+        generation);
+    const PlaybackRequestRecord audioDelay = makePendingRecord(
+        24,
+        PlaybackRequestType::SetAudioDelay,
+        generation);
+
+    QVERIFY(shouldSupersedeRequest(
+        subtitleDelay,
+        PlaybackRequestType::SetSubtitleDelay,
+        generation));
+    QVERIFY(!shouldSupersedeRequest(
+        subtitleDelay,
+        PlaybackRequestType::SetAudioDelay,
+        generation));
+    QVERIFY(!shouldSupersedeRequest(
+        subtitleDelay,
+        PlaybackRequestType::SetSubtitleDelay,
+        nextGeneration));
+
+    QVERIFY(shouldSupersedeRequest(
+        audioDelay,
+        PlaybackRequestType::SetAudioDelay,
+        generation));
+    QVERIFY(!shouldSupersedeRequest(
+        audioDelay,
+        PlaybackRequestType::SetSubtitleDelay,
         generation));
 }
 

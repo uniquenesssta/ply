@@ -72,6 +72,7 @@ private slots:
     void fileLoadedMarksMediaReady();
     void pauseAndBufferingStayIndependent();
     void propertyEventsUpdateTheirOwnAxes();
+    void delayEventsUpdateIndependentAxes();
     void mediaAxesUpdateIndependently();
     void unavailablePauseAndBufferingDoNotInventState();
     void eofMarksEndedWithoutDiscardingMediaIdentity();
@@ -180,6 +181,31 @@ void PlaybackReducerTest::propertyEventsUpdateTheirOwnAxes()
     QVERIFY(*snapshot.controls().muted);
     QCOMPARE(*snapshot.controls().speed, 1.5);
     QVERIFY(snapshot.transport() == PlaybackTransportState::Playing);
+}
+
+void PlaybackReducerTest::delayEventsUpdateIndependentAxes()
+{
+    PlaybackSnapshot snapshot = PlaybackSnapshot::opening(
+        MediaGeneration{6},
+        QStringLiteral("sample.mkv"));
+
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(SubtitleDelayChangedEvent{-0.5}));
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(AudioDelayChangedEvent{0.25}));
+
+    QVERIFY(snapshot.controls().subtitleDelaySeconds.has_value());
+    QCOMPARE(*snapshot.controls().subtitleDelaySeconds, -0.5);
+    QVERIFY(snapshot.controls().audioDelaySeconds.has_value());
+    QCOMPARE(*snapshot.controls().audioDelaySeconds, 0.25);
+
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(SubtitleDelayChangedEvent{std::nullopt}));
+    QVERIFY(!snapshot.controls().subtitleDelaySeconds.has_value());
+    QVERIFY(snapshot.controls().audioDelaySeconds.has_value());
 }
 
 void PlaybackReducerTest::mediaAxesUpdateIndependently()

@@ -13,7 +13,8 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-13 Complete**。R7-13 已在 Windows 环境完成 configure/build、Quick **93/93 PASS** 与 Full **101/101 PASS（83.69 s）**。剩余 R7-14 Queue UI 状态解耦与 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-13 Complete**。R7-13 已在 Windows 环境完成 configure/build、Quick **93/93 PASS** 与 Full **101/101 PASS（83.69 s）**。剩余 R7-14 Queue UI 状态解耦与 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R8 — 音轨、字幕、章节 | Complete | **R8-01 ~ R8-08 Complete**。Windows 环境 configure/build、Quick **96/96 PASS** 与 Full **104/104 PASS（82.92 s）**；windowed-render 42.36 s、startup-smoke 5.95 s。补强矩阵 R8-09~12 边界已随实现落实 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -30,7 +31,10 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
-- Persistence/Settings 真值继续按 R9 任务书归 `SettingsController + repository`，当前 R7 不建立第二套设置持久化路径。
+- Track/Chapter 真值继续归 `PlaybackSnapshot`；`TrackListModel` / `ChapterListModel` 是只读投影，行身份使用 backend 稳定 track id，不用视觉 index 作命令参数；`TrackSelectionController` / `SubtitleDelayController` / `AudioDelayController` / `ExternalSubtitleLoader` 只携带 intent，不建立第二套轨道状态。
+- 外挂字幕成功加载后必须进入同一 `TrackDescriptor` 模型（`sub-add select`），QML 不维护额外字幕列表；重复路径由 `ExternalSubtitleLoader` 幂等拒绝。
+- 章节点击只产生统一 `SeekCommand`（`PlayerTimelineViewModel::requestAbsoluteSeek`），Timeline 只从 Snapshot position 更新，chapter marker 是只读投影。
+- Persistence/Settings 真值继续按 R9 任务书归 `SettingsController + repository`，当前 R7/R8 不建立第二套设置持久化路径。
 
 ## Core architecture
 
@@ -67,6 +71,8 @@ src/media/application/           媒体打开校验、operation supersession 与
 src/playlist/domain/             播放队列、Entry/current/repeat/shuffle cycle、Queue Snapshot 与导航策略
 src/playlist/application/        Playlist Controller、mutation、advance arbitration、auto-advance 与 load 编排
 src/playlist/presentation/       Playlist 只读模型投影
+src/tracks/application/          轨道选择、外挂字幕、字幕/音频延迟 intent 控制器
+src/tracks/presentation/         Track/Chapter 只读模型投影
 src/presentation/                QML、Theme、Surfaces 与 presentation 层
 src/platform/                    平台能力
 src/persistence/                 持久化边界
@@ -107,6 +113,19 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-18 — Stage R8 Tracks / Subtitles / Chapters Complete
+
+- R8-01/R8-07 的 mpv 侧 track-list/chapter-list 解码、事件与 Snapshot 状态来自 R3/R4 既有主链；本阶段补齐上层：领域命令、只读模型、intent 控制器与 QML 特征。
+- 新增 Domain 命令：`SelectTrackCommand`（kind + backend 稳定 id，id≤0 表示 off）、`SetSubtitleDelayCommand`、`SetAudioDelayCommand`、`LoadExternalSubtitleCommand`，全部进入统一 `PlaybackCommandPayload` 校验链与 `MpvCommandEncoder`（`set vid/aid/sid`、`set sub-delay/audio-delay`、`sub-add <path> select`）。
+- 属性注册表新增 `sub-delay`/`audio-delay` 观察（observationId 2023/2024），事件 `SubtitleDelayChangedEvent`/`AudioDelayChangedEvent` 进入 reducer，延迟值归 `PlaybackControlsState`；`kMediaRefreshProperties` 随媒体刷新读取。
+- RequestTracker 扩展 `SetSubtitleDelay`/`SetAudioDelay`/`LoadExternalSubtitle` 类型；字幕延迟与音频延迟各自独立 supersession lane，同类后请求 supersede 前请求（同 generation），外挂字幕不参与 supersede（幂等由 loader 负责）。
+- 新增 `src/tracks/application`：`TrackSelectionController`（能力门控 + intent 转发）、`SubtitleDelayController`/`AudioDelayController`（固定 ±0.5s 步进、±10s 范围、reset、pending 由 Snapshot 真值清除）、`ExternalSubtitleLoader`（扩展名校验、文件可读校验、与已加载 track-list 的 canonical path 幂等去重）。
+- 新增 `src/tracks/presentation`：`TrackListModel`（按 kind 过滤的只读投影，行身份 = backend track id，selectedRow 由 selected 标志推导）与 `ChapterListModel`（index/title/startSeconds，无标题用 Chapter N fallback）；两者都从 `PlaybackSnapshot` 整表替换，媒体切换自动清空。
+- `PlaybackComposition` 新增 `submitTrackSelection/submitSubtitleDelay/submitAudioDelay/submitExternalSubtitle`，统一走 PlaybackCommandBus；Audio/Subtitle/Video 三个 `TrackListModel`、`ChapterListModel` 与四个 intent 控制器接入 `StatePublisher::snapshotPublished`，并通过 `ApplicationBootstrap` 注入 QML。
+- `PlayerTimelineViewModel` 新增 `requestAbsoluteSeek(seconds)`：clamp 到有效时长后产生统一 `SeekCommand`，供章节跳转复用同一 seek 主链（不直接写 Timeline 状态）。
+- QML：`PlayerUtilityControls` 的 `subtitlesUnavailableControl` 占位符替换为真实 Audio/Subtitles/Chapters 三组控制；新增 `features/tracks/SubtitleMenu.qml`（轨道选择/Off/加载外挂/延迟±/Reset）、`features/tracks/AudioMenu.qml`（轨道选择/延迟±/Reset）、`features/chapters/ChapterMenu.qml`（点击 → absolute seek）；新增 `audio.svg`/`chapters.svg` 图标与 IconCatalog 注册。
+- 测试：`tracks_application`（selection + delay + loader，含 `tracks_delay_controller` 与 `tracks_track_selection` 两个目标）、`tracks_presentation`（模型投影/整表替换/fallback/章节），扩展 `playback_command`、`mpv_command`、`playback_event_mapping`、`playback_reducer`、`request_tracker`、`request_supersession`、`media_generation`、`mpv_property_baseline/observer`、`player_timeline_view_model`、`icon_pipeline`、`playlist_qml` 契约。Windows 本地验证：configure PASS、build PASS、Quick **96/96 PASS**、Full **104/104 PASS（82.92 s）**，windowed-render 42.36 s、startup-smoke 5.95 s。
 
 ### 2026-08-18 — R7-13 Async Media Open Supersession Complete
 

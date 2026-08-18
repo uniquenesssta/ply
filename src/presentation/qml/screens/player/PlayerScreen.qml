@@ -25,6 +25,14 @@ Item {
     property var playlistController: null
     property var playlistModel: null
     property bool playlistDrawerOpen: false
+    property var trackSelectionController: null
+    property var subtitleDelayController: null
+    property var audioDelayController: null
+    property var externalSubtitleLoader: null
+    property var audioTrackListModel: null
+    property var subtitleTrackListModel: null
+    property var videoTrackListModel: null
+    property var chapterListModel: null
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property bool oscCompact: root.fullScreen
@@ -263,6 +271,14 @@ Item {
                     compact: root.oscCompact
                     fullScreen: root.fullScreen
                     playlistOpen: root.playlistDrawerOpen
+                    subtitleTrackListModel: root.subtitleTrackListModel
+                    audioTrackListModel: root.audioTrackListModel
+                    chapterListModel: root.chapterListModel
+                    trackSelectionController: root.trackSelectionController
+                    subtitleDelayController: root.subtitleDelayController
+                    audioDelayController: root.audioDelayController
+                    externalSubtitleLoader: root.externalSubtitleLoader
+                    timelineViewModel: root.timelineViewModel
 
                     onTogglePlaylistRequested: root.playlistDrawerOpen = !root.playlistDrawerOpen
                     onToggleFullscreenRequested: root.fullscreenToggleRequested()

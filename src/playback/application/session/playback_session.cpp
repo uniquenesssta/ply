@@ -79,7 +79,9 @@ bool shouldApplyBackendEvent(
         || std::holds_alternative<SelectedSubtitleTrackChangedEvent>(payload)
         || std::holds_alternative<ChapterListChangedEvent>(payload)
         || std::holds_alternative<VideoStreamInfoChangedEvent>(payload)
-        || std::holds_alternative<AudioStreamInfoChangedEvent>(payload)) {
+        || std::holds_alternative<AudioStreamInfoChangedEvent>(payload)
+        || std::holds_alternative<SubtitleDelayChangedEvent>(payload)
+        || std::holds_alternative<AudioDelayChangedEvent>(payload)) {
         return isMediaPropertyLifecycle(lifecycle);
     }
 

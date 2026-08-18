@@ -20,6 +20,12 @@
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
+#include "tracks/application/audio_delay_controller.h"
+#include "tracks/application/external_subtitle_loader.h"
+#include "tracks/application/subtitle_delay_controller.h"
+#include "tracks/application/track_selection_controller.h"
+#include "tracks/presentation/chapter_list_model.h"
+#include "tracks/presentation/track_list_model.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -131,6 +137,38 @@ int ApplicationBootstrap::run(
         QStringLiteral("hudMessageQueue"),
         QVariant::fromValue(
             static_cast<QObject*>(&playbackComposition.hudMessageQueue())));
+    initialProperties.insert(
+        QStringLiteral("trackSelectionController"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.trackSelectionController())));
+    initialProperties.insert(
+        QStringLiteral("subtitleDelayController"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.subtitleDelayController())));
+    initialProperties.insert(
+        QStringLiteral("audioDelayController"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.audioDelayController())));
+    initialProperties.insert(
+        QStringLiteral("externalSubtitleLoader"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.externalSubtitleLoader())));
+    initialProperties.insert(
+        QStringLiteral("audioTrackListModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.audioTrackListModel())));
+    initialProperties.insert(
+        QStringLiteral("subtitleTrackListModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.subtitleTrackListModel())));
+    initialProperties.insert(
+        QStringLiteral("videoTrackListModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.videoTrackListModel())));
+    initialProperties.insert(
+        QStringLiteral("chapterListModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&playbackComposition.chapterListModel())));
     initialProperties.insert(
         QStringLiteral("playlistController"),
         QVariant::fromValue(

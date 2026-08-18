@@ -43,6 +43,8 @@ const ExpectedProperty kExpectedProperties[]{
     {MpvPropertyId::SelectedVideoTrack, 2020, "vid", MpvPropertyFormat::Node},
     {MpvPropertyId::VideoParams, 2021, "video-params", MpvPropertyFormat::Node},
     {MpvPropertyId::AudioParams, 2022, "audio-params", MpvPropertyFormat::Node},
+    {MpvPropertyId::SubtitleDelay, 2023, "sub-delay", MpvPropertyFormat::Double},
+    {MpvPropertyId::AudioDelay, 2024, "audio-delay", MpvPropertyFormat::Double},
 };
 
 const MpvPropertyDefinition& requireDefinition(MpvPropertyId id)
@@ -87,7 +89,7 @@ private slots:
 void MpvPropertyBaselineTest::registryContainsR2Baseline()
 {
     const QList<MpvPropertyDefinition>& definitions = MpvPropertyRegistry::coreDefinitions();
-    QCOMPARE(definitions.size(), qsizetype{22});
+    QCOMPARE(definitions.size(), qsizetype{24});
 
     for (const ExpectedProperty& expected : kExpectedProperties) {
         const MpvPropertyDefinition* definition = MpvPropertyRegistry::findById(expected.id);

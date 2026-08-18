@@ -44,6 +44,8 @@ using PlaybackEventPayload = std::variant<
     ChapterListChangedEvent,
     VideoStreamInfoChangedEvent,
     AudioStreamInfoChangedEvent,
+    SubtitleDelayChangedEvent,
+    AudioDelayChangedEvent,
     CommandReplyEvent,
     PlaybackFailureEvent>;
 

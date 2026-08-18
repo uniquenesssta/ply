@@ -28,6 +28,9 @@ private slots:
     void rejectsNonFiniteSeek();
     void rejectsInvalidVolume();
     void rejectsInvalidSpeed();
+    void rejectsInvalidTrackSelection();
+    void rejectsNonFiniteDelay();
+    void rejectsInvalidExternalSubtitlePath();
 };
 
 void PlaybackCommandTest::acceptsSupportedCommandFamilies()
@@ -42,8 +45,16 @@ void PlaybackCommandTest::acceptsSupportedCommandFamilies()
         command(player::ids::RequestId{7}, PlaybackCommandPayload{SetVolumeCommand{125.0}}),
         command(player::ids::RequestId{8}, PlaybackCommandPayload{SetMutedCommand{true}}),
         command(player::ids::RequestId{9}, PlaybackCommandPayload{SetSpeedCommand{1.5}}),
-        command(player::ids::RequestId{10}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Initialize}}),
-        command(player::ids::RequestId{11}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Shutdown}}),
+        command(player::ids::RequestId{10}, PlaybackCommandPayload{SelectTrackCommand{
+            TrackKind::Subtitle, qint64{3}}}),
+        command(player::ids::RequestId{11}, PlaybackCommandPayload{SelectTrackCommand{
+            TrackKind::Audio, std::nullopt}}),
+        command(player::ids::RequestId{12}, PlaybackCommandPayload{SetSubtitleDelayCommand{-0.5}}),
+        command(player::ids::RequestId{13}, PlaybackCommandPayload{SetAudioDelayCommand{0.25}}),
+        command(player::ids::RequestId{14}, PlaybackCommandPayload{LoadExternalSubtitleCommand{
+            QStringLiteral("C:/subtitles/track.srt")}}),
+        command(player::ids::RequestId{15}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Initialize}}),
+        command(player::ids::RequestId{16}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Shutdown}}),
     };
 
     for (const PlaybackCommand& value : commands) {
@@ -128,6 +139,60 @@ void PlaybackCommandTest::rejectsInvalidSpeed()
     QVERIFY(
         validatePlaybackCommand(notANumber)
         == std::optional{PlaybackCommandValidationError::InvalidSpeed});
+}
+
+void PlaybackCommandTest::rejectsInvalidTrackSelection()
+{
+    const PlaybackCommand zeroId{
+        player::ids::RequestId{1},
+        PlaybackCommandPayload{SelectTrackCommand{TrackKind::Audio, qint64{0}}}};
+    QVERIFY(
+        validatePlaybackCommand(zeroId)
+        == std::optional{PlaybackCommandValidationError::InvalidTrackSelection});
+
+    const PlaybackCommand negativeId{
+        player::ids::RequestId{2},
+        PlaybackCommandPayload{SelectTrackCommand{TrackKind::Subtitle, qint64{-1}}}};
+    QVERIFY(
+        validatePlaybackCommand(negativeId)
+        == std::optional{PlaybackCommandValidationError::InvalidTrackSelection});
+}
+
+void PlaybackCommandTest::rejectsNonFiniteDelay()
+{
+    const PlaybackCommand subtitleNaN{
+        player::ids::RequestId{1},
+        PlaybackCommandPayload{SetSubtitleDelayCommand{std::numeric_limits<double>::quiet_NaN()}}};
+    QVERIFY(
+        validatePlaybackCommand(subtitleNaN)
+        == std::optional{PlaybackCommandValidationError::NonFiniteDelay});
+
+    const PlaybackCommand audioInfinity{
+        player::ids::RequestId{2},
+        PlaybackCommandPayload{SetAudioDelayCommand{std::numeric_limits<double>::infinity()}}};
+    QVERIFY(
+        validatePlaybackCommand(audioInfinity)
+        == std::optional{PlaybackCommandValidationError::NonFiniteDelay});
+}
+
+void PlaybackCommandTest::rejectsInvalidExternalSubtitlePath()
+{
+    const PlaybackCommand empty{
+        player::ids::RequestId{1},
+        PlaybackCommandPayload{LoadExternalSubtitleCommand{QString{}}}};
+    QVERIFY(
+        validatePlaybackCommand(empty)
+        == std::optional{PlaybackCommandValidationError::InvalidExternalSubtitlePath});
+
+    QString embeddedNull = QStringLiteral("before");
+    embeddedNull.append(QChar{u'\0'});
+    embeddedNull.append(QStringLiteral("after"));
+    const PlaybackCommand containsNull{
+        player::ids::RequestId{2},
+        PlaybackCommandPayload{LoadExternalSubtitleCommand{embeddedNull}}};
+    QVERIFY(
+        validatePlaybackCommand(containsNull)
+        == std::optional{PlaybackCommandValidationError::InvalidExternalSubtitlePath});
 }
 
 } // namespace player::playback::domain

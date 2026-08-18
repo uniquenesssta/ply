@@ -4,6 +4,7 @@ add_subdirectory(foundation)
 add_subdirectory(playback)
 add_subdirectory(media)
 add_subdirectory(playlist)
+add_subdirectory(tracks)
 add_subdirectory(app)
 add_subdirectory(presentation)
 

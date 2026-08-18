@@ -1,9 +1,12 @@
 #include "playback/application/requests/request_tracker.h"
 
 #include "foundation/ids/request_id.h"
+#include "playback/domain/commands/delay_command.h"
+#include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/lifecycle_command.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
+#include "playback/domain/commands/track_command.h"
 #include "playback/domain/commands/transport_command.h"
 #include "playback/domain/commands/volume_command.h"
 
@@ -73,6 +76,40 @@ void RequestTrackerTest::tracksTypeGenerationAndSubmissionTime()
     QVERIFY(controlRecord.has_value());
     QVERIFY(controlRecord->type == PlaybackRequestType::SetVolume);
     QVERIFY(!controlRecord->generation.has_value());
+
+    QVERIFY(tracker.track(
+                makeCommand(3, SelectTrackCommand{TrackKind::Subtitle, qint64{4}}),
+                MediaGeneration{7},
+                submittedAt)
+        == RequestTrackStatus::Tracked);
+    const auto subtitleRecord = tracker.record(player::ids::RequestId{3});
+    QVERIFY(subtitleRecord.has_value());
+    QVERIFY(subtitleRecord->type == PlaybackRequestType::SelectSubtitleTrack);
+    QVERIFY(subtitleRecord->generation.has_value());
+
+    QVERIFY(tracker.track(
+                makeCommand(4, SetSubtitleDelayCommand{-0.5}),
+                MediaGeneration{7},
+                submittedAt)
+        == RequestTrackStatus::Tracked);
+    QVERIFY(tracker.record(player::ids::RequestId{4})->type
+        == PlaybackRequestType::SetSubtitleDelay);
+
+    QVERIFY(tracker.track(
+                makeCommand(5, SetAudioDelayCommand{0.25}),
+                MediaGeneration{7},
+                submittedAt)
+        == RequestTrackStatus::Tracked);
+    QVERIFY(tracker.record(player::ids::RequestId{5})->type
+        == PlaybackRequestType::SetAudioDelay);
+
+    QVERIFY(tracker.track(
+                makeCommand(6, LoadExternalSubtitleCommand{QStringLiteral("C:/s.srt")}),
+                MediaGeneration{7},
+                submittedAt)
+        == RequestTrackStatus::Tracked);
+    QVERIFY(tracker.record(player::ids::RequestId{6})->type
+        == PlaybackRequestType::LoadExternalSubtitle);
 }
 
 void RequestTrackerTest::rejectsDuplicateAndLifecycleCommands()

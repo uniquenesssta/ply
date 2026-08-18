@@ -13,6 +13,8 @@ enum class PlaybackRequestSupersessionGroup : quint8
     AudioTrackSelection,
     SubtitleTrackSelection,
     VideoTrackSelection,
+    SubtitleDelay,
+    AudioDelay,
 };
 
 [[nodiscard]] std::optional<PlaybackRequestSupersessionGroup> requestSupersessionGroupFor(

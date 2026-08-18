@@ -4,6 +4,7 @@
 #include <QtTest>
 
 #include <cmath>
+#include <limits>
 #include <optional>
 
 namespace player::presentation {
@@ -52,6 +53,8 @@ private slots:
     void nonSeekableAndUnknownDurationBlockInteraction();
     void seekingCycleDoesNotReleasePreviewBeforeTargetPosition();
     void rejectedSubmissionReleasesPendingPreview();
+    void absoluteSeekFromChapterTargetClampsAndEmits();
+    void absoluteSeekRejectedWithoutSeekableMedia();
 };
 
 void PlayerTimelineViewModelTest::snapshotProjectsPositionDurationAndTimecodes()
@@ -214,6 +217,53 @@ void PlayerTimelineViewModelTest::rejectedSubmissionReleasesPendingPreview()
     QVERIFY(viewModel.rejectPendingSeek());
     QVERIFY(!viewModel.seekPending());
     QVERIFY(fuzzyEqual(viewModel.displayedNormalized(), 0.3));
+}
+
+void PlayerTimelineViewModelTest::absoluteSeekFromChapterTargetClampsAndEmits()
+{
+    PlayerTimelineViewModel viewModel;
+    QSignalSpy seekSpy(&viewModel, &PlayerTimelineViewModel::seekRequested);
+
+    viewModel.acceptSnapshot(timelineSnapshot(10, 10.0, 100.0, true));
+    QVERIFY(viewModel.requestAbsoluteSeek(42.0));
+    QCOMPARE(seekSpy.count(), 1);
+    QVERIFY(fuzzyEqual(seekSpy.at(0).at(0).toDouble(), 42.0));
+    QVERIFY(viewModel.seekPending());
+
+    // Chapter start beyond duration clamps to the media end.
+    QVERIFY(viewModel.requestAbsoluteSeek(500.0));
+    QCOMPARE(seekSpy.count(), 2);
+    QVERIFY(fuzzyEqual(seekSpy.at(1).at(0).toDouble(), 100.0));
+
+    // Negative target clamps to zero.
+    QVERIFY(viewModel.requestAbsoluteSeek(-5.0));
+    QCOMPARE(seekSpy.count(), 3);
+    QVERIFY(fuzzyEqual(seekSpy.at(2).at(0).toDouble(), 0.0));
+
+    // Snapshot acknowledgment clears the pending projection.
+    viewModel.acceptSnapshot(timelineSnapshot(10, 0.0, 100.0, true));
+    QVERIFY(!viewModel.seekPending());
+}
+
+void PlayerTimelineViewModelTest::absoluteSeekRejectedWithoutSeekableMedia()
+{
+    PlayerTimelineViewModel viewModel;
+    QSignalSpy seekSpy(&viewModel, &PlayerTimelineViewModel::seekRequested);
+
+    viewModel.acceptSnapshot(timelineSnapshot(11, 10.0, 100.0, false));
+    QVERIFY(!viewModel.requestAbsoluteSeek(42.0));
+
+    viewModel.acceptSnapshot(timelineSnapshot(
+        11,
+        10.0,
+        std::nullopt,
+        true));
+    QVERIFY(!viewModel.requestAbsoluteSeek(42.0));
+
+    viewModel.acceptSnapshot(timelineSnapshot(11, 10.0, 100.0, true));
+    QVERIFY(!viewModel.requestAbsoluteSeek(
+        std::numeric_limits<double>::quiet_NaN()));
+    QCOMPARE(seekSpy.count(), 0);
 }
 
 } // namespace player::presentation

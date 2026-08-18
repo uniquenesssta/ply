@@ -87,7 +87,9 @@ bool MediaGenerationGate::isMediaScoped(const PlaybackEvent& event) noexcept
                 || std::is_same_v<Payload, SelectedSubtitleTrackChangedEvent>
                 || std::is_same_v<Payload, ChapterListChangedEvent>
                 || std::is_same_v<Payload, VideoStreamInfoChangedEvent>
-                || std::is_same_v<Payload, AudioStreamInfoChangedEvent>;
+                || std::is_same_v<Payload, AudioStreamInfoChangedEvent>
+                || std::is_same_v<Payload, SubtitleDelayChangedEvent>
+                || std::is_same_v<Payload, AudioDelayChangedEvent>;
         },
         event.payload);
 }

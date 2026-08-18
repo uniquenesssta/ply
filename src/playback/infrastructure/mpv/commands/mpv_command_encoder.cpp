@@ -97,6 +97,63 @@ std::optional<QList<QByteArray>> MpvCommandEncoder::encode(
                     QByteArrayLiteral("mute"),
                     typedRequest.muted ? QByteArrayLiteral("yes") : QByteArrayLiteral("no"),
                 };
+            } else if constexpr (std::is_same_v<Request, MpvSelectTrackRequest>) {
+                QByteArray property;
+                switch (typedRequest.kind) {
+                case player::playback::domain::TrackKind::Video:
+                    property = QByteArrayLiteral("vid");
+                    break;
+                case player::playback::domain::TrackKind::Audio:
+                    property = QByteArrayLiteral("aid");
+                    break;
+                case player::playback::domain::TrackKind::Subtitle:
+                    property = QByteArrayLiteral("sid");
+                    break;
+                }
+                return QList<QByteArray>{
+                    QByteArrayLiteral("set"),
+                    std::move(property),
+                    typedRequest.trackId.has_value()
+                        ? QByteArray::number(*typedRequest.trackId)
+                        : QByteArrayLiteral("no"),
+                };
+            } else if constexpr (std::is_same_v<Request, MpvSubtitleDelayRequest>) {
+                if (!std::isfinite(typedRequest.seconds)) {
+                    return failEncoding(
+                        QStringLiteral("Subtitle delay must be finite."),
+                        errorMessage);
+                }
+
+                return QList<QByteArray>{
+                    QByteArrayLiteral("set"),
+                    QByteArrayLiteral("sub-delay"),
+                    encodeNumber(typedRequest.seconds),
+                };
+            } else if constexpr (std::is_same_v<Request, MpvAudioDelayRequest>) {
+                if (!std::isfinite(typedRequest.seconds)) {
+                    return failEncoding(
+                        QStringLiteral("Audio delay must be finite."),
+                        errorMessage);
+                }
+
+                return QList<QByteArray>{
+                    QByteArrayLiteral("set"),
+                    QByteArrayLiteral("audio-delay"),
+                    encodeNumber(typedRequest.seconds),
+                };
+            } else if constexpr (std::is_same_v<Request, MpvExternalSubtitleRequest>) {
+                const QByteArray path = typedRequest.path.toUtf8();
+                if (path.isEmpty() || path.contains('\0')) {
+                    return failEncoding(
+                        QStringLiteral("External subtitle path must be non-empty UTF-8 text without embedded null bytes."),
+                        errorMessage);
+                }
+
+                return QList<QByteArray>{
+                    QByteArrayLiteral("sub-add"),
+                    path,
+                    QByteArrayLiteral("select"),
+                };
             } else {
                 static_assert(std::is_same_v<Request, MpvSpeedRequest>);
                 if (!std::isfinite(typedRequest.rate) || typedRequest.rate <= 0.0) {

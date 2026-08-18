@@ -44,6 +44,7 @@ public:
     Q_INVOKABLE bool commitScrub(double normalized);
     Q_INVOKABLE bool cancelScrub();
     Q_INVOKABLE bool requestRelativeSeek(double deltaSeconds);
+    Q_INVOKABLE bool requestAbsoluteSeek(double absoluteSeconds);
 
     [[nodiscard]] bool rejectPendingSeek();
 

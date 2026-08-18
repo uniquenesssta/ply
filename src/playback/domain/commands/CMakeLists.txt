@@ -3,11 +3,14 @@ target_sources(
     PRIVATE
         playback_command.cpp
     PUBLIC
+        delay_command.h
+        external_subtitle_command.h
         lifecycle_command.h
         load_media_command.h
         playback_command.h
         seek_command.h
         speed_command.h
+        track_command.h
         transport_command.h
         volume_command.h
 )

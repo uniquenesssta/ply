@@ -17,6 +17,14 @@ ApplicationWindow {
     property var mediaOpenCoordinator: null
     property var urlOpenWorkflow: null
     property var mediaDropHandler: null
+    property var trackSelectionController: null
+    property var subtitleDelayController: null
+    property var audioDelayController: null
+    property var externalSubtitleLoader: null
+    property var audioTrackListModel: null
+    property var subtitleTrackListModel: null
+    property var videoTrackListModel: null
+    property var chapterListModel: null
 
     width: LayoutTokens.windowDefaultWidth
     height: LayoutTokens.windowDefaultHeight
@@ -73,6 +81,14 @@ ApplicationWindow {
         playlistController: window.playlistController
         playlistModel: window.playlistModel
         mediaDropHandler: window.mediaDropHandler
+        trackSelectionController: window.trackSelectionController
+        subtitleDelayController: window.subtitleDelayController
+        audioDelayController: window.audioDelayController
+        externalSubtitleLoader: window.externalSubtitleLoader
+        audioTrackListModel: window.audioTrackListModel
+        subtitleTrackListModel: window.subtitleTrackListModel
+        videoTrackListModel: window.videoTrackListModel
+        chapterListModel: window.chapterListModel
         fullScreen: fullscreenWindowController.fullScreen
         windowActive: window.active
         modalActive: localMediaOpenDialog.visible || urlMediaOpenDialog.visible

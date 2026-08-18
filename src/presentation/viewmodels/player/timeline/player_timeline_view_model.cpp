@@ -193,6 +193,37 @@ bool PlayerTimelineViewModel::requestRelativeSeek(double deltaSeconds)
     return true;
 }
 
+bool PlayerTimelineViewModel::requestAbsoluteSeek(double absoluteSeconds)
+{
+    if (!canSeek_
+        || isScrubbing()
+        || !generation_.isValid()
+        || !durationSeconds_.has_value()
+        || !std::isfinite(absoluteSeconds)) {
+        return false;
+    }
+
+    if (relativeSeekCoalescer_ != nullptr) {
+        (void)relativeSeekCoalescer_->clear();
+    }
+
+    const double targetSeconds = std::clamp(
+        absoluteSeconds,
+        0.0,
+        *durationSeconds_);
+    if (!seekProjection_.beginAbsolute(
+            generation_,
+            targetSeconds,
+            *durationSeconds_)) {
+        emit stateChanged();
+        return false;
+    }
+
+    emit stateChanged();
+    emit seekRequested(targetSeconds);
+    return true;
+}
+
 bool PlayerTimelineViewModel::rejectPendingSeek()
 {
     bool changed = seekProjection_.clear();

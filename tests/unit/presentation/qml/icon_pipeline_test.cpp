@@ -221,6 +221,8 @@ void IconPipelineTest::assetInventoryMatchesContract()
         QDir::Files,
         QDir::Name);
     const QStringList expected = {
+        QStringLiteral("audio.svg"),
+        QStringLiteral("chapters.svg"),
         QStringLiteral("close.svg"),
         QStringLiteral("fullscreen.svg"),
         QStringLiteral("maximize.svg"),

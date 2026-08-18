@@ -1,9 +1,12 @@
 #include "request_tracker.h"
 
 #include "request_supersession_policy.h"
+#include "playback/domain/commands/delay_command.h"
+#include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/speed_command.h"
+#include "playback/domain/commands/track_command.h"
 #include "playback/domain/commands/transport_command.h"
 #include "playback/domain/commands/volume_command.h"
 
@@ -285,6 +288,25 @@ std::optional<PlaybackRequestType> RequestTracker::requestTypeFor(
     if (std::holds_alternative<SetSpeedCommand>(payload)) {
         return PlaybackRequestType::SetSpeed;
     }
+    if (const auto* selection = std::get_if<SelectTrackCommand>(&payload)) {
+        switch (selection->kind) {
+        case TrackKind::Video:
+            return PlaybackRequestType::SelectVideoTrack;
+        case TrackKind::Audio:
+            return PlaybackRequestType::SelectAudioTrack;
+        case TrackKind::Subtitle:
+            return PlaybackRequestType::SelectSubtitleTrack;
+        }
+    }
+    if (std::holds_alternative<SetSubtitleDelayCommand>(payload)) {
+        return PlaybackRequestType::SetSubtitleDelay;
+    }
+    if (std::holds_alternative<SetAudioDelayCommand>(payload)) {
+        return PlaybackRequestType::SetAudioDelay;
+    }
+    if (std::holds_alternative<LoadExternalSubtitleCommand>(payload)) {
+        return PlaybackRequestType::LoadExternalSubtitle;
+    }
 
     return std::nullopt;
 }
@@ -301,6 +323,9 @@ bool RequestTracker::isMediaScoped(PlaybackRequestType type) noexcept
     case PlaybackRequestType::SelectAudioTrack:
     case PlaybackRequestType::SelectSubtitleTrack:
     case PlaybackRequestType::SelectVideoTrack:
+    case PlaybackRequestType::SetSubtitleDelay:
+    case PlaybackRequestType::SetAudioDelay:
+    case PlaybackRequestType::LoadExternalSubtitle:
         return true;
     case PlaybackRequestType::SetVolume:
     case PlaybackRequestType::SetMuted:

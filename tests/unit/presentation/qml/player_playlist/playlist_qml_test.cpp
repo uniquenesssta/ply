@@ -75,10 +75,16 @@ void PlaylistQmlTest::utilityControlsMatchCanonicalFigmaOrderAndSpacing()
     QVERIFY(!utility.isEmpty());
     QVERIFY(utility.contains(QStringLiteral("SpacingTokens.utilityControlGap")));
     QVERIFY(utility.contains(QStringLiteral("SpacingTokens.fullscreenTransportGap")));
-    QVERIFY(utility.contains(QStringLiteral("objectName: \"subtitlesUnavailableControl\"")));
+    QVERIFY(utility.contains(QStringLiteral("objectName: \"audioTracksControl\"")));
+    QVERIFY(utility.contains(QStringLiteral("objectName: \"subtitlesControl\"")));
+    QVERIFY(utility.contains(QStringLiteral("objectName: \"chaptersControl\"")));
     QVERIFY(utility.contains(QStringLiteral("iconId: \"subtitles\"")));
     QVERIFY(utility.contains(QStringLiteral("PlaylistControls {")));
     QVERIFY(utility.contains(QStringLiteral("FullscreenControls {")));
+    QVERIFY(utility.indexOf(QStringLiteral("objectName: \"audioTracksControl\""))
+            < utility.indexOf(QStringLiteral("objectName: \"subtitlesControl\"")));
+    QVERIFY(utility.indexOf(QStringLiteral("objectName: \"subtitlesControl\""))
+            < utility.indexOf(QStringLiteral("objectName: \"chaptersControl\"")));
     QVERIFY(utility.indexOf(QStringLiteral("iconId: \"subtitles\""))
             < utility.indexOf(QStringLiteral("PlaylistControls {")));
     QVERIFY(utility.indexOf(QStringLiteral("PlaylistControls {"))

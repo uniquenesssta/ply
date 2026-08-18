@@ -131,6 +131,53 @@ void MpvCommandExecutorTest::encoderProducesExpectedCommands()
     QCOMPARE(
         *encoded,
         (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("speed"), QByteArrayLiteral("1.25")}));
+
+    encoded = MpvCommandEncoder::encode(
+        MpvSelectTrackRequest{player::playback::domain::TrackKind::Subtitle, qint64{3}},
+        &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("sid"), QByteArrayLiteral("3")}));
+
+    encoded = MpvCommandEncoder::encode(
+        MpvSelectTrackRequest{player::playback::domain::TrackKind::Audio, std::nullopt},
+        &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("aid"), QByteArrayLiteral("no")}));
+
+    encoded = MpvCommandEncoder::encode(
+        MpvSelectTrackRequest{player::playback::domain::TrackKind::Video, qint64{1}},
+        &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("vid"), QByteArrayLiteral("1")}));
+
+    encoded = MpvCommandEncoder::encode(MpvSubtitleDelayRequest{-0.5}, &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("sub-delay"), QByteArrayLiteral("-0.5")}));
+
+    encoded = MpvCommandEncoder::encode(MpvAudioDelayRequest{0.25}, &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("audio-delay"), QByteArrayLiteral("0.25")}));
+
+    encoded = MpvCommandEncoder::encode(
+        MpvExternalSubtitleRequest{QStringLiteral("C:/subs/track.ass")},
+        &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{
+            QByteArrayLiteral("sub-add"),
+            QByteArrayLiteral("C:/subs/track.ass"),
+            QByteArrayLiteral("select")}));
 }
 
 void MpvCommandExecutorTest::encoderRejectsInvalidRequests()
@@ -155,6 +202,19 @@ void MpvCommandExecutorTest::encoderRejectsInvalidRequests()
     QVERIFY(!error.isEmpty());
 
     QVERIFY(!MpvCommandEncoder::encode(MpvSpeedRequest{0.0}, &error).has_value());
+    QVERIFY(!error.isEmpty());
+
+    QVERIFY(!MpvCommandEncoder::encode(
+        MpvSubtitleDelayRequest{std::numeric_limits<double>::quiet_NaN()},
+        &error).has_value());
+    QVERIFY(!error.isEmpty());
+
+    QVERIFY(!MpvCommandEncoder::encode(
+        MpvAudioDelayRequest{std::numeric_limits<double>::infinity()},
+        &error).has_value());
+    QVERIFY(!error.isEmpty());
+
+    QVERIFY(!MpvCommandEncoder::encode(MpvExternalSubtitleRequest{}, &error).has_value());
     QVERIFY(!error.isEmpty());
 }
 
@@ -217,6 +277,10 @@ void MpvCommandExecutorTest::asyncSubmissionRepliesForMvpCommands()
         {5006, MpvSpeedRequest{1.1}},
         {5007, MpvPlayRequest{}},
         {5008, MpvStopRequest{}},
+        {5009, MpvSelectTrackRequest{player::playback::domain::TrackKind::Subtitle, qint64{1}}},
+        {5010, MpvSubtitleDelayRequest{0.0}},
+        {5011, MpvAudioDelayRequest{0.0}},
+        {5012, MpvExternalSubtitleRequest{QStringLiteral("C:/subs/track.srt")}},
     };
 
     QSet<quint64> expectedReplies;

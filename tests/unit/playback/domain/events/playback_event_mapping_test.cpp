@@ -24,6 +24,7 @@ private slots:
     void mapsCommandReplies();
     void mapsCoreProperties();
     void mapsTypedMediaStateProperties();
+    void mapsDelayProperties();
     void mapsUnavailableProperty();
     void rejectsUnexpectedPropertyShape();
     void ignoresNonDomainEvents();
@@ -191,6 +192,44 @@ void PlaybackEventMappingTest::mapsTypedMediaStateProperties()
     const auto mappedAudio = MpvPlaybackEventMapper::map(audioInfo);
     QVERIFY(mappedAudio.has_value());
     QVERIFY(std::holds_alternative<AudioStreamInfoChangedEvent>(mappedAudio->payload));
+}
+
+void PlaybackEventMappingTest::mapsDelayProperties()
+{
+    MpvEvent subtitleDelay;
+    subtitleDelay.type = MpvEventType::PropertyChange;
+    subtitleDelay.payload = MpvPropertyChange{
+        MpvPropertyId::SubtitleDelay,
+        -0.5};
+    const auto mappedSubtitle = MpvPlaybackEventMapper::map(subtitleDelay);
+    QVERIFY(mappedSubtitle.has_value());
+    const auto* subtitleEvent = std::get_if<SubtitleDelayChangedEvent>(&mappedSubtitle->payload);
+    QVERIFY(subtitleEvent != nullptr);
+    QVERIFY(subtitleEvent->seconds.has_value());
+    QCOMPARE(*subtitleEvent->seconds, -0.5);
+
+    MpvEvent audioDelay;
+    audioDelay.type = MpvEventType::PropertyChange;
+    audioDelay.payload = MpvPropertyChange{
+        MpvPropertyId::AudioDelay,
+        0.25};
+    const auto mappedAudio = MpvPlaybackEventMapper::map(audioDelay);
+    QVERIFY(mappedAudio.has_value());
+    const auto* audioEvent = std::get_if<AudioDelayChangedEvent>(&mappedAudio->payload);
+    QVERIFY(audioEvent != nullptr);
+    QVERIFY(audioEvent->seconds.has_value());
+    QCOMPARE(*audioEvent->seconds, 0.25);
+
+    MpvEvent unavailable;
+    unavailable.type = MpvEventType::PropertyChange;
+    unavailable.payload = MpvPropertyChange{
+        MpvPropertyId::SubtitleDelay,
+        std::monostate{}};
+    const auto mappedUnavailable = MpvPlaybackEventMapper::map(unavailable);
+    QVERIFY(mappedUnavailable.has_value());
+    const auto* unavailableEvent = std::get_if<SubtitleDelayChangedEvent>(&mappedUnavailable->payload);
+    QVERIFY(unavailableEvent != nullptr);
+    QVERIFY(!unavailableEvent->seconds.has_value());
 }
 
 void PlaybackEventMappingTest::mapsUnavailableProperty()
