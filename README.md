@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-12 Complete**。R7-12 已在 Windows 锁定环境完成 configure/build 与 Full **100/100 PASS（79.64 s）**。R7-13 Async Media Open Supersession 候选已实现；新增 operation identity 与独立测试目标后需重新 configure，Windows build/Quick/Full CTest 尚待执行。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-12 Complete**。R7-13 Async Media Open Supersession 候选在 Windows 锁定环境 configure/build PASS；首次 Quick 为 **92/93 PASS**、Full 为 **100/101 PASS（78.79 s）**，唯一失败均为旧 `player_url_open` 静态契约仍断言已被 R7-13 正式替换的直连 `openSource(source)`。新 `media_open_supersession` 本身在 Quick/Full 均 PASS；契约测试已按 operation begin/cancel/complete 边界修正，等待重新 build + Quick/Full 验证。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -114,7 +114,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 - 现有同步 `openSource/openSources/openLocalFile(s)/openSourceUrls` 继续保持原公共行为，但内部统一走 begin→validate/resolve→complete operation 主链；`UrlOpenWorkflow` 在 URL validation **之前**获取 operation identity，因此新的 URL 请求即使验证失败，也已经使旧异步 open 结果失效。没有让 QML、drawer 或 readonly model 承担取消职责。
 - `ApplicationContainer::shutdown()` 在销毁 media workflows/coordinator 前先调用 `MediaOpenCoordinator::beginShutdown()`，永久停止接收新 operation 并使当前 pending identity 失效；之后到达的旧解析结果无法再提交。
 - 新增独立 `media_open_supersession` 测试目标，覆盖 A→B supersession、stale single/batch completion、stale result 不污染错误状态、operation single-use、同步 open supersede pending async、URL workflow 在 validation 前 supersede、scoped cancel、shutdown cancel/reject。没有新增生产依赖，也没有实现当前不存在的虚假异步 parser/thread；后续真正的 file/URL/playlist async parser 必须携带此 operation id 并在 Coordinator 线程回交结果。
-- 因新增 source-list header 与 CTest target，本候选需要重新 configure；标准 Full 套件预计从 **100 增至 101**。当前仅完成源码/调用链/测试契约静态复核，Windows configure/build/Quick/Full 尚未执行，因此 **R7-13 仍为 In Progress**。
+- 用户在 HEAD `395978cfae0104bc1f799254bec7cddd785aa4f1` 的 Windows 锁定环境完成 configure/build；Quick 为 **92/93 PASS**，Full 为 **100/101 PASS，1 failed，78.79 s**，两者唯一失败均为 `player_url_open` 的旧静态源码断言仍要求 `UrlOpenWorkflow` 直接调用 `mediaOpenCoordinator_.openSource(source)`。新增 `media_open_supersession` 在 Quick/Full 均实际 PASS，因此未修改生产实现；测试契约已改为要求 `beginReplaceOpenOperation → validation/cancel → completeOpenSource(operationId, source)`，并继续保留禁止 `PlaybackSession/libmpv/mpv_` 旁路的断言。修复提交为 `65de322440cad92dd846e35d960b2184b37505ec`；该测试修复尚待重新 build + Quick/Full 验证，**R7-13 仍为 In Progress**。
 
 ### 2026-08-18 — R7-12 Auto Advance arbitration Complete
 
