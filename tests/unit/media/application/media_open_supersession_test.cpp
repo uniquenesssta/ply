@@ -1,4 +1,5 @@
 #include "media/application/open/media_open_coordinator.h"
+#include "media/application/open/url_open_workflow.h"
 
 #include <QList>
 #include <QSignalSpy>
@@ -16,6 +17,7 @@ private slots:
     void staleCompletionDoesNotOverwriteErrorState();
     void operationCompletionIsSingleUse();
     void synchronousOpenSupersedesPendingOperation();
+    void urlWorkflowSupersedesPendingOperationBeforeValidation();
     void cancellationIsScopedToCurrentOperation();
     void shutdownCancelsPendingAndRejectsNewOperations();
 };
@@ -118,6 +120,25 @@ void MediaOpenSupersessionTest::synchronousOpenSupersedesPendingOperation()
     QVERIFY(coordinator.openSource(sourceB));
     QVERIFY(!coordinator.completeOpenSource(pending, sourceA));
     QCOMPARE(submittedLocations, QList<QString>{QStringLiteral("https://example.com/b.mp4")});
+}
+
+void MediaOpenSupersessionTest::urlWorkflowSupersedesPendingOperationBeforeValidation()
+{
+    int submissions = 0;
+    MediaOpenCoordinator coordinator(
+        [&submissions](const player::media::domain::MediaSource&) {
+            ++submissions;
+            return true;
+        });
+    UrlOpenWorkflow workflow(coordinator);
+
+    const MediaOpenOperationId pending = coordinator.beginReplaceOpenOperation();
+    const auto sourceA = player::media::domain::MediaSource::remoteUrl(
+        QStringLiteral("https://example.com/a.mp4"));
+
+    QVERIFY(!workflow.openUrl(QStringLiteral("not-a-supported-url")));
+    QVERIFY(!coordinator.completeOpenSource(pending, sourceA));
+    QCOMPARE(submissions, 0);
 }
 
 void MediaOpenSupersessionTest::cancellationIsScopedToCurrentOperation()
