@@ -35,6 +35,7 @@ public:
         QObject* parent);
 
     [[nodiscard]] const domain::Playlist& playlist() const noexcept;
+    [[nodiscard]] domain::PlaylistSnapshot snapshot() const;
 
     [[nodiscard]] bool openSource(const media::domain::MediaSource& source);
     [[nodiscard]] bool openSources(const QList<media::domain::MediaSource>& sources);
