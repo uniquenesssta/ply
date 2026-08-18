@@ -14,6 +14,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <thread>
 
 namespace player::playback::mpv {
@@ -131,6 +132,30 @@ void MpvCommandExecutorTest::encoderProducesExpectedCommands()
     QCOMPARE(
         *encoded,
         (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("speed"), QByteArrayLiteral("1.25")}));
+
+    encoded = MpvCommandEncoder::encode(
+        MpvTrackSelectionRequest{MpvTrackSelectionKind::Audio, qint64{7}},
+        &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("aid"), QByteArrayLiteral("7")}));
+
+    encoded = MpvCommandEncoder::encode(
+        MpvTrackSelectionRequest{MpvTrackSelectionKind::Subtitle, qint64{11}},
+        &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("sid"), QByteArrayLiteral("11")}));
+
+    encoded = MpvCommandEncoder::encode(
+        MpvTrackSelectionRequest{MpvTrackSelectionKind::Subtitle, std::nullopt},
+        &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("sid"), QByteArrayLiteral("no")}));
 }
 
 void MpvCommandExecutorTest::encoderRejectsInvalidRequests()
@@ -155,6 +180,16 @@ void MpvCommandExecutorTest::encoderRejectsInvalidRequests()
     QVERIFY(!error.isEmpty());
 
     QVERIFY(!MpvCommandEncoder::encode(MpvSpeedRequest{0.0}, &error).has_value());
+    QVERIFY(!error.isEmpty());
+
+    QVERIFY(!MpvCommandEncoder::encode(
+        MpvTrackSelectionRequest{MpvTrackSelectionKind::Audio, std::nullopt},
+        &error).has_value());
+    QVERIFY(!error.isEmpty());
+
+    QVERIFY(!MpvCommandEncoder::encode(
+        MpvTrackSelectionRequest{MpvTrackSelectionKind::Subtitle, qint64{0}},
+        &error).has_value());
     QVERIFY(!error.isEmpty());
 }
 
@@ -217,6 +252,7 @@ void MpvCommandExecutorTest::asyncSubmissionRepliesForMvpCommands()
         {5006, MpvSpeedRequest{1.1}},
         {5007, MpvPlayRequest{}},
         {5008, MpvStopRequest{}},
+        {5009, MpvTrackSelectionRequest{MpvTrackSelectionKind::Subtitle, std::nullopt}},
     };
 
     QSet<quint64> expectedReplies;

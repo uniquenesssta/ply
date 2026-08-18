@@ -27,6 +27,7 @@ namespace player::app {
 namespace {
 
 using player::playback::domain::SeekMode;
+using player::playback::domain::TrackSelectionKind;
 using player::playback::domain::TransportAction;
 
 QString transportActionName(TransportAction action)
@@ -51,6 +52,13 @@ QString seekModeName(SeekMode mode)
         return QStringLiteral("relative");
     }
     return QStringLiteral("unknown");
+}
+
+QString trackSelectionKindName(TrackSelectionKind kind)
+{
+    return kind == TrackSelectionKind::Audio
+        ? QStringLiteral("audio")
+        : QStringLiteral("subtitle");
 }
 
 bool isSeekRequestType(quint8 requestType) noexcept
@@ -333,6 +341,35 @@ bool PlaybackComposition::submitMediaLoad(const QString& canonicalSource)
 bool PlaybackComposition::submitMediaStop()
 {
     return submitTransport(TransportAction::Stop);
+}
+
+bool PlaybackComposition::submitTrackSelection(
+    const player::playback::domain::TrackSelectionCommand& selection)
+{
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Track selection ignored because PlaybackCommandBus is unavailable:"
+            << trackSelectionKindName(selection.kind);
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        selection};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Track selection command submission failed:"
+            << trackSelectionKindName(selection.kind)
+            << (selection.trackId.has_value()
+                    ? QString::number(*selection.trackId)
+                    : QStringLiteral("off"))
+            << diagnostic;
+        return false;
+    }
+
+    return true;
 }
 
 bool PlaybackComposition::submitTransport(TransportAction action)

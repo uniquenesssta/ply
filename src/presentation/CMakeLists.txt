@@ -45,6 +45,7 @@ set(PLAYER_QML_FILES
     qml/features/playlist/PlaylistControls.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
+    qml/features/tracks/TrackSelectionPopup.qml
 )
 
 target_sources(
@@ -98,6 +99,7 @@ set_source_files_properties(
     qml/features/playlist/PlaylistControls.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
+    qml/features/tracks/TrackSelectionPopup.qml
     PROPERTIES QT_QML_INTERNAL_TYPE TRUE
 )
 

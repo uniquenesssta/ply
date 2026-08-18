@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-02 Complete**。R8-02 Snapshot-backed audio/subtitle readonly models 已完成；Windows configure/build PASS，Quick **96/96 PASS（40.86 s）**、Full **104/104 PASS（79.84 s）**，`track_list_model` 在 Quick/Full 均 PASS。真实多音轨/多字幕本地媒体 smoke 继续保留为 R8 阶段本地验证项，待具备可交互 Track selection 后执行 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-02 Complete**。R8-03 Track selection 候选实现已接通 stable track ID、Audio/Subtitle selection、Subtitle Off、RequestId/MediaGeneration 与 same-kind supersession；Windows reconfigure/build、Quick/Full 以及真实多音轨/多字幕本地媒体 smoke 尚待执行，因此 R8-03 仍未正式收口 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -31,6 +31,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Playlist row 的 `selected / keyboard focus / hover` 继续属于 QML interaction state；`PlaylistEntryPlaybackState` 只从已 generation-gated 的 `PlaybackSnapshot` 投影 `pendingLoading / unavailable` 到稳定 EntryId，不拥有 queue/current/generation，也不建立第二套播放真值。
 - Track 的 raw `mpv_node` 只在 infrastructure 内转换；`MpvTrackListDecoder` 只把已经复制为 Qt value tree 的 `track-list` 映射为 `TrackDescriptor`，稳定 backend track ID 保持为产品身份，PlaybackSnapshot 继续是 track list/selection 的唯一播放真值，上层与 QML 不解析 mpv node。
 - `TrackListModel` 只消费已 generation-gated 的 `PlaybackSnapshot` 并按 Audio/Subtitle kind 投影只读行；`selected` 由 Snapshot 的 `selectedAudioId / selectedSubtitleId` 推导，model 不拥有 generation、selection mutation 或第二套 Track 真值。Opening/new-media Snapshot 清空旧轨道后，后续 current-generation Snapshot 整表替换新轨道。
+- Track selection 只走 `QML intent → TrackSelectionController → PlaybackCommand(RequestId + MediaGeneration) → mpv aid/sid → generation-gated PlaybackSnapshot → TrackListModel`。同类 Audio/Subtitle selection 复用 RequestTracker supersession lane；Subtitle Off 是显式 `sid=no` 状态；UI 不乐观改写 selected，最终 selected 始终由 backend/Snapshot 决定。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
@@ -66,6 +67,7 @@ src/foundation/                  通用基础设施与稳定值类型
 src/playback/domain/             后端无关的播放命令、事件、状态与规则
 src/playback/application/        PlaybackSession、请求生命周期与应用编排
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
+src/tracks/application/          Audio/Subtitle Track selection intent 与应用级提交边界
 src/tracks/presentation/         Audio/Subtitle Track 的 Snapshot 只读列表投影
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验、operation supersession 与统一 workflow 编排
@@ -112,6 +114,14 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-18 — R8-03 Track selection Candidate
+
+- 新增独立 `TrackSelectionCommand` 与 `TrackSelectionController` responsibility：QML 只提交 backend stable `trackId` intent，Audio/Subtitle 选择均进入现有 PlaybackCommandBus；Subtitle Off 使用显式 `trackId=nullopt → sid=no`，Audio Off 在 domain validation 与 mpv encoder 两层拒绝。没有使用 ListView index，也没有新增第二套 Track owner。
+- Track selection request 已接入既有 RequestTracker/MediaGeneration 规则：Audio、Subtitle 分属独立 supersession lane，同类后一次请求会 supersede 同 generation 的前一次；媒体 generation 变化会取消旧 track-selection pending request，superseded/stale/duplicate reply 不进入当前状态副作用。
+- mpv adapter 只负责把 domain selection 映射为 `set aid <id>`、`set sid <id>` 或 `set sid no`。Backend property/event 仍经现有 MediaGeneration gate 与 reducer 回到 PlaybackSnapshot；`TrackListModel.selectedTrackId` 和 row `selected` 只从 Snapshot 权威 selected ID 推导，command submission/reply 失败不会制造 UI 假选中。
+- 新增功能性 `TrackSelectionPopup.qml` 与 OSC wiring，提供 Audio、Subtitles、Off 入口，并把 popup open 状态接入既有 chrome/cursor interaction policy；本轮没有进行 Figma 或视觉重构。新增 `track_selection_controller`、`player_track_selection_qml` CTest，并扩展 PlaybackCommand、RequestTracker、mpv command 与 TrackListModel 测试。没有新增生产依赖。
+- 当前环境未执行 Windows configure/build/CTest，也未执行真实多音轨/多字幕媒体 smoke，故本任务仍为 Candidate 而非 Complete。由于新增 CMake target/subdirectory，Windows 验证必须先重新 configure；自动化通过后还需用本地合法多轨媒体验证 Audio 切换、Subtitle 切换、Subtitle Off、无音轨但有字幕以及失败后不假选中。预计重新 configure 后 Quick 为 98 项、Full 为 106 项，仅作为候选计数预期，不代表已通过。
 
 ### 2026-08-18 — R8-02 Track list models Complete
 
@@ -198,7 +208,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ### 2026-08-17 — Canonical Figma UI reimplementation / global theme foundation
 
-- Main Player 按 canonical 1320×700 reference 重建：500×54 Floating Header、880×124 Standard OSC；Playlist Inspector 打开时 OSC 收为 730×124 并左移；Fullscreen 使用 440×50 Header + 828×106 Compact OSC。
+- Main Player 按 canonical 1320×700 reference 重建：500×54 Floating Header、880×124 Standard OSC；Playlist Inspector 打开时 OSC 收为 730×124并左移；Fullscreen 使用 440×50 Header + 828×106 Compact OSC。
 - Playlist Inspector 为 368×652 floating overlay，不挤压 Video Viewport；Search 324×42、Row 332×58、Playing Rail 3×32、Footer 324×54。搜索/双击选择/删除非 current/重排继续走 readonly model + `PlaylistController`。
 - Inspector 已通过 `VideoViewport → ShaderEffectSource → MultiEffect` 建立真实局部 backdrop capture blur；通用 Surface 没有被改造成任意祖先捕获器。
 - `PlayerMediaViewModel` 只从现有 Snapshot 投影真实 title / metadata；Playlist queue 尚无权威 per-entry duration，因此列表第二行继续显示真实 sourceLocation，不虚构 Figma 示例时长。

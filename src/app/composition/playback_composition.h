@@ -1,6 +1,7 @@
 #pragma once
 
 #include "playback/domain/commands/seek_command.h"
+#include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
 
 #include <functional>
@@ -57,6 +58,8 @@ public:
     void setPlaybackSupersessionObserver(PlaybackSupersessionObserver observer);
     [[nodiscard]] bool submitMediaLoad(const QString& canonicalSource);
     [[nodiscard]] bool submitMediaStop();
+    [[nodiscard]] bool submitTrackSelection(
+        const player::playback::domain::TrackSelectionCommand& selection);
 
 private:
     [[nodiscard]] bool submitTransport(player::playback::domain::TransportAction action);

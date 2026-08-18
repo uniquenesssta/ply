@@ -51,6 +51,13 @@ std::optional<MpvCommandRequest> MpvPlaybackCommandMapper::map(
             [](const SetSpeedCommand& speed) -> std::optional<MpvCommandRequest> {
                 return MpvCommandRequest{MpvSpeedRequest{speed.rate}};
             },
+            [](const TrackSelectionCommand& selection) -> std::optional<MpvCommandRequest> {
+                return MpvCommandRequest{MpvTrackSelectionRequest{
+                    selection.kind == TrackSelectionKind::Audio
+                        ? MpvTrackSelectionKind::Audio
+                        : MpvTrackSelectionKind::Subtitle,
+                    selection.trackId}};
+            },
             [](const LifecycleCommand&) -> std::optional<MpvCommandRequest> {
                 return std::nullopt;
             }},

@@ -57,6 +57,13 @@ std::optional<PlaybackCommandValidationError> validatePlaybackCommand(
                 if (!std::isfinite(payload.rate) || payload.rate <= 0.0) {
                     return PlaybackCommandValidationError::InvalidSpeed;
                 }
+            } else if constexpr (std::is_same_v<Command, TrackSelectionCommand>) {
+                if (payload.trackId.has_value() && *payload.trackId <= 0) {
+                    return PlaybackCommandValidationError::InvalidTrackId;
+                }
+                if (payload.kind == TrackSelectionKind::Audio && !payload.trackId.has_value()) {
+                    return PlaybackCommandValidationError::AudioTrackCannotBeDisabled;
+                }
             }
 
             return std::nullopt;

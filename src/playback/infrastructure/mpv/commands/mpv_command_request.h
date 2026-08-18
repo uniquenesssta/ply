@@ -1,7 +1,9 @@
 #pragma once
 
 #include <QString>
+#include <QtGlobal>
 
+#include <optional>
 #include <variant>
 
 namespace player::playback::mpv {
@@ -10,6 +12,12 @@ enum class MpvSeekMode
 {
     Absolute,
     Relative,
+};
+
+enum class MpvTrackSelectionKind
+{
+    Audio,
+    Subtitle,
 };
 
 struct MpvLoadRequest final
@@ -50,6 +58,12 @@ struct MpvSpeedRequest final
     double rate = 1.0;
 };
 
+struct MpvTrackSelectionRequest final
+{
+    MpvTrackSelectionKind kind = MpvTrackSelectionKind::Audio;
+    std::optional<qint64> trackId;
+};
+
 using MpvCommandRequest = std::variant<
     MpvLoadRequest,
     MpvPlayRequest,
@@ -58,6 +72,7 @@ using MpvCommandRequest = std::variant<
     MpvSeekRequest,
     MpvVolumeRequest,
     MpvMuteRequest,
-    MpvSpeedRequest>;
+    MpvSpeedRequest,
+    MpvTrackSelectionRequest>;
 
 } // namespace player::playback::mpv

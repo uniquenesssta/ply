@@ -24,6 +24,7 @@ Item {
     property var mediaDropHandler: null
     property var playlistController: null
     property var playlistModel: null
+    property var trackSelectionController: null
     property var audioTrackModel: null
     property var subtitleTrackModel: null
     property bool playlistDrawerOpen: false
@@ -265,7 +266,11 @@ Item {
                     compact: root.oscCompact
                     fullScreen: root.fullScreen
                     playlistOpen: root.playlistDrawerOpen
+                    audioTrackModel: root.audioTrackModel
+                    subtitleTrackModel: root.subtitleTrackModel
+                    trackSelectionController: root.trackSelectionController
 
+                    onTrackPopupOpenChanged: root.popupOpen = trackPopupOpen
                     onTogglePlaylistRequested: root.playlistDrawerOpen = !root.playlistDrawerOpen
                     onToggleFullscreenRequested: root.fullscreenToggleRequested()
                 }

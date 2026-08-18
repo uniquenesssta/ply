@@ -4,6 +4,7 @@
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/speed_command.h"
+#include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
 #include "playback/domain/commands/volume_command.h"
 
@@ -284,6 +285,11 @@ std::optional<PlaybackRequestType> RequestTracker::requestTypeFor(
     }
     if (std::holds_alternative<SetSpeedCommand>(payload)) {
         return PlaybackRequestType::SetSpeed;
+    }
+    if (const auto* selection = std::get_if<TrackSelectionCommand>(&payload)) {
+        return selection->kind == TrackSelectionKind::Audio
+            ? PlaybackRequestType::SelectAudioTrack
+            : PlaybackRequestType::SelectSubtitleTrack;
     }
 
     return std::nullopt;

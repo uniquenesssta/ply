@@ -10,6 +10,7 @@
 #include "presentation/viewmodels/player/status/player_status_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
+#include "tracks/application/track_selection_controller.h"
 
 #include <QDir>
 #include <QFile>
@@ -45,6 +46,7 @@ private slots:
     void ownsMediaOpenCoordinator();
     void ownsUrlOpenWorkflow();
     void ownsPlaylistControllerAndReadonlyModel();
+    void ownsTrackSelectionController();
     void playbackCompositionStartsAndStops();
     void shutdownIsIdempotent();
 };
@@ -172,6 +174,19 @@ void ApplicationContainerTest::ownsPlaylistControllerAndReadonlyModel()
     QVERIFY(container.playlistController().playlist().empty());
     QCOMPARE(container.playlistListModel().count(), 0);
     QCOMPARE(container.playlistListModel().rowCount(), 0);
+}
+
+void ApplicationContainerTest::ownsTrackSelectionController()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    ApplicationContainer container(RuntimePaths::resolve(
+        RuntimePaths::Mode::Portable,
+        temporaryDirectory.path()));
+
+    QVERIFY(!container.trackSelectionController().selectAudioTrack(0));
+    QVERIFY(!container.trackSelectionController().selectSubtitleTrack(0));
 }
 
 void ApplicationContainerTest::playbackCompositionStartsAndStops()

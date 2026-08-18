@@ -5,6 +5,7 @@
 #include <QtTest/QTest>
 
 #include <limits>
+#include <optional>
 #include <utility>
 
 namespace player::playback::domain {
@@ -28,6 +29,7 @@ private slots:
     void rejectsNonFiniteSeek();
     void rejectsInvalidVolume();
     void rejectsInvalidSpeed();
+    void rejectsInvalidTrackSelection();
 };
 
 void PlaybackCommandTest::acceptsSupportedCommandFamilies()
@@ -42,8 +44,11 @@ void PlaybackCommandTest::acceptsSupportedCommandFamilies()
         command(player::ids::RequestId{7}, PlaybackCommandPayload{SetVolumeCommand{125.0}}),
         command(player::ids::RequestId{8}, PlaybackCommandPayload{SetMutedCommand{true}}),
         command(player::ids::RequestId{9}, PlaybackCommandPayload{SetSpeedCommand{1.5}}),
-        command(player::ids::RequestId{10}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Initialize}}),
-        command(player::ids::RequestId{11}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Shutdown}}),
+        command(player::ids::RequestId{10}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Audio, qint64{2}}}),
+        command(player::ids::RequestId{11}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Subtitle, qint64{7}}}),
+        command(player::ids::RequestId{12}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Subtitle, std::nullopt}}),
+        command(player::ids::RequestId{13}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Initialize}}),
+        command(player::ids::RequestId{14}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Shutdown}}),
     };
 
     for (const PlaybackCommand& value : commands) {
@@ -128,6 +133,30 @@ void PlaybackCommandTest::rejectsInvalidSpeed()
     QVERIFY(
         validatePlaybackCommand(notANumber)
         == std::optional{PlaybackCommandValidationError::InvalidSpeed});
+}
+
+void PlaybackCommandTest::rejectsInvalidTrackSelection()
+{
+    const PlaybackCommand zeroTrack{
+        player::ids::RequestId{1},
+        PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Audio, qint64{0}}}};
+    QVERIFY(
+        validatePlaybackCommand(zeroTrack)
+        == std::optional{PlaybackCommandValidationError::InvalidTrackId});
+
+    const PlaybackCommand negativeTrack{
+        player::ids::RequestId{2},
+        PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Subtitle, qint64{-1}}}};
+    QVERIFY(
+        validatePlaybackCommand(negativeTrack)
+        == std::optional{PlaybackCommandValidationError::InvalidTrackId});
+
+    const PlaybackCommand audioOff{
+        player::ids::RequestId{3},
+        PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Audio, std::nullopt}}};
+    QVERIFY(
+        validatePlaybackCommand(audioOff)
+        == std::optional{PlaybackCommandValidationError::AudioTrackCannotBeDisabled});
 }
 
 } // namespace player::playback::domain

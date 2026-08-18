@@ -24,6 +24,11 @@ QByteArray encodeNumber(double value)
     return QByteArray::number(value, 'g', 17);
 }
 
+QByteArray encodeTrackId(qint64 value)
+{
+    return QByteArray::number(value);
+}
+
 } // namespace
 
 std::optional<QList<QByteArray>> MpvCommandEncoder::encode(
@@ -97,8 +102,7 @@ std::optional<QList<QByteArray>> MpvCommandEncoder::encode(
                     QByteArrayLiteral("mute"),
                     typedRequest.muted ? QByteArrayLiteral("yes") : QByteArrayLiteral("no"),
                 };
-            } else {
-                static_assert(std::is_same_v<Request, MpvSpeedRequest>);
+            } else if constexpr (std::is_same_v<Request, MpvSpeedRequest>) {
                 if (!std::isfinite(typedRequest.rate) || typedRequest.rate <= 0.0) {
                     return failEncoding(
                         QStringLiteral("Playback speed must be finite and greater than zero."),
@@ -109,6 +113,32 @@ std::optional<QList<QByteArray>> MpvCommandEncoder::encode(
                     QByteArrayLiteral("set"),
                     QByteArrayLiteral("speed"),
                     encodeNumber(typedRequest.rate),
+                };
+            } else {
+                static_assert(std::is_same_v<Request, MpvTrackSelectionRequest>);
+
+                if (typedRequest.trackId.has_value() && *typedRequest.trackId <= 0) {
+                    return failEncoding(
+                        QStringLiteral("Track id must be a positive backend track id."),
+                        errorMessage);
+                }
+                if (typedRequest.kind == MpvTrackSelectionKind::Audio
+                    && !typedRequest.trackId.has_value()) {
+                    return failEncoding(
+                        QStringLiteral("Audio track selection cannot be disabled by this workflow."),
+                        errorMessage);
+                }
+
+                const QByteArray property = typedRequest.kind == MpvTrackSelectionKind::Audio
+                    ? QByteArrayLiteral("aid")
+                    : QByteArrayLiteral("sid");
+                const QByteArray value = typedRequest.trackId.has_value()
+                    ? encodeTrackId(*typedRequest.trackId)
+                    : QByteArrayLiteral("no");
+                return QList<QByteArray>{
+                    QByteArrayLiteral("set"),
+                    property,
+                    value,
                 };
             }
         },

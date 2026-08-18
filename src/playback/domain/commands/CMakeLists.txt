@@ -8,6 +8,7 @@ target_sources(
         playback_command.h
         seek_command.h
         speed_command.h
+        track_selection_command.h
         transport_command.h
         volume_command.h
 )

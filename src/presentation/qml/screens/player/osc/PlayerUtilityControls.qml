@@ -1,5 +1,5 @@
 import QtQuick
-import Player.Presentation.Primitives
+import Player.Presentation.Controls
 import Player.Presentation.Theme
 
 Row {
@@ -8,6 +8,10 @@ Row {
     property bool compact: false
     property bool fullScreen: false
     property bool playlistOpen: false
+    property var audioTrackModel: null
+    property var subtitleTrackModel: null
+    property var trackSelectionController: null
+    readonly property bool trackPopupOpen: trackPopup.opened
 
     signal togglePlaylistRequested()
     signal toggleFullscreenRequested()
@@ -19,22 +23,31 @@ Row {
     width: implicitWidth
     height: implicitHeight
 
-    Item {
-        id: subtitlesPlaceholder
+    IconButton {
+        id: trackButton
 
-        objectName: "subtitlesUnavailableControl"
-        width: LayoutTokens.controlHitMinimum
-        height: LayoutTokens.controlHitMinimum
+        objectName: "trackSelectionButton"
+        iconId: "subtitles"
+        iconSizeOverride: root.compact ? LayoutTokens.controlIconCompact : 0
+        toolTipText: qsTr("Audio and Subtitles")
+        accessibleName: toolTipText
+        accessibleDescription: qsTr("Choose an audio track, subtitle track, or turn subtitles off")
+        enabled: root.trackSelectionController !== null
+                 && ((root.audioTrackModel !== null && root.audioTrackModel.count > 0)
+                     || (root.subtitleTrackModel !== null && root.subtitleTrackModel.count > 0))
 
-        Icon {
-            anchors.centerIn: parent
-            width: root.compact
-                   ? LayoutTokens.controlIconCompact
-                   : LayoutTokens.controlIcon
-            height: width
-            iconId: "subtitles"
-            color: ColorTokens.iconPrimary
-        }
+        onClicked: trackPopup.opened ? trackPopup.close() : trackPopup.open()
+    }
+
+    TrackSelectionPopup {
+        id: trackPopup
+
+        parent: root
+        x: 0
+        y: -height - SpacingTokens.controlTight
+        audioTrackModel: root.audioTrackModel
+        subtitleTrackModel: root.subtitleTrackModel
+        trackSelectionController: root.trackSelectionController
     }
 
     PlaylistControls {
