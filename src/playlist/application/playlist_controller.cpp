@@ -41,6 +41,11 @@ const domain::Playlist& PlaylistController::playlist() const noexcept
     return playlist_;
 }
 
+domain::PlaylistSnapshot PlaylistController::snapshot() const
+{
+    return playlist_.snapshot();
+}
+
 bool PlaylistController::openSource(const media::domain::MediaSource& source)
 {
     return openSources(QList<media::domain::MediaSource>{source});
