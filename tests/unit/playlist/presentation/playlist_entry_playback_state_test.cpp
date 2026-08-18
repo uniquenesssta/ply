@@ -10,6 +10,8 @@
 #include <QSignalSpy>
 #include <QtTest>
 
+#include <utility>
+
 namespace player::playlist::presentation {
 namespace {
 
@@ -68,7 +70,8 @@ void PlaylistEntryPlaybackStateTest::tracksPendingUnavailableAndRetryIndependent
         playback::domain::PlaybackLifecycleState::Failed));
     QVERIFY(!state.isPendingLoading(firstId));
     QVERIFY(state.isUnavailable(firstId));
-    QCOMPARE(playlist.currentId(), std::optional<domain::PlaylistEntryId>{firstId});
+    QVERIFY(playlist.currentId().has_value());
+    QCOMPARE(playlist.currentId()->value(), firstId.value());
 
     QVERIFY(controller.selectEntry(secondId.value()));
     QVERIFY(state.isUnavailable(firstId));

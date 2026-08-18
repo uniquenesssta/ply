@@ -10,6 +10,8 @@
 
 #include <QtTest>
 
+#include <utility>
+
 namespace player::playlist::presentation {
 namespace {
 
