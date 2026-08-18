@@ -36,6 +36,7 @@ class PlaylistShuffleStateTest final : public QObject
 
 private slots:
     void disabledStateReturnsNoCandidate();
+    void previewDoesNotMutateUntilSelectionCommit();
     void cycleVisitsEveryOtherEntryOnceBeforeStopping();
     void repeatCycleRestartsWithoutImmediateCurrent();
     void activeCycleAcceptsAppendAndRemovalUpdates();
@@ -48,6 +49,32 @@ void PlaylistShuffleStateTest::disabledStateReturnsNoCandidate()
 
     QVERIFY(!state.enabled());
     QVERIFY(!state.takeNext(entries, PlaylistEntryId{1}, false).has_value());
+    QVERIFY(!state.previewNext(entries, PlaylistEntryId{1}, false).has_value());
+}
+
+void PlaylistShuffleStateTest::previewDoesNotMutateUntilSelectionCommit()
+{
+    PlaylistShuffleState state;
+    const auto entries = fourEntries();
+    state.setEnabled(true);
+
+    const auto candidate = state.previewNext(entries, PlaylistEntryId{1}, false);
+    QVERIFY(candidate.has_value());
+    QVERIFY(candidate->value() != quint64{1});
+    QVERIFY(!state.cycleInitialized());
+    QVERIFY(state.remainingEntryIds().empty());
+
+    QVERIFY(state.commitNextSelection(
+        entries,
+        PlaylistEntryId{1},
+        *candidate,
+        false));
+    QVERIFY(state.cycleInitialized());
+    QCOMPARE(state.remainingEntryIds().size(), std::size_t{2});
+    QVERIFY(std::find(
+        state.remainingEntryIds().cbegin(),
+        state.remainingEntryIds().cend(),
+        *candidate) == state.remainingEntryIds().cend());
 }
 
 void PlaylistShuffleStateTest::cycleVisitsEveryOtherEntryOnceBeforeStopping()
