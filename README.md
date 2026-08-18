@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-13 Complete**。R7-13 Async Media Open Supersession 已在 Windows 锁定环境完成 build、Quick **93/93 PASS（40.71 s）**、Full **101/101 PASS（79.40 s）**；`media_open_supersession` 与更新后的 `player_url_open` 契约均 PASS，startup-smoke **2.77 s**，8 项 windowed-render 合计 **38.51 s**。下一项为 R7-14 Queue UI 状态解耦；剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-13 Complete**。R7-14 Queue UI 状态解耦候选已实现：current、selected、keyboard focus、hover、pending loading、unavailable 分离；新增 `PlaylistEntryPlaybackState` 与只读 model roles，Windows configure/build/Quick/Full CTest 尚待执行。新增 1 个 CTest target 后预计 Quick **94**、Full **102** 项；剩余 UI/Figma 视觉打磨继续推迟到软件功能完成后统一处理 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -27,6 +27,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - `PlaybackSession` 是播放状态与媒体代际的唯一权威 owner。
 - `MediaOpenCoordinator` 是媒体打开 operation identity / supersession 的唯一 owner；异步 worker 只携带 operation id 与解析结果，结果回到 Coordinator 时必须再次校验 identity，stale result 不得提交 Playlist/Playback，也不得覆盖新 operation 的错误状态。
 - Playlist Domain 是队列顺序/current/repeat/shuffle 的唯一 owner；`PlaylistSnapshot` 只提供从该权威状态生成的脱离式只读观测，`currentIndex` 由稳定 `EntryId + order` 推导，不成为第二真值；`PlaylistShuffleState` 只拥有该 Domain 内的 shuffle cycle 状态；QML 只消费 readonly model 并通过 Controller 发 intent。
+- Playlist row 的 `selected / keyboard focus / hover` 继续属于 QML interaction state；`PlaylistEntryPlaybackState` 只从已 generation-gated 的 `PlaybackSnapshot` 投影 `pendingLoading / unavailable` 到稳定 EntryId，不拥有 queue/current/generation，也不建立第二套播放真值。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
@@ -66,7 +67,7 @@ src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验、operation supersession 与统一 workflow 编排
 src/playlist/domain/             播放队列、Entry/current/repeat/shuffle cycle、Queue Snapshot 与导航策略
 src/playlist/application/        Playlist Controller、mutation、advance arbitration、auto-advance 与 load 编排
-src/playlist/presentation/       Playlist 只读模型投影
+src/playlist/presentation/       Playlist 只读模型、per-entry playback status 投影
 src/presentation/                QML、Theme、Surfaces 与 presentation 层
 src/platform/                    平台能力
 src/persistence/                 持久化边界
@@ -108,6 +109,14 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
+### 2026-08-18 — R7-14 Queue UI state decoupling candidate
+
+- 按 `成熟播放器行为补强与验收矩阵.md` 把 Playlist row 的状态所有权明确拆开：Playlist Domain 继续唯一拥有 `current EntryId`；QML 只拥有 selected、keyboard focus、hover 交互状态；新增独立 presentation responsibility `PlaylistEntryPlaybackState`，只从现有 generation-gated `PlaybackSnapshot` + 当前稳定 EntryId 投影 pending loading / unavailable。没有新增 MediaGeneration、RequestId 或第二套 queue/playback owner。
+- `PlaylistListModel` 新增只读 `pendingLoading` / `unavailable` roles，并保留既有构造路径与原 role 编号；ApplicationContainer 在同一 `StatePublisher` 主链中先把 Snapshot 投影给 row state，再执行 Auto Advance，因此失败项可在 current 推进前被标记。Opening 进入 pending，Ready 清 pending/unavailable，Failed 清 pending 并标 unavailable；切换 current 会清理旧 pending，删除 entry 会裁剪 unavailable，重试 Opening 会清除该 entry 的 unavailable。由于输入来自 PlaybackSession 已过滤后的 Snapshot，不新增 stale generation 写入路径。
+- `PlaylistRow.qml` 不再用 `current || selected` 合并蓝色高亮：selected 只控制 selection fill，activeFocus 只控制 focus ring，hover 使用独立 hover fill，current 只显示 playing rail；pending/unavailable 通过单独状态 indicator 与现有 `ColorTokens/MaterialTokens` 表达。R7-09 已验证的 current 删除语义现已恢复到 UI：current row 的删除动作继续只经 `PlaylistController::removeEntry()`，不增加 QML→Playback/mpv 旁路。
+- 新增 `playlist_entry_playback_state` CTest，并扩展 `playlist_list_model` 与 `player_playlist_qml`，覆盖 current+unavailable 共存、Opening/Ready/Failed、retry、current change、removed-entry prune、只读 roles，以及 current/selected/focus/hover/pending/unavailable 不再共用单一 highlighted 状态。shutdown 时 `PlaylistListModel` 和 `PlaylistEntryPlaybackState` 均在 Playlist/PlaybackComposition 销毁前释放；没有新增 timer、thread、callback owner 或生产依赖。
+- 当前仅完成源码、调用链、CMake 和测试契约静态复核；因新增 source 与 CTest target 必须重新 configure。Windows configure/build/Quick/Full 尚未执行，预计 Quick 从 **93 增至 94**、Full 从 **101 增至 102**。**R7-14 仍为 In Progress / Windows validation pending。**
+
 ### 2026-08-18 — R7-13 Async Media Open Supersession Complete
 
 - 按 `成熟播放器行为补强与验收矩阵.md` 为 `MediaOpenCoordinator` 增加单一、单调的 `MediaOpenOperationId`。每次 replace-open workflow 开始都会生成新 identity 并立即使前一 operation stale；异步解析完成只能通过 `completeOpenSource(s)` 回到 Coordinator，提交前再次校验 identity。stale completion 直接拒绝，不进入 Playlist/Playback submission，也不覆盖较新 operation 的 `lastErrorKey`。
@@ -143,7 +152,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ### 2026-08-18 — R7-09 Complete
 
-- 用户已冻结 R7-09 删除 current 的 UX：队列仅 1 项时先提交 Stop/Unload，再删除并令 `current=null`；删除中间 current 时切到下一项；删除最后一项 current 时切到前一项；目标媒体 load 的即时提交失败时删除整体不提交并保留原 queue/current。为保持同一原子语义，单项 Stop 的即时提交失败也不修改 queue/current。
+- 用户已冻结 R7-09 删除 current 的 UX：队列仅 1 项时先提交 Stop/Unload，再删除并令 `current=null`；删除中间 current 时切到下一项；删除最后 current 则切到 previous；目标媒体 load 的即时提交失败时删除整体不提交并保留原 queue/current。为保持同一原子语义，单项 Stop 的即时提交失败也不修改 queue/current。
 - `PlaylistNavigation::forCurrentRemoval()` 集中计算上述 next/previous/stop 决策；`Playlist::removeCurrentAndSelect()` 在 Playlist Domain 内原子删除 current 并切换稳定 EntryId，避免任何对外可见的 dangling current。Repeat/Shuffle 不改变用户显式删除 current 时的 next/previous UX；shuffle bookkeeping 随实际 remove/select 同步更新。
 - `PlaylistController::removeEntry()` 现在对 current 走协调链：replacement load 或 Stop 必须先被现有 PlaybackCommandBus 接受，之后才提交 Playlist mutation；即时 command submission rejection 不修改 queue/current。非 current 删除和 reorder 语义保持不变。
 - `PlaybackComposition` 新增返回提交结果的 `submitMediaStop()`，ApplicationContainer 只把该应用级 Stop callback 注入 PlaylistController；QML 继续只调用现有 `removeEntry()`，没有新增 QML→Playback/mpv 旁路，也没有新增生产依赖。
