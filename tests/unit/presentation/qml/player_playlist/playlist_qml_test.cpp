@@ -39,7 +39,7 @@ private slots:
     void inspectorShellMatchesCanonicalFigmaGeometry();
     void playlistConsumesGlobalThemeSemantics();
     void playlistContentFiltersReordersAndVirtualizesReadonlyRows();
-    void playlistRowSeparatesCurrentSelectedHoverAndFocus();
+    void playlistRowSeparatesCurrentSelectedHoverFocusAndPlaybackStatus();
     void playlistActionsFlowThroughControllerOnly();
     void qmlRegistrationIncludesPlaylistModules();
 };
@@ -163,7 +163,6 @@ void PlaylistQmlTest::inspectorShellMatchesCanonicalFigmaGeometry()
     QVERIFY(footer.contains(QStringLiteral("MaterialTokens.footerBlur")));
     QVERIFY(footer.contains(QStringLiteral(
         "borderAlpha: MaterialTokens.borderStrongAlpha")));
-
     QVERIFY(surfaceCMake.contains(QStringLiteral("BackdropBlur.qml")));
     QVERIFY(surfaceCMake.contains(QStringLiteral("QT_QML_INTERNAL_TYPE TRUE")));
 }
@@ -185,6 +184,8 @@ void PlaylistQmlTest::playlistConsumesGlobalThemeSemantics()
     QVERIFY(row.contains(QStringLiteral("ColorTokens.surfaceInspectorRow")));
     QVERIFY(row.contains(QStringLiteral("ColorTokens.surfaceInspectorSelection")));
     QVERIFY(row.contains(QStringLiteral("ColorTokens.surfaceInspectorSearch")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.controlPendingTarget")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.feedbackError")));
 
     const QStringList sources{drawer, search, footer, row};
     for (const QString& source : sources) {
@@ -209,6 +210,10 @@ void PlaylistQmlTest::playlistContentFiltersReordersAndVirtualizesReadonlyRows()
     QVERIFY(content.contains(QStringLiteral("model: root.playlistModel")));
     QVERIFY(content.contains(QStringLiteral("function matchesFilter")));
     QVERIFY(content.contains(QStringLiteral("matchesCurrentFilter")));
+    QVERIFY(content.contains(QStringLiteral("required property bool pendingLoading")));
+    QVERIFY(content.contains(QStringLiteral("required property bool unavailable")));
+    QVERIFY(content.contains(QStringLiteral("pendingLoading: delegateItem.pendingLoading")));
+    QVERIFY(content.contains(QStringLiteral("unavailable: delegateItem.unavailable")));
     QVERIFY(content.contains(QStringLiteral("DragHandler {")));
     QVERIFY(content.contains(QStringLiteral("root.playlistController.moveEntry(")));
     QVERIFY(content.contains(QStringLiteral("root.normalizedFilter.length === 0")));
@@ -216,7 +221,7 @@ void PlaylistQmlTest::playlistContentFiltersReordersAndVirtualizesReadonlyRows()
     QVERIFY(content.contains(QStringLiteral("visible: root.itemCount === 0")));
 }
 
-void PlaylistQmlTest::playlistRowSeparatesCurrentSelectedHoverAndFocus()
+void PlaylistQmlTest::playlistRowSeparatesCurrentSelectedHoverFocusAndPlaybackStatus()
 {
     const QString row = readSource(QStringLiteral(
         "src/presentation/qml/features/playlist/PlaylistRow.qml"));
@@ -224,18 +229,30 @@ void PlaylistQmlTest::playlistRowSeparatesCurrentSelectedHoverAndFocus()
     QVERIFY(!row.isEmpty());
     QVERIFY(row.contains(QStringLiteral("property bool selected: false")));
     QVERIFY(row.contains(QStringLiteral("required property bool current")));
-    QVERIFY(row.contains(QStringLiteral("readonly property bool highlighted: root.current || root.selected")));
+    QVERIFY(row.contains(QStringLiteral("required property bool pendingLoading")));
+    QVERIFY(row.contains(QStringLiteral("required property bool unavailable")));
+    QVERIFY(row.contains(QStringLiteral("readonly property bool hovered: rowHover.hovered")));
+    QVERIFY(!row.contains(QStringLiteral("root.current || root.selected")));
+    QVERIFY(!row.contains(QStringLiteral("readonly property bool highlighted")));
+    QVERIFY(row.contains(QStringLiteral("color: root.selected")));
+    QVERIFY(row.contains(QStringLiteral("border.width: root.activeFocus || root.selected")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.focusRing")));
     QVERIFY(row.contains(QStringLiteral("MaterialTokens.selectionFillAlpha")));
     QVERIFY(row.contains(QStringLiteral("MaterialTokens.rowFillAlpha")));
     QVERIFY(row.contains(QStringLiteral("MaterialTokens.footerFillAlpha")));
     QVERIFY(row.contains(QStringLiteral("ColorTokens.borderSelection")));
     QVERIFY(row.contains(QStringLiteral("objectName: \"playlistPlayingRail\"")));
-    QVERIFY(row.contains(QStringLiteral("LayoutTokens.listPlayingRailWidth")));
     QVERIFY(row.contains(QStringLiteral("visible: root.current")));
+    QVERIFY(row.contains(QStringLiteral("objectName: \"playlistEntryPlaybackStateIndicator\"")));
+    QVERIFY(row.contains(QStringLiteral("visible: root.pendingLoading || root.unavailable")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.controlPendingTarget")));
+    QVERIFY(row.contains(QStringLiteral("ColorTokens.feedbackError")));
     QVERIFY(row.contains(QStringLiteral("TypographyTokens.mediaTitleCompact")));
     QVERIFY(row.contains(QStringLiteral("TypographyTokens.timecodeExtraSmall")));
     QVERIFY(row.contains(QStringLiteral("activeFocusOnTab: true")));
     QVERIFY(row.contains(QStringLiteral("onDoubleTapped: root.activationRequested(root.entryId)")));
+    QVERIFY(!row.contains(QStringLiteral("Current item cannot be removed yet")));
+    QVERIFY(!row.contains(QStringLiteral("Deleting the current item is handled by a later playlist policy")));
 }
 
 void PlaylistQmlTest::playlistActionsFlowThroughControllerOnly()

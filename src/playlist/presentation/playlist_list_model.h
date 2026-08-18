@@ -13,6 +13,8 @@ class PlaylistController;
 
 namespace player::playlist::presentation {
 
+class PlaylistEntryPlaybackState;
+
 class PlaylistListModel final : public QAbstractListModel
 {
     Q_OBJECT
@@ -26,11 +28,17 @@ public:
         SourceLocationRole,
         SourceKindRole,
         CurrentRole,
+        PendingLoadingRole,
+        UnavailableRole,
     };
     Q_ENUM(Role)
 
     explicit PlaylistListModel(
         application::PlaylistController& controller,
+        QObject* parent = nullptr);
+    PlaylistListModel(
+        application::PlaylistController& controller,
+        PlaylistEntryPlaybackState& entryPlaybackState,
         QObject* parent = nullptr);
 
     [[nodiscard]] int rowCount(const QModelIndex& parent = QModelIndex{}) const override;
@@ -54,11 +62,14 @@ private:
         QString sourceLocation;
         int sourceKind = 0;
         bool current = false;
+        bool pendingLoading = false;
+        bool unavailable = false;
     };
 
     [[nodiscard]] static QString displayTitleFor(const QString& location, int sourceKind);
 
     application::PlaylistController& controller_;
+    PlaylistEntryPlaybackState* entryPlaybackState_ = nullptr;
     QVector<Row> rows_;
     int currentPosition_ = 0;
 };

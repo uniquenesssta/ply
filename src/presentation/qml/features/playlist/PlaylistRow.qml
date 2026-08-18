@@ -9,11 +9,12 @@ Item {
     required property string displayTitle
     required property string sourceLocation
     required property bool current
+    required property bool pendingLoading
+    required property bool unavailable
 
     property string indexText: ""
     property bool selected: false
     readonly property bool hovered: rowHover.hovered
-    readonly property bool highlighted: root.current || root.selected
 
     signal selectionRequested(var entryId)
     signal activationRequested(var entryId)
@@ -31,7 +32,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: RadiusTokens.listRow
-        color: root.highlighted
+        color: root.selected
                ? root.withAlpha(ColorTokens.surfaceInspectorSelection,
                                 MaterialTokens.selectionFillAlpha)
                : root.hovered
@@ -39,7 +40,7 @@ Item {
                                   MaterialTokens.footerFillAlpha)
                  : root.withAlpha(ColorTokens.surfaceInspectorRow,
                                   MaterialTokens.rowFillAlpha)
-        border.width: root.activeFocus || root.highlighted
+        border.width: root.activeFocus || root.selected
                       ? LayoutTokens.surfaceBorderWidth
                       : SpacingTokens.none
         border.color: root.activeFocus
@@ -59,7 +60,13 @@ Item {
         }
         width: SpacingTokens.listRowIndex
         text: root.indexText
-        color: root.highlighted ? ColorTokens.accentStrong : ColorTokens.textTertiary
+        color: root.current
+               ? ColorTokens.accentStrong
+               : root.unavailable
+                 ? ColorTokens.feedbackWarning
+                 : root.selected
+                   ? ColorTokens.accentPrimary
+                   : ColorTokens.textTertiary
         font: TypographyTokens.microStrong
         horizontalAlignment: Text.AlignLeft
         verticalAlignment: Text.AlignVCenter
@@ -83,7 +90,9 @@ Item {
                 topMargin: SpacingTokens.listRowTitleTop
             }
             text: root.displayTitle
-            color: ColorTokens.textStrong
+            color: root.unavailable
+                   ? ColorTokens.feedbackWarning
+                   : ColorTokens.textStrong
             font: TypographyTokens.mediaTitleCompact
             elide: Text.ElideRight
             wrapMode: Text.NoWrap
@@ -97,7 +106,11 @@ Item {
                 topMargin: SpacingTokens.listRowMetaTop
             }
             text: root.sourceLocation
-            color: ColorTokens.textTertiary
+            color: root.pendingLoading
+                   ? ColorTokens.controlPendingTarget
+                   : root.unavailable
+                     ? ColorTokens.feedbackNeutral
+                     : ColorTokens.textTertiary
             font: TypographyTokens.timecodeExtraSmall
             elide: Text.ElideMiddle
             wrapMode: Text.NoWrap
@@ -117,7 +130,31 @@ Item {
         height: LayoutTokens.controlHitMinimum
         radius: RadiusTokens.track
         color: ColorTokens.selectionIndicator
+        opacity: removeButton.opacity > OpacityTokens.hidden
+                 ? OpacityTokens.hidden
+                 : OpacityTokens.visible
         visible: root.current
+    }
+
+    Rectangle {
+        id: playbackStateIndicator
+
+        objectName: "playlistEntryPlaybackStateIndicator"
+        anchors {
+            right: playingRail.left
+            rightMargin: SpacingTokens.controlTight
+            verticalCenter: parent.verticalCenter
+        }
+        width: LayoutTokens.listPlayingRailWidth * 2
+        height: width
+        radius: width / 2
+        color: root.unavailable
+               ? ColorTokens.feedbackError
+               : ColorTokens.controlPendingTarget
+        opacity: removeButton.opacity > OpacityTokens.hidden
+                 ? OpacityTokens.hidden
+                 : OpacityTokens.visible
+        visible: root.pendingLoading || root.unavailable
     }
 
     IconButton {
@@ -128,18 +165,14 @@ Item {
             rightMargin: SpacingTokens.controlTight
             verticalCenter: parent.verticalCenter
         }
-        opacity: !root.current && (root.hovered || root.activeFocus)
+        opacity: root.hovered || root.activeFocus
                  ? OpacityTokens.visible
                  : OpacityTokens.hidden
-        enabled: !root.current && opacity > OpacityTokens.hidden
+        enabled: opacity > OpacityTokens.hidden
         iconId: "close"
-        toolTipText: root.current
-                     ? qsTr("Current item cannot be removed yet")
-                     : qsTr("Remove from Playlist")
+        toolTipText: qsTr("Remove from Playlist")
         accessibleName: toolTipText
-        accessibleDescription: root.current
-                               ? qsTr("Deleting the current item is handled by a later playlist policy")
-                               : qsTr("Remove this item from the playlist")
+        accessibleDescription: qsTr("Remove this item from the playlist")
 
         onClicked: root.removeRequested(root.entryId)
     }

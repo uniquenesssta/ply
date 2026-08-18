@@ -1,7 +1,11 @@
 #include "media/domain/media_source.h"
+#include "playback/domain/state/media_generation.h"
+#include "playback/domain/state/playback_lifecycle_state.h"
+#include "playback/domain/state/playback_snapshot.h"
 #include "playlist/application/playlist_controller.h"
 #include "playlist/application/playlist_mutation.h"
 #include "playlist/domain/playlist.h"
+#include "playlist/presentation/playlist_entry_playback_state.h"
 #include "playlist/presentation/playlist_list_model.h"
 
 #include <QtTest>
@@ -19,6 +23,16 @@ media::domain::MediaSource remoteSource(const QString& url)
     return media::domain::MediaSource::remoteUrl(url);
 }
 
+playback::domain::PlaybackSnapshot playbackSnapshot(
+    quint64 generation,
+    playback::domain::PlaybackLifecycleState lifecycle)
+{
+    playback::domain::PlaybackSnapshotState state;
+    state.generation = playback::domain::MediaGeneration{generation};
+    state.lifecycle = lifecycle;
+    return playback::domain::PlaybackSnapshot{std::move(state)};
+}
+
 } // namespace
 
 class PlaylistListModelTest final : public QObject
@@ -29,6 +43,7 @@ private slots:
     void startsEmptyAndReadOnly();
     void projectsOrderIdentityTitleAndCurrent();
     void followsCommittedSelectAndMove();
+    void projectsPendingAndUnavailableAsIndependentRoles();
 };
 
 void PlaylistListModelTest::startsEmptyAndReadOnly()
@@ -45,6 +60,8 @@ void PlaylistListModelTest::startsEmptyAndReadOnly()
     QCOMPARE(model.currentPosition(), 0);
     QCOMPARE(model.rowCount(), 0);
     QCOMPARE(model.flags(QModelIndex{}), Qt::ItemFlags{});
+    QCOMPARE(model.roleNames().value(PlaylistListModel::PendingLoadingRole), QByteArrayLiteral("pendingLoading"));
+    QCOMPARE(model.roleNames().value(PlaylistListModel::UnavailableRole), QByteArrayLiteral("unavailable"));
 }
 
 void PlaylistListModelTest::projectsOrderIdentityTitleAndCurrent()
@@ -76,6 +93,8 @@ void PlaylistListModelTest::projectsOrderIdentityTitleAndCurrent()
         model.data(first, PlaylistListModel::DisplayTitleRole).toString(),
         QStringLiteral("local sample.mp4"));
     QVERIFY(model.data(first, PlaylistListModel::CurrentRole).toBool());
+    QVERIFY(!model.data(first, PlaylistListModel::PendingLoadingRole).toBool());
+    QVERIFY(!model.data(first, PlaylistListModel::UnavailableRole).toBool());
     QCOMPARE(
         model.data(second, PlaylistListModel::DisplayTitleRole).toString(),
         QStringLiteral("remote.mp4"));
@@ -114,6 +133,37 @@ void PlaylistListModelTest::followsCommittedSelectAndMove()
         model.data(model.index(1, 0), PlaylistListModel::EntryIdRole).toULongLong(),
         firstId);
     QVERIFY(model.data(model.index(0, 0), PlaylistListModel::CurrentRole).toBool());
+}
+
+void PlaylistListModelTest::projectsPendingAndUnavailableAsIndependentRoles()
+{
+    domain::Playlist playlist;
+    application::PlaylistMutation mutation(playlist);
+    application::PlaylistController controller(
+        playlist,
+        mutation,
+        [](const media::domain::MediaSource&) { return true; });
+    PlaylistEntryPlaybackState entryPlaybackState(controller);
+    PlaylistListModel model(controller, entryPlaybackState);
+
+    QVERIFY(controller.openSource(localSource(QStringLiteral("C:/media/a.mp4"))));
+    const QModelIndex first = model.index(0, 0);
+    QVERIFY(first.isValid());
+    QVERIFY(model.data(first, PlaylistListModel::CurrentRole).toBool());
+
+    entryPlaybackState.acceptPlaybackSnapshot(playbackSnapshot(
+        1,
+        playback::domain::PlaybackLifecycleState::Opening));
+    QVERIFY(model.data(first, PlaylistListModel::CurrentRole).toBool());
+    QVERIFY(model.data(first, PlaylistListModel::PendingLoadingRole).toBool());
+    QVERIFY(!model.data(first, PlaylistListModel::UnavailableRole).toBool());
+
+    entryPlaybackState.acceptPlaybackSnapshot(playbackSnapshot(
+        1,
+        playback::domain::PlaybackLifecycleState::Failed));
+    QVERIFY(model.data(first, PlaylistListModel::CurrentRole).toBool());
+    QVERIFY(!model.data(first, PlaylistListModel::PendingLoadingRole).toBool());
+    QVERIFY(model.data(first, PlaylistListModel::UnavailableRole).toBool());
 }
 
 } // namespace player::playlist::presentation

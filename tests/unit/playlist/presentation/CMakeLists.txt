@@ -20,3 +20,26 @@ add_test(
     NAME playlist_list_model
     COMMAND playlist_list_model_tests
 )
+
+add_executable(
+    playlist_entry_playback_state_tests
+    playlist_entry_playback_state_test.cpp
+)
+
+player_apply_compiler_options(playlist_entry_playback_state_tests)
+player_enable_compiler_warnings(playlist_entry_playback_state_tests)
+player_enable_sanitizers(playlist_entry_playback_state_tests)
+player_enable_static_analysis(playlist_entry_playback_state_tests)
+
+target_link_libraries(
+    playlist_entry_playback_state_tests
+    PRIVATE
+        player_playlist_presentation
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME playlist_entry_playback_state
+    COMMAND playlist_entry_playback_state_tests
+)

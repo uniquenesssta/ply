@@ -44,6 +44,8 @@ Item {
             required property string displayTitle
             required property string sourceLocation
             required property bool current
+            required property bool pendingLoading
+            required property bool unavailable
             required property int index
 
             readonly property bool matchesCurrentFilter: root.matchesFilter(
@@ -70,6 +72,8 @@ Item {
                 displayTitle: delegateItem.displayTitle
                 sourceLocation: delegateItem.sourceLocation
                 current: delegateItem.current
+                pendingLoading: delegateItem.pendingLoading
+                unavailable: delegateItem.unavailable
                 indexText: delegateItem.index < 9
                            ? "0" + String(delegateItem.index + 1)
                            : String(delegateItem.index + 1)

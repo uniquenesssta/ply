@@ -23,6 +23,7 @@ class Playlist;
 }
 
 namespace player::playlist::presentation {
+class PlaylistEntryPlaybackState;
 class PlaylistListModel;
 }
 
@@ -67,6 +68,7 @@ private:
     std::unique_ptr<player::playlist::application::PlaylistMutation> playlistMutation_;
     std::unique_ptr<player::playlist::application::PlaylistAdvanceArbiter> playlistAdvanceArbiter_;
     std::unique_ptr<player::playlist::application::PlaylistController> playlistController_;
+    std::unique_ptr<player::playlist::presentation::PlaylistEntryPlaybackState> playlistEntryPlaybackState_;
     std::unique_ptr<player::playlist::application::PlaylistAutoAdvance> playlistAutoAdvance_;
     std::unique_ptr<player::playlist::presentation::PlaylistListModel> playlistListModel_;
     std::unique_ptr<player::media::application::MediaOpenCoordinator> mediaOpenCoordinator_;

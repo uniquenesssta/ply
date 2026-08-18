@@ -1,6 +1,8 @@
 add_library(
     player_playlist_presentation
     STATIC
+        playlist_entry_playback_state.cpp
+        playlist_entry_playback_state.h
         playlist_list_model.cpp
         playlist_list_model.h
 )
@@ -20,5 +22,6 @@ target_link_libraries(
     player_playlist_presentation
     PUBLIC
         player_playlist_application
+        player_playback_domain
         Qt6::Core
 )

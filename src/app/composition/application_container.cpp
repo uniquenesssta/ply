@@ -16,6 +16,7 @@
 #include "playlist/application/playlist_controller.h"
 #include "playlist/application/playlist_mutation.h"
 #include "playlist/domain/playlist.h"
+#include "playlist/presentation/playlist_entry_playback_state.h"
 #include "playlist/presentation/playlist_list_model.h"
 
 #include <QList>
@@ -59,6 +60,9 @@ ApplicationContainer::ApplicationContainer(
             },
             nullptr,
             playlistAdvanceArbiter_.get()))
+    , playlistEntryPlaybackState_(
+        std::make_unique<player::playlist::presentation::PlaylistEntryPlaybackState>(
+            *playlistController_))
     , playlistAutoAdvance_(
         std::make_unique<player::playlist::application::PlaylistAutoAdvance>(
             *playlist_,
@@ -66,7 +70,8 @@ ApplicationContainer::ApplicationContainer(
             *playlistAdvanceArbiter_))
     , playlistListModel_(
         std::make_unique<player::playlist::presentation::PlaylistListModel>(
-            *playlistController_))
+            *playlistController_,
+            *playlistEntryPlaybackState_))
     , mediaOpenCoordinator_(
         std::make_unique<player::media::application::MediaOpenCoordinator>(
             [this](const player::media::domain::MediaSource& source) {
@@ -106,6 +111,10 @@ ApplicationContainer::ApplicationContainer(
         &player::playback::application::StatePublisher::snapshotPublished,
         &publisher,
         [this](const player::playback::domain::PlaybackSnapshot& snapshot) {
+            if (playlistEntryPlaybackState_ != nullptr) {
+                playlistEntryPlaybackState_->acceptPlaybackSnapshot(snapshot);
+            }
+
             if (playlistAutoAdvance_ == nullptr) {
                 return;
             }
@@ -202,6 +211,7 @@ void ApplicationContainer::shutdown() noexcept
     urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
     playlistListModel_.reset();
+    playlistEntryPlaybackState_.reset();
     if (playbackComposition_ != nullptr) {
         playbackComposition_->setPlaybackSupersessionObserver({});
     }

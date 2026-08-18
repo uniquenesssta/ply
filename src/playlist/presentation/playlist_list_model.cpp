@@ -3,6 +3,7 @@
 #include "media/domain/media_source.h"
 #include "playlist/application/playlist_controller.h"
 #include "playlist/domain/playlist_snapshot.h"
+#include "playlist/presentation/playlist_entry_playback_state.h"
 
 #include <QFileInfo>
 #include <QUrl>
@@ -20,6 +21,21 @@ PlaylistListModel::PlaylistListModel(
     connect(
         &controller_,
         &application::PlaylistController::playlistChanged,
+        this,
+        &PlaylistListModel::refresh);
+    refresh();
+}
+
+PlaylistListModel::PlaylistListModel(
+    application::PlaylistController& controller,
+    PlaylistEntryPlaybackState& entryPlaybackState,
+    QObject* parent)
+    : PlaylistListModel(controller, parent)
+{
+    entryPlaybackState_ = &entryPlaybackState;
+    connect(
+        entryPlaybackState_,
+        &PlaylistEntryPlaybackState::entryStatesChanged,
         this,
         &PlaylistListModel::refresh);
     refresh();
@@ -50,6 +66,10 @@ QVariant PlaylistListModel::data(const QModelIndex& index, int role) const
         return row.sourceKind;
     case CurrentRole:
         return row.current;
+    case PendingLoadingRole:
+        return row.pendingLoading;
+    case UnavailableRole:
+        return row.unavailable;
     default:
         return {};
     }
@@ -63,6 +83,8 @@ QHash<int, QByteArray> PlaylistListModel::roleNames() const
         {SourceLocationRole, QByteArrayLiteral("sourceLocation")},
         {SourceKindRole, QByteArrayLiteral("sourceKind")},
         {CurrentRole, QByteArrayLiteral("current")},
+        {PendingLoadingRole, QByteArrayLiteral("pendingLoading")},
+        {UnavailableRole, QByteArrayLiteral("unavailable")},
     };
 }
 
@@ -102,12 +124,18 @@ void PlaylistListModel::refresh()
     for (const domain::PlaylistEntry& entry : snapshot.entries()) {
         const bool current = currentId.has_value() && *currentId == entry.id();
         const int sourceKind = static_cast<int>(entry.source().kind());
+        const bool pendingLoading = entryPlaybackState_ != nullptr
+            && entryPlaybackState_->isPendingLoading(entry.id());
+        const bool unavailable = entryPlaybackState_ != nullptr
+            && entryPlaybackState_->isUnavailable(entry.id());
         nextRows.push_back(Row{
             entry.id().value(),
             displayTitleFor(entry.source().location(), sourceKind),
             entry.source().location(),
             sourceKind,
             current,
+            pendingLoading,
+            unavailable,
         });
     }
 
