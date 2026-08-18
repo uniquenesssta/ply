@@ -23,6 +23,16 @@ PlaylistNavigationDecision failureDecisionFor(Playlist& playlist)
     return PlaylistNavigation::afterPlaybackFailure(playlist);
 }
 
+PlaylistNavigationDecision manualNextFor(Playlist& playlist)
+{
+    return PlaylistNavigation::forManualNext(playlist);
+}
+
+PlaylistNavigationDecision manualPreviousFor(const Playlist& playlist)
+{
+    return PlaylistNavigation::forManualPrevious(playlist);
+}
+
 PlaylistNavigationDecision removalDecisionFor(
     const Playlist& playlist,
     PlaylistEntryId currentId)
@@ -43,6 +53,9 @@ class PlaylistNavigationTest final : public QObject
 
 private slots:
     void noCurrentProducesNoAction();
+    void manualOrderedNavigationUsesStableOrderAndRepeatAllWrap();
+    void manualRepeatOneDoesNotReloadCurrent();
+    void manualShuffleNextIsPreparedWithoutPreviousGuessing();
     void normalOrderAdvancesAndHonorsMove();
     void repeatModesHandleTailAndSingleItem();
     void shuffleVisitsEachRemainingEntryBeforeStopping();
@@ -66,6 +79,106 @@ void PlaylistNavigationTest::noCurrentProducesNoAction()
     QCOMPARE(
         actionValue(failureDecision.action),
         actionValue(PlaylistNavigationAction::None));
+
+    QCOMPARE(
+        actionValue(manualNextFor(playlist).action),
+        actionValue(PlaylistNavigationAction::None));
+    QCOMPARE(
+        actionValue(manualPreviousFor(playlist).action),
+        actionValue(PlaylistNavigationAction::None));
+}
+
+void PlaylistNavigationTest::manualOrderedNavigationUsesStableOrderAndRepeatAllWrap()
+{
+    Playlist playlist;
+    const auto first = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    const auto second = playlist.append(localSource(QStringLiteral("C:/media/b.mp4")));
+    const auto third = playlist.append(localSource(QStringLiteral("C:/media/c.mp4")));
+    QVERIFY(first.has_value());
+    QVERIFY(second.has_value());
+    QVERIFY(third.has_value());
+    QVERIFY(playlist.select(*second));
+
+    auto next = manualNextFor(playlist);
+    auto previous = manualPreviousFor(playlist);
+    QCOMPARE(actionValue(next.action), actionValue(PlaylistNavigationAction::SelectEntry));
+    QCOMPARE(next.targetEntryId.value(), third->value());
+    QCOMPARE(actionValue(previous.action), actionValue(PlaylistNavigationAction::SelectEntry));
+    QCOMPARE(previous.targetEntryId.value(), first->value());
+
+    QVERIFY(playlist.move(*third, 0));
+    next = manualNextFor(playlist);
+    previous = manualPreviousFor(playlist);
+    QCOMPARE(next.targetEntryId.value(), first->value());
+    QCOMPARE(previous.targetEntryId.value(), third->value());
+
+    playlist.setRepeatMode(PlaylistRepeatMode::All);
+    QVERIFY(playlist.select(*first));
+    next = manualNextFor(playlist);
+    QCOMPARE(next.targetEntryId.value(), second->value());
+
+    QVERIFY(playlist.select(*second));
+    next = manualNextFor(playlist);
+    QCOMPARE(next.targetEntryId.value(), third->value());
+
+    QVERIFY(playlist.select(*third));
+    next = manualNextFor(playlist);
+    QCOMPARE(next.targetEntryId.value(), first->value());
+
+    QVERIFY(playlist.select(*third));
+    previous = manualPreviousFor(playlist);
+    QCOMPARE(previous.targetEntryId.value(), second->value());
+
+    QVERIFY(playlist.select(*third));
+    QVERIFY(playlist.move(*third, 0));
+    previous = manualPreviousFor(playlist);
+    QCOMPARE(previous.targetEntryId.value(), second->value());
+}
+
+void PlaylistNavigationTest::manualRepeatOneDoesNotReloadCurrent()
+{
+    Playlist playlist;
+    const auto first = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    const auto second = playlist.append(localSource(QStringLiteral("C:/media/b.mp4")));
+    const auto third = playlist.append(localSource(QStringLiteral("C:/media/c.mp4")));
+    QVERIFY(first.has_value());
+    QVERIFY(second.has_value());
+    QVERIFY(third.has_value());
+    playlist.setRepeatMode(PlaylistRepeatMode::One);
+
+    QVERIFY(playlist.select(*second));
+    auto next = manualNextFor(playlist);
+    auto previous = manualPreviousFor(playlist);
+    QCOMPARE(actionValue(next.action), actionValue(PlaylistNavigationAction::SelectEntry));
+    QCOMPARE(next.targetEntryId.value(), third->value());
+    QCOMPARE(actionValue(previous.action), actionValue(PlaylistNavigationAction::SelectEntry));
+    QCOMPARE(previous.targetEntryId.value(), first->value());
+
+    QVERIFY(playlist.select(*third));
+    next = manualNextFor(playlist);
+    QCOMPARE(actionValue(next.action), actionValue(PlaylistNavigationAction::None));
+    QVERIFY(!next.targetEntryId.isValid());
+}
+
+void PlaylistNavigationTest::manualShuffleNextIsPreparedWithoutPreviousGuessing()
+{
+    Playlist playlist;
+    const auto first = playlist.append(localSource(QStringLiteral("C:/media/a.mp4")));
+    QVERIFY(playlist.append(localSource(QStringLiteral("C:/media/b.mp4"))).has_value());
+    QVERIFY(playlist.append(localSource(QStringLiteral("C:/media/c.mp4"))).has_value());
+    QVERIFY(first.has_value());
+    QVERIFY(playlist.select(*first));
+    playlist.setShuffleEnabled(true);
+
+    const auto next = manualNextFor(playlist);
+    QCOMPARE(actionValue(next.action), actionValue(PlaylistNavigationAction::SelectEntry));
+    QVERIFY(next.targetEntryId.isValid());
+    QVERIFY(next.targetEntryId != *first);
+    QVERIFY(!playlist.snapshot().shuffleCycleInitialized());
+
+    const auto previous = manualPreviousFor(playlist);
+    QCOMPARE(actionValue(previous.action), actionValue(PlaylistNavigationAction::None));
+    QVERIFY(!previous.targetEntryId.isValid());
 }
 
 void PlaylistNavigationTest::normalOrderAdvancesAndHonorsMove()
