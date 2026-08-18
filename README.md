@@ -13,7 +13,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R4 — libmpv OpenGL Render API | Complete | 视频进入 Qt Quick，Render 生命周期、DPI/visibility/shutdown 与 1080p/4K 基线完成 |
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
-| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-09 Complete**。R7-09 已在 Windows 锁定环境完成 build 与 Full **98/98 PASS（79.52 s）**。R7-10 Queue Snapshot 与稳定身份候选已实现，新增 `playlist_snapshot` 测试目标后需重新 configure；Windows build/Full CTest 尚待执行。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
+| R7 — 媒体打开与播放列表 | In Progress | **R7-01 ~ R7-10 Complete**。R7-10 已在 Windows 锁定环境完成 configure/build 与 Full **99/99 PASS（79.44 s）**。R7-11 Queue Mutation 原子语义候选已实现；新增 `playlist_mutation_semantics` 测试目标后需重新 configure，Windows build/Full CTest 尚待执行。剩余 UI/Figma 视觉打磨按用户决定推迟到软件功能完成后统一处理 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -106,12 +106,19 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-18 — R7-10 Queue Snapshot candidate
+### 2026-08-18 — R7-11 Queue Mutation semantics candidate
+
+- 按 `成熟播放器行为补强与验收矩阵.md` 补齐 Queue Mutation 明确语义：纯 queue append/insert 保持 current EntryId 且不触发 Playback load；remove/reorder 延续既有稳定身份策略；clear 在存在 current 时必须先由既有 Stop callback 接受，拒绝则 queue/current 不变；Repeat/Shuffle mode 切换只修改所属 Domain 模式状态，不改变 ordered entries 或 current identity。既有 `openSource/openSources` 的“追加后选择并加载本次首项”媒体打开行为保持不变。
+- 新增独立 Domain 值对象 `PlaylistReplacement` 作为**脱离式、不可写的 prepared replacement**：先验证全部来源并预分配新的单调 EntryId，但不消耗权威 ID allocator、不改变旧 queue/current/shuffle；`PlaylistController::replaceSources()` 只有在目标首项 load 被现有 command submission 链即时接受后才一次提交 replacement。即时 load rejection 因此保留旧 queue/current，同时不会跳过未提交的 EntryId。替换成功后 current 明确指向新队列第一项，Repeat/Shuffle 配置保持，shuffle cycle 重新开始。
+- `PlaylistNavigation` 新增显式 manual Next/Previous policy。顺序模式严格按稳定 EntryId 所在 order 推进；Repeat All 允许首尾回绕；Repeat One 只影响自然 EOF，不把用户手动 Next/Previous 变成 current reload。Shuffle manual Next 使用 `previewNext + commitNextSelection` 两阶段语义，load rejection 不初始化/消费 shuffle cycle；现阶段没有权威 shuffle history，因此 manual Previous 与 `CanPrevious` 继续保持不可用，统一历史与连续 Next/Previous/EOF 竞态属于 R7-12。
+- `PlaylistMutation` / `PlaylistController` 新增职责内的 append、insert、replace、clear、manual next/previous、repeat/shuffle intent；QML、libmpv、PlaybackSession、R7-09 current-removal UX 均未修改，也没有新增生产依赖。新增独立 `playlist_mutation_semantics` 测试目标，并扩展 `playlist_domain`、`playlist_navigation`、`playlist_shuffle_state` 现有测试，覆盖 prepared replacement 脱离性、ID 不消耗、insert/current 稳定、clear Stop rejection、manual navigation load rejection、Shuffle preview/commit、mode identity 等契约。由于新增 Domain 源文件与 CTest target，需重新 configure；重新 configure 后标准 Full 套件预计从 99 增至 **100**。当前 Windows configure/build/Full CTest 尚未执行，因此 **R7-11 仍为 In Progress**。
+
+### 2026-08-18 — R7-10 Queue Snapshot Complete
 
 - 按 `成熟播放器行为补强与验收矩阵.md` 新增独立 Domain 值对象 `PlaylistSnapshot`，一次性复制 ordered entries、稳定 `EntryId`、current `EntryId`、由 `EntryId + order` 推导的 0-based current index、Repeat mode、Shuffle mode 以及当前 shuffle cycle 的只读 bookkeeping。Playlist 仍是唯一可写 owner，Snapshot 不持有 mutation API，也不建立第二套 queue/current 真值。
 - `PlaylistShuffleState` 只新增 cycle initialized 与 remaining EntryId 的 const 读取，用于构造 Snapshot；shuffle cycle 的创建、消费与重置仍由原 Domain 状态机负责。`PlaylistNavigation::capabilities(snapshot)` 从同一快照推导 `CanNext / CanPrevious`：顺序模式尊重队列边界与 Repeat All；现有 shuffle 仅有 forward cycle bag，因此在 R7-12 建立统一手动 Previous 历史/策略前不虚假宣称 shuffle Previous 可用。
 - `PlaylistController` 保留既有 `playlist()` const accessor 兼容路径，同时新增 `snapshot()`；`PlaylistListModel::refresh()` 改为每次只消费一个脱离式 Snapshot，再从其 current index/current ID 投影现有 1-based `currentPosition` 与 row `current`，避免一次刷新期间分别读取多份可变队列状态。
-- 新增独立 `playlist_snapshot` 单元测试目标，覆盖空队列、稳定 ID 与 reorder 后 current index 推导、Snapshot 脱离性、shuffle bookkeeping、顺序/Repeat All/Shuffle navigation capability。没有新增生产依赖，没有修改 QML、libmpv、PlaybackSession 或 R7-09 删除策略。新增源码与 CTest target 后必须重新 configure；Windows configure/build/Quick/Full CTest 尚未执行，重新 configure 后标准 Full 套件预计从 98 增至 **99**，因此 **R7-10 当前仍为 In Progress**。
+- 新增独立 `playlist_snapshot` 单元测试目标，覆盖空队列、稳定 ID 与 reorder/current-removal 后 current index 推导、Snapshot 脱离性、shuffle bookkeeping、顺序/Repeat All/Shuffle navigation capability。用户随后在 HEAD `3649332002502cd95b36872e6c1f19a99be3e86a` 的 Windows 锁定环境完成重新 configure 与 build，并执行完整回归：**99/99 PASS，0 failed，79.44 s**；其中 `playlist_domain`、`playlist_navigation`、`playlist_shuffle_state`、`playlist_snapshot`、`playlist_application`、`playlist_auto_advance`、`playlist_list_model` 均 PASS，startup-smoke 与 8 项 windowed-render 回归同时通过。**R7-10 正式 Complete。**
 
 ### 2026-08-18 — R7-09 Complete
 
