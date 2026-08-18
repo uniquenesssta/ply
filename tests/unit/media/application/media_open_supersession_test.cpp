@@ -14,6 +14,7 @@ class MediaOpenSupersessionTest final : public QObject
 
 private slots:
     void newerOperationSupersedesOlderCompletion();
+    void staleBatchCompletionDoesNotSubmit();
     void staleCompletionDoesNotOverwriteErrorState();
     void operationCompletionIsSingleUse();
     void synchronousOpenSupersedesPendingOperation();
@@ -51,6 +52,44 @@ void MediaOpenSupersessionTest::newerOperationSupersedesOlderCompletion()
     QVERIFY(coordinator.completeOpenSource(operationB, sourceB));
     QCOMPARE(submittedLocations, QList<QString>{QStringLiteral("https://example.com/b.mp4")});
     QVERIFY(!coordinator.isOpenOperationCurrent(operationB));
+}
+
+void MediaOpenSupersessionTest::staleBatchCompletionDoesNotSubmit()
+{
+    int singleSubmissions = 0;
+    int batchSubmissions = 0;
+    MediaOpenCoordinator coordinator(
+        [&singleSubmissions](const player::media::domain::MediaSource&) {
+            ++singleSubmissions;
+            return true;
+        },
+        [&batchSubmissions](const QList<player::media::domain::MediaSource>&) {
+            ++batchSubmissions;
+            return true;
+        });
+
+    const MediaOpenOperationId operationA = coordinator.beginReplaceOpenOperation();
+    const MediaOpenOperationId operationB = coordinator.beginReplaceOpenOperation();
+    const QList<player::media::domain::MediaSource> sourcesA{
+        player::media::domain::MediaSource::remoteUrl(
+            QStringLiteral("https://example.com/a1.mp4")),
+        player::media::domain::MediaSource::remoteUrl(
+            QStringLiteral("https://example.com/a2.mp4")),
+    };
+    const QList<player::media::domain::MediaSource> sourcesB{
+        player::media::domain::MediaSource::remoteUrl(
+            QStringLiteral("https://example.com/b1.mp4")),
+        player::media::domain::MediaSource::remoteUrl(
+            QStringLiteral("https://example.com/b2.mp4")),
+    };
+
+    QVERIFY(!coordinator.completeOpenSources(operationA, sourcesA));
+    QCOMPARE(singleSubmissions, 0);
+    QCOMPARE(batchSubmissions, 0);
+
+    QVERIFY(coordinator.completeOpenSources(operationB, sourcesB));
+    QCOMPARE(singleSubmissions, 0);
+    QCOMPARE(batchSubmissions, 1);
 }
 
 void MediaOpenSupersessionTest::staleCompletionDoesNotOverwriteErrorState()
