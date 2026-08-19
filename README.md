@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-03 Complete；R8-04 Candidate**。修复版 HEAD `da7400e...` 已通过 Windows build、Quick **99/99 PASS（42.29 s）**、Full **107/107 PASS（78.80 s）**，startup-smoke **3.05 s**、8 项 windowed-render 合计 **38.84 s**；确定性 `track-list/sid` 刷新、外挂字幕诊断日志和全屏手势 interaction gate 的自动回归均已进入全量测试。真实本地 SRT/ASS 加载进入同一字幕模型，以及 Track Popup 双击不再触发全屏仍待修复后实机复验，因此 R8-04 不记为 Complete |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-04 Complete；R8-05 Candidate**。R8-04 修复版 `da7400e...` 已通过 Windows build、Quick **99/99 PASS（42.29 s）**、Full **107/107 PASS（78.80 s）**，startup-smoke **3.05 s**、8 项 windowed-render 合计 **38.84 s**；用户随后实机确认外挂字幕可以添加，Track Popup 内双击不再穿透触发全屏，并明确允许 R8-04 暂时收口。R8-05 字幕延迟已形成代码候选，但 Windows build/QML lint/CTest 与正负/reset 实际时序效果仍待验证，因此不记为 Complete |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -33,6 +33,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - `TrackListModel` 只消费已 generation-gated 的 `PlaybackSnapshot` 并按 Audio/Subtitle kind 投影只读行；`selected` 由 Snapshot 的 `selectedAudioId / selectedSubtitleId` 推导，model 不拥有 generation、selection mutation 或第二套 Track 真值。Opening/new-media Snapshot 清空旧轨道后，后续 current-generation Snapshot 整表替换新轨道。
 - Track selection 只走 `QML intent → TrackSelectionController → PlaybackCommand(RequestId + MediaGeneration) → mpv aid/sid → generation-gated PlaybackSnapshot → TrackListModel`。同类 Audio/Subtitle selection 复用 RequestTracker supersession lane；Subtitle Off 是显式 `sid=no` 状态；UI 不乐观改写 selected，最终 selected 始终由 backend/Snapshot 决定。
 - 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → 成功回执后确定性读取 track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`；mpv property observer 仍保留正常增量通知，但不再作为外部字幕成功后的唯一刷新来源。Loader 只接受可读本地 SRT/ASS 并提交规范化路径；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测与更完整的重复加载治理仍按 R8 后续任务处理。
+- 字幕延迟只走 `QML intent → SubtitleDelayController → SetSubtitleDelayCommand(RequestId + MediaGeneration) → mpv sub-delay → property observer/成功回执确定性回读 → generation-gated PlaybackSnapshot.controls.subtitleDelaySeconds → Controller/HUD`。Controller 只拥有 pending target，不乐观改写确认值；同 generation 字幕延迟请求使用独立 latest-wins supersession lane。当前固定范围为 **-2.0 s ~ +2.0 s**、步进 **50 ms**，reset 回到 `0 ms`；音频延迟继续独立归 R8-06。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
@@ -68,7 +69,7 @@ src/foundation/                  通用基础设施与稳定值类型
 src/playback/domain/             后端无关的播放命令、事件、状态与规则
 src/playback/application/        PlaybackSession、请求生命周期与应用编排
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
-src/tracks/application/          Track selection intent、外挂字幕本地校验与应用级提交边界
+src/tracks/application/          Track selection、外挂字幕与字幕延迟 intent/校验/应用级提交边界
 src/tracks/presentation/         Audio/Subtitle Track 的 Snapshot 只读列表投影
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验、operation supersession 与统一 workflow 编排
@@ -115,6 +116,19 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-19 — R8-05 Subtitle delay Candidate
+
+- 新增独立 `SubtitleDelayController` responsibility 与 `SetSubtitleDelayCommand`。Controller 只保存当前 generation 的 pending target；确认值唯一来自 `PlaybackSnapshot.controls.subtitleDelaySeconds`。媒体 generation 变化或异步 request failure 会清理 pending；成功回执会主动回读一次 `sub-delay`，避免仅依赖增量 property event 导致 UI 长时间停在 Pending。
+- mpv 适配保持单一权威链：`set sub-delay <seconds>`，并把 `sub-delay` 注册为 Double property，经既有 observer/event mapper/generation gate/reducer 回到 Snapshot。字幕延迟 request 绑定 MediaGeneration，并使用独立 SubtitleDelay supersession lane；不与 Track selection、外挂字幕或后续 R8-06 Audio Delay 共用状态。固定范围 **±2.0 s**、步进 **50 ms**，覆盖正值、负值与 reset `0 ms`。
+- QML 新增职责独立的 `SubtitleDelayControl.qml`，按 Figma `Subtitles / Delay Control`（191:1313）实现 **324×54** Neutral/Pending/Disabled、118×32 slider、32×32 reset 与 pending target 文案；几何进入现有 Size/Layout Token，不留下 Feature raw metric。确认后的实际值进入现有 HUD，按 `+250 ms / -100 ms / 0 ms` 显示；QML 不调用 mpv。
+- 新增 `subtitle_delay_flow` CTest，并扩展 PlaybackCommand、Request supersession、mpv property baseline/observer 与 HUD queue 回归，覆盖正/负/reset、范围拒绝、50 ms 量化、generation 清理、同 generation latest-wins、`set sub-delay` 编码、property→Snapshot 确认真值和 HUD signed-ms。当前连接环境不能执行 Windows Qt/MSVC configure/build、QML lint 或 CTest，也没有真实字幕时序效果 smoke；这些均不记为通过。R8-05 保持 Candidate，无新增生产依赖。
+
+### 2026-08-19 — R8-04 External subtitle Complete
+
+- R8-04 修复版 HEAD `da7400e1637804b046aed971821cea29dd456469` 的自动门禁证据保持不变：Windows build PASS，Quick **99/99 PASS（42.29 s）**、Full **107/107 PASS（78.80 s）**，startup-smoke **3.05 s**、8 项 windowed-render 合计 **38.84 s**；`external_subtitle_flow` 与 `player_fullscreen_controls` 均进入 Quick/Full 回归。
+- 用户随后实机确认本地外挂字幕可以添加，且 Track Popup 内双击不再穿透到底层视频触发全屏，并明确允许本 Atomic Task 暂时收口。因此 R8-04 按当前产品实机结果记为 **Complete**；本次不把未单独报告的 SRT/ASS 双格式逐项矩阵伪写为已验证，Stage R8 关闭前仍需按阶段任务书补真实多音轨/多字幕整体 smoke。
+- 编码检测、更完整的重复加载治理与可见 Toast 错误反馈仍未在 R8-04 提前扩张；完整 D4 Inspector 视觉重组也不作为本次功能收口结果。Stage R8 仍为 In Progress，下一 Atomic Task 为 R8-05。
 
 ### 2026-08-19 — R8-04 real-media smoke repair Candidate
 
