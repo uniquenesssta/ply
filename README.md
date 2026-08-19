@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-04 Complete；R8-05 Candidate**。R8-04 修复版 `da7400e...` 已通过 Windows build、Quick **99/99 PASS（42.29 s）**、Full **107/107 PASS（78.80 s）**，startup-smoke **3.05 s**、8 项 windowed-render 合计 **38.84 s**；用户随后实机确认外挂字幕可以添加，Track Popup 内双击不再穿透触发全屏，并明确允许 R8-04 暂时收口。R8-05 首轮 Windows build 被新增 `subtitle_delay_flow` 测试自身的命名空间误解析阻断；测试修复 `b27022f...` 已提交，仍待重新 build、Quick/Full CTest 与正负/reset 实际时序效果验证，因此不记为 Complete |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-04 Complete；R8-05 Candidate**。字幕延迟实现已在代码 HEAD `20a8db6...` 通过 Windows build、Quick **100/100 PASS（40.48 s）**、Full **108/108 PASS（80.29 s）**，startup-smoke **3.05 s**、8 项 windowed-render 合计 **39.79 s**；真实媒体 smoke 随后发现内嵌 PGS 字幕因自建 libmpv 显式 `-Dzlib=disabled` 被 Matroska demuxer 跳过。诊断提交 `c0e4e677...` 已捕获该根因，修复提交 `fdb9e108...` 已加入固定 zlib **1.3.2** 源码构建并改为 `zlib=enabled`；新 libmpv package 重建、完整回归与同一 MKV 实机复验仍待执行，因此 R8-05 不记为 Complete |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -22,7 +22,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 
 - Qt **6.8.3** / C++20 / CMake / Ninja。
 - Windows 首发工具链：MSVC 2022 x64。
-- 固定 libmpv **0.41.0** sibling package。
+- 固定 libmpv **0.41.0** sibling package；其 Windows 源码构建固定 zlib **1.3.2**，用于 Matroska zlib content-compression 轨道支持并随 audited runtime package 分发。
 - Qt Quick 图形后端固定 OpenGL；视频使用 libmpv OpenGL Render API + `QQuickFramebufferObject`。
 - QML 不直接调用 libmpv。
 - `PlaybackSession` 是播放状态与媒体代际的唯一权威 owner。
@@ -117,13 +117,22 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
+### 2026-08-19 — R8-05 embedded subtitle zlib compatibility repair Candidate
+
+- 真实媒体诊断已把“外挂字幕可显示、内嵌字幕无法正常显示”定位到自建 libmpv 的 Matroska 能力缺口，而不是字体链：该 MKV 的内嵌字幕为 `S_HDMV/PGS`，多条轨道被记录为 zlib content-compression；mpv 明确报出未编译 zlib 支持并跳过轨道。`c0e4e67711165f2744b8c38e403a0067c8fc1440` 只增加 `MPV_EVENT_LOG_MESSAGE` 的字幕/字体/容器诊断转发，不改变字幕渲染行为。
+- 根因源码位于 `scripts/libmpv/clang64/build/mpv.sh` 的显式 `-Dzlib=disabled`。修复 commit `fdb9e108108d1168321f5e3dd8870d7575bb5d04` 固定 zlib **1.3.2** / `v1.3.2` / commit `da607da739fa6047df13e66a2af6b8bec7c2a498`，新增独立 `zlib.sh` 源码构建 responsibility，以 shared library 安装进现有隔离 prefix，再把 mpv 改为 `-Dzlib=enabled`；没有修改 PlaybackSession、Track selection、QML 或字幕延迟真值链。
+- audited libmpv package 同步纳入 zlib source identity、build policy、runtime artifact hash 与 zlib License；runtime staging 明确要求恰好一个 `libz.dll` / `zlib1.dll`，build-layout 门禁禁止重新出现 `-Dzlib=disabled`。这新增一个宽松 zlib License 的小型运行时依赖，目的仅为支持 Matroska zlib-compressed content；没有新增应用层生产依赖。
+- 当前连接环境不能执行 MSYS2 CLANG64 dependency rebuild 或 Windows Qt/MSVC 回归，因此 `scripts/libmpv/verify-build-layout.ps1`、新 libmpv package build/verify、Player build、Quick/Full CTest 与同一 MKV 的内嵌 PGS 字幕实机 smoke 都仍待 Windows 复验。R8-05 继续为 Candidate，R8-06 未开始。
+
 ### 2026-08-19 — R8-05 Subtitle delay Candidate
 
 - 新增独立 `SubtitleDelayController` responsibility 与 `SetSubtitleDelayCommand`。Controller 只保存当前 generation 的 pending target；确认值唯一来自 `PlaybackSnapshot.controls.subtitleDelaySeconds`。媒体 generation 变化或异步 request failure 会清理 pending；成功回执会主动回读一次 `sub-delay`，避免仅依赖增量 property event 导致 UI 长时间停在 Pending。
 - mpv 适配保持单一权威链：`set sub-delay <seconds>`，并把 `sub-delay` 注册为 Double property，经既有 observer/event mapper/generation gate/reducer 回到 Snapshot。字幕延迟 request 绑定 MediaGeneration，并使用独立 SubtitleDelay supersession lane；不与 Track selection、外挂字幕或后续 R8-06 Audio Delay 共用状态。固定范围 **±2.0 s**、步进 **50 ms**，覆盖正值、负值与 reset `0 ms`。
 - QML 新增职责独立的 `SubtitleDelayControl.qml`，按 Figma `Subtitles / Delay Control`（191:1313）实现 **324×54** Neutral/Pending/Disabled、118×32 slider、32×32 reset 与 pending target 文案；几何进入现有 Size/Layout Token，不留下 Feature raw metric。确认后的实际值进入现有 HUD，按 `+250 ms / -100 ms / 0 ms` 显示；QML 不调用 mpv。
 - 新增 `subtitle_delay_flow` CTest，并扩展 PlaybackCommand、Request supersession、mpv property baseline/observer 与 HUD queue 回归，覆盖正/负/reset、范围拒绝、50 ms 量化、generation 清理、同 generation latest-wins、`set sub-delay` 编码、property→Snapshot 确认真值和 HUD signed-ms。当前连接环境不能执行 Windows Qt/MSVC configure/build、QML lint 或 CTest，也没有真实字幕时序效果 smoke；这些均不记为通过。R8-05 保持 Candidate，无新增生产依赖。
-- 用户首轮 Windows build 在 `subtitle_delay_flow_test.cpp` 编译阶段失败，`application::RequestTracker / RequestTrackStatus / PlaybackRequestType` 在测试自身的 `player::tracks::application` 作用域内被错误解析到当前 namespace，产生 C2039/C2065/C3083 连锁错误；build 因此以 exit code 1 停止，后续 `-Quick -SkipBuild` 也因 development runtime marker 未生成而未执行。生产字幕延迟链未被该日志判定失败；测试已改为明确引用 `player::playback::application::...`，修复 commit `b27022f438f7483d08de61221ca3a32800053830`。修复后 Windows build/Quick/Full 与真实正负/reset 时序仍待重跑，R8-05 继续为 Candidate。
+- 用户首轮 Windows build 在 `subtitle_delay_flow_test.cpp` 编译阶段失败，`application::RequestTracker / RequestTrackStatus / PlaybackRequestType` 在测试自身的 `player::tracks::application` 作用域内被错误解析到当前 namespace，产生 C2039/C2065/C3083 连锁错误；build 因此以 exit code 1 停止，后续 `-Quick -SkipBuild` 也因 development runtime marker 未生成而未执行。生产字幕延迟链未被该日志判定失败；测试已改为明确引用 `player::playback::application::...`，修复 commit `b27022f438f7483d08de61221ca3a32800053830`。
+- 第二轮 Windows build 通过，但 Quick 为 **99/100**，唯一失败是 `qml_module_boundaries`：`SubtitleDelayControl.qml` 在 Feature 层直接导入 `Player.Presentation.Primitives/Surfaces`。没有放宽边界测试；`20a8db6cbba7ae2f996daa8e6ee83d42b397627e` 仅把该 Feature 改回既有公开 `Controls + Theme` 边界，根 Surface/文字使用 QtQuick 原生项和 Theme tokens，未改 playback/application/mpv/state 行为。
+- `20a8db6...` 随后在 Windows 锁定环境完成 build，Quick **100/100 PASS（40.48 s）**、Full **108/108 PASS（80.29 s）**；`subtitle_delay_flow` 与 `qml_module_boundaries` 均 PASS，startup-smoke **3.05 s**、8 项 windowed-render 合计 **39.79 s**。自动门禁已关闭；真实 +250 ms / -250 ms / reset 时序 smoke 因上述内嵌字幕 zlib 兼容缺口被阻塞，因此 R8-05 仍保持 Candidate。
 
 ### 2026-08-19 — R8-04 External subtitle Complete
 
