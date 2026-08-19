@@ -8,6 +8,7 @@
 #include "media/application/drop/media_drop_handler.h"
 #include "media/application/open/media_open_coordinator.h"
 #include "media/application/open/url_open_workflow.h"
+#include "playback/application/requests/playback_request.h"
 #include "playback/application/state_publisher/state_publisher.h"
 #include "playback/domain/state/playback_lifecycle_state.h"
 #include "playback/domain/state/playback_snapshot.h"
@@ -18,7 +19,9 @@
 #include "playlist/domain/playlist.h"
 #include "playlist/presentation/playlist_entry_playback_state.h"
 #include "playlist/presentation/playlist_list_model.h"
+#include "presentation/viewmodels/player/hud/hud_message_queue.h"
 #include "tracks/application/external_subtitle_loader.h"
+#include "tracks/application/subtitle_delay_controller.h"
 #include "tracks/application/track_selection_controller.h"
 #include "tracks/presentation/track_list_model.h"
 
@@ -87,6 +90,12 @@ ApplicationContainer::ApplicationContainer(
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitExternalSubtitle(subtitle);
             }))
+    , subtitleDelayController_(
+        std::make_unique<player::tracks::application::SubtitleDelayController>(
+            [this](const player::playback::domain::SetSubtitleDelayCommand& delay) {
+                return playbackComposition_ != nullptr
+                    && playbackComposition_->submitSubtitleDelay(delay);
+            }))
     , audioTrackListModel_(
         std::make_unique<player::tracks::presentation::TrackListModel>(
             player::playback::domain::TrackKind::Audio))
@@ -125,6 +134,20 @@ ApplicationContainer::ApplicationContainer(
             playlistAdvanceArbiter_->suppressObservedGeneration();
         }
     });
+    playbackComposition_->setRequestFailureObserver(
+        [this](quint8 requestType, const QString& diagnostic) {
+            using player::playback::application::PlaybackRequestType;
+            if (requestType != static_cast<quint8>(PlaybackRequestType::SetSubtitleDelay)
+                || subtitleDelayController_ == nullptr) {
+                return;
+            }
+
+            if (subtitleDelayController_->rejectPendingDelay()) {
+                qCWarning(player::logging::uiInteraction).noquote()
+                    << "Tracked subtitle delay request failed:"
+                    << diagnostic;
+            }
+        });
 
     auto& publisher = playbackComposition_->statePublisher();
     QObject::connect(
@@ -137,6 +160,20 @@ ApplicationContainer::ApplicationContainer(
         &player::playback::application::StatePublisher::snapshotPublished,
         subtitleTrackListModel_.get(),
         &player::tracks::presentation::TrackListModel::acceptSnapshot);
+    QObject::connect(
+        &publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        subtitleDelayController_.get(),
+        &player::tracks::application::SubtitleDelayController::acceptSnapshot);
+    QObject::connect(
+        subtitleDelayController_.get(),
+        &player::tracks::application::SubtitleDelayController::delayConfirmed,
+        subtitleDelayController_.get(),
+        [this](int milliseconds) {
+            if (playbackComposition_ != nullptr) {
+                playbackComposition_->hudMessageQueue().showSubtitleDelay(milliseconds);
+            }
+        });
     QObject::connect(
         &publisher,
         &player::playback::application::StatePublisher::snapshotPublished,
@@ -205,6 +242,12 @@ ApplicationContainer::externalSubtitleLoader() noexcept
     return *externalSubtitleLoader_;
 }
 
+player::tracks::application::SubtitleDelayController&
+ApplicationContainer::subtitleDelayController() noexcept
+{
+    return *subtitleDelayController_;
+}
+
 player::tracks::presentation::TrackListModel&
 ApplicationContainer::audioTrackListModel() noexcept
 {
@@ -265,6 +308,10 @@ void ApplicationContainer::shutdown() noexcept
     mediaArgumentOpenWorkflow_.reset();
     urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
+    if (playbackComposition_ != nullptr) {
+        playbackComposition_->setRequestFailureObserver({});
+    }
+    subtitleDelayController_.reset();
     externalSubtitleLoader_.reset();
     trackSelectionController_.reset();
     subtitleTrackListModel_.reset();
