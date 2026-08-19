@@ -221,6 +221,7 @@ void ExternalSubtitleFlowTest::qmlKeepsFilePickingOutsideTrackPopup()
     QVERIFY(screen.contains(QStringLiteral("signal openExternalSubtitleRequested()")));
     QVERIFY(shell.contains(QStringLiteral("ExternalSubtitleOpenDialog")));
     QVERIFY(shell.contains(QStringLiteral("externalSubtitleLoader: window.externalSubtitleLoader")));
+    QVERIFY(shell.contains(QStringLiteral("|| externalSubtitleOpenDialog.visible")));
     QVERIFY(!shell.contains(QStringLiteral("PlaybackSession")));
     QVERIFY(!shell.contains(QStringLiteral("mpv_")));
 }
