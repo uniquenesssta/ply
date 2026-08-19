@@ -4,6 +4,7 @@
 #include "foundation/ids/request_id.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
+#include "playback/domain/commands/subtitle_delay_command.h"
 #include "playback/domain/commands/transport_command.h"
 #include "playback/domain/commands/volume_command.h"
 
@@ -49,6 +50,7 @@ private slots:
     void loadReplacementCancelsOlderLoadAcrossGenerations();
     void seekReplacementIsLatestWinsWithinGeneration();
     void trackSelectionPolicyUsesIndependentLanes();
+    void subtitleDelayUsesIndependentLatestWinsLane();
     void shutdownCancelsAllRemainingPendingRequests();
 };
 
@@ -68,12 +70,15 @@ void RequestSupersessionTest::classifiesSupersessionGroups()
     const auto audio = requestSupersessionGroupFor(PlaybackRequestType::SelectAudioTrack);
     const auto subtitle = requestSupersessionGroupFor(PlaybackRequestType::SelectSubtitleTrack);
     const auto video = requestSupersessionGroupFor(PlaybackRequestType::SelectVideoTrack);
+    const auto subtitleDelay = requestSupersessionGroupFor(PlaybackRequestType::SetSubtitleDelay);
     QVERIFY(audio.has_value());
     QVERIFY(subtitle.has_value());
     QVERIFY(video.has_value());
+    QVERIFY(subtitleDelay.has_value());
     QVERIFY(*audio == PlaybackRequestSupersessionGroup::AudioTrackSelection);
     QVERIFY(*subtitle == PlaybackRequestSupersessionGroup::SubtitleTrackSelection);
     QVERIFY(*video == PlaybackRequestSupersessionGroup::VideoTrackSelection);
+    QVERIFY(*subtitleDelay == PlaybackRequestSupersessionGroup::SubtitleDelay);
 
     QVERIFY(!requestSupersessionGroupFor(PlaybackRequestType::Play).has_value());
     QVERIFY(!requestSupersessionGroupFor(PlaybackRequestType::Pause).has_value());
@@ -221,6 +226,32 @@ void RequestSupersessionTest::trackSelectionPolicyUsesIndependentLanes()
         completedAudio,
         PlaybackRequestType::SelectAudioTrack,
         generation));
+}
+
+void RequestSupersessionTest::subtitleDelayUsesIndependentLatestWinsLane()
+{
+    RequestTracker tracker;
+    const MediaGeneration generation{70};
+    const MediaGeneration otherGeneration{71};
+
+    const PlaybackCommand first = makeCommand(23, SetSubtitleDelayCommand{0.25});
+    const PlaybackCommand latest = makeCommand(24, SetSubtitleDelayCommand{-0.10});
+    const PlaybackCommand other = makeCommand(25, SetSubtitleDelayCommand{0.50});
+
+    QVERIFY(tracker.track(first, generation) == RequestTrackStatus::Tracked);
+    QVERIFY(tracker.track(other, otherGeneration) == RequestTrackStatus::Tracked);
+    QVERIFY(tracker.track(latest, generation) == RequestTrackStatus::Tracked);
+
+    QCOMPARE(tracker.supersedePendingFor(latest, generation), std::size_t{1});
+
+    const auto firstRecord = tracker.record(player::ids::RequestId{23});
+    QVERIFY(firstRecord.has_value());
+    QVERIFY(firstRecord->state == PlaybackRequestState::Cancelled);
+    QVERIFY(firstRecord->cancellationReason == PlaybackRequestCancellationReason::Superseded);
+
+    const auto otherRecord = tracker.record(player::ids::RequestId{25});
+    QVERIFY(otherRecord.has_value());
+    QVERIFY(otherRecord->state == PlaybackRequestState::Pending);
 }
 
 void RequestSupersessionTest::shutdownCancelsAllRemainingPendingRequests()
