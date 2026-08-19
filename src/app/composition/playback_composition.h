@@ -2,6 +2,7 @@
 
 #include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/seek_command.h"
+#include "playback/domain/commands/subtitle_delay_command.h"
 #include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
 
@@ -34,6 +35,7 @@ class PlaybackComposition final
 {
 public:
     using PlaybackSupersessionObserver = std::function<void()>;
+    using RequestFailureObserver = std::function<void(quint8, const QString&)>;
 
     PlaybackComposition();
     ~PlaybackComposition();
@@ -57,10 +59,13 @@ public:
     [[nodiscard]] player::presentation::HudMessageQueue& hudMessageQueue() noexcept;
 
     void setPlaybackSupersessionObserver(PlaybackSupersessionObserver observer);
+    void setRequestFailureObserver(RequestFailureObserver observer);
     [[nodiscard]] bool submitMediaLoad(const QString& canonicalSource);
     [[nodiscard]] bool submitMediaStop();
     [[nodiscard]] bool submitExternalSubtitle(
         const player::playback::domain::AddExternalSubtitleCommand& subtitle);
+    [[nodiscard]] bool submitSubtitleDelay(
+        const player::playback::domain::SetSubtitleDelayCommand& delay);
     [[nodiscard]] bool submitTrackSelection(
         const player::playback::domain::TrackSelectionCommand& selection);
 
@@ -83,6 +88,7 @@ private:
     std::unique_ptr<player::presentation::PlayerMediaViewModel> mediaViewModel_;
     std::unique_ptr<player::presentation::HudMessageQueue> hudMessageQueue_;
     PlaybackSupersessionObserver playbackSupersessionObserver_;
+    RequestFailureObserver requestFailureObserver_;
 };
 
 } // namespace player::app
