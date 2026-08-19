@@ -36,7 +36,7 @@ QtObject {
     readonly property int playbackControl: SizePrimitives.size40
     readonly property int controlHitMinimum: SizePrimitives.size32
     readonly property int volumeTrackWidth: SizePrimitives.size100
-    readonly property int trackSelectionPopupWidth: SizePrimitives.size280
+    readonly property int trackSelectionPopupWidth: SizePrimitives.size324 + SizePrimitives.size16
 
     readonly property int sliderDefaultWidth: SizePrimitives.size180
     readonly property int sliderReferenceHitWidth: SizePrimitives.size132
