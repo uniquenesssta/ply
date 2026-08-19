@@ -24,9 +24,12 @@ QtObject {
     readonly property int size54: 54
     readonly property int size58: 58
     readonly property int size64: 64
+    readonly property int size78: 78
     readonly property int size100: 100
+    readonly property int size104: 104
     readonly property int size106: 106
     readonly property int size110: 110
+    readonly property int size118: 118
     readonly property int size124: 124
     readonly property int size132: 132
     readonly property int size180: 180
