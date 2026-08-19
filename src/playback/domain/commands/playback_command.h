@@ -24,22 +24,22 @@ using PlaybackCommandPayload = std::variant<
     SetVolumeCommand,
     SetMutedCommand,
     SetSpeedCommand,
-    AddExternalSubtitleCommand,
     TrackSelectionCommand,
-    LifecycleCommand>;
+    LifecycleCommand,
+    AddExternalSubtitleCommand>;
 
 enum class PlaybackCommandValidationError : quint8
 {
     InvalidRequestId,
     EmptyMediaSource,
     MediaSourceContainsNull,
-    EmptyExternalSubtitleSource,
-    ExternalSubtitleSourceContainsNull,
     NonFiniteSeek,
     InvalidVolume,
     InvalidSpeed,
     InvalidTrackId,
     AudioTrackCannotBeDisabled,
+    EmptyExternalSubtitleSource,
+    ExternalSubtitleSourceContainsNull,
 };
 
 class PlaybackCommand final
