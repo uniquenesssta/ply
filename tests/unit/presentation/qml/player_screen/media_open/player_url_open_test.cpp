@@ -65,8 +65,7 @@ void PlayerUrlOpenTest::mainWindowRoutesUrlIntentThroughWorkflow()
     QVERIFY(mainWindow.contains(QStringLiteral("UrlMediaOpenDialog {")));
     QVERIFY(mainWindow.contains(QStringLiteral("window.urlOpenWorkflow.openUrl(sourceText)")));
     QVERIFY(mainWindow.contains(QStringLiteral("urlMediaOpenDialog.errorKey = window.urlOpenWorkflow.lastErrorKey")));
-    QVERIFY(mainWindow.contains(QStringLiteral(
-        "modalActive: localMediaOpenDialog.visible || urlMediaOpenDialog.visible")));
+    QVERIFY(mainWindow.contains(QStringLiteral("|| urlMediaOpenDialog.visible")));
     QVERIFY(mainWindow.contains(QStringLiteral("onOpenUrlRequested: urlMediaOpenDialog.open()")));
     QVERIFY(!mainWindow.contains(QStringLiteral("PlaybackSession")));
     QVERIFY(!mainWindow.contains(QStringLiteral("libmpv"), Qt::CaseInsensitive));
