@@ -162,15 +162,15 @@ void ExternalSubtitleFlowTest::commandFlowUsesGenerationScopedCachedSubAdd()
             QByteArrayLiteral("C:/media/captions.ass"),
             QByteArrayLiteral("cached")}));
 
-    application::RequestTracker tracker;
+    player::playback::application::RequestTracker tracker;
     const domain::MediaGeneration generation{7};
     QCOMPARE(
         tracker.track(command, generation),
-        application::RequestTrackStatus::Tracked);
+        player::playback::application::RequestTrackStatus::Tracked);
 
     const auto firstRecord = tracker.record(command.requestId());
     QVERIFY(firstRecord.has_value());
-    QVERIFY(firstRecord->type == application::PlaybackRequestType::AddExternalSubtitle);
+    QVERIFY(firstRecord->type == player::playback::application::PlaybackRequestType::AddExternalSubtitle);
     QVERIFY(firstRecord->generation.has_value());
     QCOMPARE(firstRecord->generation->value(), generation.value());
 
@@ -180,7 +180,7 @@ void ExternalSubtitleFlowTest::commandFlowUsesGenerationScopedCachedSubAdd()
             domain::AddExternalSubtitleCommand{QStringLiteral("C:/media/other.srt")}}};
     QCOMPARE(
         tracker.track(secondCommand, generation),
-        application::RequestTrackStatus::Tracked);
+        player::playback::application::RequestTrackStatus::Tracked);
     QCOMPARE(tracker.supersedePendingFor(secondCommand, generation), std::size_t{0});
     QCOMPARE(
         tracker.cancelMediaRequestsForGenerationChange(domain::MediaGeneration{8}),
