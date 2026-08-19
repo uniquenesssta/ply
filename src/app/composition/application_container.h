@@ -29,6 +29,7 @@ class PlaylistListModel;
 
 namespace player::tracks::application {
 class ExternalSubtitleLoader;
+class SubtitleDelayController;
 class TrackSelectionController;
 }
 
@@ -63,6 +64,7 @@ public:
     [[nodiscard]] player::playlist::presentation::PlaylistListModel& playlistListModel() noexcept;
     [[nodiscard]] player::tracks::application::TrackSelectionController& trackSelectionController() noexcept;
     [[nodiscard]] player::tracks::application::ExternalSubtitleLoader& externalSubtitleLoader() noexcept;
+    [[nodiscard]] player::tracks::application::SubtitleDelayController& subtitleDelayController() noexcept;
     [[nodiscard]] player::tracks::presentation::TrackListModel& audioTrackListModel() noexcept;
     [[nodiscard]] player::tracks::presentation::TrackListModel& subtitleTrackListModel() noexcept;
     [[nodiscard]] player::media::application::MediaOpenCoordinator& mediaOpenCoordinator() noexcept;
@@ -86,6 +88,7 @@ private:
     std::unique_ptr<player::playlist::presentation::PlaylistListModel> playlistListModel_;
     std::unique_ptr<player::tracks::application::TrackSelectionController> trackSelectionController_;
     std::unique_ptr<player::tracks::application::ExternalSubtitleLoader> externalSubtitleLoader_;
+    std::unique_ptr<player::tracks::application::SubtitleDelayController> subtitleDelayController_;
     std::unique_ptr<player::tracks::presentation::TrackListModel> audioTrackListModel_;
     std::unique_ptr<player::tracks::presentation::TrackListModel> subtitleTrackListModel_;
     std::unique_ptr<player::media::application::MediaOpenCoordinator> mediaOpenCoordinator_;
