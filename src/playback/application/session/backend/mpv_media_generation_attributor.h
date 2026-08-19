@@ -9,6 +9,7 @@
 #include <deque>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace player::playback::application {
 
@@ -34,17 +35,27 @@ private:
         player::playback::domain::MediaGeneration generation;
     };
 
+    void attributeCommandReply(
+        const player::playback::mpv::MpvEvent& event) noexcept;
     [[nodiscard]] player::playback::domain::MediaGeneration attributeStartFile(
         const player::playback::mpv::MpvEvent& event) noexcept;
+    [[nodiscard]] player::playback::domain::MediaGeneration activateStartFile(
+        qint64 playlistEntryId,
+        player::playback::domain::MediaGeneration generation) noexcept;
     [[nodiscard]] player::playback::domain::MediaGeneration attributeFileLoaded() noexcept;
     [[nodiscard]] player::playback::domain::MediaGeneration attributeEndFile(
         const player::playback::mpv::MpvEvent& event) noexcept;
 
+    void discardSupersededPendingStarts(
+        player::playback::domain::MediaGeneration generation) noexcept;
+    [[nodiscard]] bool hasReplacementPending() const noexcept;
     void removeLoadingEntry(qint64 playlistEntryId) noexcept;
 
     std::deque<PendingLoad> pendingLoads_;
     std::deque<qint64> loadingEntries_;
     std::unordered_map<qint64, player::playback::domain::MediaGeneration> entryGenerations_;
+    std::unordered_set<qint64> pendingStartEntries_;
+    std::unordered_set<qint64> unresolvedStartEntries_;
     qint64 activePlaylistEntryId_ = 0;
     player::playback::domain::MediaGeneration activeGeneration_;
     player::playback::domain::MediaGeneration propertyGeneration_;

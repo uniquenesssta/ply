@@ -45,9 +45,7 @@ MediaGeneration MpvMediaGenerationAttributor::attribute(const MpvEvent& event) n
     case MpvEventType::PropertyChange:
         return propertyGeneration_;
     case MpvEventType::CommandReply:
-        if (!event.error.isSuccess() && event.replyUserdata != 0) {
-            cancelLoadSubmission(RequestId{event.replyUserdata});
-        }
+        attributeCommandReply(event);
         return {};
     case MpvEventType::Shutdown:
     case MpvEventType::LogMessage:
@@ -72,10 +70,72 @@ void MpvMediaGenerationAttributor::reset() noexcept
     pendingLoads_.clear();
     loadingEntries_.clear();
     entryGenerations_.clear();
+    pendingStartEntries_.clear();
+    unresolvedStartEntries_.clear();
     activePlaylistEntryId_ = 0;
     activeGeneration_ = {};
     propertyGeneration_ = {};
     propertyRefreshGeneration_.reset();
+}
+
+void MpvMediaGenerationAttributor::attributeCommandReply(const MpvEvent& event) noexcept
+{
+    if (event.replyUserdata == 0) {
+        return;
+    }
+
+    const RequestId requestId{event.replyUserdata};
+    const auto pending = std::find_if(
+        pendingLoads_.begin(),
+        pendingLoads_.end(),
+        [requestId](const PendingLoad& load) {
+            return load.requestId == requestId;
+        });
+    if (pending == pendingLoads_.end()) {
+        return;
+    }
+
+    const MediaGeneration generation = pending->generation;
+    pendingLoads_.erase(pending);
+
+    if (!event.error.isSuccess()) {
+        if (pendingLoads_.empty()) {
+            unresolvedStartEntries_.clear();
+        }
+        return;
+    }
+
+    const auto* reply = std::get_if<MpvCommandReplyData>(&event.payload);
+    if (reply == nullptr || !reply->playlistEntryId.has_value()
+        || *reply->playlistEntryId <= 0) {
+        if (pendingLoads_.empty()) {
+            unresolvedStartEntries_.clear();
+        }
+        return;
+    }
+
+    const qint64 playlistEntryId = *reply->playlistEntryId;
+    const bool startAlreadyObserved = unresolvedStartEntries_.erase(playlistEntryId) > 0;
+
+    if (activeGeneration_.isValid()
+        && generation.value() < activeGeneration_.value()
+        && !startAlreadyObserved) {
+        if (pendingLoads_.empty()) {
+            unresolvedStartEntries_.clear();
+        }
+        return;
+    }
+
+    entryGenerations_[playlistEntryId] = generation;
+    if (startAlreadyObserved) {
+        (void)activateStartFile(playlistEntryId, generation);
+    } else {
+        pendingStartEntries_.insert(playlistEntryId);
+    }
+
+    if (pendingLoads_.empty()) {
+        unresolvedStartEntries_.clear();
+    }
 }
 
 MediaGeneration MpvMediaGenerationAttributor::attributeStartFile(
@@ -87,23 +147,28 @@ MediaGeneration MpvMediaGenerationAttributor::attributeStartFile(
     }
 
     const qint64 playlistEntryId = startFile->playlistEntryId;
-    const MediaGeneration previousActiveGeneration = activeGeneration_;
-    MediaGeneration generation;
-
-    if (const auto existing = entryGenerations_.find(playlistEntryId);
-        existing != entryGenerations_.end()) {
-        generation = existing->second;
-    } else if (!pendingLoads_.empty()) {
-        generation = pendingLoads_.front().generation;
-        pendingLoads_.pop_front();
-        entryGenerations_.emplace(playlistEntryId, generation);
-    } else if (activeGeneration_.isValid()) {
-        generation = activeGeneration_;
-        entryGenerations_.emplace(playlistEntryId, generation);
+    const auto generation = entryGenerations_.find(playlistEntryId);
+    if (generation == entryGenerations_.end()) {
+        if (!pendingLoads_.empty()) {
+            unresolvedStartEntries_.insert(playlistEntryId);
+        }
+        return {};
     }
 
-    if (!generation.isValid()) {
-        return {};
+    return activateStartFile(playlistEntryId, generation->second);
+}
+
+MediaGeneration MpvMediaGenerationAttributor::activateStartFile(
+    qint64 playlistEntryId,
+    MediaGeneration generation) noexcept
+{
+    pendingStartEntries_.erase(playlistEntryId);
+    discardSupersededPendingStarts(generation);
+
+    const MediaGeneration previousActiveGeneration = activeGeneration_;
+    if (previousActiveGeneration.isValid()
+        && generation.value() < previousActiveGeneration.value()) {
+        return generation;
     }
 
     activePlaylistEntryId_ = playlistEntryId;
@@ -151,6 +216,9 @@ MediaGeneration MpvMediaGenerationAttributor::attributeEndFile(
     }
 
     const qint64 playlistEntryId = endFile->playlistEntryId;
+    unresolvedStartEntries_.erase(playlistEntryId);
+    pendingStartEntries_.erase(playlistEntryId);
+
     const auto generationEntry = entryGenerations_.find(playlistEntryId);
     if (generationEntry == entryGenerations_.end()) {
         return {};
@@ -171,8 +239,7 @@ MediaGeneration MpvMediaGenerationAttributor::attributeEndFile(
         activePlaylistEntryId_ = 0;
         if (endFile->reason != MpvEndFileReason::Redirect) {
             activeGeneration_ = {};
-            const bool replacementStillPending = !pendingLoads_.empty();
-            if (!replacementStillPending && propertyGeneration_ == generation) {
+            if (!hasReplacementPending() && propertyGeneration_ == generation) {
                 propertyGeneration_ = {};
             }
         }
@@ -180,6 +247,30 @@ MediaGeneration MpvMediaGenerationAttributor::attributeEndFile(
 
     entryGenerations_.erase(playlistEntryId);
     return generation;
+}
+
+void MpvMediaGenerationAttributor::discardSupersededPendingStarts(
+    MediaGeneration generation) noexcept
+{
+    for (auto entry = pendingStartEntries_.begin(); entry != pendingStartEntries_.end();) {
+        const auto mapped = entryGenerations_.find(*entry);
+        if (mapped == entryGenerations_.end()
+            || mapped->second.value() < generation.value()) {
+            if (mapped != entryGenerations_.end()) {
+                entryGenerations_.erase(mapped);
+            }
+            entry = pendingStartEntries_.erase(entry);
+            continue;
+        }
+        ++entry;
+    }
+}
+
+bool MpvMediaGenerationAttributor::hasReplacementPending() const noexcept
+{
+    return !pendingLoads_.empty()
+        || !pendingStartEntries_.empty()
+        || !unresolvedStartEntries_.empty();
 }
 
 void MpvMediaGenerationAttributor::removeLoadingEntry(qint64 playlistEntryId) noexcept

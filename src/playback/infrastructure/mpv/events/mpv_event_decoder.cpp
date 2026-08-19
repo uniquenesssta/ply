@@ -1,12 +1,15 @@
 #include "playback/infrastructure/mpv/events/mpv_event_decoder.h"
 
 #include "playback/infrastructure/mpv/errors/mpv_error_mapper.h"
+#include "playback/infrastructure/mpv/properties/mpv_node_decoder.h"
 #include "playback/infrastructure/mpv/properties/mpv_property_observer.h"
 
 #include <mpv/client.h>
 
 #include <QString>
+#include <QVariantMap>
 
+#include <optional>
 #include <utility>
 
 namespace player::playback::mpv {
@@ -33,6 +36,33 @@ MpvEndFileReason mapEndFileReason(mpv_end_file_reason reason) noexcept
 QString stringOrEmpty(const char* value)
 {
     return value == nullptr ? QString{} : QString::fromUtf8(value);
+}
+
+std::optional<qint64> commandReplyPlaylistEntryId(const mpv_event& event)
+{
+    if (event.data == nullptr) {
+        return std::nullopt;
+    }
+
+    const auto* command = static_cast<const mpv_event_command*>(event.data);
+    QString ignoredDiagnostic;
+    const auto decodedResult = MpvNodeDecoder::decode(command->result, &ignoredDiagnostic);
+    if (!decodedResult.has_value()) {
+        return std::nullopt;
+    }
+
+    const QVariantMap resultMap = decodedResult->toMap();
+    const auto entry = resultMap.constFind(QStringLiteral("playlist_entry_id"));
+    if (entry == resultMap.cend()) {
+        return std::nullopt;
+    }
+
+    bool converted = false;
+    const qlonglong playlistEntryId = entry->toLongLong(&converted);
+    if (!converted || playlistEntryId <= 0) {
+        return std::nullopt;
+    }
+    return static_cast<qint64>(playlistEntryId);
 }
 
 MpvEvent makeBaseEvent(const mpv_event& event, MpvEventType type)
@@ -91,8 +121,11 @@ MpvEvent MpvEventDecoder::decode(const mpv_event& event)
             static_cast<int>(endFile->reason)};
         return decoded;
     }
-    case MPV_EVENT_COMMAND_REPLY:
-        return makeBaseEvent(event, MpvEventType::CommandReply);
+    case MPV_EVENT_COMMAND_REPLY: {
+        MpvEvent decoded = makeBaseEvent(event, MpvEventType::CommandReply);
+        decoded.payload = MpvCommandReplyData{commandReplyPlaylistEntryId(event)};
+        return decoded;
+    }
     case MPV_EVENT_PROPERTY_CHANGE: {
         QString propertyError;
         std::optional<MpvPropertyChange> propertyChange;

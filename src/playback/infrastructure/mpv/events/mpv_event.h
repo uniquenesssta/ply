@@ -7,6 +7,7 @@
 #include <QString>
 #include <QtGlobal>
 
+#include <optional>
 #include <variant>
 
 namespace player::playback::mpv {
@@ -48,6 +49,11 @@ struct MpvEndFileData final
     int rawReason = 0;
 };
 
+struct MpvCommandReplyData final
+{
+    std::optional<qint64> playlistEntryId;
+};
+
 struct MpvLogMessageData final
 {
     QString prefix;
@@ -71,6 +77,7 @@ using MpvEventPayload = std::variant<
     std::monostate,
     MpvStartFileData,
     MpvEndFileData,
+    MpvCommandReplyData,
     MpvPropertyChange,
     MpvLogMessageData,
     MpvUnknownEventData,

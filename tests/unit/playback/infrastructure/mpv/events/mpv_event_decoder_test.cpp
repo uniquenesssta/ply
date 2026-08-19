@@ -20,6 +20,7 @@
 #include <QtTest>
 
 #include <memory>
+#include <optional>
 
 namespace player::playback::mpv {
 namespace {
@@ -112,6 +113,26 @@ bool containsCommandReply(const QSignalSpy& spy, quint64 requestId)
     return false;
 }
 
+std::optional<qint64> commandReplyPlaylistEntryId(
+    const QSignalSpy& spy,
+    quint64 requestId)
+{
+    for (const QList<QVariant>& arguments : spy) {
+        if (arguments.isEmpty()) {
+            continue;
+        }
+        const MpvEvent event = qvariant_cast<MpvEvent>(arguments.first());
+        if (event.type != MpvEventType::CommandReply || event.replyUserdata != requestId) {
+            continue;
+        }
+        const auto* reply = std::get_if<MpvCommandReplyData>(&event.payload);
+        if (reply != nullptr && reply->playlistEntryId.has_value()) {
+            return reply->playlistEntryId;
+        }
+    }
+    return std::nullopt;
+}
+
 bool containsEndReason(const QSignalSpy& spy, MpvEndFileReason reason)
 {
     for (const QList<QVariant>& arguments : spy) {
@@ -183,14 +204,41 @@ void MpvEventDecoderTest::decodesSyntheticCoreEvents()
     fileLoaded.event_id = MPV_EVENT_FILE_LOADED;
     QCOMPARE(MpvEventDecoder::decode(fileLoaded).type, MpvEventType::FileLoaded);
 
+    char playlistEntryIdKey[] = "playlist_entry_id";
+    char* commandKeys[]{playlistEntryIdKey};
+    mpv_node commandValue{};
+    commandValue.format = MPV_FORMAT_INT64;
+    commandValue.u.int64 = 314;
+    mpv_node_list commandResultMap{};
+    commandResultMap.num = 1;
+    commandResultMap.values = &commandValue;
+    commandResultMap.keys = commandKeys;
+    mpv_event_command commandData{};
+    commandData.result.format = MPV_FORMAT_NODE_MAP;
+    commandData.result.u.list = &commandResultMap;
+
     mpv_event commandReply{};
     commandReply.event_id = MPV_EVENT_COMMAND_REPLY;
-    commandReply.error = MPV_ERROR_COMMAND;
+    commandReply.error = MPV_ERROR_SUCCESS;
     commandReply.reply_userdata = 77;
+    commandReply.data = &commandData;
     decoded = MpvEventDecoder::decode(commandReply);
     QCOMPARE(decoded.type, MpvEventType::CommandReply);
     QCOMPARE(decoded.replyUserdata, quint64{77});
+    QCOMPARE(decoded.error.code, MpvErrorCode::Success);
+    const MpvCommandReplyData replyData = std::get<MpvCommandReplyData>(decoded.payload);
+    QVERIFY(replyData.playlistEntryId.has_value());
+    QCOMPARE(*replyData.playlistEntryId, qint64{314});
+
+    mpv_event failedCommandReply{};
+    failedCommandReply.event_id = MPV_EVENT_COMMAND_REPLY;
+    failedCommandReply.error = MPV_ERROR_COMMAND;
+    failedCommandReply.reply_userdata = 78;
+    decoded = MpvEventDecoder::decode(failedCommandReply);
+    QCOMPARE(decoded.type, MpvEventType::CommandReply);
+    QCOMPARE(decoded.replyUserdata, quint64{78});
     QCOMPARE(decoded.error.code, MpvErrorCode::Command);
+    QVERIFY(!std::get<MpvCommandReplyData>(decoded.payload).playlistEntryId.has_value());
 
     mpv_event_end_file endData{};
     endData.reason = MPV_END_FILE_REASON_ERROR;
@@ -332,6 +380,8 @@ void MpvEventDecoderTest::realShortMediaSequenceUsesTypedEvents()
     QVERIFY2(executor.submit(kLoadRequestId, MpvLoadRequest{mediaPath}, &error), qPrintable(error));
 
     QTRY_VERIFY_WITH_TIMEOUT(containsCommandReply(eventSpy, kLoadRequestId), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(commandReplyPlaylistEntryId(eventSpy, kLoadRequestId).has_value(), 5000);
+    QVERIFY(*commandReplyPlaylistEntryId(eventSpy, kLoadRequestId) > 0);
     QTRY_VERIFY_WITH_TIMEOUT(containsEventType(eventSpy, MpvEventType::StartFile), 5000);
     QTRY_VERIFY_WITH_TIMEOUT(containsEventType(eventSpy, MpvEventType::FileLoaded), 5000);
     QTRY_VERIFY_WITH_TIMEOUT(containsEventType(eventSpy, MpvEventType::PropertyChange), 5000);
