@@ -24,7 +24,7 @@ namespace {
 
 using player::playback::mpv::MpvPropertyId;
 
-constexpr std::array<MpvPropertyId, 17> kMediaRefreshProperties{
+constexpr std::array<MpvPropertyId, 18> kMediaRefreshProperties{
     MpvPropertyId::Position,
     MpvPropertyId::Duration,
     MpvPropertyId::Pause,
@@ -42,11 +42,16 @@ constexpr std::array<MpvPropertyId, 17> kMediaRefreshProperties{
     MpvPropertyId::SelectedVideoTrack,
     MpvPropertyId::VideoParams,
     MpvPropertyId::AudioParams,
+    MpvPropertyId::SubtitleDelay,
 };
 
 constexpr std::array<MpvPropertyId, 2> kExternalSubtitleRefreshProperties{
     MpvPropertyId::TrackList,
     MpvPropertyId::SelectedSubtitleTrack,
+};
+
+constexpr std::array<MpvPropertyId, 1> kSubtitleDelayRefreshProperties{
+    MpvPropertyId::SubtitleDelay,
 };
 
 } // namespace
@@ -244,6 +249,12 @@ void PlaybackSessionBackend::refreshExternalSubtitleTrackState(
     player::playback::domain::MediaGeneration generation)
 {
     refreshProperties(generation, kExternalSubtitleRefreshProperties);
+}
+
+void PlaybackSessionBackend::refreshSubtitleDelayState(
+    player::playback::domain::MediaGeneration generation)
+{
+    refreshProperties(generation, kSubtitleDelayRefreshProperties);
 }
 
 void PlaybackSessionBackend::refreshCurrentMediaProperties(
