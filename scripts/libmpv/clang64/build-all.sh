@@ -8,6 +8,7 @@ rm -rf "$PLAYER_BUILD_ROOT" "$PLAYER_PREFIX_ROOT" "$PLAYER_METADATA_ROOT"
 mkdir -p "$PLAYER_BUILD_ROOT" "$PLAYER_PREFIX_ROOT" "$PLAYER_METADATA_ROOT"
 
 build_steps=(
+    zlib
     freetype
     fribidi
     harfbuzz

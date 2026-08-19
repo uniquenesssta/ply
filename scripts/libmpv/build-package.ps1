@@ -32,6 +32,9 @@ try {
         PLAYER_FFMPEG_ARCHIVE_SIGNATURE_URL  = $versions.FfmpegArchiveSignatureUrl
         PLAYER_FFMPEG_SIGNING_KEY_URL        = $versions.FfmpegSigningKeyUrl
         PLAYER_FFMPEG_SIGNING_FINGERPRINT    = $versions.FfmpegSigningFingerprint
+        PLAYER_ZLIB_VERSION                  = $versions.ZlibVersion
+        PLAYER_ZLIB_REF                      = $versions.ZlibRef
+        PLAYER_ZLIB_COMMIT                   = $versions.ZlibCommit
         PLAYER_LIBPLACEBO_VERSION            = $versions.LibplaceboVersion
         PLAYER_LIBPLACEBO_REF                = $versions.LibplaceboRef
         PLAYER_LIBPLACEBO_COMMIT             = $versions.LibplaceboCommit

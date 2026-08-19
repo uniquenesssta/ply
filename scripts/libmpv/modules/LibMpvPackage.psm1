@@ -97,6 +97,7 @@ function Write-PlayerLibMpvDependencyManifest {
     $sourceNames = @(
         "mpv",
         "ffmpeg",
+        "zlib",
         "libplacebo",
         "libass",
         "freetype",
@@ -112,6 +113,7 @@ function Write-PlayerLibMpvDependencyManifest {
     $commitChecks = @(
         @("mpv", $sourceCommits.mpv, $Versions.MpvCommit),
         @("ffmpeg", $sourceCommits.ffmpeg, $Versions.FfmpegCommit),
+        @("zlib", $sourceCommits.zlib, $Versions.ZlibCommit),
         @("libplacebo", $sourceCommits.libplacebo, $Versions.LibplaceboCommit),
         @("libass", $sourceCommits.libass, $Versions.LibassCommit),
         @("freetype", $sourceCommits.freetype, $Versions.FreetypeCommit),
@@ -142,6 +144,12 @@ function Write-PlayerLibMpvDependencyManifest {
             ref = $Versions.FfmpegRef
             commit = $Versions.FfmpegCommit
             sourceCommit = $sourceCommits.ffmpeg
+        }
+        zlib = [ordered]@{
+            version = $Versions.ZlibVersion
+            ref = $Versions.ZlibRef
+            commit = $Versions.ZlibCommit
+            sourceCommit = $sourceCommits.zlib
         }
         libplacebo = [ordered]@{
             version = $Versions.LibplaceboVersion
@@ -179,7 +187,8 @@ function Write-PlayerLibMpvDependencyManifest {
                 "cplayer=false",
                 "libmpv=true",
                 "default_library=shared",
-                "build-date=false"
+                "build-date=false",
+                "zlib=enabled"
             )
             ffmpeg = @(
                 "disable-autodetect",
@@ -226,6 +235,9 @@ function Test-PlayerLibMpvDependencyManifest {
         @("ffmpeg.version", [string]$manifest.ffmpeg.version, $Versions.FfmpegVersion),
         @("ffmpeg.commit", [string]$manifest.ffmpeg.commit, $Versions.FfmpegCommit),
         @("ffmpeg.sourceCommit", [string]$manifest.ffmpeg.sourceCommit, $Versions.FfmpegCommit),
+        @("zlib.version", [string]$manifest.zlib.version, $Versions.ZlibVersion),
+        @("zlib.commit", [string]$manifest.zlib.commit, $Versions.ZlibCommit),
+        @("zlib.sourceCommit", [string]$manifest.zlib.sourceCommit, $Versions.ZlibCommit),
         @("libplacebo.version", [string]$manifest.libplacebo.version, $Versions.LibplaceboVersion),
         @("libplacebo.commit", [string]$manifest.libplacebo.commit, $Versions.LibplaceboCommit),
         @("libplacebo.sourceCommit", [string]$manifest.libplacebo.sourceCommit, $Versions.LibplaceboCommit),
@@ -249,6 +261,11 @@ function Test-PlayerLibMpvDependencyManifest {
         }
     }
 
+    $mpvBuildPolicy = @($manifest.buildPolicy.mpv | ForEach-Object { [string]$_ })
+    if ($mpvBuildPolicy -notcontains "zlib=enabled") {
+        throw "libmpv manifest mpv build policy is missing 'zlib=enabled'. Rebuild the package so Matroska zlib-compressed tracks are supported."
+    }
+
     $ffmpegBuildPolicy = @($manifest.buildPolicy.ffmpeg | ForEach-Object { [string]$_ })
     if ($ffmpegBuildPolicy -notcontains "enable-schannel") {
         throw "libmpv manifest FFmpeg build policy is missing 'enable-schannel'. Rebuild the package so HTTPS media uses Windows Schannel TLS."
@@ -257,6 +274,13 @@ function Test-PlayerLibMpvDependencyManifest {
     $artifactEntries = @($manifest.artifacts)
     if ($artifactEntries.Count -eq 0) {
         throw "libmpv dependency manifest contains no artifact hashes."
+    }
+
+    $zlibRuntimeArtifacts = @($artifactEntries | Where-Object {
+        ([string]$_.path) -match '^bin/(libz|zlib1)\.dll$'
+    })
+    if ($zlibRuntimeArtifacts.Count -ne 1) {
+        throw "libmpv package must contain exactly one zlib runtime DLL (libz.dll or zlib1.dll); found $($zlibRuntimeArtifacts.Count)."
     }
 
     foreach ($artifact in $artifactEntries) {

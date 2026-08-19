@@ -14,6 +14,7 @@ $requiredFiles = @(
     "scripts/libmpv/clang64/source/source_archive.sh",
     "scripts/libmpv/clang64/build-all.sh",
     "scripts/libmpv/clang64/package-runtime.sh",
+    "scripts/libmpv/clang64/build/zlib.sh",
     "scripts/libmpv/clang64/build/freetype.sh",
     "scripts/libmpv/clang64/build/fribidi.sh",
     "scripts/libmpv/clang64/build/harfbuzz.sh",
@@ -41,6 +42,8 @@ try {
         'PLAYER_FFMPEG_ARCHIVE_SIGNATURE_URL "https://ffmpeg.org/releases/ffmpeg-8.0.3.tar.xz.asc"',
         'PLAYER_FFMPEG_SIGNING_KEY_URL "https://ffmpeg.org/ffmpeg-devel.asc"',
         'PLAYER_FFMPEG_SIGNING_FINGERPRINT "FCF986EA15E6E293A5644F10B4322F04D67658D8"',
+        'PLAYER_ZLIB_VERSION "1.3.2"',
+        'PLAYER_ZLIB_COMMIT "da607da739fa6047df13e66a2af6b8bec7c2a498"',
         'PLAYER_LIBPLACEBO_VERSION "7.351.0"',
         'PLAYER_LIBPLACEBO_COMMIT "3188549fba13bbdf3a5a98de2a38c2e71f04e21e"',
         'PLAYER_LIBASS_VERSION "0.17.4"',
@@ -68,9 +71,17 @@ try {
     }
 
     $bootstrap = Get-Content -LiteralPath "scripts/libmpv/bootstrap-build-environment.ps1" -Raw
-    foreach ($fragment in @('"curl"', '"gnupg"', '"tar"', '"xz"', '"gpg"')) {
+    foreach ($fragment in @(
+        '"curl"',
+        '"gnupg"',
+        '"tar"',
+        '"xz"',
+        '"gpg"',
+        '"mingw-w64-clang-x86_64-cmake"',
+        '"cmake"'
+    )) {
         if (-not $bootstrap.Contains($fragment)) {
-            throw "bootstrap-build-environment.ps1 is missing signed-archive build tool: $fragment"
+            throw "bootstrap-build-environment.ps1 is missing required build tool/package fragment: $fragment"
         }
     }
 
@@ -96,6 +107,7 @@ try {
     }
 
     $sourceBuildCommitVariables = [ordered]@{
+        "scripts/libmpv/clang64/build/zlib.sh"       = "PLAYER_ZLIB_COMMIT"
         "scripts/libmpv/clang64/build/freetype.sh"   = "PLAYER_FREETYPE_COMMIT"
         "scripts/libmpv/clang64/build/fribidi.sh"    = "PLAYER_FRIBIDI_COMMIT"
         "scripts/libmpv/clang64/build/harfbuzz.sh"   = "PLAYER_HARFBUZZ_COMMIT"
@@ -107,6 +119,20 @@ try {
         $sourceBuild = Get-Content -LiteralPath $entry.Key -Raw
         if (-not $sourceBuild.Contains($entry.Value)) {
             throw "$($entry.Key) does not enforce pinned source commit $($entry.Value)."
+        }
+    }
+
+    $zlibBuild = Get-Content -LiteralPath "scripts/libmpv/clang64/build/zlib.sh" -Raw
+    foreach ($fragment in @(
+        'player_fetch_source',
+        'https://github.com/madler/zlib.git',
+        '-DZLIB_BUILD_TESTING=OFF',
+        '-DZLIB_BUILD_SHARED=ON',
+        '-DZLIB_BUILD_STATIC=OFF',
+        '-DZLIB_INSTALL=ON'
+    )) {
+        if (-not $zlibBuild.Contains($fragment)) {
+            throw "zlib build policy is missing required fragment: $fragment"
         }
     }
 
@@ -137,16 +163,23 @@ try {
         "-Dcplayer=false",
         "-Dlibmpv=true",
         "-Dbuild-date=false",
+        "-Dzlib=enabled",
         "-Dplain-gl=enabled"
     )) {
         if (-not $mpvBuild.Contains($fragment)) {
             throw "mpv build policy is missing required fragment: $fragment"
         }
     }
+    if ($mpvBuild.Contains("-Dzlib=disabled")) {
+        throw "mpv build policy must not disable zlib; Matroska zlib-compressed tracks are part of the supported playback baseline."
+    }
 
     $commonBuild = Get-Content -LiteralPath "scripts/libmpv/clang64/common.sh" -Raw
     if (-not $commonBuild.Contains("--default-library=shared")) {
         throw "The shared Meson build helper must keep third-party libraries dynamic."
+    }
+    if (-not $commonBuild.Contains("clang clang++ cmake meson ninja")) {
+        throw "common.sh must require CMake for the pinned zlib source build."
     }
     foreach ($fragment in @(
         'source "$CLANG64_SCRIPT_ROOT/source/source_checkout.sh"',
@@ -233,19 +266,22 @@ try {
 
     $packageRuntime = Get-Content -LiteralPath "scripts/libmpv/clang64/package-runtime.sh" -Raw
     foreach ($fragment in @(
+        'libz.dll',
+        'zlib1.dll',
         'copy_license ffmpeg',
         '"$PLAYER_ARCHIVE_SOURCE_ROOT/ffmpeg/COPYING.LGPLv2.1"',
-        '"$PLAYER_ARCHIVE_SOURCE_ROOT/ffmpeg/COPYING.LGPLv3"'
+        '"$PLAYER_ARCHIVE_SOURCE_ROOT/ffmpeg/COPYING.LGPLv3"',
+        'copy_license zlib "$PLAYER_SOURCE_ROOT/zlib/LICENSE"'
     )) {
         if (-not $packageRuntime.Contains($fragment)) {
-            throw "package-runtime.sh is missing FFmpeg verified-archive license staging fragment: $fragment"
+            throw "package-runtime.sh is missing required runtime/license staging fragment: $fragment"
         }
     }
     if ($packageRuntime.Contains('$PLAYER_SOURCE_ROOT/ffmpeg/')) {
         throw "package-runtime.sh must not read FFmpeg license files from the retired Git source path."
     }
 
-    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits, offline reuse of verified Git checkouts/submodules, shallow network fallback, signed FFmpeg release archives with isolated PGP trust, resumable downloads, archive-backed license staging, MSYS-root invocation, and LGPL-oriented build policy are complete."
+    Write-Host "libmpv MSYS2 CLANG64 source-build layout, pinned source commits including zlib, offline reuse of verified Git checkouts/submodules, shallow network fallback, signed FFmpeg release archives with isolated PGP trust, resumable downloads, runtime/license staging, MSYS-root invocation, Matroska zlib support, and LGPL-oriented build policy are complete."
 }
 finally {
     Pop-Location

@@ -24,7 +24,7 @@ try {
     Write-Host "[OK] libmpv header: $($package.HeaderRelative)"
     Write-Host "[OK] libmpv import library: $($package.ImportLibraryRelative)"
     Write-Host "[OK] libmpv runtime DLL: $($package.RuntimeLibraryRelative)"
-    Write-Host "[OK] manifest identity: mpv $($manifest.mpv.version), FFmpeg $($manifest.ffmpeg.version), libplacebo $($manifest.libplacebo.version), libass $($manifest.libass.version)"
+    Write-Host "[OK] manifest identity: mpv $($manifest.mpv.version), FFmpeg $($manifest.ffmpeg.version), zlib $($manifest.zlib.version), libplacebo $($manifest.libplacebo.version), libass $($manifest.libass.version)"
     Write-Host "[OK] manifest artifact hashes: $(@($manifest.artifacts).Count) verified"
     Write-Host "libmpv package verification passed."
 }

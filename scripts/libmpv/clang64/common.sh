@@ -36,7 +36,7 @@ player_require_command() {
 
 player_require_build_tools() {
     local command_name
-    for command_name in git clang clang++ meson ninja pkg-config nasm python make llvm-readobj; do
+    for command_name in git clang clang++ cmake meson ninja pkg-config nasm python make llvm-readobj; do
         player_require_command "$command_name"
     done
 }

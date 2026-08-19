@@ -29,6 +29,17 @@ if (( ${#prefix_dlls[@]} == 0 )); then
 fi
 cp -a "${prefix_dlls[@]}" "$PLAYER_PACKAGE_ROOT/bin/"
 
+mapfile -t zlib_runtime_candidates < <(
+    find "$PLAYER_PACKAGE_ROOT/bin" -maxdepth 1 -type f \
+        \( -iname 'libz.dll' -o -iname 'zlib1.dll' \) \
+        -print
+)
+if (( ${#zlib_runtime_candidates[@]} != 1 )); then
+    printf 'Expected exactly one packaged zlib runtime DLL (libz.dll or zlib1.dll), found %d\n' "${#zlib_runtime_candidates[@]}" >&2
+    printf '%s\n' "${zlib_runtime_candidates[@]}" >&2
+    exit 1
+fi
+
 find_packaged_dll() {
     local name="$1"
     find "$PLAYER_PACKAGE_ROOT/bin" -maxdepth 1 -type f -iname "$name" -print -quit
@@ -126,6 +137,7 @@ copy_license mpv \
 copy_license ffmpeg \
     "$PLAYER_ARCHIVE_SOURCE_ROOT/ffmpeg/COPYING.LGPLv2.1" \
     "$PLAYER_ARCHIVE_SOURCE_ROOT/ffmpeg/COPYING.LGPLv3"
+copy_license zlib "$PLAYER_SOURCE_ROOT/zlib/LICENSE"
 copy_license libplacebo "$PLAYER_SOURCE_ROOT/libplacebo/LICENSE"
 copy_license libass "$PLAYER_SOURCE_ROOT/libass/COPYING"
 copy_license freetype \
