@@ -13,6 +13,7 @@ Row {
     property var audioTrackModel: null
     property var subtitleTrackModel: null
     property var trackSelectionController: null
+    property var subtitleDelayController: null
     readonly property bool trackPopupOpen: trackPopup.opened
 
     signal togglePlaylistRequested()
@@ -34,7 +35,7 @@ Row {
         iconSizeOverride: root.compact ? LayoutTokens.controlIconCompact : 0
         toolTipText: qsTr("Audio and Subtitles")
         accessibleName: toolTipText
-        accessibleDescription: qsTr("Choose audio/subtitle tracks, turn subtitles off, or add an external subtitle")
+        accessibleDescription: qsTr("Choose audio/subtitle tracks, turn subtitles off, add an external subtitle, or adjust subtitle delay")
         enabled: root.mediaAvailable
                  && (root.externalSubtitleAvailable
                      || (root.trackSelectionController !== null
@@ -53,6 +54,7 @@ Row {
         audioTrackModel: root.audioTrackModel
         subtitleTrackModel: root.subtitleTrackModel
         trackSelectionController: root.trackSelectionController
+        subtitleDelayController: root.subtitleDelayController
         externalSubtitleAvailable: root.externalSubtitleAvailable
 
         onAddExternalSubtitleRequested: root.openExternalSubtitleRequested()
