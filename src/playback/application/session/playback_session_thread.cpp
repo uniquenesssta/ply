@@ -109,11 +109,15 @@ bool PlaybackSessionThread::start(QString* errorMessage)
         &PlaybackSession::requestFailed,
         this,
         [](quint8 requestType, const QString& diagnostic) {
-            if (requestType != static_cast<quint8>(PlaybackRequestType::LoadMedia)) {
+            if (requestType == static_cast<quint8>(PlaybackRequestType::LoadMedia)) {
+                qWarning().noquote()
+                    << "Playback media load request failed:" << diagnostic;
                 return;
             }
-            qWarning().noquote()
-                << "Playback media load request failed:" << diagnostic;
+            if (requestType == static_cast<quint8>(PlaybackRequestType::AddExternalSubtitle)) {
+                qWarning().noquote()
+                    << "External subtitle playback request failed:" << diagnostic;
+            }
         },
         Qt::QueuedConnection);
     QObject::connect(
