@@ -6,6 +6,8 @@
 #include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
 
+#include <QtGlobal>
+
 #include <functional>
 #include <memory>
 
