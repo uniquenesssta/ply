@@ -34,4 +34,9 @@ struct EofReachedChangedEvent final
     std::optional<bool> reached;
 };
 
+struct SubtitleDelayChangedEvent final
+{
+    std::optional<double> seconds;
+};
+
 } // namespace player::playback::domain
