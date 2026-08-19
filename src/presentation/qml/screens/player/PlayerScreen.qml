@@ -67,6 +67,13 @@ Item {
     readonly property bool oscVisible: chromeVisibilityController.chromeVisible
     readonly property bool cursorHidden: cursorVisibilityController.cursorHidden
     readonly property bool anyDrawerOpen: root.drawerOpen || root.playlistDrawerOpen
+    readonly property bool fullscreenGestureInteractionEnabled: !root.popupOpen
+                                                                && !root.menuOpen
+                                                                && !root.anyDrawerOpen
+                                                                && !root.modalActive
+                                                                && !root.errorOverlayVisible
+                                                                && !root.chromeControlsHovered
+                                                                && !root.chromeControlsFocused
 
     signal openMediaRequested()
     signal openUrlRequested()
@@ -90,6 +97,7 @@ Item {
 
         parent: videoViewport
         anchors.fill: parent
+        interactionEnabled: root.fullscreenGestureInteractionEnabled
 
         onToggleFullscreenRequested: root.fullscreenToggleRequested()
     }
