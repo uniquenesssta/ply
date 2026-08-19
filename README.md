@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-04 Complete；R8-05 Candidate**。字幕延迟实现已在代码 HEAD `20a8db6...` 通过 Windows build、Quick **100/100 PASS（40.48 s）**、Full **108/108 PASS（80.29 s）**，startup-smoke **3.05 s**、8 项 windowed-render 合计 **39.79 s**；真实媒体 smoke 随后发现内嵌 PGS 字幕因自建 libmpv 显式 `-Dzlib=disabled` 被 Matroska demuxer 跳过。诊断提交 `c0e4e677...` 已捕获该根因，修复提交 `fdb9e108...` 已加入固定 zlib **1.3.2** 源码构建并改为 `zlib=enabled`；新 libmpv package 重建、完整回归与同一 MKV 实机复验仍待执行，因此 R8-05 不记为 Complete |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-05 Complete；R8-06 In Progress**。R8-05 在 zlib 1.3.2/libmpv 修复与 `playlist_entry_id` 代际归因修复后完成自动门禁与同一 MKV 内嵌 PGS/字幕延迟实机复验。R8-06-A1 Audio Delay 后端权威链已在 Windows 完成 build、Quick **101/101 PASS（46.56 s）**、Full **109/109 PASS（79.78 s）**，startup-smoke **3.07 s**、8 项 windowed-render 合计 **39.56 s**；R8-06-A2 Controller/Composition/HUD/QML 候选已提交，Windows 门禁与真实正/负/reset 媒体 smoke 尚待验证 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -33,7 +33,8 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - `TrackListModel` 只消费已 generation-gated 的 `PlaybackSnapshot` 并按 Audio/Subtitle kind 投影只读行；`selected` 由 Snapshot 的 `selectedAudioId / selectedSubtitleId` 推导，model 不拥有 generation、selection mutation 或第二套 Track 真值。Opening/new-media Snapshot 清空旧轨道后，后续 current-generation Snapshot 整表替换新轨道。
 - Track selection 只走 `QML intent → TrackSelectionController → PlaybackCommand(RequestId + MediaGeneration) → mpv aid/sid → generation-gated PlaybackSnapshot → TrackListModel`。同类 Audio/Subtitle selection 复用 RequestTracker supersession lane；Subtitle Off 是显式 `sid=no` 状态；UI 不乐观改写 selected，最终 selected 始终由 backend/Snapshot 决定。
 - 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → 成功回执后确定性读取 track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`；mpv property observer 仍保留正常增量通知，但不再作为外部字幕成功后的唯一刷新来源。Loader 只接受可读本地 SRT/ASS 并提交规范化路径；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测与更完整的重复加载治理仍按 R8 后续任务处理。
-- 字幕延迟只走 `QML intent → SubtitleDelayController → SetSubtitleDelayCommand(RequestId + MediaGeneration) → mpv sub-delay → property observer/成功回执确定性回读 → generation-gated PlaybackSnapshot.controls.subtitleDelaySeconds → Controller/HUD`。Controller 只拥有 pending target，不乐观改写确认值；同 generation 字幕延迟请求使用独立 latest-wins supersession lane。当前固定范围为 **-2.0 s ~ +2.0 s**、步进 **50 ms**，reset 回到 `0 ms`；音频延迟继续独立归 R8-06。
+- 字幕延迟只走 `QML intent → SubtitleDelayController → SetSubtitleDelayCommand(RequestId + MediaGeneration) → mpv sub-delay → property observer/成功回执确定性回读 → generation-gated PlaybackSnapshot.controls.subtitleDelaySeconds → Controller/HUD`。Controller 只拥有 pending target，不乐观改写确认值；同 generation 字幕延迟请求使用独立 latest-wins supersession lane。固定范围 **-2.0 s ~ +2.0 s**、步进 **50 ms**，reset 回到 `0 ms`。
+- 音频延迟独立走 `QML intent → AudioDelayController → SetAudioDelayCommand(RequestId + MediaGeneration) → mpv audio-delay → property observer/成功回执确定性回读 → generation-gated PlaybackSnapshot.controls.audioDelaySeconds → Controller/HUD`。Audio/Subtitle Delay 拥有各自 request supersession lane、pending target、Snapshot 字段和 HUD category，互不覆盖；Audio Delay 同样固定 **-2.0 s ~ +2.0 s**、步进 **50 ms**、reset `0 ms`。Figma `Tracks / Audio Delay Control` canonical node 为 `183:670`，QML 只拥有 adjustment UI，committed value 仍归 application state。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
@@ -69,7 +70,7 @@ src/foundation/                  通用基础设施与稳定值类型
 src/playback/domain/             后端无关的播放命令、事件、状态与规则
 src/playback/application/        PlaybackSession、请求生命周期与应用编排
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
-src/tracks/application/          Track selection、外挂字幕与字幕延迟 intent/校验/应用级提交边界
+src/tracks/application/          Track selection、外挂字幕、字幕/音频延迟 intent/校验/应用级提交边界
 src/tracks/presentation/         Audio/Subtitle Track 的 Snapshot 只读列表投影
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验、operation supersession 与统一 workflow 编排
@@ -116,6 +117,19 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-20 — R8-06 Audio Delay A2 Candidate
+
+- R8-06-A1 已正式关闭：`9d29077e351e9a150f27016653471a8950e8de90` 建立独立 `SetAudioDelayCommand → RequestTracker AudioDelay lane → mpv audio-delay → property/readback → generation-gated PlaybackSnapshot.controls.audioDelaySeconds` 权威链，`78d1cbb0130da9192ff8be2990dfa0001c1385bc` 只加固测试编译可移植性。Windows 重新 configure/build 已通过；Quick **101/101 PASS（46.56 s）**，Full **109/109 PASS（79.78 s）**；`audio_delay_flow` 在 Quick/Full 均 PASS，Full startup-smoke **3.07 s**、8 项 windowed-render 合计 **39.56 s**。
+- A2 候选 `1eb4ecd24abf29880ddb051ed685edbbbbc62b47` 新增职责独立的 `AudioDelayController`，只拥有当前 generation 的 pending target，确认值只读取 `PlaybackSnapshot.controls.audioDelaySeconds`；媒体 generation 变化、异步 request failure、未选中 Audio 或 backend value unavailable 都不会制造 optimistic confirmed state。`PlaybackComposition/ApplicationContainer` 只负责把该 Controller 接入既有 command/state publisher，并沿用同一个 failure observer 分发 Audio/Subtitle 各自失败，未建立第二套 Playback owner。
+- Figma canonical `Tracks / Audio Delay Control`（183:670）已实现为独立 `AudioDelayControl.qml`：**324×54** Neutral/Pending/Disabled，78px identity、118×32 slider、32×32 reset；Audio 与 Subtitle 只共享通用 delay geometry tokens，不共享 Controller、pending、Snapshot 字段或 HUD coalescing category。控件位于 Audio track section，QML 不调用 mpv；确认后的 Audio Delay 使用独立 HUD `audioDelay` key。
+- 新增 `audio_delay_controller` CTest，并扩展 `player_track_selection_qml` 与 HUD queue 回归，覆盖正/负/reset、50 ms 量化、范围/NaN 拒绝、generation 清 pending、提交失败、无已选 Audio 时 disabled、QML wiring/mpv 边界以及 signed-ms HUD。由于 A2 新增 CMake target/QML file，Windows 必须重新 configure；A2 的 build、Quick/Full 与真实媒体 `+250 ms / -250 ms / reset`、同时调整字幕延迟互不影响的 smoke 目前尚未执行，因此保持 Candidate，无新增生产依赖。
+
+### 2026-08-20 — R8-05 Subtitle Delay Complete
+
+- zlib 兼容修复已在 Windows 完成实际 package rebuild：固定 zlib **1.3.2**，mpv 配置确认 `zlib=enabled`，libmpv/runtime package staging 完成。随后 Player build PASS；首次完整回归暴露与 zlib 无关的 `PlaybackSessionTest::rapidReplacementKeepsLatestGeneration()` 竞态，未通过增加 timeout 或弱化断言绕过。
+- `208b8e495a5a3c82264c2c66e68d4333f8f692ee` 把快速媒体替换代际归因从“未知 START_FILE 消费 pending FIFO”改为 mpv `loadfile` COMMAND_REPLY 的 `requestId + playlist_entry_id` 与 START_FILE `playlist_entry_id` 确定性相关。直接相关 3/3 PASS，`playback_session` 连续 **20 次 PASS**；随后 Quick **100/100 PASS（44.09 s）**、Full **108/108 PASS（79.42 s）**，startup-smoke **3.04 s**、8 项 windowed-render 合计 **39.14 s**。
+- 同一问题 MKV 的真实复验确认内嵌 `S_HDMV/PGS` 已进入 `pgssub` decoder，日志不再出现 “mpv has not been compiled with support for zlib compression” / subtitle `Skipping track`；用户同时确认字幕延迟真实操作可按 OK 收口，包括正/负/reset。R8-05 因此正式 **Complete**。日志中剩余 HEVC/Dolby Vision RPU warning 与本任务无关，不阻断收口。
 
 ### 2026-08-19 — R8-05 embedded subtitle zlib compatibility repair Candidate
 
