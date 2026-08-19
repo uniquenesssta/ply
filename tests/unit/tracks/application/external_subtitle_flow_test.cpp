@@ -54,6 +54,7 @@ private slots:
     void loaderRejectsInvalidLocalSources();
     void loaderReportsSubmissionFailure();
     void commandFlowUsesGenerationScopedCachedSubAdd();
+    void successfulReplyRefreshesExternalSubtitleTrackState();
     void qmlKeepsFilePickingOutsideTrackPopup();
 };
 
@@ -185,6 +186,34 @@ void ExternalSubtitleFlowTest::commandFlowUsesGenerationScopedCachedSubAdd()
     QCOMPARE(
         tracker.cancelMediaRequestsForGenerationChange(domain::MediaGeneration{8}),
         std::size_t{2});
+}
+
+void ExternalSubtitleFlowTest::successfulReplyRefreshesExternalSubtitleTrackState()
+{
+    const QString session = readSource(
+        QStringLiteral("src/playback/application/session/playback_session.cpp"));
+    const QString backend = readSource(
+        QStringLiteral("src/playback/application/session/backend/playback_session_backend.cpp"));
+    const QString thread = readSource(
+        QStringLiteral("src/playback/application/session/playback_session_thread.cpp"));
+    const QString loader = readSource(
+        QStringLiteral("src/tracks/application/external_subtitle_loader.cpp"));
+
+    QVERIFY(!session.isEmpty());
+    QVERIFY(!backend.isEmpty());
+    QVERIFY(!thread.isEmpty());
+    QVERIFY(!loader.isEmpty());
+
+    QVERIFY(session.contains(QStringLiteral(
+        "resolution.record->type == PlaybackRequestType::AddExternalSubtitle")));
+    QVERIFY(session.contains(QStringLiteral(
+        "backend_->refreshExternalSubtitleTrackState(*resolution.record->generation)")));
+    QVERIFY(backend.contains(QStringLiteral("kExternalSubtitleRefreshProperties")));
+    QVERIFY(backend.contains(QStringLiteral("MpvPropertyId::TrackList")));
+    QVERIFY(backend.contains(QStringLiteral("MpvPropertyId::SelectedSubtitleTrack")));
+    QVERIFY(thread.contains(QStringLiteral("External subtitle playback request failed:")));
+    QVERIFY(loader.contains(QStringLiteral("External subtitle load submitted to playback backend.")));
+    QVERIFY(loader.contains(QStringLiteral("External subtitle load rejected:")));
 }
 
 void ExternalSubtitleFlowTest::qmlKeepsFilePickingOutsideTrackPopup()
