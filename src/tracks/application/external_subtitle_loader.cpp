@@ -1,5 +1,6 @@
 #include "external_subtitle_loader.h"
 
+#include <QDebug>
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
@@ -68,12 +69,14 @@ bool ExternalSubtitleLoader::loadLocalSubtitle(const QUrl& sourceUrl)
         return reject(QStringLiteral("submission-failed"));
     }
 
+    qInfo().noquote() << "External subtitle load submitted to playback backend.";
     return true;
 }
 
 bool ExternalSubtitleLoader::reject(QString errorKey)
 {
     setLastErrorKey(std::move(errorKey));
+    qWarning().noquote() << "External subtitle load rejected:" << lastErrorKey_;
     return false;
 }
 
