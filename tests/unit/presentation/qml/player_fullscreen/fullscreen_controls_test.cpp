@@ -91,6 +91,16 @@ void FullscreenControlsTest::screenRoutesButtonDoubleClickAndWindowState()
     QVERIFY(screen.contains(QStringLiteral("signal fullscreenToggleRequested()")));
     QVERIFY(screen.contains(QStringLiteral("FullscreenGestureLayer {")));
     QVERIFY(screen.contains(QStringLiteral("parent: videoViewport")));
+    QVERIFY(screen.contains(QStringLiteral(
+        "readonly property bool fullscreenGestureInteractionEnabled")));
+    QVERIFY(screen.contains(QStringLiteral("&& !root.popupOpen")));
+    QVERIFY(screen.contains(QStringLiteral("&& !root.menuOpen")));
+    QVERIFY(screen.contains(QStringLiteral("&& !root.anyDrawerOpen")));
+    QVERIFY(screen.contains(QStringLiteral("&& !root.modalActive")));
+    QVERIFY(screen.contains(QStringLiteral("&& !root.chromeControlsHovered")));
+    QVERIFY(screen.contains(QStringLiteral("&& !root.chromeControlsFocused")));
+    QVERIFY(screen.contains(QStringLiteral(
+        "interactionEnabled: root.fullscreenGestureInteractionEnabled")));
     QVERIFY(screen.contains(QStringLiteral("PlayerUtilityControls {")));
     QVERIFY(screen.contains(QStringLiteral("fullScreen: root.fullScreen")));
     QVERIFY(screen.contains(QStringLiteral(
@@ -101,7 +111,9 @@ void FullscreenControlsTest::screenRoutesButtonDoubleClickAndWindowState()
     QVERIFY(utility.contains(QStringLiteral(
         "onToggleFullscreenRequested: root.toggleFullscreenRequested()")));
 
+    QVERIFY(gesture.contains(QStringLiteral("property bool interactionEnabled: true")));
     QVERIFY(gesture.contains(QStringLiteral("TapHandler {")));
+    QVERIFY(gesture.contains(QStringLiteral("enabled: root.interactionEnabled")));
     QVERIFY(gesture.contains(QStringLiteral("acceptedButtons: Qt.LeftButton")));
     QVERIFY(gesture.contains(QStringLiteral("onDoubleTapped: root.toggleFullscreenRequested()")));
 
