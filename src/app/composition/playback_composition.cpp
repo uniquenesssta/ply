@@ -122,17 +122,19 @@ PlaybackComposition::PlaybackComposition()
         &player::playback::application::PlaybackSessionThread::requestFailed,
         timelineViewModel_.get(),
         [this](quint8 requestType, const QString& diagnostic) {
-            if (!isSeekRequestType(requestType)) {
-                return;
+            if (isSeekRequestType(requestType)) {
+                const bool cleared = timelineViewModel_->rejectPendingSeek();
+                if (cleared) {
+                    hudMessageQueue_->showSeekFailure();
+                }
+                qCWarning(player::logging::uiInteraction).noquote()
+                    << "Tracked timeline seek request failed:"
+                    << diagnostic;
             }
 
-            const bool cleared = timelineViewModel_->rejectPendingSeek();
-            if (cleared) {
-                hudMessageQueue_->showSeekFailure();
+            if (requestFailureObserver_) {
+                requestFailureObserver_(requestType, diagnostic);
             }
-            qCWarning(player::logging::uiInteraction).noquote()
-                << "Tracked timeline seek request failed:"
-                << diagnostic;
         });
 
     QObject::connect(
@@ -311,6 +313,11 @@ void PlaybackComposition::setPlaybackSupersessionObserver(
     playbackSupersessionObserver_ = std::move(observer);
 }
 
+void PlaybackComposition::setRequestFailureObserver(RequestFailureObserver observer)
+{
+    requestFailureObserver_ = std::move(observer);
+}
+
 bool PlaybackComposition::submitMediaLoad(const QString& canonicalSource)
 {
     if (canonicalSource.isEmpty()) {
@@ -360,6 +367,31 @@ bool PlaybackComposition::submitExternalSubtitle(
     if (!bus->submit(command, &diagnostic)) {
         qCWarning(player::logging::uiInteraction).noquote()
             << "External subtitle command submission failed:"
+            << diagnostic;
+        return false;
+    }
+
+    return true;
+}
+
+bool PlaybackComposition::submitSubtitleDelay(
+    const player::playback::domain::SetSubtitleDelayCommand& delay)
+{
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction)
+            << "Subtitle delay intent ignored because PlaybackCommandBus is unavailable";
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        delay};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Subtitle delay command submission failed:"
+            << delay.seconds
             << diagnostic;
         return false;
     }
