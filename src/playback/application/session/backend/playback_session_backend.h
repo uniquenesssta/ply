@@ -44,6 +44,8 @@ public:
         const player::playback::domain::PlaybackCommand& command,
         player::playback::domain::MediaGeneration generation,
         QString* errorMessage = nullptr);
+    void refreshExternalSubtitleTrackState(
+        player::playback::domain::MediaGeneration generation);
 
 private:
     void refreshCurrentMediaProperties(
