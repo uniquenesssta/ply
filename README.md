@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-02 Complete**。R8-03 Track selection 候选实现已接通 stable track ID、Audio/Subtitle selection、Subtitle Off、RequestId/MediaGeneration 与 same-kind supersession。Windows reconfigure/build 已完成；首轮 Quick **96/98 PASS、2 failed（45.97 s）**，失败为 Track popup raw visual metrics 与 Playlist 旧 placeholder 测试契约。两处候选修复已提交，修复后的 Quick/Full 与真实多音轨/多字幕本地媒体 smoke 尚待复验，因此 R8-03 仍未正式收口 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-03 Complete**。R8-03 Track selection 已接通 stable track ID、Audio/Subtitle selection、Subtitle Off、RequestId/MediaGeneration 与 same-kind supersession。代码 HEAD `1ec652763387624dbfbdd3588eb91cf7c73d1364` 在 Windows 锁定环境 build PASS，Track popup 的 `qmllint [unqualified]` 警告已清零；Quick **98/98 PASS（40.66 s）**、Full **106/106 PASS（79.72 s）**，startup-smoke **3.05 s**，8 项 windowed-render 合计 **39.22 s**。真实多音轨/多字幕本地媒体 smoke 仍作为 Stage R8 手工验证项待补，不记为已通过 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -114,6 +114,12 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-19 — R8-03 Track selection Complete
+
+- 代码 HEAD `1ec652763387624dbfbdd3588eb91cf7c73d1364` 已在 Windows 锁定环境完成 build；此前 `TrackSelectionPopup.qml` 的 6 条 `qmllint [unqualified]` 警告在加入 `pragma ComponentBehavior: Bound` 后不再出现，构建无新的 QML lint 警告。
+- 最终 Quick **98/98 PASS，0 failed（40.66 s）**；Full **106/106 PASS，0 failed（79.72 s）**。Full 中 startup-smoke **3.05 s**，8 项 windowed-render 合计 **39.22 s**；`track_selection_controller`、`track_list_model`、`theme_tokens`、`player_playlist_qml`、`player_track_selection_qml` 均实际通过。
+- R8-03 的 stable track ID → command → backend/snapshot 主链、Subtitle Off、snapshot-authoritative selection、same-kind supersession 与 QML wiring 已进入完整回归。按 R8 任务书统一策略，尚未覆盖的手工矩阵不阻塞单个 Atomic Task；真实多音轨/多字幕本地媒体 smoke 尚未执行，继续保留为 Stage R8 关闭前必须补齐的本地验证项，不记为已通过。**R8-03 正式 Complete。**
 
 ### 2026-08-19 — R8-03 Quick gate repair Candidate
 
