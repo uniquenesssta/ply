@@ -44,6 +44,11 @@ constexpr std::array<MpvPropertyId, 17> kMediaRefreshProperties{
     MpvPropertyId::AudioParams,
 };
 
+constexpr std::array<MpvPropertyId, 2> kExternalSubtitleRefreshProperties{
+    MpvPropertyId::TrackList,
+    MpvPropertyId::SelectedSubtitleTrack,
+};
+
 } // namespace
 
 PlaybackSessionBackend::PlaybackSessionBackend() = default;
@@ -233,6 +238,42 @@ bool PlaybackSessionBackend::submit(
         mediaGenerationAttributor_.cancelLoadSubmission(command.requestId());
     }
     return submitted;
+}
+
+void PlaybackSessionBackend::refreshExternalSubtitleTrackState(
+    player::playback::domain::MediaGeneration generation)
+{
+    if (!generation.isValid() || propertyReader_ == nullptr || !eventHandler_) {
+        return;
+    }
+
+    for (MpvPropertyId id : kExternalSubtitleRefreshProperties) {
+        QString error;
+        const auto change = propertyReader_->read(id, &error);
+        if (!change.has_value()) {
+            qWarning().noquote()
+                << (error.isEmpty()
+                        ? QStringLiteral("Unable to refresh external subtitle mpv property id %1.")
+                              .arg(static_cast<quint16>(id))
+                        : error);
+            continue;
+        }
+
+        player::playback::mpv::MpvEvent propertyEvent;
+        propertyEvent.type = player::playback::mpv::MpvEventType::PropertyChange;
+        propertyEvent.payload = *change;
+
+        auto mapped = player::playback::mpv::MpvPlaybackEventMapper::map(propertyEvent);
+        if (!mapped.has_value()) {
+            continue;
+        }
+
+        mapped->generation = generation;
+        if (!eventHandler_) {
+            return;
+        }
+        eventHandler_(*mapped);
+    }
 }
 
 void PlaybackSessionBackend::refreshCurrentMediaProperties(
