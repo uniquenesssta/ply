@@ -33,6 +33,7 @@ void TrackSelectionQmlTest::popupUsesStableTrackIdsAndSnapshotSelection()
         QStringLiteral("src/presentation/qml/features/tracks/TrackSelectionPopup.qml"));
     QVERIFY(!source.isEmpty());
 
+    QVERIFY(source.contains(QStringLiteral("pragma ComponentBehavior: Bound")));
     QVERIFY(source.contains(QStringLiteral("selectAudioTrack(trackId)")));
     QVERIFY(source.contains(QStringLiteral("selectSubtitleTrack(trackId)")));
     QVERIFY(source.contains(QStringLiteral("disableSubtitles()")));
