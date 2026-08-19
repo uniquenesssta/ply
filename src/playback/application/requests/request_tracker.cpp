@@ -5,6 +5,7 @@
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/speed_command.h"
+#include "playback/domain/commands/subtitle_delay_command.h"
 #include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
 #include "playback/domain/commands/volume_command.h"
@@ -290,6 +291,9 @@ std::optional<PlaybackRequestType> RequestTracker::requestTypeFor(
     if (std::holds_alternative<AddExternalSubtitleCommand>(payload)) {
         return PlaybackRequestType::AddExternalSubtitle;
     }
+    if (std::holds_alternative<SetSubtitleDelayCommand>(payload)) {
+        return PlaybackRequestType::SetSubtitleDelay;
+    }
     if (const auto* selection = std::get_if<TrackSelectionCommand>(&payload)) {
         return selection->kind == TrackSelectionKind::Audio
             ? PlaybackRequestType::SelectAudioTrack
@@ -309,6 +313,7 @@ bool RequestTracker::isMediaScoped(PlaybackRequestType type) noexcept
     case PlaybackRequestType::SeekAbsolute:
     case PlaybackRequestType::SeekRelative:
     case PlaybackRequestType::AddExternalSubtitle:
+    case PlaybackRequestType::SetSubtitleDelay:
     case PlaybackRequestType::SelectAudioTrack:
     case PlaybackRequestType::SelectSubtitleTrack:
     case PlaybackRequestType::SelectVideoTrack:
