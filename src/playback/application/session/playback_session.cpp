@@ -241,7 +241,16 @@ void PlaybackSession::handleCommandReply(const CommandReplyEvent& reply)
     const RequestReplyResolution resolution = requestTracker_.resolve(
         reply,
         snapshot_.generation());
-    if (!resolution.accepted() || reply.succeeded) {
+    if (!resolution.accepted()) {
+        return;
+    }
+
+    if (reply.succeeded) {
+        if (resolution.record.has_value()
+            && resolution.record->type == PlaybackRequestType::AddExternalSubtitle
+            && resolution.record->generation.has_value()) {
+            backend_->refreshExternalSubtitleTrackState(*resolution.record->generation);
+        }
         return;
     }
 
