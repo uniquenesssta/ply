@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-03 Complete；R8-04 Candidate**。HEAD `2d450e53...` 已通过 Windows build、Quick **99/99**、Full **107/107**，但真实本地 smoke 暴露“外挂字幕未能完成产品链”和 Track Popup 双击仍可触发底层全屏手势。当前修复候选增加成功回执后的确定性 `track-list/sid` 刷新、外挂字幕提交/异步失败日志和全屏手势 interaction gate；修复后的 Windows build/Quick/Full 与真实 SRT/ASS smoke 尚待复验，因此不记为 Complete |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-03 Complete；R8-04 Candidate**。修复版 HEAD `da7400e...` 已通过 Windows build、Quick **99/99 PASS（42.29 s）**、Full **107/107 PASS（78.80 s）**，startup-smoke **3.05 s**、8 项 windowed-render 合计 **38.84 s**；确定性 `track-list/sid` 刷新、外挂字幕诊断日志和全屏手势 interaction gate 的自动回归均已进入全量测试。真实本地 SRT/ASS 加载进入同一字幕模型，以及 Track Popup 双击不再触发全屏仍待修复后实机复验，因此 R8-04 不记为 Complete |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -121,7 +121,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 - HEAD `2d450e53aca9693d7d3d54601ca68fc882fbb6d0` 已在 Windows 锁定环境完成 build，Quick **99/99 PASS（40.83 s）**、Full **107/107 PASS（79.00 s）**，startup-smoke **2.76 s**、8 项 windowed-render 合计 **38.80 s**；但随后真实本地 smoke 明确暴露两条候选缺陷：视频内建音轨/字幕可选择，而外挂字幕未能完成产品链；Track Popup 内双击仍会触发底层视频全屏手势。因此自动门禁全绿不作为 R8-04 完成证据。
 - 全屏双击根因已定位为 `FullscreenGestureLayer` 的全 VideoViewport `TapHandler.DragThreshold` 在 Popup/Drawer/Modal/OSC 控件交互期间仍保持启用；Qt 6.8 passive grab 会允许底层 handler 同时观察 pointer sequence。修复候选新增单一 interaction gate，在 popup、menu、drawer、modal、error overlay、OSC hover/focus 期间禁用底层双击手势，轨道 row 第一次点击关闭 Popup 后也不会把该次 pointer sequence 留给底层组成 double-tap。
 - 外挂字幕不改变 `sub-add <path> cached` 协议或建立第二套 model。成功 `AddExternalSubtitle` command reply 现在由 PlaybackSession 触发 backend 确定性刷新 `track-list + sid`，复用同一个 property read/map/event path 回到 generation-gated PlaybackSnapshot 与既有 Subtitle `TrackListModel`；正常 mpv property observer 继续保留，但不再是成功后的唯一刷新来源。
-- `ExternalSubtitleLoader` 现在记录同步校验/提交拒绝和已提交事件；PlaybackSessionThread 记录 `AddExternalSubtitle` 异步 backend failure，使下一次真实失败可以从日志区分 `file validation/submission` 与 `mpv command reply`。当前连接环境不能运行修复后的 Windows build/QML lint/Quick/Full，真实 SRT/ASS 与 Track Popup 双击 smoke 也尚未复验，因此 R8-04 继续保持 Candidate。无新增生产依赖。
+- `ExternalSubtitleLoader` 现在记录同步校验/提交拒绝和已提交事件；PlaybackSessionThread 记录 `AddExternalSubtitle` 异步 backend failure，使下一次真实失败可以从日志区分 `file validation/submission` 与 `mpv command reply`。修复版 HEAD `da7400e1637804b046aed971821cea29dd456469` 已在 Windows 锁定环境完成 build，Quick **99/99 PASS（42.29 s）**、Full **107/107 PASS（78.80 s）**；`external_subtitle_flow` 在 Quick/Full 分别 **0.20 s / 0.04 s PASS**，`player_fullscreen_controls` 分别 **0.11 s / 0.02 s PASS**，Full 的 startup-smoke **3.05 s**、8 项 windowed-render 合计 **38.84 s**。该日志未包含真实 Player SRT/ASS 加载或 Track Popup 双击实机结果，因此当前只关闭自动回归门禁，R8-04 继续保持 Candidate。无新增生产依赖。
 
 ### 2026-08-19 — R8-04 External subtitle Candidate
 
