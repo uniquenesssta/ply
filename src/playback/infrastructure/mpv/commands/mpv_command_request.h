@@ -69,6 +69,11 @@ struct MpvExternalSubtitleRequest final
     QString source;
 };
 
+struct MpvSubtitleDelayRequest final
+{
+    double seconds = 0.0;
+};
+
 using MpvCommandRequest = std::variant<
     MpvLoadRequest,
     MpvPlayRequest,
@@ -79,6 +84,7 @@ using MpvCommandRequest = std::variant<
     MpvMuteRequest,
     MpvSpeedRequest,
     MpvTrackSelectionRequest,
-    MpvExternalSubtitleRequest>;
+    MpvExternalSubtitleRequest,
+    MpvSubtitleDelayRequest>;
 
 } // namespace player::playback::mpv
