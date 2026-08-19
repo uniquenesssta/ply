@@ -3,6 +3,8 @@ add_library(
     STATIC
         external_subtitle_loader.cpp
         external_subtitle_loader.h
+        subtitle_delay_controller.cpp
+        subtitle_delay_controller.h
         track_selection_controller.cpp
         track_selection_controller.h
 )
