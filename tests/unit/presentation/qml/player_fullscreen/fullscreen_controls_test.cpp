@@ -93,7 +93,8 @@ void FullscreenControlsTest::screenRoutesButtonDoubleClickAndWindowState()
     QVERIFY(screen.contains(QStringLiteral("parent: videoViewport")));
     QVERIFY(screen.contains(QStringLiteral(
         "readonly property bool fullscreenGestureInteractionEnabled")));
-    QVERIFY(screen.contains(QStringLiteral("&& !root.popupOpen")));
+    QVERIFY(screen.contains(QStringLiteral(
+        "fullscreenGestureInteractionEnabled: !root.popupOpen")));
     QVERIFY(screen.contains(QStringLiteral("&& !root.menuOpen")));
     QVERIFY(screen.contains(QStringLiteral("&& !root.anyDrawerOpen")));
     QVERIFY(screen.contains(QStringLiteral("&& !root.modalActive")));
