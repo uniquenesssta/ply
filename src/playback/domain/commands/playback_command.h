@@ -6,6 +6,7 @@
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/speed_command.h"
+#include "playback/domain/commands/subtitle_delay_command.h"
 #include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
 #include "playback/domain/commands/volume_command.h"
@@ -26,7 +27,8 @@ using PlaybackCommandPayload = std::variant<
     SetSpeedCommand,
     TrackSelectionCommand,
     LifecycleCommand,
-    AddExternalSubtitleCommand>;
+    AddExternalSubtitleCommand,
+    SetSubtitleDelayCommand>;
 
 enum class PlaybackCommandValidationError : quint8
 {
@@ -40,6 +42,7 @@ enum class PlaybackCommandValidationError : quint8
     AudioTrackCannotBeDisabled,
     EmptyExternalSubtitleSource,
     ExternalSubtitleSourceContainsNull,
+    InvalidSubtitleDelay,
 };
 
 class PlaybackCommand final
