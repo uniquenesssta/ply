@@ -20,6 +20,7 @@
 #include "playlist/presentation/playlist_entry_playback_state.h"
 #include "playlist/presentation/playlist_list_model.h"
 #include "presentation/viewmodels/player/hud/hud_message_queue.h"
+#include "tracks/application/audio_delay_controller.h"
 #include "tracks/application/external_subtitle_loader.h"
 #include "tracks/application/subtitle_delay_controller.h"
 #include "tracks/application/track_selection_controller.h"
@@ -96,6 +97,12 @@ ApplicationContainer::ApplicationContainer(
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitSubtitleDelay(delay);
             }))
+    , audioDelayController_(
+        std::make_unique<player::tracks::application::AudioDelayController>(
+            [this](const player::playback::domain::SetAudioDelayCommand& delay) {
+                return playbackComposition_ != nullptr
+                    && playbackComposition_->submitAudioDelay(delay);
+            }))
     , audioTrackListModel_(
         std::make_unique<player::tracks::presentation::TrackListModel>(
             player::playback::domain::TrackKind::Audio))
@@ -137,14 +144,20 @@ ApplicationContainer::ApplicationContainer(
     playbackComposition_->setRequestFailureObserver(
         [this](quint8 requestType, const QString& diagnostic) {
             using player::playback::application::PlaybackRequestType;
-            if (requestType != static_cast<quint8>(PlaybackRequestType::SetSubtitleDelay)
-                || subtitleDelayController_ == nullptr) {
-                return;
-            }
 
-            if (subtitleDelayController_->rejectPendingDelay()) {
+            if (requestType == static_cast<quint8>(PlaybackRequestType::SetSubtitleDelay)
+                && subtitleDelayController_ != nullptr
+                && subtitleDelayController_->rejectPendingDelay()) {
                 qCWarning(player::logging::uiInteraction).noquote()
                     << "Tracked subtitle delay request failed:"
+                    << diagnostic;
+            }
+
+            if (requestType == static_cast<quint8>(PlaybackRequestType::SetAudioDelay)
+                && audioDelayController_ != nullptr
+                && audioDelayController_->rejectPendingDelay()) {
+                qCWarning(player::logging::uiInteraction).noquote()
+                    << "Tracked audio delay request failed:"
                     << diagnostic;
             }
         });
@@ -172,6 +185,20 @@ ApplicationContainer::ApplicationContainer(
         [this](int milliseconds) {
             if (playbackComposition_ != nullptr) {
                 playbackComposition_->hudMessageQueue().showSubtitleDelay(milliseconds);
+            }
+        });
+    QObject::connect(
+        &publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        audioDelayController_.get(),
+        &player::tracks::application::AudioDelayController::acceptSnapshot);
+    QObject::connect(
+        audioDelayController_.get(),
+        &player::tracks::application::AudioDelayController::delayConfirmed,
+        audioDelayController_.get(),
+        [this](int milliseconds) {
+            if (playbackComposition_ != nullptr) {
+                playbackComposition_->hudMessageQueue().showAudioDelay(milliseconds);
             }
         });
     QObject::connect(
@@ -248,6 +275,12 @@ ApplicationContainer::subtitleDelayController() noexcept
     return *subtitleDelayController_;
 }
 
+player::tracks::application::AudioDelayController&
+ApplicationContainer::audioDelayController() noexcept
+{
+    return *audioDelayController_;
+}
+
 player::tracks::presentation::TrackListModel&
 ApplicationContainer::audioTrackListModel() noexcept
 {
@@ -311,6 +344,7 @@ void ApplicationContainer::shutdown() noexcept
     if (playbackComposition_ != nullptr) {
         playbackComposition_->setRequestFailureObserver({});
     }
+    audioDelayController_.reset();
     subtitleDelayController_.reset();
     externalSubtitleLoader_.reset();
     trackSelectionController_.reset();

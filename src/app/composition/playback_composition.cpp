@@ -399,6 +399,31 @@ bool PlaybackComposition::submitSubtitleDelay(
     return true;
 }
 
+bool PlaybackComposition::submitAudioDelay(
+    const player::playback::domain::SetAudioDelayCommand& delay)
+{
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction)
+            << "Audio delay intent ignored because PlaybackCommandBus is unavailable";
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        delay};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Audio delay command submission failed:"
+            << delay.seconds
+            << diagnostic;
+        return false;
+    }
+
+    return true;
+}
+
 bool PlaybackComposition::submitTrackSelection(
     const player::playback::domain::TrackSelectionCommand& selection)
 {

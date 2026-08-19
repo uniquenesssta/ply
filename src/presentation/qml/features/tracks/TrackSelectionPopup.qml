@@ -10,6 +10,7 @@ Popup {
     property var audioTrackModel: null
     property var subtitleTrackModel: null
     property var trackSelectionController: null
+    property var audioDelayController: null
     property var subtitleDelayController: null
     property bool externalSubtitleAvailable: false
 
@@ -59,6 +60,11 @@ Popup {
                     }
                 }
             }
+        }
+
+        AudioDelayControl {
+            width: root.width - root.leftPadding - root.rightPadding
+            controller: root.audioDelayController
         }
 
         Label {

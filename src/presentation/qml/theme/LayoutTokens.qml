@@ -37,12 +37,20 @@ QtObject {
     readonly property int controlHitMinimum: SizePrimitives.size32
     readonly property int volumeTrackWidth: SizePrimitives.size100
     readonly property int trackSelectionPopupWidth: SizePrimitives.size324 + SizePrimitives.size16
-    readonly property int subtitleDelayControlWidth: SizePrimitives.size324
-    readonly property int subtitleDelayControlHeight: SizePrimitives.size54
-    readonly property int subtitleDelayLabelWidth: SizePrimitives.size78
-    readonly property int subtitleDelaySliderX: SizePrimitives.size104
-    readonly property int subtitleDelaySliderWidth: SizePrimitives.size118
-    readonly property int subtitleDelayResetSize: SizePrimitives.size32
+
+    readonly property int delayControlWidth: SizePrimitives.size324
+    readonly property int delayControlHeight: SizePrimitives.size54
+    readonly property int delayControlLabelWidth: SizePrimitives.size78
+    readonly property int delayControlSliderX: SizePrimitives.size104
+    readonly property int delayControlSliderWidth: SizePrimitives.size118
+    readonly property int delayControlResetSize: SizePrimitives.size32
+
+    readonly property int subtitleDelayControlWidth: delayControlWidth
+    readonly property int subtitleDelayControlHeight: delayControlHeight
+    readonly property int subtitleDelayLabelWidth: delayControlLabelWidth
+    readonly property int subtitleDelaySliderX: delayControlSliderX
+    readonly property int subtitleDelaySliderWidth: delayControlSliderWidth
+    readonly property int subtitleDelayResetSize: delayControlResetSize
 
     readonly property int sliderDefaultWidth: SizePrimitives.size180
     readonly property int sliderReferenceHitWidth: SizePrimitives.size132

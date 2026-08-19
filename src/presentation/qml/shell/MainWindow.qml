@@ -17,6 +17,7 @@ ApplicationWindow {
     property var trackSelectionController: null
     property var externalSubtitleLoader: null
     property var subtitleDelayController: null
+    property var audioDelayController: null
     property var audioTrackModel: null
     property var subtitleTrackModel: null
     property var mediaOpenCoordinator: null
@@ -83,6 +84,7 @@ ApplicationWindow {
         playlistController: window.playlistController
         playlistModel: window.playlistModel
         trackSelectionController: window.trackSelectionController
+        audioDelayController: window.audioDelayController
         subtitleDelayController: window.subtitleDelayController
         externalSubtitleAvailable: window.externalSubtitleLoader !== null
         audioTrackModel: window.audioTrackModel

@@ -1,6 +1,8 @@
 add_library(
     player_tracks_application
     STATIC
+        audio_delay_controller.cpp
+        audio_delay_controller.h
         external_subtitle_loader.cpp
         external_subtitle_loader.h
         subtitle_delay_controller.cpp

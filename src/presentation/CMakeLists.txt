@@ -45,6 +45,7 @@ set(PLAYER_QML_FILES
     qml/features/playlist/PlaylistControls.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
+    qml/features/tracks/AudioDelayControl.qml
     qml/features/tracks/ExternalSubtitleOpenDialog.qml
     qml/features/tracks/SubtitleDelayControl.qml
     qml/features/tracks/TrackSelectionPopup.qml
@@ -101,6 +102,7 @@ set_source_files_properties(
     qml/features/playlist/PlaylistControls.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
+    qml/features/tracks/AudioDelayControl.qml
     qml/features/tracks/ExternalSubtitleOpenDialog.qml
     qml/features/tracks/SubtitleDelayControl.qml
     qml/features/tracks/TrackSelectionPopup.qml

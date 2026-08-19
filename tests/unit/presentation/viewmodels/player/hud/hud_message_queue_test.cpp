@@ -16,6 +16,7 @@ private slots:
     void muteUpdatesCurrentVolumeMessage();
     void seekFailureReplacesCurrentSeekResult();
     void subtitleDelayFormatsSignedMilliseconds();
+    void audioDelayFormatsSignedMilliseconds();
     void differentKindsQueueLatestValue();
     void invalidMessagesAreIgnored();
     void clearStopsCurrentAndPendingMessages();
@@ -88,6 +89,23 @@ void HudMessageQueueTest::subtitleDelayFormatsSignedMilliseconds()
 
     queue.showSubtitleDelay(0);
     QCOMPARE(queue.messageKey(), QStringLiteral("subtitleDelay"));
+    QCOMPARE(queue.valueText(), QStringLiteral("0 ms"));
+}
+
+void HudMessageQueueTest::audioDelayFormatsSignedMilliseconds()
+{
+    HudMessageQueue queue;
+
+    queue.showAudioDelay(250);
+    QCOMPARE(queue.messageKey(), QStringLiteral("audioDelay"));
+    QCOMPARE(queue.valueText(), QStringLiteral("+250 ms"));
+
+    queue.showAudioDelay(-100);
+    QCOMPARE(queue.messageKey(), QStringLiteral("audioDelay"));
+    QCOMPARE(queue.valueText(), QStringLiteral("-100 ms"));
+
+    queue.showAudioDelay(0);
+    QCOMPARE(queue.messageKey(), QStringLiteral("audioDelay"));
     QCOMPARE(queue.valueText(), QStringLiteral("0 ms"));
 }
 

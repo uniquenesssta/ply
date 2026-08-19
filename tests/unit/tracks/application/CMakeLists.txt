@@ -82,3 +82,26 @@ add_test(
     NAME subtitle_delay_flow
     COMMAND subtitle_delay_flow_tests
 )
+
+add_executable(
+    audio_delay_controller_tests
+    audio_delay_controller_test.cpp
+)
+
+player_apply_compiler_options(audio_delay_controller_tests)
+player_enable_compiler_warnings(audio_delay_controller_tests)
+player_enable_sanitizers(audio_delay_controller_tests)
+player_enable_static_analysis(audio_delay_controller_tests)
+
+target_link_libraries(
+    audio_delay_controller_tests
+    PRIVATE
+        player_tracks_application
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME audio_delay_controller
+    COMMAND audio_delay_controller_tests
+)

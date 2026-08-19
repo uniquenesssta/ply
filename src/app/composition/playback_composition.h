@@ -1,5 +1,6 @@
 #pragma once
 
+#include "playback/domain/commands/audio_delay_command.h"
 #include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/subtitle_delay_command.h"
@@ -68,6 +69,8 @@ public:
         const player::playback::domain::AddExternalSubtitleCommand& subtitle);
     [[nodiscard]] bool submitSubtitleDelay(
         const player::playback::domain::SetSubtitleDelayCommand& delay);
+    [[nodiscard]] bool submitAudioDelay(
+        const player::playback::domain::SetAudioDelayCommand& delay);
     [[nodiscard]] bool submitTrackSelection(
         const player::playback::domain::TrackSelectionCommand& selection);
 

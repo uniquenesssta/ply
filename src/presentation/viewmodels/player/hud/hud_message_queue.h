@@ -31,6 +31,7 @@ public:
     void showSpeed(const QString& speedText);
     void showTrackChange(const QString& trackText);
     void showSubtitleDelay(int milliseconds);
+    void showAudioDelay(int milliseconds);
     void clear();
 
 signals:
@@ -44,6 +45,7 @@ private:
         Track,
         Important,
         SubtitleDelay,
+        AudioDelay,
     };
 
     enum class Priority {
@@ -69,6 +71,7 @@ private:
     void pushPending(Message message);
 
     [[nodiscard]] static bool outranks(Priority candidate, Priority current) noexcept;
+    [[nodiscard]] static QString signedMilliseconds(int milliseconds);
 
     QTimer holdTimer_;
     std::optional<Message> current_;

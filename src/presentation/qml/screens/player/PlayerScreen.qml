@@ -25,6 +25,7 @@ Item {
     property var playlistController: null
     property var playlistModel: null
     property var trackSelectionController: null
+    property var audioDelayController: null
     property var subtitleDelayController: null
     property bool externalSubtitleAvailable: false
     property var audioTrackModel: null
@@ -282,6 +283,7 @@ Item {
                     audioTrackModel: root.audioTrackModel
                     subtitleTrackModel: root.subtitleTrackModel
                     trackSelectionController: root.trackSelectionController
+                    audioDelayController: root.audioDelayController
                     subtitleDelayController: root.subtitleDelayController
 
                     onTrackPopupOpenChanged: root.popupOpen = trackPopupOpen

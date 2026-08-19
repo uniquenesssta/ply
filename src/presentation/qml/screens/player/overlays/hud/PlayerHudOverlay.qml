@@ -36,6 +36,8 @@ Item {
             return qsTr("Track")
         case "subtitleDelay":
             return qsTr("Subtitle delay")
+        case "audioDelay":
+            return qsTr("Audio delay")
         default:
             return ""
         }

@@ -101,9 +101,16 @@ void HudMessageQueue::showSubtitleDelay(int milliseconds)
     Message message;
     message.coalescingKey = CoalescingKey::SubtitleDelay;
     message.key = QStringLiteral("subtitleDelay");
-    message.value = milliseconds > 0
-        ? QStringLiteral("+%1 ms").arg(milliseconds)
-        : QStringLiteral("%1 ms").arg(milliseconds);
+    message.value = signedMilliseconds(milliseconds);
+    enqueueOrUpdate(std::move(message));
+}
+
+void HudMessageQueue::showAudioDelay(int milliseconds)
+{
+    Message message;
+    message.coalescingKey = CoalescingKey::AudioDelay;
+    message.key = QStringLiteral("audioDelay");
+    message.value = signedMilliseconds(milliseconds);
     enqueueOrUpdate(std::move(message));
 }
 
@@ -241,6 +248,13 @@ void HudMessageQueue::pushPending(Message message)
 bool HudMessageQueue::outranks(Priority candidate, Priority current) noexcept
 {
     return static_cast<int>(candidate) > static_cast<int>(current);
+}
+
+QString HudMessageQueue::signedMilliseconds(int milliseconds)
+{
+    return milliseconds > 0
+        ? QStringLiteral("+%1 ms").arg(milliseconds)
+        : QStringLiteral("%1 ms").arg(milliseconds);
 }
 
 } // namespace player::presentation
