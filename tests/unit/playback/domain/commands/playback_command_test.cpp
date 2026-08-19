@@ -30,6 +30,7 @@ private slots:
     void rejectsNonFiniteSeek();
     void rejectsInvalidVolume();
     void rejectsInvalidSpeed();
+    void rejectsInvalidSubtitleDelay();
     void rejectsInvalidTrackSelection();
 };
 
@@ -51,6 +52,8 @@ void PlaybackCommandTest::acceptsSupportedCommandFamilies()
         command(player::ids::RequestId{13}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Subtitle, std::nullopt}}),
         command(player::ids::RequestId{14}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Initialize}}),
         command(player::ids::RequestId{15}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Shutdown}}),
+        command(player::ids::RequestId{16}, PlaybackCommandPayload{SetSubtitleDelayCommand{0.25}}),
+        command(player::ids::RequestId{17}, PlaybackCommandPayload{SetSubtitleDelayCommand{-0.25}}),
     };
 
     for (const PlaybackCommand& value : commands) {
@@ -155,6 +158,30 @@ void PlaybackCommandTest::rejectsInvalidSpeed()
     QVERIFY(
         validatePlaybackCommand(notANumber)
         == std::optional{PlaybackCommandValidationError::InvalidSpeed});
+}
+
+void PlaybackCommandTest::rejectsInvalidSubtitleDelay()
+{
+    const PlaybackCommand tooHigh{
+        player::ids::RequestId{1},
+        PlaybackCommandPayload{SetSubtitleDelayCommand{2.01}}};
+    QVERIFY(
+        validatePlaybackCommand(tooHigh)
+        == std::optional{PlaybackCommandValidationError::InvalidSubtitleDelay});
+
+    const PlaybackCommand tooLow{
+        player::ids::RequestId{2},
+        PlaybackCommandPayload{SetSubtitleDelayCommand{-2.01}}};
+    QVERIFY(
+        validatePlaybackCommand(tooLow)
+        == std::optional{PlaybackCommandValidationError::InvalidSubtitleDelay});
+
+    const PlaybackCommand notANumber{
+        player::ids::RequestId{3},
+        PlaybackCommandPayload{SetSubtitleDelayCommand{std::numeric_limits<double>::quiet_NaN()}}};
+    QVERIFY(
+        validatePlaybackCommand(notANumber)
+        == std::optional{PlaybackCommandValidationError::InvalidSubtitleDelay});
 }
 
 void PlaybackCommandTest::rejectsInvalidTrackSelection()
