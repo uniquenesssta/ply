@@ -127,6 +127,18 @@ std::optional<QList<QByteArray>> MpvCommandEncoder::encode(
                     source,
                     QByteArrayLiteral("cached"),
                 };
+            } else if constexpr (std::is_same_v<Request, MpvSubtitleDelayRequest>) {
+                if (!std::isfinite(typedRequest.seconds)) {
+                    return failEncoding(
+                        QStringLiteral("Subtitle delay must be finite."),
+                        errorMessage);
+                }
+
+                return QList<QByteArray>{
+                    QByteArrayLiteral("set"),
+                    QByteArrayLiteral("sub-delay"),
+                    encodeNumber(typedRequest.seconds),
+                };
             } else {
                 static_assert(std::is_same_v<Request, MpvTrackSelectionRequest>);
 
