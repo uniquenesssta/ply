@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-04 Complete；R8-05 Candidate**。R8-04 修复版 `da7400e...` 已通过 Windows build、Quick **99/99 PASS（42.29 s）**、Full **107/107 PASS（78.80 s）**，startup-smoke **3.05 s**、8 项 windowed-render 合计 **38.84 s**；用户随后实机确认外挂字幕可以添加，Track Popup 内双击不再穿透触发全屏，并明确允许 R8-04 暂时收口。R8-05 字幕延迟已形成代码候选，但 Windows build/QML lint/CTest 与正负/reset 实际时序效果仍待验证，因此不记为 Complete |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-04 Complete；R8-05 Candidate**。R8-04 修复版 `da7400e...` 已通过 Windows build、Quick **99/99 PASS（42.29 s）**、Full **107/107 PASS（78.80 s）**，startup-smoke **3.05 s**、8 项 windowed-render 合计 **38.84 s**；用户随后实机确认外挂字幕可以添加，Track Popup 内双击不再穿透触发全屏，并明确允许 R8-04 暂时收口。R8-05 首轮 Windows build 被新增 `subtitle_delay_flow` 测试自身的命名空间误解析阻断；测试修复 `b27022f...` 已提交，仍待重新 build、Quick/Full CTest 与正负/reset 实际时序效果验证，因此不记为 Complete |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -123,6 +123,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 - mpv 适配保持单一权威链：`set sub-delay <seconds>`，并把 `sub-delay` 注册为 Double property，经既有 observer/event mapper/generation gate/reducer 回到 Snapshot。字幕延迟 request 绑定 MediaGeneration，并使用独立 SubtitleDelay supersession lane；不与 Track selection、外挂字幕或后续 R8-06 Audio Delay 共用状态。固定范围 **±2.0 s**、步进 **50 ms**，覆盖正值、负值与 reset `0 ms`。
 - QML 新增职责独立的 `SubtitleDelayControl.qml`，按 Figma `Subtitles / Delay Control`（191:1313）实现 **324×54** Neutral/Pending/Disabled、118×32 slider、32×32 reset 与 pending target 文案；几何进入现有 Size/Layout Token，不留下 Feature raw metric。确认后的实际值进入现有 HUD，按 `+250 ms / -100 ms / 0 ms` 显示；QML 不调用 mpv。
 - 新增 `subtitle_delay_flow` CTest，并扩展 PlaybackCommand、Request supersession、mpv property baseline/observer 与 HUD queue 回归，覆盖正/负/reset、范围拒绝、50 ms 量化、generation 清理、同 generation latest-wins、`set sub-delay` 编码、property→Snapshot 确认真值和 HUD signed-ms。当前连接环境不能执行 Windows Qt/MSVC configure/build、QML lint 或 CTest，也没有真实字幕时序效果 smoke；这些均不记为通过。R8-05 保持 Candidate，无新增生产依赖。
+- 用户首轮 Windows build 在 `subtitle_delay_flow_test.cpp` 编译阶段失败，`application::RequestTracker / RequestTrackStatus / PlaybackRequestType` 在测试自身的 `player::tracks::application` 作用域内被错误解析到当前 namespace，产生 C2039/C2065/C3083 连锁错误；build 因此以 exit code 1 停止，后续 `-Quick -SkipBuild` 也因 development runtime marker 未生成而未执行。生产字幕延迟链未被该日志判定失败；测试已改为明确引用 `player::playback::application::...`，修复 commit `b27022f438f7483d08de61221ca3a32800053830`。修复后 Windows build/Quick/Full 与真实正负/reset 时序仍待重跑，R8-05 继续为 Candidate。
 
 ### 2026-08-19 — R8-04 External subtitle Complete
 
@@ -178,7 +179,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 - R8-01 不重建第二套 Tracks 真值：既有 `TrackDescriptor` / `PlaybackTrackState` / reducer / MediaGeneration gate 继续保持。新增独立 infrastructure responsibility `MpvTrackListDecoder`，只负责把 `MpvNodeDecoder` 已经复制出的 `QVariantList/QVariantMap` track tree 解码为 `QList<TrackDescriptor>`；`MpvTrackModelMapper` 保留 property unavailable 与 selection-property 适配，只把 `track-list` 的结构解析委托给 decoder。上层没有新增 `mpv_node`、property 字符串或 UI index 依赖。
 - decoder 保留既有产品语义：track `id` 必须是 backend 正整数稳定 ID；支持 video/audio/subtitle kind；title/language/codec/external filename 为 optional；selected/default/forced/external/image/album-art 缺失时为 false；未知额外 backend 字段忽略；非法顶层、非法 entry、缺失/非法 id/type、错误 optional 字段类型会整体拒绝，不输出半解析列表。没有新增生产依赖。
 - 新增独立 `mpv_track_list_decoder` CTest，覆盖多 audio/subtitle metadata、最小字段、未知字段兼容、空列表、malformed payload 原子拒绝，以及 mapper 对有效列表与 unavailable property 的既有语义。现有主链仍为 `mpv node → MpvNodeDecoder → MpvPropertyChange → MpvTrackListDecoder/Mapper → TrackListChangedEvent → MediaGeneration gate → reducer → PlaybackSnapshot`。
-- 用户在 HEAD `c19632945f886603b292daecd3a2e98a98554033` 的 Windows 锁定环境完成重新 configure 与 build；Quick **95/95 PASS，0 failed，40.58 s**，Full **103/103 PASS，0 failed，78.87 s**；新增 `mpv_track_list_decoder` 在 Quick/Full 均 PASS，Full 的 startup-smoke **3.05 s**，8 项 windowed-render 合计 **38.90 s**。任务书要求的真实多音轨/多字幕媒体基本验证尚未执行：项目因 R0-06 已跳过而没有可合法分发 fixture，且 R8-02 前没有面向 QML 的只读 Track model 可用于稳定观察真实媒体列表，因此该 smoke 明确保留为 R8 阶段本地验证项，不伪称已覆盖，也不阻断 R8-02。**R8-01 正式 Complete。**
+- 用户在 HEAD `c19632945f886603b292daecd3a2e98a98554033` 的 Windows 锁定环境完成重新 configure 与 build；Quick **95/95 PASS，0 failed，40.58 s**，Full **103/103 PASS，0 failed，78.87 s**；新增 `mpv_track_list_decoder` 在 Quick/Full 均 PASS，Full 的 startup-smoke **3.05 s**、8 项 windowed-render 合计 **38.90 s**。任务书要求的真实多音轨/多字幕媒体基本验证尚未执行：项目因 R0-06 已跳过而没有可合法分发 fixture，且 R8-02 前没有面向 QML 的只读 Track model 可用于稳定观察真实媒体列表，因此该 smoke 明确保留为 R8 阶段本地验证项，不伪称已覆盖，也不阻断 R8-02。**R8-01 正式 Complete。**
 
 ### 2026-08-18 — R7-14 Queue UI state decoupling Complete
 
