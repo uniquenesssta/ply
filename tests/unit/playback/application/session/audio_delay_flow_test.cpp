@@ -22,6 +22,7 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <utility>
 #include <variant>
 
 namespace player::playback::application {
@@ -108,24 +109,24 @@ void AudioDelayFlowTest::rejectsOutOfRangeAndNonFiniteValues()
     const domain::PlaybackCommand tooHigh{
         player::ids::RequestId{711},
         domain::PlaybackCommandPayload{domain::SetAudioDelayCommand{2.01}}};
-    QCOMPARE(
-        domain::validatePlaybackCommand(tooHigh),
-        std::optional{domain::PlaybackCommandValidationError::InvalidAudioDelay});
+    QVERIFY(
+        domain::validatePlaybackCommand(tooHigh)
+        == std::optional{domain::PlaybackCommandValidationError::InvalidAudioDelay});
 
     const domain::PlaybackCommand tooLow{
         player::ids::RequestId{712},
         domain::PlaybackCommandPayload{domain::SetAudioDelayCommand{-2.01}}};
-    QCOMPARE(
-        domain::validatePlaybackCommand(tooLow),
-        std::optional{domain::PlaybackCommandValidationError::InvalidAudioDelay});
+    QVERIFY(
+        domain::validatePlaybackCommand(tooLow)
+        == std::optional{domain::PlaybackCommandValidationError::InvalidAudioDelay});
 
     const domain::PlaybackCommand notANumber{
         player::ids::RequestId{713},
         domain::PlaybackCommandPayload{domain::SetAudioDelayCommand{
             std::numeric_limits<double>::quiet_NaN()}}};
-    QCOMPARE(
-        domain::validatePlaybackCommand(notANumber),
-        std::optional{domain::PlaybackCommandValidationError::InvalidAudioDelay});
+    QVERIFY(
+        domain::validatePlaybackCommand(notANumber)
+        == std::optional{domain::PlaybackCommandValidationError::InvalidAudioDelay});
 
     QCOMPARE(domain::kAudioDelayMinimumSeconds, -2.0);
     QCOMPARE(domain::kAudioDelayMaximumSeconds, 2.0);
