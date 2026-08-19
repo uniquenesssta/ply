@@ -10,6 +10,8 @@ QtObject {
     readonly property int utilityControlGap: SpacingPrimitives.space22
     readonly property int fullscreenTransportGap: SpacingPrimitives.space18
     readonly property int sliderValueGap: SpacingPrimitives.space12
+    readonly property int trackSelectionPopupGap: SpacingPrimitives.space4
+    readonly property int trackSelectionPopupPadding: SpacingPrimitives.space8
 
     readonly property int surfacePaddingSmall: SpacingPrimitives.space18
     readonly property int surfacePadding: SpacingPrimitives.space22

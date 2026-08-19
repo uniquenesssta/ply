@@ -75,7 +75,8 @@ void PlaylistQmlTest::utilityControlsMatchCanonicalFigmaOrderAndSpacing()
     QVERIFY(!utility.isEmpty());
     QVERIFY(utility.contains(QStringLiteral("SpacingTokens.utilityControlGap")));
     QVERIFY(utility.contains(QStringLiteral("SpacingTokens.fullscreenTransportGap")));
-    QVERIFY(utility.contains(QStringLiteral("objectName: \"subtitlesUnavailableControl\"")));
+    QVERIFY(utility.contains(QStringLiteral("objectName: \"trackSelectionButton\"")));
+    QVERIFY(utility.contains(QStringLiteral("TrackSelectionPopup {")));
     QVERIFY(utility.contains(QStringLiteral("iconId: \"subtitles\"")));
     QVERIFY(utility.contains(QStringLiteral("PlaylistControls {")));
     QVERIFY(utility.contains(QStringLiteral("FullscreenControls {")));

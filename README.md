@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-02 Complete**。R8-03 Track selection 候选实现已接通 stable track ID、Audio/Subtitle selection、Subtitle Off、RequestId/MediaGeneration 与 same-kind supersession；Windows reconfigure/build、Quick/Full 以及真实多音轨/多字幕本地媒体 smoke 尚待执行，因此 R8-03 仍未正式收口 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-02 Complete**。R8-03 Track selection 候选实现已接通 stable track ID、Audio/Subtitle selection、Subtitle Off、RequestId/MediaGeneration 与 same-kind supersession。Windows reconfigure/build 已完成；首轮 Quick **96/98 PASS、2 failed（45.97 s）**，失败为 Track popup raw visual metrics 与 Playlist 旧 placeholder 测试契约。两处候选修复已提交，修复后的 Quick/Full 与真实多音轨/多字幕本地媒体 smoke 尚待复验，因此 R8-03 仍未正式收口 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -114,6 +114,13 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-19 — R8-03 Quick gate repair Candidate
+
+- 首轮 Windows 锁定环境已完成 R8-03 重新 configure/build；Quick 实际为 **96/98 PASS、2 failed（45.97 s）**，CTest exit code 8。失败仅为 `theme_tokens` 检出的 `TrackSelectionPopup.qml` raw visual metrics，以及 `player_playlist_qml` 仍要求已被真实 Track selection 控件替代的 `subtitlesUnavailableControl` 旧契约。
+- `TrackSelectionPopup` 保持原 280px popup、8px padding、4px item gap 的可观察几何，但把这些值移入现有 Theme responsibility：新增 `SizePrimitives.size280`、`SpacingPrimitives.space4/space8` 与对应 `LayoutTokens.trackSelectionPopupWidth`、`SpacingTokens.trackSelectionPopupGap/trackSelectionPopupPadding`；row 宽度由 popup 实际左右 padding 推导，不再复制 264px literal。没有放宽或跳过 `theme_tokens` 门禁。
+- `player_playlist_qml` 的旧 placeholder 断言改为验证真实 `trackSelectionButton` 与 `TrackSelectionPopup`，同时保留 Subtitles/Track → Playlist → Fullscreen 的 canonical 顺序及既有 spacing 断言；没有为了旧测试重新引入不可用占位控件。
+- 本连接环境不能执行 Windows Qt/MSVC build/CTest，因此修复后的 Quick **98/98**、Full **106/106** 仍是待用户复验目标，不记为已通过；真实多音轨/多字幕媒体 smoke 也仍未执行。R8-03 继续保持 Candidate。
 
 ### 2026-08-18 — R8-03 Track selection Candidate
 

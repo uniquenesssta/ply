@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import Player.Presentation.Theme
 
 Popup {
     id: root
@@ -10,8 +11,8 @@ Popup {
 
     signal selectionSubmissionRejected()
 
-    width: 280
-    padding: 8
+    width: LayoutTokens.trackSelectionPopupWidth
+    padding: SpacingTokens.trackSelectionPopupPadding
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     function trackLabel(title, language, codec, trackId, fallback) {
@@ -24,7 +25,7 @@ Popup {
     }
 
     contentItem: Column {
-        spacing: 4
+        spacing: SpacingTokens.trackSelectionPopupGap
 
         Label {
             text: qsTr("Audio")
@@ -40,7 +41,7 @@ Popup {
                 required property string codec
                 required property bool selected
 
-                width: 264
+                width: root.width - root.leftPadding - root.rightPadding
                 text: (selected ? "✓ " : "")
                       + root.trackLabel(title, language, codec, trackId, qsTr("Audio Track"))
 
@@ -60,7 +61,7 @@ Popup {
         }
 
         Button {
-            width: 264
+            width: root.width - root.leftPadding - root.rightPadding
             text: ((root.subtitleTrackModel === null
                     || root.subtitleTrackModel.selectedTrackId === 0) ? "✓ " : "")
                   + qsTr("Off")
@@ -85,7 +86,7 @@ Popup {
                 required property string codec
                 required property bool selected
 
-                width: 264
+                width: root.width - root.leftPadding - root.rightPadding
                 text: (selected ? "✓ " : "")
                       + root.trackLabel(title, language, codec, trackId, qsTr("Subtitle Track"))
 
