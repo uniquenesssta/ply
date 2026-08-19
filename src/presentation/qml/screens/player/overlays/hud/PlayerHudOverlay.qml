@@ -34,6 +34,8 @@ Item {
             return qsTr("Speed")
         case "track":
             return qsTr("Track")
+        case "subtitleDelay":
+            return qsTr("Subtitle delay")
         default:
             return ""
         }
