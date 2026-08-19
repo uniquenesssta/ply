@@ -30,6 +30,7 @@ public:
     void showSeekFailure();
     void showSpeed(const QString& speedText);
     void showTrackChange(const QString& trackText);
+    void showSubtitleDelay(int milliseconds);
     void clear();
 
 signals:
@@ -42,6 +43,7 @@ private:
         Speed,
         Track,
         Important,
+        SubtitleDelay,
     };
 
     enum class Priority {
