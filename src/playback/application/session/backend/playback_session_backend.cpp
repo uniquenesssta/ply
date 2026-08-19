@@ -243,47 +243,24 @@ bool PlaybackSessionBackend::submit(
 void PlaybackSessionBackend::refreshExternalSubtitleTrackState(
     player::playback::domain::MediaGeneration generation)
 {
-    if (!generation.isValid() || propertyReader_ == nullptr || !eventHandler_) {
-        return;
-    }
-
-    for (MpvPropertyId id : kExternalSubtitleRefreshProperties) {
-        QString error;
-        const auto change = propertyReader_->read(id, &error);
-        if (!change.has_value()) {
-            qWarning().noquote()
-                << (error.isEmpty()
-                        ? QStringLiteral("Unable to refresh external subtitle mpv property id %1.")
-                              .arg(static_cast<quint16>(id))
-                        : error);
-            continue;
-        }
-
-        player::playback::mpv::MpvEvent propertyEvent;
-        propertyEvent.type = player::playback::mpv::MpvEventType::PropertyChange;
-        propertyEvent.payload = *change;
-
-        auto mapped = player::playback::mpv::MpvPlaybackEventMapper::map(propertyEvent);
-        if (!mapped.has_value()) {
-            continue;
-        }
-
-        mapped->generation = generation;
-        if (!eventHandler_) {
-            return;
-        }
-        eventHandler_(*mapped);
-    }
+    refreshProperties(generation, kExternalSubtitleRefreshProperties);
 }
 
 void PlaybackSessionBackend::refreshCurrentMediaProperties(
     player::playback::domain::MediaGeneration generation)
 {
+    refreshProperties(generation, kMediaRefreshProperties);
+}
+
+void PlaybackSessionBackend::refreshProperties(
+    player::playback::domain::MediaGeneration generation,
+    std::span<const MpvPropertyId> properties)
+{
     if (!generation.isValid() || propertyReader_ == nullptr || !eventHandler_) {
         return;
     }
 
-    for (MpvPropertyId id : kMediaRefreshProperties) {
+    for (MpvPropertyId id : properties) {
         QString error;
         const auto change = propertyReader_->read(id, &error);
         if (!change.has_value()) {
