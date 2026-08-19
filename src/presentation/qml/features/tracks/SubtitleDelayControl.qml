@@ -1,10 +1,8 @@
 import QtQuick
 import Player.Presentation.Controls
-import Player.Presentation.Primitives
-import Player.Presentation.Surfaces
 import Player.Presentation.Theme
 
-Panel {
+Rectangle {
     id: root
 
     property var controller: null
@@ -28,16 +26,19 @@ Panel {
     implicitHeight: LayoutTokens.subtitleDelayControlHeight
     width: implicitWidth
     height: implicitHeight
-    contentPadding: SpacingTokens.none
-    surfaceColor: ColorTokens.surfaceGlassSubtle
-    fillAlpha: MaterialTokens.footerFillAlpha
-    borderColor: ColorTokens.borderGlass
-    borderAlpha: MaterialTokens.borderSoftAlpha
-    cornerRadius: RadiusTokens.inspectorFooter
-    backdropBlurRadius: MaterialTokens.footerBlur
-    shadowRadius: ElevationTokens.floatingShadowRadius
-    shadowYOffset: ElevationTokens.floatingShadowYOffset
-    shadowAlpha: ElevationTokens.floatingShadowAlpha
+    color: Qt.rgba(
+        ColorTokens.surfaceGlassSubtle.r,
+        ColorTokens.surfaceGlassSubtle.g,
+        ColorTokens.surfaceGlassSubtle.b,
+        ColorTokens.surfaceGlassSubtle.a * MaterialTokens.footerFillAlpha)
+    border.width: LayoutTokens.surfaceBorderWidth
+    border.color: Qt.rgba(
+        ColorTokens.borderGlass.r,
+        ColorTokens.borderGlass.g,
+        ColorTokens.borderGlass.b,
+        ColorTokens.borderGlass.a * MaterialTokens.borderSoftAlpha)
+    radius: RadiusTokens.inspectorFooter
+    z: ZOrderTokens.overlay
     opacity: root.controlAvailable
              ? OpacityTokens.visible
              : OpacityTokens.controlDisabled
@@ -86,20 +87,22 @@ Panel {
         width: LayoutTokens.subtitleDelayLabelWidth
         spacing: SpacingPrimitives.space2
 
-        BodyText {
+        Text {
             width: parent.width
             text: qsTr("Subtitle delay")
-            variant: BodyText.Control
+            font: TypographyTokens.controlBody
             color: root.controlAvailable
                    ? ColorTokens.textPrimary
                    : ColorTokens.textMuted
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
         }
 
-        CaptionText {
+        Text {
             width: parent.width
-            variant: root.controlPending
-                     ? CaptionText.MicroStrong
-                     : CaptionText.Technical
+            font: root.controlPending
+                  ? TypographyTokens.microStrong
+                  : TypographyTokens.technicalMetadata
             color: root.controlPending
                    ? ColorTokens.controlPendingTarget
                    : ColorTokens.textMuted
@@ -110,6 +113,10 @@ Panel {
                         ? root.controller.pendingTargetMilliseconds
                         : root.controller.delayMilliseconds)
                     + (root.controlPending ? qsTr(" · Applying") : "")
+            textFormat: Text.PlainText
+            wrapMode: Text.NoWrap
+            elide: Text.ElideRight
+            maximumLineCount: 1
         }
     }
 
