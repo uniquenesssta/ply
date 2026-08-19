@@ -65,6 +65,12 @@ std::optional<PlaybackCommandValidationError> validatePlaybackCommand(
                 if (!std::isfinite(payload.rate) || payload.rate <= 0.0) {
                     return PlaybackCommandValidationError::InvalidSpeed;
                 }
+            } else if constexpr (std::is_same_v<Command, SetSubtitleDelayCommand>) {
+                if (!std::isfinite(payload.seconds)
+                    || payload.seconds < kSubtitleDelayMinimumSeconds
+                    || payload.seconds > kSubtitleDelayMaximumSeconds) {
+                    return PlaybackCommandValidationError::InvalidSubtitleDelay;
+                }
             } else if constexpr (std::is_same_v<Command, TrackSelectionCommand>) {
                 if (payload.trackId.has_value() && *payload.trackId <= 0) {
                     return PlaybackCommandValidationError::InvalidTrackId;
