@@ -57,6 +57,9 @@ std::optional<MpvCommandRequest> MpvPlaybackCommandMapper::map(
             [](const SetSubtitleDelayCommand& delay) -> std::optional<MpvCommandRequest> {
                 return MpvCommandRequest{MpvSubtitleDelayRequest{delay.seconds}};
             },
+            [](const SetAudioDelayCommand& delay) -> std::optional<MpvCommandRequest> {
+                return MpvCommandRequest{MpvAudioDelayRequest{delay.seconds}};
+            },
             [](const TrackSelectionCommand& selection) -> std::optional<MpvCommandRequest> {
                 return MpvCommandRequest{MpvTrackSelectionRequest{
                     selection.kind == TrackSelectionKind::Audio

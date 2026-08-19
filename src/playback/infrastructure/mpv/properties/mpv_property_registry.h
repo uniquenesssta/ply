@@ -31,6 +31,7 @@ enum class MpvPropertyId : quint16
     VideoParams,
     AudioParams,
     SubtitleDelay,
+    AudioDelay,
 };
 
 enum class MpvPropertyFormat : quint8

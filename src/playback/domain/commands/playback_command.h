@@ -1,6 +1,7 @@
 #pragma once
 
 #include "foundation/ids/request_id.h"
+#include "playback/domain/commands/audio_delay_command.h"
 #include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/lifecycle_command.h"
 #include "playback/domain/commands/load_media_command.h"
@@ -28,7 +29,8 @@ using PlaybackCommandPayload = std::variant<
     TrackSelectionCommand,
     LifecycleCommand,
     AddExternalSubtitleCommand,
-    SetSubtitleDelayCommand>;
+    SetSubtitleDelayCommand,
+    SetAudioDelayCommand>;
 
 enum class PlaybackCommandValidationError : quint8
 {
@@ -43,6 +45,7 @@ enum class PlaybackCommandValidationError : quint8
     EmptyExternalSubtitleSource,
     ExternalSubtitleSourceContainsNull,
     InvalidSubtitleDelay,
+    InvalidAudioDelay,
 };
 
 class PlaybackCommand final

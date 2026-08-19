@@ -138,6 +138,16 @@ std::optional<PlaybackEvent> mapProperty(const MpvPropertyChange& change)
         }
         return PlaybackEvent{SubtitleDelayChangedEvent{value.value}};
     }
+    case MpvPropertyId::AudioDelay: {
+        const auto value = readScalar<double>(change.value);
+        if (!value.validType) {
+            return invalidType();
+        }
+        if (value.value.has_value() && !std::isfinite(*value.value)) {
+            return invalidType();
+        }
+        return PlaybackEvent{AudioDelayChangedEvent{value.value}};
+    }
     case MpvPropertyId::Seekable: {
         const auto value = readScalar<bool>(change.value);
         return value.validType ? std::optional<PlaybackEvent>{PlaybackEvent{SeekableChangedEvent{value.value}}}

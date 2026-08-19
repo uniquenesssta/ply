@@ -124,7 +124,7 @@ private slots:
 void MpvPropertyObserverTest::registryOwnsCorePropertyDefinitions()
 {
     const QList<MpvPropertyDefinition>& definitions = MpvPropertyRegistry::coreDefinitions();
-    QCOMPARE(definitions.size(), qsizetype{23});
+    QCOMPARE(definitions.size(), qsizetype{24});
 
     QSet<int> ids;
     QSet<quint64> observationIds;
@@ -148,13 +148,17 @@ void MpvPropertyObserverTest::registryOwnsCorePropertyDefinitions()
     const MpvPropertyDefinition* trackList = MpvPropertyRegistry::findById(MpvPropertyId::TrackList);
     const MpvPropertyDefinition* chapterList = MpvPropertyRegistry::findById(MpvPropertyId::ChapterList);
     const MpvPropertyDefinition* subtitleDelay = MpvPropertyRegistry::findById(MpvPropertyId::SubtitleDelay);
+    const MpvPropertyDefinition* audioDelay = MpvPropertyRegistry::findById(MpvPropertyId::AudioDelay);
     QVERIFY(trackList != nullptr);
     QVERIFY(chapterList != nullptr);
     QVERIFY(subtitleDelay != nullptr);
+    QVERIFY(audioDelay != nullptr);
     QCOMPARE(trackList->format, MpvPropertyFormat::Node);
     QCOMPARE(chapterList->format, MpvPropertyFormat::Node);
     QCOMPARE(subtitleDelay->name, QByteArrayLiteral("sub-delay"));
     QCOMPARE(subtitleDelay->format, MpvPropertyFormat::Double);
+    QCOMPARE(audioDelay->name, QByteArrayLiteral("audio-delay"));
+    QCOMPARE(audioDelay->format, MpvPropertyFormat::Double);
 }
 
 void MpvPropertyObserverTest::observerRequiresInitializedHandle()
@@ -218,6 +222,10 @@ void MpvPropertyObserverTest::observesAndDecodesCoreProperties()
     result = mpv_set_property_string(handle->nativeHandle(), "sub-delay", "0.25");
     QVERIFY2(result >= 0, mpv_error_string(result));
     QVERIFY2(waitForDoubleProperty(*handle, observer, MpvPropertyId::SubtitleDelay, 0.25, &error), qPrintable(error));
+
+    result = mpv_set_property_string(handle->nativeHandle(), "audio-delay", "-0.25");
+    QVERIFY2(result >= 0, mpv_error_string(result));
+    QVERIFY2(waitForDoubleProperty(*handle, observer, MpvPropertyId::AudioDelay, -0.25, &error), qPrintable(error));
 
     QVERIFY2(observer.stop(&error), qPrintable(error));
     QVERIFY(!observer.isObserving());

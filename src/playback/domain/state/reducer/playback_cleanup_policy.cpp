@@ -14,6 +14,7 @@ void clearMediaScopedDetails(PlaybackSnapshotState& state)
     state.tracks = {};
     state.chapters = {};
     state.controls.subtitleDelaySeconds.reset();
+    state.controls.audioDelaySeconds.reset();
 }
 
 } // namespace

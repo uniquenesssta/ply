@@ -46,7 +46,8 @@ using PlaybackEventPayload = std::variant<
     AudioStreamInfoChangedEvent,
     CommandReplyEvent,
     PlaybackFailureEvent,
-    SubtitleDelayChangedEvent>;
+    SubtitleDelayChangedEvent,
+    AudioDelayChangedEvent>;
 
 struct PlaybackEvent final
 {

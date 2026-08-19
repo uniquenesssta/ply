@@ -39,4 +39,9 @@ struct SubtitleDelayChangedEvent final
     std::optional<double> seconds;
 };
 
+struct AudioDelayChangedEvent final
+{
+    std::optional<double> seconds;
+};
+
 } // namespace player::playback::domain

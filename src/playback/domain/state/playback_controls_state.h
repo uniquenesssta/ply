@@ -10,6 +10,7 @@ struct PlaybackControlsState final
     std::optional<bool> muted;
     std::optional<double> speed;
     std::optional<double> subtitleDelaySeconds;
+    std::optional<double> audioDelaySeconds;
 };
 
 } // namespace player::playback::domain

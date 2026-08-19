@@ -80,7 +80,8 @@ bool shouldApplyBackendEvent(
         || std::holds_alternative<ChapterListChangedEvent>(payload)
         || std::holds_alternative<VideoStreamInfoChangedEvent>(payload)
         || std::holds_alternative<AudioStreamInfoChangedEvent>(payload)
-        || std::holds_alternative<SubtitleDelayChangedEvent>(payload)) {
+        || std::holds_alternative<SubtitleDelayChangedEvent>(payload)
+        || std::holds_alternative<AudioDelayChangedEvent>(payload)) {
         return isMediaPropertyLifecycle(lifecycle);
     }
 
@@ -253,6 +254,8 @@ void PlaybackSession::handleCommandReply(const CommandReplyEvent& reply)
                 backend_->refreshExternalSubtitleTrackState(*resolution.record->generation);
             } else if (resolution.record->type == PlaybackRequestType::SetSubtitleDelay) {
                 backend_->refreshSubtitleDelayState(*resolution.record->generation);
+            } else if (resolution.record->type == PlaybackRequestType::SetAudioDelay) {
+                backend_->refreshAudioDelayState(*resolution.record->generation);
             }
         }
         return;

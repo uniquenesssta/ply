@@ -27,6 +27,8 @@ bool hasMediaScopedState(const PlaybackSnapshotState& state)
         || state.tracks.selectedVideoId.has_value()
         || state.tracks.selectedAudioId.has_value()
         || state.tracks.selectedSubtitleId.has_value()
+        || state.controls.subtitleDelaySeconds.has_value()
+        || state.controls.audioDelaySeconds.has_value()
         || !state.chapters.chapters.isEmpty();
 }
 

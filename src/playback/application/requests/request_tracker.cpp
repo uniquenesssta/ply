@@ -1,6 +1,7 @@
 #include "request_tracker.h"
 
 #include "request_supersession_policy.h"
+#include "playback/domain/commands/audio_delay_command.h"
 #include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
@@ -294,6 +295,9 @@ std::optional<PlaybackRequestType> RequestTracker::requestTypeFor(
     if (std::holds_alternative<SetSubtitleDelayCommand>(payload)) {
         return PlaybackRequestType::SetSubtitleDelay;
     }
+    if (std::holds_alternative<SetAudioDelayCommand>(payload)) {
+        return PlaybackRequestType::SetAudioDelay;
+    }
     if (const auto* selection = std::get_if<TrackSelectionCommand>(&payload)) {
         return selection->kind == TrackSelectionKind::Audio
             ? PlaybackRequestType::SelectAudioTrack
@@ -314,6 +318,7 @@ bool RequestTracker::isMediaScoped(PlaybackRequestType type) noexcept
     case PlaybackRequestType::SeekRelative:
     case PlaybackRequestType::AddExternalSubtitle:
     case PlaybackRequestType::SetSubtitleDelay:
+    case PlaybackRequestType::SetAudioDelay:
     case PlaybackRequestType::SelectAudioTrack:
     case PlaybackRequestType::SelectSubtitleTrack:
     case PlaybackRequestType::SelectVideoTrack:

@@ -19,6 +19,8 @@ std::optional<PlaybackRequestSupersessionGroup> requestSupersessionGroupFor(
         return PlaybackRequestSupersessionGroup::VideoTrackSelection;
     case PlaybackRequestType::SetSubtitleDelay:
         return PlaybackRequestSupersessionGroup::SubtitleDelay;
+    case PlaybackRequestType::SetAudioDelay:
+        return PlaybackRequestSupersessionGroup::AudioDelay;
     case PlaybackRequestType::Play:
     case PlaybackRequestType::Pause:
     case PlaybackRequestType::Stop:

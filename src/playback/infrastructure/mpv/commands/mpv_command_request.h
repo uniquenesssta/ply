@@ -74,6 +74,11 @@ struct MpvSubtitleDelayRequest final
     double seconds = 0.0;
 };
 
+struct MpvAudioDelayRequest final
+{
+    double seconds = 0.0;
+};
+
 using MpvCommandRequest = std::variant<
     MpvLoadRequest,
     MpvPlayRequest,
@@ -85,6 +90,7 @@ using MpvCommandRequest = std::variant<
     MpvSpeedRequest,
     MpvTrackSelectionRequest,
     MpvExternalSubtitleRequest,
-    MpvSubtitleDelayRequest>;
+    MpvSubtitleDelayRequest,
+    MpvAudioDelayRequest>;
 
 } // namespace player::playback::mpv

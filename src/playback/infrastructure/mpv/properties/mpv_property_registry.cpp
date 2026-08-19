@@ -27,6 +27,7 @@ const QList<MpvPropertyDefinition> kCoreDefinitions{
     {MpvPropertyId::VideoParams, 2021, QByteArrayLiteral("video-params"), MpvPropertyFormat::Node},
     {MpvPropertyId::AudioParams, 2022, QByteArrayLiteral("audio-params"), MpvPropertyFormat::Node},
     {MpvPropertyId::SubtitleDelay, 2023, QByteArrayLiteral("sub-delay"), MpvPropertyFormat::Double},
+    {MpvPropertyId::AudioDelay, 2024, QByteArrayLiteral("audio-delay"), MpvPropertyFormat::Double},
 };
 
 } // namespace

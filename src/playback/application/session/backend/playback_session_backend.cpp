@@ -24,7 +24,7 @@ namespace {
 
 using player::playback::mpv::MpvPropertyId;
 
-constexpr std::array<MpvPropertyId, 18> kMediaRefreshProperties{
+constexpr std::array<MpvPropertyId, 19> kMediaRefreshProperties{
     MpvPropertyId::Position,
     MpvPropertyId::Duration,
     MpvPropertyId::Pause,
@@ -43,6 +43,7 @@ constexpr std::array<MpvPropertyId, 18> kMediaRefreshProperties{
     MpvPropertyId::VideoParams,
     MpvPropertyId::AudioParams,
     MpvPropertyId::SubtitleDelay,
+    MpvPropertyId::AudioDelay,
 };
 
 constexpr std::array<MpvPropertyId, 2> kExternalSubtitleRefreshProperties{
@@ -52,6 +53,10 @@ constexpr std::array<MpvPropertyId, 2> kExternalSubtitleRefreshProperties{
 
 constexpr std::array<MpvPropertyId, 1> kSubtitleDelayRefreshProperties{
     MpvPropertyId::SubtitleDelay,
+};
+
+constexpr std::array<MpvPropertyId, 1> kAudioDelayRefreshProperties{
+    MpvPropertyId::AudioDelay,
 };
 
 } // namespace
@@ -255,6 +260,12 @@ void PlaybackSessionBackend::refreshSubtitleDelayState(
     player::playback::domain::MediaGeneration generation)
 {
     refreshProperties(generation, kSubtitleDelayRefreshProperties);
+}
+
+void PlaybackSessionBackend::refreshAudioDelayState(
+    player::playback::domain::MediaGeneration generation)
+{
+    refreshProperties(generation, kAudioDelayRefreshProperties);
 }
 
 void PlaybackSessionBackend::refreshCurrentMediaProperties(

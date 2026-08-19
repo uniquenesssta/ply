@@ -50,6 +50,8 @@ public:
         player::playback::domain::MediaGeneration generation);
     void refreshSubtitleDelayState(
         player::playback::domain::MediaGeneration generation);
+    void refreshAudioDelayState(
+        player::playback::domain::MediaGeneration generation);
 
 private:
     void refreshCurrentMediaProperties(

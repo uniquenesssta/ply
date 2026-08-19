@@ -109,3 +109,33 @@ add_test(
     NAME playback_media_generation
     COMMAND playback_media_generation_application_tests
 )
+
+add_executable(
+    audio_delay_flow_application_tests
+    audio_delay_flow_test.cpp
+)
+
+player_apply_compiler_options(audio_delay_flow_application_tests)
+player_enable_compiler_warnings(audio_delay_flow_application_tests)
+player_enable_sanitizers(audio_delay_flow_application_tests)
+player_enable_static_analysis(audio_delay_flow_application_tests)
+
+target_compile_definitions(
+    audio_delay_flow_application_tests
+    PRIVATE
+        PLAYER_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+)
+
+target_link_libraries(
+    audio_delay_flow_application_tests
+    PRIVATE
+        player_playback_application
+        player_mpv_infrastructure
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(
+    NAME audio_delay_flow
+    COMMAND audio_delay_flow_application_tests
+)

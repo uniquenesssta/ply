@@ -3,6 +3,7 @@ target_sources(
     PRIVATE
         playback_command.cpp
     PUBLIC
+        audio_delay_command.h
         external_subtitle_command.h
         lifecycle_command.h
         load_media_command.h
