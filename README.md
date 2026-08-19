@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-03 Complete；R8-04 Candidate**。外挂字幕候选链已按 `本地 SRT/ASS → ExternalSubtitleLoader 校验/规范化 → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → track-list/sid → PlaybackSnapshot → 既有 TrackListModel` 接通，不建立第二套外挂字幕模型。当前连接环境尚未执行 Windows build/QML lint/Quick/Full 与真实 SRT/ASS 本地媒体 smoke，因此 R8-04 不记为 Complete |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-03 Complete；R8-04 Candidate**。HEAD `2d450e53...` 已通过 Windows build、Quick **99/99**、Full **107/107**，但真实本地 smoke 暴露“外挂字幕未能完成产品链”和 Track Popup 双击仍可触发底层全屏手势。当前修复候选增加成功回执后的确定性 `track-list/sid` 刷新、外挂字幕提交/异步失败日志和全屏手势 interaction gate；修复后的 Windows build/Quick/Full 与真实 SRT/ASS smoke 尚待复验，因此不记为 Complete |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -32,7 +32,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Track 的 raw `mpv_node` 只在 infrastructure 内转换；`MpvTrackListDecoder` 只把已经复制为 Qt value tree 的 `track-list` 映射为 `TrackDescriptor`，稳定 backend track ID 保持为产品身份，PlaybackSnapshot 继续是 track list/selection 的唯一播放真值，上层与 QML 不解析 mpv node。
 - `TrackListModel` 只消费已 generation-gated 的 `PlaybackSnapshot` 并按 Audio/Subtitle kind 投影只读行；`selected` 由 Snapshot 的 `selectedAudioId / selectedSubtitleId` 推导，model 不拥有 generation、selection mutation 或第二套 Track 真值。Opening/new-media Snapshot 清空旧轨道后，后续 current-generation Snapshot 整表替换新轨道。
 - Track selection 只走 `QML intent → TrackSelectionController → PlaybackCommand(RequestId + MediaGeneration) → mpv aid/sid → generation-gated PlaybackSnapshot → TrackListModel`。同类 Audio/Subtitle selection 复用 RequestTracker supersession lane；Subtitle Off 是显式 `sid=no` 状态；UI 不乐观改写 selected，最终 selected 始终由 backend/Snapshot 决定。
-- 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → observed track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`。Loader 只接受可读本地 SRT/ASS 并提交规范化路径；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测与更完整的重复加载治理仍按 R8 后续任务处理。
+- 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → 成功回执后确定性读取 track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`；mpv property observer 仍保留正常增量通知，但不再作为外部字幕成功后的唯一刷新来源。Loader 只接受可读本地 SRT/ASS 并提交规范化路径；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测与更完整的重复加载治理仍按 R8 后续任务处理。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
@@ -115,6 +115,13 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-19 — R8-04 real-media smoke repair Candidate
+
+- HEAD `2d450e53aca9693d7d3d54601ca68fc882fbb6d0` 已在 Windows 锁定环境完成 build，Quick **99/99 PASS（40.83 s）**、Full **107/107 PASS（79.00 s）**，startup-smoke **2.76 s**、8 项 windowed-render 合计 **38.80 s**；但随后真实本地 smoke 明确暴露两条候选缺陷：视频内建音轨/字幕可选择，而外挂字幕未能完成产品链；Track Popup 内双击仍会触发底层视频全屏手势。因此自动门禁全绿不作为 R8-04 完成证据。
+- 全屏双击根因已定位为 `FullscreenGestureLayer` 的全 VideoViewport `TapHandler.DragThreshold` 在 Popup/Drawer/Modal/OSC 控件交互期间仍保持启用；Qt 6.8 passive grab 会允许底层 handler 同时观察 pointer sequence。修复候选新增单一 interaction gate，在 popup、menu、drawer、modal、error overlay、OSC hover/focus 期间禁用底层双击手势，轨道 row 第一次点击关闭 Popup 后也不会把该次 pointer sequence 留给底层组成 double-tap。
+- 外挂字幕不改变 `sub-add <path> cached` 协议或建立第二套 model。成功 `AddExternalSubtitle` command reply 现在由 PlaybackSession 触发 backend 确定性刷新 `track-list + sid`，复用同一个 property read/map/event path 回到 generation-gated PlaybackSnapshot 与既有 Subtitle `TrackListModel`；正常 mpv property observer 继续保留，但不再是成功后的唯一刷新来源。
+- `ExternalSubtitleLoader` 现在记录同步校验/提交拒绝和已提交事件；PlaybackSessionThread 记录 `AddExternalSubtitle` 异步 backend failure，使下一次真实失败可以从日志区分 `file validation/submission` 与 `mpv command reply`。当前连接环境不能运行修复后的 Windows build/QML lint/Quick/Full，真实 SRT/ASS 与 Track Popup 双击 smoke 也尚未复验，因此 R8-04 继续保持 Candidate。无新增生产依赖。
 
 ### 2026-08-19 — R8-04 External subtitle Candidate
 
