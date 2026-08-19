@@ -1,6 +1,7 @@
 #pragma once
 
 #include "foundation/ids/request_id.h"
+#include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/lifecycle_command.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
@@ -23,6 +24,7 @@ using PlaybackCommandPayload = std::variant<
     SetVolumeCommand,
     SetMutedCommand,
     SetSpeedCommand,
+    AddExternalSubtitleCommand,
     TrackSelectionCommand,
     LifecycleCommand>;
 
@@ -31,6 +33,8 @@ enum class PlaybackCommandValidationError : quint8
     InvalidRequestId,
     EmptyMediaSource,
     MediaSourceContainsNull,
+    EmptyExternalSubtitleSource,
+    ExternalSubtitleSourceContainsNull,
     NonFiniteSeek,
     InvalidVolume,
     InvalidSpeed,

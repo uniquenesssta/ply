@@ -134,6 +134,14 @@ void MpvCommandExecutorTest::encoderProducesExpectedCommands()
         (QList<QByteArray>{QByteArrayLiteral("set"), QByteArrayLiteral("speed"), QByteArrayLiteral("1.25")}));
 
     encoded = MpvCommandEncoder::encode(
+        MpvExternalSubtitleRequest{QStringLiteral("C:/media/captions.ass")},
+        &error);
+    QVERIFY2(encoded.has_value(), qPrintable(error));
+    QCOMPARE(
+        *encoded,
+        (QList<QByteArray>{QByteArrayLiteral("sub-add"), QByteArrayLiteral("C:/media/captions.ass"), QByteArrayLiteral("cached")}));
+
+    encoded = MpvCommandEncoder::encode(
         MpvTrackSelectionRequest{MpvTrackSelectionKind::Audio, qint64{7}},
         &error);
     QVERIFY2(encoded.has_value(), qPrintable(error));
@@ -169,6 +177,17 @@ void MpvCommandExecutorTest::encoderRejectsInvalidRequests()
     embeddedNull.append(QChar(u'\0'));
     embeddedNull.append(QStringLiteral(".mp4"));
     QVERIFY(!MpvCommandEncoder::encode(MpvLoadRequest{embeddedNull}, &error).has_value());
+    QVERIFY(!error.isEmpty());
+
+    QVERIFY(!MpvCommandEncoder::encode(MpvExternalSubtitleRequest{}, &error).has_value());
+    QVERIFY(!error.isEmpty());
+
+    QString subtitleWithNull = QStringLiteral("captions");
+    subtitleWithNull.append(QChar(u'\0'));
+    subtitleWithNull.append(QStringLiteral(".srt"));
+    QVERIFY(!MpvCommandEncoder::encode(
+        MpvExternalSubtitleRequest{subtitleWithNull},
+        &error).has_value());
     QVERIFY(!error.isEmpty());
 
     QVERIFY(!MpvCommandEncoder::encode(
@@ -236,6 +255,7 @@ void MpvCommandExecutorTest::asyncSubmissionRepliesForMvpCommands()
     QTemporaryDir temporaryDirectory;
     QVERIFY(temporaryDirectory.isValid());
     const QString missingMedia = temporaryDirectory.filePath(QStringLiteral("missing-media.wav"));
+    const QString missingSubtitle = temporaryDirectory.filePath(QStringLiteral("missing-subtitle.srt"));
 
     struct PendingRequest final
     {
@@ -253,6 +273,7 @@ void MpvCommandExecutorTest::asyncSubmissionRepliesForMvpCommands()
         {5007, MpvPlayRequest{}},
         {5008, MpvStopRequest{}},
         {5009, MpvTrackSelectionRequest{MpvTrackSelectionKind::Subtitle, std::nullopt}},
+        {5010, MpvExternalSubtitleRequest{missingSubtitle}},
     };
 
     QSet<quint64> expectedReplies;

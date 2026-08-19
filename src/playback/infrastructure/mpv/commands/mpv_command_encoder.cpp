@@ -114,6 +114,19 @@ std::optional<QList<QByteArray>> MpvCommandEncoder::encode(
                     QByteArrayLiteral("speed"),
                     encodeNumber(typedRequest.rate),
                 };
+            } else if constexpr (std::is_same_v<Request, MpvExternalSubtitleRequest>) {
+                const QByteArray source = typedRequest.source.toUtf8();
+                if (source.isEmpty() || source.contains('\0')) {
+                    return failEncoding(
+                        QStringLiteral("External subtitle source must be non-empty UTF-8 text without embedded null bytes."),
+                        errorMessage);
+                }
+
+                return QList<QByteArray>{
+                    QByteArrayLiteral("sub-add"),
+                    source,
+                    QByteArrayLiteral("cached"),
+                };
             } else {
                 static_assert(std::is_same_v<Request, MpvTrackSelectionRequest>);
 

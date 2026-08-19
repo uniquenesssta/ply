@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-03 Complete**。R8-03 Track selection 已接通 stable track ID、Audio/Subtitle selection、Subtitle Off、RequestId/MediaGeneration 与 same-kind supersession。代码 HEAD `1ec652763387624dbfbdd3588eb91cf7c73d1364` 在 Windows 锁定环境 build PASS，Track popup 的 `qmllint [unqualified]` 警告已清零；Quick **98/98 PASS（40.66 s）**、Full **106/106 PASS（79.72 s）**，startup-smoke **3.05 s**，8 项 windowed-render 合计 **39.22 s**。真实多音轨/多字幕本地媒体 smoke 仍作为 Stage R8 手工验证项待补，不记为已通过 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-03 Complete；R8-04 Candidate**。外挂字幕候选链已按 `本地 SRT/ASS → ExternalSubtitleLoader 校验/规范化 → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → track-list/sid → PlaybackSnapshot → 既有 TrackListModel` 接通，不建立第二套外挂字幕模型。当前连接环境尚未执行 Windows build/QML lint/Quick/Full 与真实 SRT/ASS 本地媒体 smoke，因此 R8-04 不记为 Complete |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -32,6 +32,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Track 的 raw `mpv_node` 只在 infrastructure 内转换；`MpvTrackListDecoder` 只把已经复制为 Qt value tree 的 `track-list` 映射为 `TrackDescriptor`，稳定 backend track ID 保持为产品身份，PlaybackSnapshot 继续是 track list/selection 的唯一播放真值，上层与 QML 不解析 mpv node。
 - `TrackListModel` 只消费已 generation-gated 的 `PlaybackSnapshot` 并按 Audio/Subtitle kind 投影只读行；`selected` 由 Snapshot 的 `selectedAudioId / selectedSubtitleId` 推导，model 不拥有 generation、selection mutation 或第二套 Track 真值。Opening/new-media Snapshot 清空旧轨道后，后续 current-generation Snapshot 整表替换新轨道。
 - Track selection 只走 `QML intent → TrackSelectionController → PlaybackCommand(RequestId + MediaGeneration) → mpv aid/sid → generation-gated PlaybackSnapshot → TrackListModel`。同类 Audio/Subtitle selection 复用 RequestTracker supersession lane；Subtitle Off 是显式 `sid=no` 状态；UI 不乐观改写 selected，最终 selected 始终由 backend/Snapshot 决定。
+- 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → observed track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`。Loader 只接受可读本地 SRT/ASS 并提交规范化路径；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测与更完整的重复加载治理仍按 R8 后续任务处理。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
 - `ThemeMode` 是当前运行期 Light/Dark 模式的唯一 presentation owner；`ColorTokens` / `MaterialTokens` 统一从它解析，Feature 不拥有私有暗色主题。
 - Renderer 只拥有 Render/OpenGL 资源，不拥有播放业务状态。
@@ -67,7 +68,7 @@ src/foundation/                  通用基础设施与稳定值类型
 src/playback/domain/             后端无关的播放命令、事件、状态与规则
 src/playback/application/        PlaybackSession、请求生命周期与应用编排
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
-src/tracks/application/          Audio/Subtitle Track selection intent 与应用级提交边界
+src/tracks/application/          Track selection intent、外挂字幕本地校验与应用级提交边界
 src/tracks/presentation/         Audio/Subtitle Track 的 Snapshot 只读列表投影
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验、operation supersession 与统一 workflow 编排
@@ -114,6 +115,13 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-19 — R8-04 External subtitle Candidate
+
+- 新增独立 `ExternalSubtitleLoader` responsibility：只接收本地 `QUrl`，检查文件存在、为普通文件、可读，并将 `.srt/.ass`（大小写不敏感）规范化为 canonical path 后提交；远程 URL、缺失/不可读文件、非 SRT/ASS 与提交拒绝均进入明确 error key。编码检测及更完整的重复加载治理未提前实现。
+- Playback 主链新增 `AddExternalSubtitleCommand` / `PlaybackRequestType::AddExternalSubtitle` / `MpvExternalSubtitleRequest`。请求绑定当前 MediaGeneration，媒体切换会取消旧 generation 的 pending add；外挂字幕 add 不进入 Audio/Subtitle selection supersession lane。mpv 0.41.0 适配为 `sub-add <path> cached`，成功后的 `track-list/sid` 继续经现有 property observer、generation gate、reducer 回到 PlaybackSnapshot 与同一个 `TrackListModel`，没有新建外挂字幕列表或 optimistic selected 状态。
+- QML 文件选择职责独立放入 `ExternalSubtitleOpenDialog.qml`；R8-03 `TrackSelectionPopup` 只增加“Add External Subtitle…”入口并发出 intent，不直接持有 FileDialog、PlaybackSession 或 mpv。Figma D4-05 `Subtitles / Add External Action`（190:1224）的“只拥有 file-picker affordance”交互职责已核对；视觉稿同时展示 SSA/VTT，但当前 R8-04 任务书只要求 SRT/ASS，因此本候选不虚假开放未实现格式，也不在本 Atomic Task 重建完整 D4 Inspector。
+- 新增 `external_subtitle_flow` CTest，覆盖可读 SRT/ASS、非本地/缺失/不支持格式、提交失败、generation scope、`sub-add cached` 映射及 QML ownership/wiring；同时扩展 PlaybackCommand、mpv command executor 与 request supersession 既有契约。当前连接环境不能运行 Windows Qt/MSVC build、QML lint 或 CTest，也未执行真实 SRT/ASS 渲染与同模型刷新 smoke；这些验证均不记为通过，R8-04 保持 Candidate。无新增生产依赖。
 
 ### 2026-08-19 — R8-03 Track selection Complete
 

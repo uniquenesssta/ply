@@ -25,6 +25,7 @@ Item {
     property var playlistController: null
     property var playlistModel: null
     property var trackSelectionController: null
+    property bool externalSubtitleAvailable: false
     property var audioTrackModel: null
     property var subtitleTrackModel: null
     property bool playlistDrawerOpen: false
@@ -69,6 +70,7 @@ Item {
 
     signal openMediaRequested()
     signal openUrlRequested()
+    signal openExternalSubtitleRequested()
     signal minimizeRequested()
     signal maximizeRestoreRequested()
     signal fullscreenToggleRequested()
@@ -266,6 +268,8 @@ Item {
                     compact: root.oscCompact
                     fullScreen: root.fullScreen
                     playlistOpen: root.playlistDrawerOpen
+                    mediaAvailable: root.mediaViewModel !== null && root.mediaViewModel.hasMedia
+                    externalSubtitleAvailable: root.externalSubtitleAvailable
                     audioTrackModel: root.audioTrackModel
                     subtitleTrackModel: root.subtitleTrackModel
                     trackSelectionController: root.trackSelectionController
@@ -273,6 +277,7 @@ Item {
                     onTrackPopupOpenChanged: root.popupOpen = trackPopupOpen
                     onTogglePlaylistRequested: root.playlistDrawerOpen = !root.playlistDrawerOpen
                     onToggleFullscreenRequested: root.fullscreenToggleRequested()
+                    onOpenExternalSubtitleRequested: root.openExternalSubtitleRequested()
                 }
             ]
         }

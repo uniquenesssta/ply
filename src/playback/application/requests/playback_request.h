@@ -24,6 +24,7 @@ enum class PlaybackRequestType : quint8
     SetVolume,
     SetMuted,
     SetSpeed,
+    AddExternalSubtitle,
     SelectAudioTrack,
     SelectSubtitleTrack,
     SelectVideoTrack,

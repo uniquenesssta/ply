@@ -10,8 +10,10 @@ Popup {
     property var audioTrackModel: null
     property var subtitleTrackModel: null
     property var trackSelectionController: null
+    property bool externalSubtitleAvailable: false
 
     signal selectionSubmissionRejected()
+    signal addExternalSubtitleRequested()
 
     width: LayoutTokens.trackSelectionPopupWidth
     padding: SpacingTokens.trackSelectionPopupPadding
@@ -75,6 +77,18 @@ Popup {
                 } else {
                     root.selectionSubmissionRejected()
                 }
+            }
+        }
+
+        Button {
+            objectName: "addExternalSubtitleButton"
+            width: root.width - root.leftPadding - root.rightPadding
+            text: qsTr("Add External Subtitle…")
+            enabled: root.externalSubtitleAvailable
+
+            onClicked: {
+                root.close()
+                root.addExternalSubtitleRequested()
             }
         }
 

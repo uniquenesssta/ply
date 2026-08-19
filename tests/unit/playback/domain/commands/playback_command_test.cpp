@@ -26,6 +26,7 @@ private slots:
     void acceptsSupportedCommandFamilies();
     void rejectsInvalidRequestId();
     void rejectsInvalidLoadSource();
+    void rejectsInvalidExternalSubtitleSource();
     void rejectsNonFiniteSeek();
     void rejectsInvalidVolume();
     void rejectsInvalidSpeed();
@@ -44,11 +45,12 @@ void PlaybackCommandTest::acceptsSupportedCommandFamilies()
         command(player::ids::RequestId{7}, PlaybackCommandPayload{SetVolumeCommand{125.0}}),
         command(player::ids::RequestId{8}, PlaybackCommandPayload{SetMutedCommand{true}}),
         command(player::ids::RequestId{9}, PlaybackCommandPayload{SetSpeedCommand{1.5}}),
-        command(player::ids::RequestId{10}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Audio, qint64{2}}}),
-        command(player::ids::RequestId{11}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Subtitle, qint64{7}}}),
-        command(player::ids::RequestId{12}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Subtitle, std::nullopt}}),
-        command(player::ids::RequestId{13}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Initialize}}),
-        command(player::ids::RequestId{14}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Shutdown}}),
+        command(player::ids::RequestId{10}, PlaybackCommandPayload{AddExternalSubtitleCommand{QStringLiteral("captions.srt")}}),
+        command(player::ids::RequestId{11}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Audio, qint64{2}}}),
+        command(player::ids::RequestId{12}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Subtitle, qint64{7}}}),
+        command(player::ids::RequestId{13}, PlaybackCommandPayload{TrackSelectionCommand{TrackSelectionKind::Subtitle, std::nullopt}}),
+        command(player::ids::RequestId{14}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Initialize}}),
+        command(player::ids::RequestId{15}, PlaybackCommandPayload{LifecycleCommand{PlaybackLifecycleAction::Shutdown}}),
     };
 
     for (const PlaybackCommand& value : commands) {
@@ -86,6 +88,26 @@ void PlaybackCommandTest::rejectsInvalidLoadSource()
     QVERIFY(
         validatePlaybackCommand(containsNull)
         == std::optional{PlaybackCommandValidationError::MediaSourceContainsNull});
+}
+
+void PlaybackCommandTest::rejectsInvalidExternalSubtitleSource()
+{
+    const PlaybackCommand empty{
+        player::ids::RequestId{1},
+        PlaybackCommandPayload{AddExternalSubtitleCommand{QString{}}}};
+    QVERIFY(
+        validatePlaybackCommand(empty)
+        == std::optional{PlaybackCommandValidationError::EmptyExternalSubtitleSource});
+
+    QString embeddedNull = QStringLiteral("captions");
+    embeddedNull.append(QChar{u'\0'});
+    embeddedNull.append(QStringLiteral(".srt"));
+    const PlaybackCommand containsNull{
+        player::ids::RequestId{2},
+        PlaybackCommandPayload{AddExternalSubtitleCommand{embeddedNull}}};
+    QVERIFY(
+        validatePlaybackCommand(containsNull)
+        == std::optional{PlaybackCommandValidationError::ExternalSubtitleSourceContainsNull});
 }
 
 void PlaybackCommandTest::rejectsNonFiniteSeek()

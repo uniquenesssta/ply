@@ -20,6 +20,7 @@
 #include "presentation/viewmodels/player/timeline/player_timeline_view_model.h"
 #include "presentation/viewmodels/player/transport/player_transport_view_model.h"
 #include "presentation/viewmodels/player/volume/player_volume_view_model.h"
+#include "tracks/application/external_subtitle_loader.h"
 #include "tracks/application/track_selection_controller.h"
 #include "tracks/presentation/track_list_model.h"
 
@@ -145,6 +146,10 @@ int ApplicationBootstrap::run(
         QStringLiteral("trackSelectionController"),
         QVariant::fromValue(
             static_cast<QObject*>(&container.trackSelectionController())));
+    initialProperties.insert(
+        QStringLiteral("externalSubtitleLoader"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.externalSubtitleLoader())));
     initialProperties.insert(
         QStringLiteral("audioTrackModel"),
         QVariant::fromValue(

@@ -23,6 +23,7 @@ std::optional<PlaybackRequestSupersessionGroup> requestSupersessionGroupFor(
     case PlaybackRequestType::SetVolume:
     case PlaybackRequestType::SetMuted:
     case PlaybackRequestType::SetSpeed:
+    case PlaybackRequestType::AddExternalSubtitle:
         return std::nullopt;
     }
     return std::nullopt;

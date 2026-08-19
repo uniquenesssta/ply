@@ -15,6 +15,7 @@ ApplicationWindow {
     property var playlistController: null
     property var playlistModel: null
     property var trackSelectionController: null
+    property var externalSubtitleLoader: null
     property var audioTrackModel: null
     property var subtitleTrackModel: null
     property var mediaOpenCoordinator: null
@@ -65,6 +66,11 @@ ApplicationWindow {
         }
     }
 
+    ExternalSubtitleOpenDialog {
+        id: externalSubtitleOpenDialog
+        externalSubtitleLoader: window.externalSubtitleLoader
+    }
+
     PlayerScreen {
         anchors.fill: parent
         transportViewModel: window.transportViewModel
@@ -76,17 +82,21 @@ ApplicationWindow {
         playlistController: window.playlistController
         playlistModel: window.playlistModel
         trackSelectionController: window.trackSelectionController
+        externalSubtitleAvailable: window.externalSubtitleLoader !== null
         audioTrackModel: window.audioTrackModel
         subtitleTrackModel: window.subtitleTrackModel
         mediaDropHandler: window.mediaDropHandler
         fullScreen: fullscreenWindowController.fullScreen
         windowActive: window.active
-        modalActive: localMediaOpenDialog.visible || urlMediaOpenDialog.visible
+        modalActive: localMediaOpenDialog.visible
+                     || urlMediaOpenDialog.visible
+                     || externalSubtitleOpenDialog.visible
         windowExpanded: window.visibility === Window.Maximized
                         || window.visibility === Window.FullScreen
 
         onOpenMediaRequested: localMediaOpenDialog.open()
         onOpenUrlRequested: urlMediaOpenDialog.open()
+        onOpenExternalSubtitleRequested: externalSubtitleOpenDialog.open()
         onMinimizeRequested: window.showMinimized()
         onMaximizeRestoreRequested: {
             if (fullscreenWindowController.fullScreen) {

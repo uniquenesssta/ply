@@ -58,6 +58,11 @@ struct MpvSpeedRequest final
     double rate = 1.0;
 };
 
+struct MpvExternalSubtitleRequest final
+{
+    QString source;
+};
+
 struct MpvTrackSelectionRequest final
 {
     MpvTrackSelectionKind kind = MpvTrackSelectionKind::Audio;
@@ -73,6 +78,7 @@ using MpvCommandRequest = std::variant<
     MpvVolumeRequest,
     MpvMuteRequest,
     MpvSpeedRequest,
+    MpvExternalSubtitleRequest,
     MpvTrackSelectionRequest>;
 
 } // namespace player::playback::mpv

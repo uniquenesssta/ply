@@ -343,6 +343,30 @@ bool PlaybackComposition::submitMediaStop()
     return submitTransport(TransportAction::Stop);
 }
 
+bool PlaybackComposition::submitExternalSubtitle(
+    const player::playback::domain::AddExternalSubtitleCommand& subtitle)
+{
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction)
+            << "External subtitle intent ignored because PlaybackCommandBus is unavailable";
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        subtitle};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "External subtitle command submission failed:"
+            << diagnostic;
+        return false;
+    }
+
+    return true;
+}
+
 bool PlaybackComposition::submitTrackSelection(
     const player::playback::domain::TrackSelectionCommand& selection)
 {

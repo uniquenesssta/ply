@@ -1,5 +1,6 @@
 #pragma once
 
+#include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
@@ -58,6 +59,8 @@ public:
     void setPlaybackSupersessionObserver(PlaybackSupersessionObserver observer);
     [[nodiscard]] bool submitMediaLoad(const QString& canonicalSource);
     [[nodiscard]] bool submitMediaStop();
+    [[nodiscard]] bool submitExternalSubtitle(
+        const player::playback::domain::AddExternalSubtitleCommand& subtitle);
     [[nodiscard]] bool submitTrackSelection(
         const player::playback::domain::TrackSelectionCommand& selection);
 

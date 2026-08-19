@@ -18,6 +18,7 @@
 #include "playlist/domain/playlist.h"
 #include "playlist/presentation/playlist_entry_playback_state.h"
 #include "playlist/presentation/playlist_list_model.h"
+#include "tracks/application/external_subtitle_loader.h"
 #include "tracks/application/track_selection_controller.h"
 #include "tracks/presentation/track_list_model.h"
 
@@ -79,6 +80,12 @@ ApplicationContainer::ApplicationContainer(
             [this](const player::playback::domain::TrackSelectionCommand& selection) {
                 return playbackComposition_ != nullptr
                     && playbackComposition_->submitTrackSelection(selection);
+            }))
+    , externalSubtitleLoader_(
+        std::make_unique<player::tracks::application::ExternalSubtitleLoader>(
+            [this](const player::playback::domain::AddExternalSubtitleCommand& subtitle) {
+                return playbackComposition_ != nullptr
+                    && playbackComposition_->submitExternalSubtitle(subtitle);
             }))
     , audioTrackListModel_(
         std::make_unique<player::tracks::presentation::TrackListModel>(
@@ -192,6 +199,12 @@ ApplicationContainer::trackSelectionController() noexcept
     return *trackSelectionController_;
 }
 
+player::tracks::application::ExternalSubtitleLoader&
+ApplicationContainer::externalSubtitleLoader() noexcept
+{
+    return *externalSubtitleLoader_;
+}
+
 player::tracks::presentation::TrackListModel&
 ApplicationContainer::audioTrackListModel() noexcept
 {
@@ -252,6 +265,7 @@ void ApplicationContainer::shutdown() noexcept
     mediaArgumentOpenWorkflow_.reset();
     urlOpenWorkflow_.reset();
     mediaOpenCoordinator_.reset();
+    externalSubtitleLoader_.reset();
     trackSelectionController_.reset();
     subtitleTrackListModel_.reset();
     audioTrackListModel_.reset();

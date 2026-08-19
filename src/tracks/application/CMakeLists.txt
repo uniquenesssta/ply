@@ -1,6 +1,8 @@
 add_library(
     player_tracks_application
     STATIC
+        external_subtitle_loader.cpp
+        external_subtitle_loader.h
         track_selection_controller.cpp
         track_selection_controller.h
 )

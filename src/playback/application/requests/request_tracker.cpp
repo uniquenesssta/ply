@@ -1,6 +1,7 @@
 #include "request_tracker.h"
 
 #include "request_supersession_policy.h"
+#include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/load_media_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/speed_command.h"
@@ -286,6 +287,9 @@ std::optional<PlaybackRequestType> RequestTracker::requestTypeFor(
     if (std::holds_alternative<SetSpeedCommand>(payload)) {
         return PlaybackRequestType::SetSpeed;
     }
+    if (std::holds_alternative<AddExternalSubtitleCommand>(payload)) {
+        return PlaybackRequestType::AddExternalSubtitle;
+    }
     if (const auto* selection = std::get_if<TrackSelectionCommand>(&payload)) {
         return selection->kind == TrackSelectionKind::Audio
             ? PlaybackRequestType::SelectAudioTrack
@@ -304,6 +308,7 @@ bool RequestTracker::isMediaScoped(PlaybackRequestType type) noexcept
     case PlaybackRequestType::Stop:
     case PlaybackRequestType::SeekAbsolute:
     case PlaybackRequestType::SeekRelative:
+    case PlaybackRequestType::AddExternalSubtitle:
     case PlaybackRequestType::SelectAudioTrack:
     case PlaybackRequestType::SelectSubtitleTrack:
     case PlaybackRequestType::SelectVideoTrack:

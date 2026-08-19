@@ -81,6 +81,7 @@ void RequestSupersessionTest::classifiesSupersessionGroups()
     QVERIFY(!requestSupersessionGroupFor(PlaybackRequestType::SetVolume).has_value());
     QVERIFY(!requestSupersessionGroupFor(PlaybackRequestType::SetMuted).has_value());
     QVERIFY(!requestSupersessionGroupFor(PlaybackRequestType::SetSpeed).has_value());
+    QVERIFY(!requestSupersessionGroupFor(PlaybackRequestType::AddExternalSubtitle).has_value());
 }
 
 void RequestSupersessionTest::loadReplacementCancelsOlderLoadAcrossGenerations()

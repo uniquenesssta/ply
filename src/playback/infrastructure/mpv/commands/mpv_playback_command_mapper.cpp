@@ -51,6 +51,9 @@ std::optional<MpvCommandRequest> MpvPlaybackCommandMapper::map(
             [](const SetSpeedCommand& speed) -> std::optional<MpvCommandRequest> {
                 return MpvCommandRequest{MpvSpeedRequest{speed.rate}};
             },
+            [](const AddExternalSubtitleCommand& subtitle) -> std::optional<MpvCommandRequest> {
+                return MpvCommandRequest{MpvExternalSubtitleRequest{subtitle.source}};
+            },
             [](const TrackSelectionCommand& selection) -> std::optional<MpvCommandRequest> {
                 return MpvCommandRequest{MpvTrackSelectionRequest{
                     selection.kind == TrackSelectionKind::Audio

@@ -8,6 +8,8 @@ Row {
     property bool compact: false
     property bool fullScreen: false
     property bool playlistOpen: false
+    property bool mediaAvailable: false
+    property bool externalSubtitleAvailable: false
     property var audioTrackModel: null
     property var subtitleTrackModel: null
     property var trackSelectionController: null
@@ -15,6 +17,7 @@ Row {
 
     signal togglePlaylistRequested()
     signal toggleFullscreenRequested()
+    signal openExternalSubtitleRequested()
 
     objectName: "playerUtilityControls"
     spacing: root.compact
@@ -31,10 +34,12 @@ Row {
         iconSizeOverride: root.compact ? LayoutTokens.controlIconCompact : 0
         toolTipText: qsTr("Audio and Subtitles")
         accessibleName: toolTipText
-        accessibleDescription: qsTr("Choose an audio track, subtitle track, or turn subtitles off")
-        enabled: root.trackSelectionController !== null
-                 && ((root.audioTrackModel !== null && root.audioTrackModel.count > 0)
-                     || (root.subtitleTrackModel !== null && root.subtitleTrackModel.count > 0))
+        accessibleDescription: qsTr("Choose audio/subtitle tracks, turn subtitles off, or add an external subtitle")
+        enabled: root.mediaAvailable
+                 && (root.externalSubtitleAvailable
+                     || (root.trackSelectionController !== null
+                         && ((root.audioTrackModel !== null && root.audioTrackModel.count > 0)
+                             || (root.subtitleTrackModel !== null && root.subtitleTrackModel.count > 0))))
 
         onClicked: trackPopup.opened ? trackPopup.close() : trackPopup.open()
     }
@@ -48,6 +53,9 @@ Row {
         audioTrackModel: root.audioTrackModel
         subtitleTrackModel: root.subtitleTrackModel
         trackSelectionController: root.trackSelectionController
+        externalSubtitleAvailable: root.externalSubtitleAvailable
+
+        onAddExternalSubtitleRequested: root.openExternalSubtitleRequested()
     }
 
     PlaylistControls {

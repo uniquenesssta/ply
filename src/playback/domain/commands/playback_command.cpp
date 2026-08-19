@@ -45,6 +45,14 @@ std::optional<PlaybackCommandValidationError> validatePlaybackCommand(
                 if (source.contains('\0')) {
                     return PlaybackCommandValidationError::MediaSourceContainsNull;
                 }
+            } else if constexpr (std::is_same_v<Command, AddExternalSubtitleCommand>) {
+                const QByteArray source = payload.source.toUtf8();
+                if (source.isEmpty()) {
+                    return PlaybackCommandValidationError::EmptyExternalSubtitleSource;
+                }
+                if (source.contains('\0')) {
+                    return PlaybackCommandValidationError::ExternalSubtitleSourceContainsNull;
+                }
             } else if constexpr (std::is_same_v<Command, SeekCommand>) {
                 if (!std::isfinite(payload.seconds)) {
                     return PlaybackCommandValidationError::NonFiniteSeek;
