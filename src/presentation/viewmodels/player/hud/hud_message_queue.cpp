@@ -96,6 +96,17 @@ void HudMessageQueue::showTrackChange(const QString& trackText)
     enqueueOrUpdate(std::move(message));
 }
 
+void HudMessageQueue::showSubtitleDelay(int milliseconds)
+{
+    Message message;
+    message.coalescingKey = CoalescingKey::SubtitleDelay;
+    message.key = QStringLiteral("subtitleDelay");
+    message.value = milliseconds > 0
+        ? QStringLiteral("+%1 ms").arg(milliseconds)
+        : QStringLiteral("%1 ms").arg(milliseconds);
+    enqueueOrUpdate(std::move(message));
+}
+
 void HudMessageQueue::clear()
 {
     holdTimer_.stop();
