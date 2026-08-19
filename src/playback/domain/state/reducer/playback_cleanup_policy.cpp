@@ -13,6 +13,7 @@ void clearMediaScopedDetails(PlaybackSnapshotState& state)
     state.streams = {};
     state.tracks = {};
     state.chapters = {};
+    state.controls.subtitleDelaySeconds.reset();
 }
 
 } // namespace
