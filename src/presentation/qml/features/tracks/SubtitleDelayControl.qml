@@ -24,11 +24,11 @@ Panel {
                                         : 0.05
 
     objectName: "subtitleDelayControl"
-    implicitWidth: SizePrimitives.size324
-    implicitHeight: SizePrimitives.size54
+    implicitWidth: LayoutTokens.subtitleDelayControlWidth
+    implicitHeight: LayoutTokens.subtitleDelayControlHeight
     width: implicitWidth
     height: implicitHeight
-    contentPadding: 0
+    contentPadding: SpacingTokens.none
     surfaceColor: ColorTokens.surfaceGlassSubtle
     fillAlpha: MaterialTokens.footerFillAlpha
     borderColor: ColorTokens.borderGlass
@@ -83,7 +83,7 @@ Panel {
     Column {
         x: SpacingPrimitives.space14
         anchors.verticalCenter: parent.verticalCenter
-        width: 78
+        width: LayoutTokens.subtitleDelayLabelWidth
         spacing: SpacingPrimitives.space2
 
         BodyText {
@@ -118,9 +118,9 @@ Panel {
 
         objectName: "subtitleDelaySlider"
         anchors.verticalCenter: parent.verticalCenter
-        x: 104
-        width: 118
-        height: SizePrimitives.size32
+        x: LayoutTokens.subtitleDelaySliderX
+        width: LayoutTokens.subtitleDelaySliderWidth
+        height: LayoutTokens.controlHitMinimum
         value: 0.5
         stepSize: root.stepSeconds
                   / Math.max(0.000001,
@@ -151,8 +151,8 @@ Panel {
             rightMargin: SpacingPrimitives.space12
             verticalCenter: parent.verticalCenter
         }
-        width: SizePrimitives.size32
-        height: SizePrimitives.size32
+        width: LayoutTokens.subtitleDelayResetSize
+        height: LayoutTokens.subtitleDelayResetSize
         text: "↺"
         textColor: root.controlAvailable
                    ? ColorTokens.accentStrong
