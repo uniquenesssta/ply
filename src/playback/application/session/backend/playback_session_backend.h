@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <memory>
+#include <span>
 
 class QString;
 
@@ -16,6 +17,7 @@ namespace player::playback::mpv {
 class MpvCommandExecutor;
 class MpvEventLoop;
 class MpvHandle;
+enum class MpvPropertyId : quint16;
 class MpvPropertyObserver;
 class MpvPropertyReader;
 } // namespace player::playback::mpv
@@ -50,6 +52,9 @@ public:
 private:
     void refreshCurrentMediaProperties(
         player::playback::domain::MediaGeneration generation);
+    void refreshProperties(
+        player::playback::domain::MediaGeneration generation,
+        std::span<const player::playback::mpv::MpvPropertyId> properties);
 
     EventHandler eventHandler_;
     MpvMediaGenerationAttributor mediaGenerationAttributor_;
