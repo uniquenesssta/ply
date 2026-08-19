@@ -172,14 +172,14 @@ void SubtitleDelayFlowTest::commandMapsToGenerationScopedMpvPropertySet()
     QVERIFY(validationError.has_value());
     QVERIFY(*validationError == domain::PlaybackCommandValidationError::InvalidSubtitleDelay);
 
-    application::RequestTracker tracker;
+    player::playback::application::RequestTracker tracker;
     const domain::MediaGeneration generation{22};
     QCOMPARE(
         tracker.track(command, generation),
-        application::RequestTrackStatus::Tracked);
+        player::playback::application::RequestTrackStatus::Tracked);
     const auto record = tracker.record(command.requestId());
     QVERIFY(record.has_value());
-    QVERIFY(record->type == application::PlaybackRequestType::SetSubtitleDelay);
+    QVERIFY(record->type == player::playback::application::PlaybackRequestType::SetSubtitleDelay);
     QVERIFY(record->generation.has_value());
     QCOMPARE(record->generation->value(), generation.value());
 
@@ -188,7 +188,7 @@ void SubtitleDelayFlowTest::commandMapsToGenerationScopedMpvPropertySet()
         domain::PlaybackCommandPayload{domain::SetSubtitleDelayCommand{-0.25}}};
     QCOMPARE(
         tracker.track(replacement, generation),
-        application::RequestTrackStatus::Tracked);
+        player::playback::application::RequestTrackStatus::Tracked);
     QCOMPARE(tracker.supersedePendingFor(replacement, generation), std::size_t{1});
 }
 
