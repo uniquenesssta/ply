@@ -2,6 +2,7 @@
 
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/composition/playback_composition.h"
+#include "chapters/presentation/chapter_model.h"
 #include "media/application/open/media_open_coordinator.h"
 #include "media/application/open/url_open_workflow.h"
 #include "playlist/application/playlist_controller.h"
@@ -47,6 +48,7 @@ private slots:
     void ownsUrlOpenWorkflow();
     void ownsPlaylistControllerAndReadonlyModel();
     void ownsTrackSelectionController();
+    void ownsChapterReadonlyModel();
     void playbackCompositionStartsAndStops();
     void shutdownIsIdempotent();
 };
@@ -187,6 +189,19 @@ void ApplicationContainerTest::ownsTrackSelectionController()
 
     QVERIFY(!container.trackSelectionController().selectAudioTrack(0));
     QVERIFY(!container.trackSelectionController().selectSubtitleTrack(0));
+}
+
+void ApplicationContainerTest::ownsChapterReadonlyModel()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    ApplicationContainer container(RuntimePaths::resolve(
+        RuntimePaths::Mode::Portable,
+        temporaryDirectory.path()));
+
+    QCOMPARE(container.chapterModel().count(), 0);
+    QCOMPARE(container.chapterModel().rowCount(), 0);
 }
 
 void ApplicationContainerTest::playbackCompositionStartsAndStops()
