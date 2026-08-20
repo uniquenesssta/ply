@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-05 Complete；R8-06 In Progress**。R8-05 在 zlib 1.3.2/libmpv 修复与 `playlist_entry_id` 代际归因修复后完成自动门禁与同一 MKV 内嵌 PGS/字幕延迟实机复验。R8-06-A1 Audio Delay 后端权威链已在 Windows 完成 build、Quick **101/101 PASS（46.56 s）**、Full **109/109 PASS（79.78 s）**，startup-smoke **3.07 s**、8 项 windowed-render 合计 **39.56 s**；R8-06-A2 Controller/Composition/HUD/QML 候选已提交，Windows 门禁与真实正/负/reset 媒体 smoke 尚待验证 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-06 Complete；R8-07 Candidate**。R8-06 后续 Windows Full **110/110 PASS，0 failed（78.43 s）**，`audio_delay_flow` 与 `audio_delay_controller` 均通过，startup-smoke **3.06 s**、8 项 windowed-render 合计 **38.52 s**。R8-07 已建立 Chapter decoder / Snapshot readonly model 候选；本轮 Windows build、Quick/Full 尚待执行，未进入 R8-08 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -31,6 +31,8 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Playlist row 的 `selected / keyboard focus / hover` 继续属于 QML interaction state；`PlaylistEntryPlaybackState` 只从已 generation-gated 的 `PlaybackSnapshot` 投影 `pendingLoading / unavailable` 到稳定 EntryId，不拥有 queue/current/generation，也不建立第二套播放真值。
 - Track 的 raw `mpv_node` 只在 infrastructure 内转换；`MpvTrackListDecoder` 只把已经复制为 Qt value tree 的 `track-list` 映射为 `TrackDescriptor`，稳定 backend track ID 保持为产品身份，PlaybackSnapshot 继续是 track list/selection 的唯一播放真值，上层与 QML 不解析 mpv node。
 - `TrackListModel` 只消费已 generation-gated 的 `PlaybackSnapshot` 并按 Audio/Subtitle kind 投影只读行；`selected` 由 Snapshot 的 `selectedAudioId / selectedSubtitleId` 推导，model 不拥有 generation、selection mutation 或第二套 Track 真值。Opening/new-media Snapshot 清空旧轨道后，后续 current-generation Snapshot 整表替换新轨道。
+- Chapter 的 raw `chapter-list` node 只在 mpv infrastructure 内转换；`MpvChapterListDecoder` 把 Qt value tree 映射为 `ChapterDescriptor`，保持 backend 数组顺序、重复时间戳与原始长标题，不排序、不去重。`PlaybackSnapshot::chapters()` 继续是章节列表的唯一播放真值。
+- `ChapterModel` 位于独立 `src/chapters/presentation` responsibility，只消费已 generation-gated 的 `PlaybackSnapshot` 并投影只读 `index / title / time`；无标题或空标题使用确定性 `Chapter N` fallback，Opening/new-media Snapshot 清空旧章节。R8-07 不暴露 QML mutation/Seek，章节导航继续归 R8-08。
 - Track selection 只走 `QML intent → TrackSelectionController → PlaybackCommand(RequestId + MediaGeneration) → mpv aid/sid → generation-gated PlaybackSnapshot → TrackListModel`。同类 Audio/Subtitle selection 复用 RequestTracker supersession lane；Subtitle Off 是显式 `sid=no` 状态；UI 不乐观改写 selected，最终 selected 始终由 backend/Snapshot 决定。
 - 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → 成功回执后确定性读取 track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`；mpv property observer 仍保留正常增量通知，但不再作为外部字幕成功后的唯一刷新来源。Loader 只接受可读本地 SRT/ASS 并提交规范化路径；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测与更完整的重复加载治理仍按 R8 后续任务处理。
 - 字幕延迟只走 `QML intent → SubtitleDelayController → SetSubtitleDelayCommand(RequestId + MediaGeneration) → mpv sub-delay → property observer/成功回执确定性回读 → generation-gated PlaybackSnapshot.controls.subtitleDelaySeconds → Controller/HUD`。Controller 只拥有 pending target，不乐观改写确认值；同 generation 字幕延迟请求使用独立 latest-wins supersession lane。固定范围 **-2.0 s ~ +2.0 s**、步进 **50 ms**，reset 回到 `0 ms`。
@@ -72,6 +74,7 @@ src/playback/application/        PlaybackSession、请求生命周期与应用�
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
 src/tracks/application/          Track selection、外挂字幕、字幕/音频延迟 intent/校验/应用级提交边界
 src/tracks/presentation/         Audio/Subtitle Track 的 Snapshot 只读列表投影
+src/chapters/presentation/       Chapter Snapshot 只读列表投影；不拥有 Seek/UI 导航
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验、operation supersession 与统一 workflow 编排
 src/playlist/domain/             播放队列、Entry/current/repeat/shuffle cycle、Queue Snapshot 与导航策略
@@ -117,6 +120,17 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-20 — R8-07 Chapter Decoder / Model Candidate
+
+- 新增独立 `MpvChapterListDecoder` infrastructure responsibility：只把已复制为 Qt value tree 的 mpv `chapter-list` 解码为 `QList<ChapterDescriptor>`。每项必须包含有限、非负的 numeric `time`，`title` 保持 optional；backend 数组顺序直接生成稳定 chapter index，重复时间戳不去重，长标题不截断，未知额外字段忽略，非法 payload 整体拒绝并返回诊断。既有 `MpvChapterModelMapper` 仅保留 property unavailable/error/event 适配，未改 PlaybackSession、Reducer 或 property registry。
+- 新增独立 `src/chapters/presentation/ChapterModel`，只消费现有 generation-gated `PlaybackSnapshot::chapters()` 并提供 readonly `index / title / time` roles；无标题或空标题显示 `Chapter N` fallback。ApplicationContainer 将同一 `StatePublisher::snapshotPublished` 接到该 model，因此 Opening/new-media Snapshot 会先清空旧章节，再由当前 generation Snapshot 替换；没有 QML 暴露、Seek intent 或 timeline thumb mutation，R8-08 边界保持不变。
+- 新增 `mpv_chapter_list_decoder` 与 `chapter_model` CTest，并扩展 `application_container` ownership 回归；覆盖无章节、多章节、重复时间、长标题、缺失标题 fallback、未知字段、malformed payload、media switch clear/replace 与 readonly role contract。没有新增生产依赖。
+- 当前连接环境无法执行 Windows Qt/MSVC build/CTest，仓库也没有可替代本地门禁的 GitHub workflow/status。源码/CMake/最终 diff 已复核，但本轮 build、Quick/Full 尚未执行，因此 R8-07 保持 **Candidate**，不得进入 R8-08。
+
+### 2026-08-20 — R8-06 Audio Delay Complete
+
+- R8-06 后续 Windows Full 回归已在 `a31d9c779a7fce7b5f64eb7becc9736e9e62aee9` 基线完成：**110/110 PASS，0 failed（78.43 s）**；`audio_delay_flow` 与 `audio_delay_controller` 均 PASS，startup-smoke **3.06 s**、8 项 windowed-render 合计 **38.52 s**。该 Full gate 覆盖 R8-06 A1/A2 已注册回归，用户随后明确推进 R8-07；Stage R8 的最终真实多轨/字幕/章节联合 smoke 仍保留到阶段收口，不在此记录中虚构为已执行。
 
 ### 2026-08-20 — R8-06 Audio Delay A2 Candidate
 
