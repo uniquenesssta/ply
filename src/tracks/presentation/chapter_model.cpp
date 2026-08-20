@@ -7,9 +7,12 @@
 namespace player::tracks::presentation {
 namespace {
 
-QString optionalText(const std::optional<QString>& value)
+QString displayTitle(const player::playback::domain::ChapterDescriptor& chapter)
 {
-    return value.has_value() ? *value : QString{};
+    if (chapter.title.has_value() && !chapter.title->isEmpty()) {
+        return *chapter.title;
+    }
+    return QStringLiteral("Chapter %1").arg(static_cast<qlonglong>(chapter.index + 1));
 }
 
 } // namespace
@@ -77,7 +80,7 @@ void ChapterModel::acceptSnapshot(
     for (const player::playback::domain::ChapterDescriptor& chapter : chapterState.chapters) {
         nextRows.push_back(Row{
             chapter.index,
-            optionalText(chapter.title),
+            displayTitle(chapter),
             chapter.startSeconds,
         });
     }
