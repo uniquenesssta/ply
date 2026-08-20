@@ -34,4 +34,5 @@ target_link_libraries(
         player_playlist_presentation
         player_tracks_application
         player_tracks_presentation
+        player_chapters_presentation
 )
