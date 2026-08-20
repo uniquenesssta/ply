@@ -11,6 +11,7 @@
 #include <QtTest/QTest>
 
 #include <chrono>
+#include <initializer_list>
 #include <utility>
 
 namespace player::playback::application {
@@ -40,6 +41,7 @@ private slots:
     void rejectsDuplicateAndLifecycleCommands();
     void generationChangeCancelsOnlyOldMediaRequests();
     void trackSelectionUsesGenerationAndSameKindSupersession();
+    void trackSelectionRepliesAndGenerationChangePreserveLatestWins();
     void replyCompletesOnlyOnce();
     void staleCancelledAndUnknownRepliesAreIgnored();
     void timeoutAndShutdownCancelPending();
@@ -210,6 +212,82 @@ void RequestTrackerTest::trackSelectionUsesGenerationAndSameKindSupersession()
     const auto stillPendingAudio = tracker.record(player::ids::RequestId{51});
     QVERIFY(stillPendingAudio.has_value());
     QVERIFY(stillPendingAudio->state == PlaybackRequestState::Pending);
+}
+
+void RequestTrackerTest::trackSelectionRepliesAndGenerationChangePreserveLatestWins()
+{
+    RequestTracker tracker;
+    const MediaGeneration generationA{30};
+    const MediaGeneration generationB{31};
+
+    const PlaybackCommand firstAudio = makeCommand(
+        60,
+        TrackSelectionCommand{TrackSelectionKind::Audio, qint64{2}});
+    const PlaybackCommand subtitle = makeCommand(
+        61,
+        TrackSelectionCommand{TrackSelectionKind::Subtitle, qint64{7}});
+    const PlaybackCommand latestAudio = makeCommand(
+        62,
+        TrackSelectionCommand{TrackSelectionKind::Audio, qint64{3}});
+
+    QVERIFY(tracker.track(firstAudio, generationA) == RequestTrackStatus::Tracked);
+    QVERIFY(tracker.track(subtitle, generationA) == RequestTrackStatus::Tracked);
+    QVERIFY(tracker.track(latestAudio, generationA) == RequestTrackStatus::Tracked);
+    QCOMPARE(tracker.supersedePendingFor(latestAudio, generationA), std::size_t{1});
+    QCOMPARE(tracker.pendingCount(), std::size_t{2});
+
+    const RequestReplyResolution supersededReply = tracker.resolve(
+        makeReply(60, false),
+        generationA);
+    QVERIFY(!supersededReply.accepted());
+    QVERIFY(supersededReply.disposition == RequestReplyDisposition::Cancelled);
+    QVERIFY(supersededReply.record.has_value());
+    QVERIFY(
+        supersededReply.record->cancellationReason
+        == PlaybackRequestCancellationReason::Superseded);
+
+    const RequestReplyResolution latestReply = tracker.resolve(
+        makeReply(62, true),
+        generationA);
+    QVERIFY(latestReply.accepted());
+    QVERIFY(latestReply.disposition == RequestReplyDisposition::Completed);
+    QVERIFY(latestReply.record.has_value());
+    QVERIFY(latestReply.record->type == PlaybackRequestType::SelectAudioTrack);
+    QVERIFY(latestReply.record->generation.has_value());
+    QCOMPARE(latestReply.record->generation->value(), generationA.value());
+
+    const PlaybackCommand pendingAudio = makeCommand(
+        63,
+        TrackSelectionCommand{TrackSelectionKind::Audio, qint64{4}});
+    QVERIFY(tracker.track(pendingAudio, generationA) == RequestTrackStatus::Tracked);
+    QCOMPARE(tracker.supersedePendingFor(pendingAudio, generationA), std::size_t{0});
+    QCOMPARE(tracker.pendingCount(), std::size_t{2});
+
+    QCOMPARE(
+        tracker.cancelMediaRequestsForGenerationChange(generationB),
+        std::size_t{2});
+    QCOMPARE(tracker.pendingCount(), std::size_t{0});
+
+    for (const quint64 requestId : {quint64{61}, quint64{63}}) {
+        const auto cancelled = tracker.record(player::ids::RequestId{requestId});
+        QVERIFY(cancelled.has_value());
+        QVERIFY(cancelled->state == PlaybackRequestState::Cancelled);
+        QVERIFY(
+            cancelled->cancellationReason
+            == PlaybackRequestCancellationReason::GenerationChanged);
+
+        const RequestReplyResolution lateReply = tracker.resolve(
+            makeReply(requestId, true),
+            generationB);
+        QVERIFY(!lateReply.accepted());
+        QVERIFY(lateReply.disposition == RequestReplyDisposition::Cancelled);
+    }
+
+    const auto completedAudio = tracker.record(player::ids::RequestId{62});
+    QVERIFY(completedAudio.has_value());
+    QVERIFY(completedAudio->state == PlaybackRequestState::Completed);
+    QVERIFY(completedAudio->succeeded.has_value());
+    QVERIFY(*completedAudio->succeeded);
 }
 
 void RequestTrackerTest::replyCompletesOnlyOnce()
