@@ -24,6 +24,7 @@
 #include "tracks/application/external_subtitle_loader.h"
 #include "tracks/application/subtitle_delay_controller.h"
 #include "tracks/application/track_selection_controller.h"
+#include "tracks/presentation/chapter_model.h"
 #include "tracks/presentation/track_list_model.h"
 
 #include <QList>
@@ -109,6 +110,7 @@ ApplicationContainer::ApplicationContainer(
     , subtitleTrackListModel_(
         std::make_unique<player::tracks::presentation::TrackListModel>(
             player::playback::domain::TrackKind::Subtitle))
+    , chapterModel_(std::make_unique<player::tracks::presentation::ChapterModel>())
     , mediaOpenCoordinator_(
         std::make_unique<player::media::application::MediaOpenCoordinator>(
             [this](const player::media::domain::MediaSource& source) {
@@ -173,6 +175,11 @@ ApplicationContainer::ApplicationContainer(
         &player::playback::application::StatePublisher::snapshotPublished,
         subtitleTrackListModel_.get(),
         &player::tracks::presentation::TrackListModel::acceptSnapshot);
+    QObject::connect(
+        &publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        chapterModel_.get(),
+        &player::tracks::presentation::ChapterModel::acceptSnapshot);
     QObject::connect(
         &publisher,
         &player::playback::application::StatePublisher::snapshotPublished,
@@ -293,6 +300,12 @@ ApplicationContainer::subtitleTrackListModel() noexcept
     return *subtitleTrackListModel_;
 }
 
+player::tracks::presentation::ChapterModel&
+ApplicationContainer::chapterModel() noexcept
+{
+    return *chapterModel_;
+}
+
 player::media::application::MediaOpenCoordinator&
 ApplicationContainer::mediaOpenCoordinator() noexcept
 {
@@ -348,6 +361,7 @@ void ApplicationContainer::shutdown() noexcept
     subtitleDelayController_.reset();
     externalSubtitleLoader_.reset();
     trackSelectionController_.reset();
+    chapterModel_.reset();
     subtitleTrackListModel_.reset();
     audioTrackListModel_.reset();
     playlistListModel_.reset();
