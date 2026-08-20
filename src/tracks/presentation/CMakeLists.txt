@@ -1,8 +1,6 @@
 add_library(
     player_tracks_presentation
     STATIC
-        chapter_model.cpp
-        chapter_model.h
         track_list_model.cpp
         track_list_model.h
 )
