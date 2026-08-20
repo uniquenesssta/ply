@@ -20,6 +20,8 @@ ApplicationWindow {
     property var audioDelayController: null
     property var audioTrackModel: null
     property var subtitleTrackModel: null
+    property var chapterModel: null
+    property var chapterNavigationViewModel: null
     property var mediaOpenCoordinator: null
     property var urlOpenWorkflow: null
     property var mediaDropHandler: null
@@ -89,6 +91,8 @@ ApplicationWindow {
         externalSubtitleAvailable: window.externalSubtitleLoader !== null
         audioTrackModel: window.audioTrackModel
         subtitleTrackModel: window.subtitleTrackModel
+        chapterModel: window.chapterModel
+        chapterNavigationViewModel: window.chapterNavigationViewModel
         mediaDropHandler: window.mediaDropHandler
         fullScreen: fullscreenWindowController.fullScreen
         windowActive: window.active

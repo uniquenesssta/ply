@@ -4,6 +4,7 @@
 #include "app/bootstrap/qml_bootstrap.h"
 #include "app/composition/playback_composition.h"
 #include "chapters/presentation/chapter_model.h"
+#include "chapters/presentation/chapter_navigation_view_model.h"
 #include "foundation/logging/log_categories.h"
 #include "media/application/arguments/media_argument_open_workflow.h"
 #include "media/application/drop/media_drop_handler.h"
@@ -111,6 +112,8 @@ ApplicationContainer::ApplicationContainer(
         std::make_unique<player::tracks::presentation::TrackListModel>(
             player::playback::domain::TrackKind::Subtitle))
     , chapterModel_(std::make_unique<player::chapters::presentation::ChapterModel>())
+    , chapterNavigationViewModel_(
+        std::make_unique<player::chapters::presentation::ChapterNavigationViewModel>())
     , mediaOpenCoordinator_(
         std::make_unique<player::media::application::MediaOpenCoordinator>(
             [this](const player::media::domain::MediaSource& source) {
@@ -162,6 +165,17 @@ ApplicationContainer::ApplicationContainer(
                     << "Tracked audio delay request failed:"
                     << diagnostic;
             }
+
+            if (requestType == static_cast<quint8>(PlaybackRequestType::SeekAbsolute)
+                && chapterNavigationViewModel_ != nullptr
+                && chapterNavigationViewModel_->rejectPendingSeek()) {
+                if (playbackComposition_ != nullptr) {
+                    playbackComposition_->hudMessageQueue().showSeekFailure();
+                }
+                qCWarning(player::logging::uiInteraction).noquote()
+                    << "Tracked chapter seek request failed:"
+                    << diagnostic;
+            }
         });
 
     auto& publisher = playbackComposition_->statePublisher();
@@ -180,6 +194,29 @@ ApplicationContainer::ApplicationContainer(
         &player::playback::application::StatePublisher::snapshotPublished,
         chapterModel_.get(),
         &player::chapters::presentation::ChapterModel::acceptSnapshot);
+    QObject::connect(
+        &publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        chapterNavigationViewModel_.get(),
+        &player::chapters::presentation::ChapterNavigationViewModel::acceptSnapshot);
+    QObject::connect(
+        chapterNavigationViewModel_.get(),
+        &player::chapters::presentation::ChapterNavigationViewModel::seekRequested,
+        chapterNavigationViewModel_.get(),
+        [this](double absoluteSeconds) {
+            const bool submitted = playbackComposition_ != nullptr
+                && playbackComposition_->submitSeek(
+                    player::playback::domain::SeekCommand{
+                        absoluteSeconds,
+                        player::playback::domain::SeekMode::Absolute,
+                    });
+            if (!submitted
+                && chapterNavigationViewModel_ != nullptr
+                && chapterNavigationViewModel_->rejectPendingSeek()
+                && playbackComposition_ != nullptr) {
+                playbackComposition_->hudMessageQueue().showSeekFailure();
+            }
+        });
     QObject::connect(
         &publisher,
         &player::playback::application::StatePublisher::snapshotPublished,
@@ -306,6 +343,12 @@ ApplicationContainer::chapterModel() noexcept
     return *chapterModel_;
 }
 
+player::chapters::presentation::ChapterNavigationViewModel&
+ApplicationContainer::chapterNavigationViewModel() noexcept
+{
+    return *chapterNavigationViewModel_;
+}
+
 player::media::application::MediaOpenCoordinator&
 ApplicationContainer::mediaOpenCoordinator() noexcept
 {
@@ -361,6 +404,7 @@ void ApplicationContainer::shutdown() noexcept
     subtitleDelayController_.reset();
     externalSubtitleLoader_.reset();
     trackSelectionController_.reset();
+    chapterNavigationViewModel_.reset();
     chapterModel_.reset();
     subtitleTrackListModel_.reset();
     audioTrackListModel_.reset();

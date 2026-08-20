@@ -1,7 +1,9 @@
 #include "chapters/presentation/chapter_model.h"
 
+#include <QChar>
 #include <QVariant>
 
+#include <cmath>
 #include <utility>
 
 namespace player::chapters::presentation {
@@ -13,6 +15,22 @@ QString displayTitle(const player::playback::domain::ChapterDescriptor& chapter)
         return *chapter.title;
     }
     return QStringLiteral("Chapter %1").arg(static_cast<qlonglong>(chapter.index + 1));
+}
+
+QString displayTime(double seconds)
+{
+    if (!std::isfinite(seconds) || seconds < 0.0) {
+        return QStringLiteral("--:--:--");
+    }
+
+    const qint64 totalSeconds = static_cast<qint64>(std::floor(seconds));
+    const qint64 hours = totalSeconds / 3600;
+    const qint64 minutes = (totalSeconds % 3600) / 60;
+    const qint64 remainingSeconds = totalSeconds % 60;
+    return QStringLiteral("%1:%2:%3")
+        .arg(hours, 2, 10, QChar(u'0'))
+        .arg(minutes, 2, 10, QChar(u'0'))
+        .arg(remainingSeconds, 2, 10, QChar(u'0'));
 }
 
 } // namespace
@@ -43,6 +61,8 @@ QVariant ChapterModel::data(const QModelIndex& index, int role) const
         return row.title;
     case TimeRole:
         return row.timeSeconds;
+    case TimeTextRole:
+        return row.timeText;
     default:
         return {};
     }
@@ -54,6 +74,7 @@ QHash<int, QByteArray> ChapterModel::roleNames() const
         {IndexRole, QByteArrayLiteral("index")},
         {TitleRole, QByteArrayLiteral("title")},
         {TimeRole, QByteArrayLiteral("time")},
+        {TimeTextRole, QByteArrayLiteral("timeText")},
     };
 }
 
@@ -82,6 +103,7 @@ void ChapterModel::acceptSnapshot(
             chapter.index,
             displayTitle(chapter),
             chapter.startSeconds,
+            displayTime(chapter.startSeconds),
         });
     }
 

@@ -6,6 +6,7 @@ Item {
     id: root
 
     property var viewModel: null
+    property var chapterModel: null
     property bool compact: false
     property bool windowActive: true
 
@@ -111,6 +112,49 @@ Item {
                 root.viewModel.cancelScrub()
             }
             Qt.callLater(root.syncSliderFromViewModel)
+        }
+    }
+
+    Item {
+        id: chapterMarkerLayer
+
+        anchors.fill: timelineSlider
+        z: timelineSlider.z + 1
+        visible: root.chapterModel !== null
+                 && root.chapterModel.count > 0
+                 && root.viewModel !== null
+                 && root.viewModel.durationSeconds > 0
+
+        Repeater {
+            model: root.chapterModel
+
+            delegate: Rectangle {
+                required property double time
+
+                readonly property real normalizedTime: root.viewModel !== null
+                                                       && root.viewModel.durationSeconds > 0
+                                                       ? Math.max(
+                                                           0,
+                                                           Math.min(
+                                                               1,
+                                                               time
+                                                               / root.viewModel.durationSeconds))
+                                                       : 0
+
+                x: LayoutTokens.sliderTrackInset
+                   + Math.round(
+                       normalizedTime
+                       * Math.max(
+                           0,
+                           chapterMarkerLayer.width
+                           - (LayoutTokens.sliderTrackInset * 2)
+                           - width))
+                y: (chapterMarkerLayer.height - height) / 2
+                width: LayoutTokens.surfaceBorderWidth
+                height: LayoutTokens.timelineChapterMarkerHeight
+                radius: width / 2
+                color: ColorTokens.iconSecondary
+            }
         }
     }
 

@@ -5,12 +5,16 @@ import QtQuick
 QtObject {
     readonly property int size1: 1
     readonly property real size1_5: 1.5
+    readonly property int size2: 2
     readonly property int size3: 3
     readonly property int size7: 7
+    readonly property int size9: 9
     readonly property int size10: 10
+    readonly property int size11: 11
     readonly property int size12: 12
     readonly property int size14: 14
     readonly property int size16: 16
+    readonly property int size18: 18
     readonly property int size21: 21
     readonly property int size22: 22
     readonly property int size24: 24

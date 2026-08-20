@@ -230,8 +230,9 @@ void CursorVisibilityPolicyTest::policyIntegrationStaysWindowLocalAndTimerFree()
     QVERIFY(screen.contains(QStringLiteral("id: volumeControls")));
     QVERIFY(screen.contains(QStringLiteral("menuOpen: root.menuOpen")));
     QVERIFY(screen.contains(QStringLiteral("property bool playlistDrawerOpen: false")));
-    QVERIFY(screen.contains(QStringLiteral(
-        "readonly property bool anyDrawerOpen: root.drawerOpen || root.playlistDrawerOpen")));
+    QVERIFY(screen.contains(QStringLiteral("readonly property bool anyDrawerOpen: root.drawerOpen")));
+    QVERIFY(screen.contains(QStringLiteral("|| root.playlistDrawerOpen")));
+    QVERIFY(screen.contains(QStringLiteral("|| root.chapterDrawerOpen")));
     QCOMPARE(screen.count(QStringLiteral("drawerOpen: root.anyDrawerOpen")), 2);
     QVERIFY(screen.contains(QStringLiteral("modalActive: root.modalActive")));
     QVERIFY(screen.contains(QStringLiteral("windowActive: root.windowActive")));

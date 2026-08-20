@@ -63,6 +63,7 @@ QtObject {
     readonly property int searchIconToText: SpacingPrimitives.space10
 
     readonly property int footerContent: SpacingPrimitives.space18
+    readonly property int chapterFooterTextGap: SpacingPrimitives.space2
     readonly property int timelineControlOffset: SpacingPrimitives.space12
     readonly property int timelineControlOffsetCompact: SpacingPrimitives.space10
 }

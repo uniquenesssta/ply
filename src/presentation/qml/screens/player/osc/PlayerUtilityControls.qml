@@ -8,6 +8,7 @@ Row {
     property bool compact: false
     property bool fullScreen: false
     property bool playlistOpen: false
+    property bool chapterOpen: false
     property bool mediaAvailable: false
     property bool externalSubtitleAvailable: false
     property var audioTrackModel: null
@@ -18,6 +19,7 @@ Row {
     readonly property bool trackPopupOpen: trackPopup.opened
 
     signal togglePlaylistRequested()
+    signal toggleChaptersRequested()
     signal toggleFullscreenRequested()
     signal openExternalSubtitleRequested()
 
@@ -71,6 +73,13 @@ Row {
         height: implicitHeight
 
         onToggleRequested: root.togglePlaylistRequested()
+    }
+
+    ChapterControls {
+        opened: root.chapterOpen
+        compact: root.compact
+
+        onClicked: root.toggleChaptersRequested()
     }
 
     FullscreenControls {

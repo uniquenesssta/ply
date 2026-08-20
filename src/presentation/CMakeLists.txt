@@ -31,6 +31,9 @@ set(PLAYER_QML_FILES
     qml/screens/player/drawers/PlaylistInspector.qml
     qml/screens/player/drawers/PlaylistSearchField.qml
     qml/screens/player/drawers/PlaylistFooter.qml
+    qml/screens/player/drawers/ChaptersInspector.qml
+    qml/screens/player/drawers/ChapterModeIndicator.qml
+    qml/screens/player/drawers/ChapterFooter.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
     qml/features/player/chrome/PlayerChromeActivityLayer.qml
@@ -45,6 +48,10 @@ set(PLAYER_QML_FILES
     qml/features/playlist/PlaylistControls.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
+    qml/features/chapters/ChapterControls.qml
+    qml/features/chapters/ChapterContent.qml
+    qml/features/chapters/ChapterMarkerGlyph.qml
+    qml/features/chapters/ChapterRow.qml
     qml/features/tracks/AudioDelayControl.qml
     qml/features/tracks/ExternalSubtitleOpenDialog.qml
     qml/features/tracks/SubtitleDelayControl.qml
@@ -88,6 +95,9 @@ set_source_files_properties(
     qml/screens/player/drawers/PlaylistInspector.qml
     qml/screens/player/drawers/PlaylistSearchField.qml
     qml/screens/player/drawers/PlaylistFooter.qml
+    qml/screens/player/drawers/ChaptersInspector.qml
+    qml/screens/player/drawers/ChapterModeIndicator.qml
+    qml/screens/player/drawers/ChapterFooter.qml
     qml/features/player/chrome/PlayerChromeVisibilityController.qml
     qml/features/player/chrome/PlayerCursorVisibilityController.qml
     qml/features/player/chrome/PlayerChromeActivityLayer.qml
@@ -102,6 +112,10 @@ set_source_files_properties(
     qml/features/playlist/PlaylistControls.qml
     qml/features/playlist/PlaylistContent.qml
     qml/features/playlist/PlaylistRow.qml
+    qml/features/chapters/ChapterControls.qml
+    qml/features/chapters/ChapterContent.qml
+    qml/features/chapters/ChapterMarkerGlyph.qml
+    qml/features/chapters/ChapterRow.qml
     qml/features/tracks/AudioDelayControl.qml
     qml/features/tracks/ExternalSubtitleOpenDialog.qml
     qml/features/tracks/SubtitleDelayControl.qml

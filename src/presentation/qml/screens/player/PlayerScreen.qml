@@ -30,7 +30,10 @@ Item {
     property bool externalSubtitleAvailable: false
     property var audioTrackModel: null
     property var subtitleTrackModel: null
+    property var chapterModel: null
+    property var chapterNavigationViewModel: null
     property bool playlistDrawerOpen: false
+    property bool chapterDrawerOpen: false
 
     readonly property bool headerCompact: root.width < LayoutTokens.windowMinimumWidth
     readonly property bool oscCompact: root.fullScreen
@@ -68,7 +71,9 @@ Item {
     readonly property bool pointerInsideWindow: chromeActivityLayer.pointerInside
     readonly property bool oscVisible: chromeVisibilityController.chromeVisible
     readonly property bool cursorHidden: cursorVisibilityController.cursorHidden
-    readonly property bool anyDrawerOpen: root.drawerOpen || root.playlistDrawerOpen
+    readonly property bool anyDrawerOpen: root.drawerOpen
+                                          || root.playlistDrawerOpen
+                                          || root.chapterDrawerOpen
     readonly property bool fullscreenGestureInteractionEnabled: !root.popupOpen
                                                                 && !root.menuOpen
                                                                 && !root.anyDrawerOpen
@@ -250,13 +255,15 @@ Item {
 
             anchors.fill: parent
             compact: root.oscCompact
-            inspectorOpen: root.playlistDrawerOpen && !root.fullScreen
+            inspectorOpen: (root.playlistDrawerOpen || root.chapterDrawerOpen)
+                           && !root.fullScreen
             timelineContent: [
                 TimelineControls {
                     anchors.fill: parent
                     compact: root.oscCompact
                     windowActive: root.windowActive
                     viewModel: root.timelineViewModel
+                    chapterModel: root.chapterModel
                 }
             ]
             transportContent: [
@@ -278,6 +285,7 @@ Item {
                     compact: root.oscCompact
                     fullScreen: root.fullScreen
                     playlistOpen: root.playlistDrawerOpen
+                    chapterOpen: root.chapterDrawerOpen
                     mediaAvailable: root.mediaViewModel !== null && root.mediaViewModel.hasMedia
                     externalSubtitleAvailable: root.externalSubtitleAvailable
                     audioTrackModel: root.audioTrackModel
@@ -287,7 +295,16 @@ Item {
                     subtitleDelayController: root.subtitleDelayController
 
                     onTrackPopupOpenChanged: root.popupOpen = trackPopupOpen
-                    onTogglePlaylistRequested: root.playlistDrawerOpen = !root.playlistDrawerOpen
+                    onTogglePlaylistRequested: {
+                        const nextOpened = !root.playlistDrawerOpen
+                        root.chapterDrawerOpen = false
+                        root.playlistDrawerOpen = nextOpened
+                    }
+                    onToggleChaptersRequested: {
+                        const nextOpened = !root.chapterDrawerOpen
+                        root.playlistDrawerOpen = false
+                        root.chapterDrawerOpen = nextOpened
+                    }
                     onToggleFullscreenRequested: root.fullscreenToggleRequested()
                     onOpenExternalSubtitleRequested: root.openExternalSubtitleRequested()
                 }
@@ -334,6 +351,18 @@ Item {
 
             onCloseRequested: root.playlistDrawerOpen = false
             onAddMediaRequested: root.openMediaRequested()
+        }
+
+        ChaptersInspector {
+            anchors.fill: parent
+            opened: root.chapterDrawerOpen
+            chapterModel: root.chapterModel
+            navigationViewModel: root.chapterNavigationViewModel
+            backdropSource: videoViewport
+            backdropMappingRevision: drawerHost.x + drawerHost.y
+                                     + drawerHost.width + drawerHost.height
+
+            onCloseRequested: root.chapterDrawerOpen = false
         }
     }
 }

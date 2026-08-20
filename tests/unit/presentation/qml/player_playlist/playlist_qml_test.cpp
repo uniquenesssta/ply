@@ -62,7 +62,8 @@ void PlaylistQmlTest::screenRoutesPlaylistThroughReadonlyPresentationBoundary()
     QVERIFY(screen.contains(QStringLiteral("PlaylistInspector {")));
     QVERIFY(screen.contains(QStringLiteral("playlistModel: root.playlistModel")));
     QVERIFY(screen.contains(QStringLiteral("playlistController: root.playlistController")));
-    QVERIFY(screen.contains(QStringLiteral("inspectorOpen: root.playlistDrawerOpen && !root.fullScreen")));
+    QVERIFY(screen.contains(QStringLiteral(
+        "inspectorOpen: (root.playlistDrawerOpen || root.chapterDrawerOpen)")));
     QVERIFY(screen.contains(QStringLiteral("backdropSource: videoViewport")));
     QVERIFY(screen.contains(QStringLiteral("backdropMappingRevision: drawerHost.x + drawerHost.y")));
 }

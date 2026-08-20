@@ -86,6 +86,9 @@ void ChapterModelTest::mapsSnapshotRowsDeterministically()
     QCOMPARE(model.data(middle, ChapterModel::IndexRole).toLongLong(), qint64{1});
     QCOMPARE(model.data(middle, ChapterModel::TitleRole).toString(), QStringLiteral("Middle"));
     QCOMPARE(model.data(middle, ChapterModel::TimeRole).toDouble(), 37.25);
+    QCOMPARE(
+        model.data(middle, ChapterModel::TimeTextRole).toString(),
+        QStringLiteral("00:00:37"));
 }
 
 void ChapterModelTest::preservesDuplicateTimesLongTitlesAndMissingTitle()
@@ -147,6 +150,7 @@ void ChapterModelTest::exposesReadonlyRoleContract()
     QCOMPARE(roles.value(ChapterModel::IndexRole), QByteArrayLiteral("index"));
     QCOMPARE(roles.value(ChapterModel::TitleRole), QByteArrayLiteral("title"));
     QCOMPARE(roles.value(ChapterModel::TimeRole), QByteArrayLiteral("time"));
+    QCOMPARE(roles.value(ChapterModel::TimeTextRole), QByteArrayLiteral("timeText"));
 
     const QModelIndex index = model.index(0, 0);
     QVERIFY(model.flags(index).testFlag(Qt::ItemIsEnabled));

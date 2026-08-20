@@ -76,6 +76,16 @@ QtObject {
     readonly property int listPlayingRailWidth: SizePrimitives.size3
     readonly property int inspectorFooterHeight: SizePrimitives.size54
 
+    readonly property int chapterMarkerGlyphSize: SizePrimitives.size26
+    readonly property int chapterMarkerGlyphBarWidth: SizePrimitives.size2
+    readonly property int chapterMarkerGlyphBarShortHeight: SizePrimitives.size7
+    readonly property int chapterMarkerGlyphBarMediumHeight: SizePrimitives.size9
+    readonly property int chapterMarkerGlyphBarTallHeight: SizePrimitives.size11
+    readonly property int chapterEmptyStateSurfaceSize: SizePrimitives.size54
+    readonly property int chapterRowActionSize: SizePrimitives.size28
+    readonly property int chapterRowActionGlyphSize: SizePrimitives.size18
+    readonly property int chapterFooterTextReserve: SizePrimitives.size104
+
     readonly property int timelineHitHeight: SizePrimitives.size16
     readonly property int timelineChapterMarkerWidth: SizePrimitives.size1
     readonly property int timelineChapterMarkerHeight: SizePrimitives.size7

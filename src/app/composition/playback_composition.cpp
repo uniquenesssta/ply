@@ -453,6 +453,34 @@ bool PlaybackComposition::submitTrackSelection(
     return true;
 }
 
+bool PlaybackComposition::submitSeek(
+    const player::playback::domain::SeekCommand& seek)
+{
+    auto* bus = playbackThread_->commandBus();
+    if (bus == nullptr || !bus->isAcceptingCommands()) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Playback seek intent ignored because PlaybackCommandBus is unavailable:"
+            << seekModeName(seek.mode)
+            << seek.seconds;
+        return false;
+    }
+
+    QString diagnostic;
+    const player::playback::domain::PlaybackCommand command{
+        requestIdGenerator_->next(),
+        seek};
+    if (!bus->submit(command, &diagnostic)) {
+        qCWarning(player::logging::uiInteraction).noquote()
+            << "Playback seek command submission failed:"
+            << seekModeName(seek.mode)
+            << seek.seconds
+            << diagnostic;
+        return false;
+    }
+
+    return true;
+}
+
 bool PlaybackComposition::submitTransport(TransportAction action)
 {
     auto* bus = playbackThread_->commandBus();
@@ -483,29 +511,7 @@ bool PlaybackComposition::submitTransport(TransportAction action)
 
 bool PlaybackComposition::submitSeek(double seconds, SeekMode mode)
 {
-    auto* bus = playbackThread_->commandBus();
-    if (bus == nullptr || !bus->isAcceptingCommands()) {
-        qCWarning(player::logging::uiInteraction).noquote()
-            << "Timeline seek intent ignored because PlaybackCommandBus is unavailable:"
-            << seekModeName(mode)
-            << seconds;
-        return false;
-    }
-
-    QString diagnostic;
-    const player::playback::domain::PlaybackCommand command{
-        requestIdGenerator_->next(),
-        player::playback::domain::SeekCommand{seconds, mode}};
-    if (!bus->submit(command, &diagnostic)) {
-        qCWarning(player::logging::uiInteraction).noquote()
-            << "Timeline seek command submission failed:"
-            << seekModeName(mode)
-            << seconds
-            << diagnostic;
-        return false;
-    }
-
-    return true;
+    return submitSeek(player::playback::domain::SeekCommand{seconds, mode});
 }
 
 bool PlaybackComposition::submitVolume(double percent)

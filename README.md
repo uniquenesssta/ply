@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-07 Complete；R8-08 Pending**。R8-07 Chapter decoder / Snapshot readonly model 已在 Windows 锁定环境完成重新 configure/build；Quick **104/104 PASS（44.88 s）**、Full **112/112 PASS（79.70 s）**，`application_container`、`mpv_chapter_list_decoder` 与 `chapter_model` 均通过，startup-smoke **3.05 s**、8 项 windowed-render 合计 **39.46 s**。R8-07 正式收口，尚未进入 R8-08 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-07 Complete；R8-08 Candidate**。R8-08 已建立 Chapter Inspector、只读 Timeline markers 与独立 `ChapterNavigationViewModel`；章节点击/上一章/下一章只提交 Absolute Seek intent，current 仍由 generation-gated Snapshot position 推导，pending 不写 Timeline thumb。Windows configure/build、Quick/Full 与真实多章节/non-seekable smoke 尚待执行 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -32,7 +32,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Track 的 raw `mpv_node` 只在 infrastructure 内转换；`MpvTrackListDecoder` 只把已经复制为 Qt value tree 的 `track-list` 映射为 `TrackDescriptor`，稳定 backend track ID 保持为产品身份，PlaybackSnapshot 继续是 track list/selection 的唯一播放真值，上层与 QML 不解析 mpv node。
 - `TrackListModel` 只消费已 generation-gated 的 `PlaybackSnapshot` 并按 Audio/Subtitle kind 投影只读行；`selected` 由 Snapshot 的 `selectedAudioId / selectedSubtitleId` 推导，model 不拥有 generation、selection mutation 或第二套 Track 真值。Opening/new-media Snapshot 清空旧轨道后，后续 current-generation Snapshot 整表替换新轨道。
 - Chapter 的 raw `chapter-list` node 只在 mpv infrastructure 内转换；`MpvChapterListDecoder` 把 Qt value tree 映射为 `ChapterDescriptor`，保持 backend 数组顺序、重复时间戳与原始长标题，不排序、不去重。`PlaybackSnapshot::chapters()` 继续是章节列表的唯一播放真值。
-- `ChapterModel` 位于独立 `src/chapters/presentation` responsibility，只消费已 generation-gated 的 `PlaybackSnapshot` 并投影只读 `index / title / time`；无标题或空标题使用确定性 `Chapter N` fallback，Opening/new-media Snapshot 清空旧章节。R8-07 不暴露 QML mutation/Seek，章节导航继续归 R8-08。
+- `ChapterModel` 位于独立 `src/chapters/presentation` responsibility，只消费已 generation-gated 的 `PlaybackSnapshot` 并投影只读 `index / title / time / timeText`；无标题或空标题使用确定性 `Chapter N` fallback，Opening/new-media Snapshot 清空旧章节。`ChapterNavigationViewModel` 只拥有当前 generation 的 chapter-seek pending target；current chapter 始终从 Snapshot position 投影。QML 只发章节 intent，Absolute Seek 进入既有 PlaybackCommand 主链，Timeline thumb 不接受章节 UI 直接写入。
 - Track selection 只走 `QML intent → TrackSelectionController → PlaybackCommand(RequestId + MediaGeneration) → mpv aid/sid → generation-gated PlaybackSnapshot → TrackListModel`。同类 Audio/Subtitle selection 复用 RequestTracker supersession lane；Subtitle Off 是显式 `sid=no` 状态；UI 不乐观改写 selected，最终 selected 始终由 backend/Snapshot 决定。
 - 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → 成功回执后确定性读取 track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`；mpv property observer 仍保留正常增量通知，但不再作为外部字幕成功后的唯一刷新来源。Loader 只接受可读本地 SRT/ASS 并提交规范化路径；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测与更完整的重复加载治理仍按 R8 后续任务处理。
 - 字幕延迟只走 `QML intent → SubtitleDelayController → SetSubtitleDelayCommand(RequestId + MediaGeneration) → mpv sub-delay → property observer/成功回执确定性回读 → generation-gated PlaybackSnapshot.controls.subtitleDelaySeconds → Controller/HUD`。Controller 只拥有 pending target，不乐观改写确认值；同 generation 字幕延迟请求使用独立 latest-wins supersession lane。固定范围 **-2.0 s ~ +2.0 s**、步进 **50 ms**，reset 回到 `0 ms`。
@@ -74,7 +74,7 @@ src/playback/application/        PlaybackSession、请求生命周期与应用�
 src/playback/infrastructure/mpv/ libmpv client/event/property/command/render 适配
 src/tracks/application/          Track selection、外挂字幕、字幕/音频延迟 intent/校验/应用级提交边界
 src/tracks/presentation/         Audio/Subtitle Track 的 Snapshot 只读列表投影
-src/chapters/presentation/       Chapter Snapshot 只读列表投影；不拥有 Seek/UI 导航
+src/chapters/presentation/       Chapter Snapshot 只读列表投影与章节导航 intent/pending 投影；不拥有 Playback/Timeline 真值
 src/media/domain/                规范化媒体来源值对象
 src/media/application/           媒体打开校验、operation supersession 与统一 workflow 编排
 src/playlist/domain/             播放队列、Entry/current/repeat/shuffle cycle、Queue Snapshot 与导航策略
@@ -120,6 +120,12 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-20 — R8-08 Chapter UI Candidate
+
+- 新增独立 `ChapterNavigationViewModel`：只消费 generation-gated `PlaybackSnapshot`，由 position 推导 current chapter，并单独维护当前 generation 的 pending chapter target。章节 row、上一章与下一章只发出 absolute-seconds intent；`ApplicationContainer` 将 intent 显式包装为 `SeekCommand{Absolute}` 并复用既有 PlaybackCommandBus。媒体切换、non-seekable、提交失败、异步 request failure 或 Snapshot 到达目标都会清理 pending，不建立第二套 Timeline/Playback 真值。
+- 按 Figma canonical `Chapters / Content`（`200:2168`）与 `Standard Inspector / Chapters`（`623:1611`）接入 Chapter Inspector：复用 `PlayerInspectorShell`、既有 token 与 58px row geometry，区分 Default / Current / Pending / Focus，并提供无章节 empty state 与 footer 上一章/下一章。OSC 新增 Chapters 入口；Timeline 只从 readonly chapter model 绘制 marker，chapter QML 不调用 scrub API、不写 `timelineSlider.value`、不接触 PlaybackSession/mpv。
+- `ChapterModel` 新增只读 `timeText` role；新增 `chapter_navigation_view_model` 与 `player_chapters_qml` CTest，并扩展 ChapterModel、ApplicationContainer、Playlist/Chrome policy 回归，覆盖重复时间戳、点击不改 current、Snapshot acknowledgement、non-seekable、previous/next、request failure、media switch、QML wiring 与 timeline 双写禁令。当前连接环境没有 Qt/CMake/QML 工具链，未执行 Windows configure/build、QML lint、Quick/Full 或真实媒体 smoke，因此本轮保持 Candidate，不虚构通过结果；无新增生产依赖。
 
 ### 2026-08-20 — R8-07 Chapter Decoder / Model Complete
 

@@ -3,6 +3,8 @@ add_library(
     STATIC
         chapter_model.cpp
         chapter_model.h
+        chapter_navigation_view_model.cpp
+        chapter_navigation_view_model.h
 )
 
 player_apply_compiler_options(player_chapters_presentation)

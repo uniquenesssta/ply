@@ -22,6 +22,7 @@ QtObject {
     readonly property int controlTransportSecondary: RadiusPrimitives.r16
     readonly property int controlSlider: RadiusPrimitives.r16
     readonly property int listRow: RadiusPrimitives.r18
+    readonly property int chapterIndexBadge: RadiusPrimitives.r10
     readonly property int track: RadiusPrimitives.r2
     readonly property int inspectorFooter: RadiusPrimitives.r25
     readonly property int timelinePreviewBubble: RadiusPrimitives.r14

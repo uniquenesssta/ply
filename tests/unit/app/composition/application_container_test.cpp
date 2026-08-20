@@ -3,6 +3,7 @@
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/composition/playback_composition.h"
 #include "chapters/presentation/chapter_model.h"
+#include "chapters/presentation/chapter_navigation_view_model.h"
 #include "media/application/open/media_open_coordinator.h"
 #include "media/application/open/url_open_workflow.h"
 #include "playlist/application/playlist_controller.h"
@@ -49,6 +50,7 @@ private slots:
     void ownsPlaylistControllerAndReadonlyModel();
     void ownsTrackSelectionController();
     void ownsChapterReadonlyModel();
+    void ownsChapterNavigationViewModel();
     void playbackCompositionStartsAndStops();
     void shutdownIsIdempotent();
 };
@@ -202,6 +204,21 @@ void ApplicationContainerTest::ownsChapterReadonlyModel()
 
     QCOMPARE(container.chapterModel().count(), 0);
     QCOMPARE(container.chapterModel().rowCount(), 0);
+}
+
+void ApplicationContainerTest::ownsChapterNavigationViewModel()
+{
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+
+    ApplicationContainer container(RuntimePaths::resolve(
+        RuntimePaths::Mode::Portable,
+        temporaryDirectory.path()));
+
+    QVERIFY(!container.chapterNavigationViewModel().canSeek());
+    QCOMPARE(container.chapterNavigationViewModel().chapterCount(), 0);
+    QCOMPARE(container.chapterNavigationViewModel().currentChapterIndex(), qint64{-1});
+    QVERIFY(!container.chapterNavigationViewModel().requestChapterSeek(0));
 }
 
 void ApplicationContainerTest::playbackCompositionStartsAndStops()

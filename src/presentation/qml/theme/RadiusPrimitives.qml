@@ -5,6 +5,7 @@ import QtQuick
 QtObject {
     readonly property int r0: 0
     readonly property int r2: 2
+    readonly property int r10: 10
     readonly property int r14: 14
     readonly property int r16: 16
     readonly property int r18: 18

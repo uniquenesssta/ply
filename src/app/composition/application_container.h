@@ -6,6 +6,7 @@
 
 namespace player::chapters::presentation {
 class ChapterModel;
+class ChapterNavigationViewModel;
 }
 
 namespace player::media::application {
@@ -74,6 +75,8 @@ public:
     [[nodiscard]] player::tracks::presentation::TrackListModel& audioTrackListModel() noexcept;
     [[nodiscard]] player::tracks::presentation::TrackListModel& subtitleTrackListModel() noexcept;
     [[nodiscard]] player::chapters::presentation::ChapterModel& chapterModel() noexcept;
+    [[nodiscard]] player::chapters::presentation::ChapterNavigationViewModel&
+    chapterNavigationViewModel() noexcept;
     [[nodiscard]] player::media::application::MediaOpenCoordinator& mediaOpenCoordinator() noexcept;
     [[nodiscard]] player::media::application::UrlOpenWorkflow& urlOpenWorkflow() noexcept;
     [[nodiscard]] player::media::application::MediaArgumentOpenWorkflow& mediaArgumentOpenWorkflow() noexcept;
@@ -100,6 +103,8 @@ private:
     std::unique_ptr<player::tracks::presentation::TrackListModel> audioTrackListModel_;
     std::unique_ptr<player::tracks::presentation::TrackListModel> subtitleTrackListModel_;
     std::unique_ptr<player::chapters::presentation::ChapterModel> chapterModel_;
+    std::unique_ptr<player::chapters::presentation::ChapterNavigationViewModel>
+        chapterNavigationViewModel_;
     std::unique_ptr<player::media::application::MediaOpenCoordinator> mediaOpenCoordinator_;
     std::unique_ptr<player::media::application::UrlOpenWorkflow> urlOpenWorkflow_;
     std::unique_ptr<player::media::application::MediaArgumentOpenWorkflow> mediaArgumentOpenWorkflow_;

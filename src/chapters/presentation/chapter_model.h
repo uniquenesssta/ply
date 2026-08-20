@@ -21,6 +21,7 @@ public:
         IndexRole = Qt::UserRole + 1,
         TitleRole,
         TimeRole,
+        TimeTextRole,
     };
     Q_ENUM(Role)
 
@@ -44,6 +45,7 @@ private:
         qsizetype index = 0;
         QString title;
         double timeSeconds = 0.0;
+        QString timeText;
 
         bool operator==(const Row&) const = default;
     };

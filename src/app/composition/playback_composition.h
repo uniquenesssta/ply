@@ -73,6 +73,8 @@ public:
         const player::playback::domain::SetAudioDelayCommand& delay);
     [[nodiscard]] bool submitTrackSelection(
         const player::playback::domain::TrackSelectionCommand& selection);
+    [[nodiscard]] bool submitSeek(
+        const player::playback::domain::SeekCommand& seek);
 
 private:
     [[nodiscard]] bool submitTransport(player::playback::domain::TransportAction action);

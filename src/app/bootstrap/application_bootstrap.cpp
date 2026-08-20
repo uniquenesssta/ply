@@ -6,6 +6,8 @@
 #include "app/bootstrap/startup_media_open_scheduler.h"
 #include "app/composition/application_container.h"
 #include "app/composition/playback_composition.h"
+#include "chapters/presentation/chapter_model.h"
+#include "chapters/presentation/chapter_navigation_view_model.h"
 #include "foundation/logging/log_categories.h"
 #include "media/application/drop/media_drop_handler.h"
 #include "media/application/open/media_open_coordinator.h"
@@ -168,6 +170,14 @@ int ApplicationBootstrap::run(
         QStringLiteral("subtitleTrackModel"),
         QVariant::fromValue(
             static_cast<QObject*>(&container.subtitleTrackListModel())));
+    initialProperties.insert(
+        QStringLiteral("chapterModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.chapterModel())));
+    initialProperties.insert(
+        QStringLiteral("chapterNavigationViewModel"),
+        QVariant::fromValue(
+            static_cast<QObject*>(&container.chapterNavigationViewModel())));
     initialProperties.insert(
         QStringLiteral("mediaOpenCoordinator"),
         QVariant::fromValue(

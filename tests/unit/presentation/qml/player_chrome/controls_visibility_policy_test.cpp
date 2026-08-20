@@ -268,8 +268,9 @@ void PlayerControlsVisibilityPolicyTest::playerScreenRoutesHoverFocusAndOverlayL
     QVERIFY(screen.contains(QStringLiteral("property bool drawerOpen: false")));
     QVERIFY(screen.contains(QStringLiteral("property bool playlistDrawerOpen: false")));
     QVERIFY(screen.contains(QStringLiteral("property bool modalActive: false")));
-    QVERIFY(screen.contains(QStringLiteral(
-        "readonly property bool anyDrawerOpen: root.drawerOpen || root.playlistDrawerOpen")));
+    QVERIFY(screen.contains(QStringLiteral("readonly property bool anyDrawerOpen: root.drawerOpen")));
+    QVERIFY(screen.contains(QStringLiteral("|| root.playlistDrawerOpen")));
+    QVERIFY(screen.contains(QStringLiteral("|| root.chapterDrawerOpen")));
     QVERIFY(screen.contains(QStringLiteral(
         "readonly property bool chromeControlsHovered: playerOscLayout.controlsHovered")));
     QVERIFY(screen.contains(QStringLiteral("topRegion.controlsFocused")));
