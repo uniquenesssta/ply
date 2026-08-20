@@ -107,7 +107,9 @@ void ChapterModelTest::preservesDuplicateTimesLongTitlesAndMissingTitle()
     QCOMPARE(model.data(model.index(0, 0), ChapterModel::TitleRole).toString(), longTitle);
     QCOMPARE(model.data(model.index(0, 0), ChapterModel::TimeRole).toDouble(), 42.5);
     QCOMPARE(model.data(model.index(1, 0), ChapterModel::IndexRole).toLongLong(), qint64{5});
-    QCOMPARE(model.data(model.index(1, 0), ChapterModel::TitleRole).toString(), QString{});
+    QCOMPARE(
+        model.data(model.index(1, 0), ChapterModel::TitleRole).toString(),
+        QStringLiteral("Chapter 6"));
     QCOMPARE(model.data(model.index(1, 0), ChapterModel::TimeRole).toDouble(), 42.5);
 }
 
