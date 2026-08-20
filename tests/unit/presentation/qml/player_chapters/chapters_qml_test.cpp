@@ -47,6 +47,8 @@ void ChaptersQmlTest::chapterRowsUseReadonlyModelAndExplicitSeekIntent()
     QVERIFY(!content.isEmpty());
     QVERIFY(!row.isEmpty());
     QVERIFY(!content.contains(QStringLiteral("Player.Presentation.Primitives")));
+    QVERIFY(row.contains(QStringLiteral("IconButton {")));
+    QVERIFY(!row.contains(QStringLiteral("ButtonBase {")));
     QVERIFY(content.contains(QStringLiteral("model: root.chapterModel")));
     QVERIFY(content.contains(QStringLiteral("required property var index")));
     QVERIFY(content.contains(QStringLiteral("required property string timeText")));
@@ -120,6 +122,8 @@ void ChaptersQmlTest::screenAndBootstrapPassChapterDependencies()
         "src/presentation/qml/screens/player/PlayerScreen.qml"));
     const QString utility = readSource(QStringLiteral(
         "src/presentation/qml/screens/player/osc/PlayerUtilityControls.qml"));
+    const QString controls = readSource(QStringLiteral(
+        "src/presentation/qml/features/chapters/ChapterControls.qml"));
     const QString bootstrap = readSource(QStringLiteral(
         "src/app/bootstrap/application_bootstrap.cpp"));
     const QString container = readSource(QStringLiteral(
@@ -137,6 +141,7 @@ void ChaptersQmlTest::screenAndBootstrapPassChapterDependencies()
     const QString timeline = readSource(QStringLiteral(
         "src/presentation/qml/features/player/timeline/TimelineControls.qml"));
     QVERIFY(timeline.contains(QStringLiteral("property var chapterModel: null")));
+    QVERIFY(timeline.startsWith(QStringLiteral("pragma ComponentBehavior: Bound")));
     QVERIFY(timeline.contains(QStringLiteral("model: root.chapterModel")));
     QVERIFY(timeline.contains(QStringLiteral("required property double time")));
     QVERIFY(timeline.contains(QStringLiteral("root.viewModel.durationSeconds")));
@@ -144,6 +149,8 @@ void ChaptersQmlTest::screenAndBootstrapPassChapterDependencies()
     QVERIFY(screen.contains(QStringLiteral(
         "navigationViewModel: root.chapterNavigationViewModel")));
     QVERIFY(utility.contains(QStringLiteral("ChapterControls {")));
+    QVERIFY(controls.contains(QStringLiteral("IconButton {")));
+    QVERIFY(!controls.contains(QStringLiteral("ButtonBase {")));
     QVERIFY(utility.contains(QStringLiteral("signal toggleChaptersRequested()")));
     const qsizetype playlistPosition = utility.indexOf(QStringLiteral("PlaylistControls {"));
     const qsizetype chapterPosition = utility.indexOf(QStringLiteral("ChapterControls {"));

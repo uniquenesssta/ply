@@ -2,7 +2,7 @@ import QtQuick
 import Player.Presentation.Controls
 import Player.Presentation.Theme
 
-ButtonBase {
+IconButton {
     id: root
 
     required property var chapterIndex

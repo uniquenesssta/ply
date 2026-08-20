@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Player.Presentation.Theme
 import Player.Presentation.Controls
