@@ -3,6 +3,7 @@
 #include "app/bootstrap/logging_bootstrap.h"
 #include "app/bootstrap/qml_bootstrap.h"
 #include "app/composition/playback_composition.h"
+#include "chapters/presentation/chapter_model.h"
 #include "foundation/logging/log_categories.h"
 #include "media/application/arguments/media_argument_open_workflow.h"
 #include "media/application/drop/media_drop_handler.h"
@@ -24,7 +25,6 @@
 #include "tracks/application/external_subtitle_loader.h"
 #include "tracks/application/subtitle_delay_controller.h"
 #include "tracks/application/track_selection_controller.h"
-#include "tracks/presentation/chapter_model.h"
 #include "tracks/presentation/track_list_model.h"
 
 #include <QList>
@@ -110,7 +110,7 @@ ApplicationContainer::ApplicationContainer(
     , subtitleTrackListModel_(
         std::make_unique<player::tracks::presentation::TrackListModel>(
             player::playback::domain::TrackKind::Subtitle))
-    , chapterModel_(std::make_unique<player::tracks::presentation::ChapterModel>())
+    , chapterModel_(std::make_unique<player::chapters::presentation::ChapterModel>())
     , mediaOpenCoordinator_(
         std::make_unique<player::media::application::MediaOpenCoordinator>(
             [this](const player::media::domain::MediaSource& source) {
@@ -179,7 +179,7 @@ ApplicationContainer::ApplicationContainer(
         &publisher,
         &player::playback::application::StatePublisher::snapshotPublished,
         chapterModel_.get(),
-        &player::tracks::presentation::ChapterModel::acceptSnapshot);
+        &player::chapters::presentation::ChapterModel::acceptSnapshot);
     QObject::connect(
         &publisher,
         &player::playback::application::StatePublisher::snapshotPublished,
@@ -300,7 +300,7 @@ ApplicationContainer::subtitleTrackListModel() noexcept
     return *subtitleTrackListModel_;
 }
 
-player::tracks::presentation::ChapterModel&
+player::chapters::presentation::ChapterModel&
 ApplicationContainer::chapterModel() noexcept
 {
     return *chapterModel_;
