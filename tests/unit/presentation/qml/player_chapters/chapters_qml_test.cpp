@@ -46,6 +46,7 @@ void ChaptersQmlTest::chapterRowsUseReadonlyModelAndExplicitSeekIntent()
 
     QVERIFY(!content.isEmpty());
     QVERIFY(!row.isEmpty());
+    QVERIFY(!content.contains(QStringLiteral("Player.Presentation.Primitives")));
     QVERIFY(content.contains(QStringLiteral("model: root.chapterModel")));
     QVERIFY(content.contains(QStringLiteral("required property var index")));
     QVERIFY(content.contains(QStringLiteral("required property string timeText")));

@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Player.Presentation.Primitives
 import Player.Presentation.Theme
 
 Item {
@@ -67,17 +66,17 @@ Item {
             }
         }
 
-        BodyText {
+        Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: qsTr("This media has no chapters")
-            variant: BodyText.Control
+            font: TypographyTokens.controlBody
             color: ColorTokens.textStrong
         }
 
-        CaptionText {
+        Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: qsTr("Chapter metadata will appear here when available")
-            variant: CaptionText.Meta
+            font: TypographyTokens.metaBody
             color: ColorTokens.textMuted
         }
     }
