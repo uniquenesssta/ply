@@ -128,6 +128,7 @@ target_link_libraries(
         player_media_application
         player_tracks_application
         player_tracks_presentation
+        player_chapters_presentation
         player_presentation_transport
         player_presentation_timeline
         player_presentation_volume
@@ -472,4 +473,5 @@ add_subdirectory(unit/playback/application)
 add_subdirectory(unit/playback/infrastructure/mpv/render)
 add_subdirectory(unit/tracks/application)
 add_subdirectory(unit/tracks/presentation)
+add_subdirectory(unit/chapters/presentation)
 add_subdirectory(unit/presentation)
