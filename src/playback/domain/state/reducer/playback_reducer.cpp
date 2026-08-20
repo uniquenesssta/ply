@@ -29,13 +29,11 @@ void applySelectedTrack(
     const std::optional<qint64>& incoming,
     TrackKind kind)
 {
-    if (!incoming.has_value()) {
+    if (!incoming.has_value() || !trackExists(state, *incoming, kind)) {
         selected.reset();
         return;
     }
-    if (trackExists(state, *incoming, kind)) {
-        selected = incoming;
-    }
+    selected = incoming;
 }
 
 void rebuildTrackSelectionsAndCapabilities(PlaybackSnapshotState& state)

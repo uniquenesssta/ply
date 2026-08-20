@@ -5,6 +5,7 @@
 
 #include <QtTest/QTest>
 
+#include <optional>
 #include <utility>
 #include <variant>
 
@@ -96,9 +97,21 @@ void MediaGenerationTest::gateRejectsStaleAndUnattributedMediaEvents()
         MediaGeneration{41})));
     QVERIFY(!gate.accepts(mediaEvent(TrackListChangedEvent{}, MediaGeneration{41})));
     QVERIFY(!gate.accepts(mediaEvent(ChapterListChangedEvent{}, MediaGeneration{41})));
+    QVERIFY(!gate.accepts(mediaEvent(
+        SelectedVideoTrackChangedEvent{qint64{1}},
+        MediaGeneration{41})));
+    QVERIFY(!gate.accepts(mediaEvent(
+        SelectedAudioTrackChangedEvent{qint64{2}},
+        MediaGeneration{41})));
+    QVERIFY(!gate.accepts(mediaEvent(
+        SelectedSubtitleTrackChangedEvent{qint64{3}},
+        MediaGeneration{41})));
 
     QVERIFY(gate.accepts(mediaEvent(MediaPathChangedEvent{QStringLiteral("B.wav")}, MediaGeneration{42})));
     QVERIFY(gate.accepts(mediaEvent(TrackListChangedEvent{}, MediaGeneration{42})));
+    QVERIFY(gate.accepts(mediaEvent(
+        SelectedSubtitleTrackChangedEvent{std::nullopt},
+        MediaGeneration{42})));
     QVERIFY(gate.accepts(PlaybackEvent{VolumeChangedEvent{50.0}}));
     QVERIFY(!gate.accepts(PlaybackEvent{DurationChangedEvent{12.0}}));
 
@@ -110,7 +123,7 @@ void MediaGenerationTest::gateRejectsStaleAndUnattributedMediaEvents()
     QVERIFY(gate.accepts(PlaybackEvent{PlaybackFailureEvent{protocolFailure}}));
 
     QCOMPARE(gate.currentGeneration().value(), quint64{42});
-    QCOMPARE(gate.diagnostics().staleGenerationEventCount, quint64{6});
+    QCOMPARE(gate.diagnostics().staleGenerationEventCount, quint64{9});
     QCOMPARE(gate.diagnostics().missingGenerationEventCount, quint64{1});
 }
 

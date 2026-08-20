@@ -1,4 +1,5 @@
 #include "foundation/ids/request_id.h"
+#include "playback/domain/state/playback_invariants.h"
 #include "playback/domain/state/playback_reducer.h"
 
 #include <QtTest/QTest>
@@ -73,6 +74,7 @@ private slots:
     void pauseAndBufferingStayIndependent();
     void propertyEventsUpdateTheirOwnAxes();
     void mediaAxesUpdateIndependently();
+    void invalidTrackSelectionClearsOnlyItsKind();
     void unavailablePauseAndBufferingDoNotInventState();
     void eofMarksEndedWithoutDiscardingMediaIdentity();
     void eofPropertyMarksEndedAndSeekBackRecoversPaused();
@@ -249,6 +251,59 @@ void PlaybackReducerTest::mediaAxesUpdateIndependently()
         makePlaybackEvent(CacheStatusChangedEvent{cache}));
     QVERIFY(snapshot.buffering().cache.has_value());
     QCOMPARE(*snapshot.buffering().cache->durationSeconds, 5.5);
+}
+
+void PlaybackReducerTest::invalidTrackSelectionClearsOnlyItsKind()
+{
+    PlaybackSnapshot snapshot = PlaybackSnapshot::opening(
+        MediaGeneration{9},
+        QStringLiteral("sample.mkv"));
+    snapshot = reducePlaybackSnapshot(snapshot, makePlaybackEvent(MediaLoadedEvent{}));
+
+    TrackDescriptor videoTrack;
+    videoTrack.id = 1;
+    videoTrack.kind = TrackKind::Video;
+    videoTrack.selected = true;
+    TrackDescriptor audioTrack;
+    audioTrack.id = 2;
+    audioTrack.kind = TrackKind::Audio;
+    audioTrack.selected = true;
+    TrackDescriptor subtitleTrack;
+    subtitleTrack.id = 3;
+    subtitleTrack.kind = TrackKind::Subtitle;
+    subtitleTrack.selected = true;
+
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(TrackListChangedEvent{{videoTrack, audioTrack, subtitleTrack}}));
+    QCOMPARE(*snapshot.tracks().selectedVideoId, qint64{1});
+    QCOMPARE(*snapshot.tracks().selectedAudioId, qint64{2});
+    QCOMPARE(*snapshot.tracks().selectedSubtitleId, qint64{3});
+
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(SelectedAudioTrackChangedEvent{qint64{99}}));
+    QCOMPARE(*snapshot.tracks().selectedVideoId, qint64{1});
+    QVERIFY(!snapshot.tracks().selectedAudioId.has_value());
+    QCOMPARE(*snapshot.tracks().selectedSubtitleId, qint64{3});
+    QVERIFY(checkPlaybackSnapshotInvariants(snapshot).empty());
+
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(SelectedSubtitleTrackChangedEvent{std::nullopt}));
+    QCOMPARE(*snapshot.tracks().selectedVideoId, qint64{1});
+    QVERIFY(!snapshot.tracks().selectedAudioId.has_value());
+    QVERIFY(!snapshot.tracks().selectedSubtitleId.has_value());
+    QVERIFY(checkPlaybackSnapshotInvariants(snapshot).empty());
+
+    snapshot = reducePlaybackSnapshot(
+        snapshot,
+        makePlaybackEvent(SelectedVideoTrackChangedEvent{qint64{98}}));
+    QVERIFY(!snapshot.tracks().selectedVideoId.has_value());
+    QVERIFY(!snapshot.tracks().selectedAudioId.has_value());
+    QVERIFY(!snapshot.tracks().selectedSubtitleId.has_value());
+    QCOMPARE(snapshot.tracks().tracks.size(), qsizetype{3});
+    QVERIFY(checkPlaybackSnapshotInvariants(snapshot).empty());
 }
 
 void PlaybackReducerTest::unavailablePauseAndBufferingDoNotInventState()
