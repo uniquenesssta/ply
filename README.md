@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-08 Complete；R8-09 Candidate**。R8-09 已补齐 selected track ID 不属于当前列表时回到明确 none 的 Reducer 边界，并扩展三类 selection property 的 stale-generation gate 回归；既有 Opening 清表、stable backend ID、subtitle off 与 Snapshot-only selection 契约保持不变。Windows build、Quick/Full 尚待执行；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-09 Complete**。R8-09 已锁定 Track List Generation Scope：新媒体 Opening 清旧列表，stale-generation track/selection event 丢弃，列表外 selected ID 回到明确 none，stable backend ID、subtitle off 与 Snapshot-only selection 契约保持不变。Windows build PASS，Quick **106/106 PASS（46.30 s）**、Full **114/114 PASS（79.29 s）**；R8-09 正式收口。Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -121,11 +121,11 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-20 — R8-09 Track List Generation Scope Candidate
+### 2026-08-20 — R8-09 Track List Generation Scope Complete
 
 - Track list 继续只存在于 generation-gated `PlaybackSnapshot`：新媒体进入 Opening 时由统一 cleanup policy 先清空旧 tracks/selected/capabilities，backend `track-list` 与 video/audio/subtitle selection property 必须携带当前 `MediaGeneration`，stale 或无 generation 事件在进入 Reducer 前丢弃；presentation model 不建立第二份 generation 或 selection 真值。
 - 修正 selected property 指向当前列表外 ID 时保留旧 selection 的缺口：Reducer 现在只接受当前列表中同 `TrackKind` 的 stable backend ID，否则仅清除对应 video/audio/subtitle selected 状态，不影响另外两类轨道。扩展 `playback_reducer` 与 `media_generation_gate` 回归；既有 `track_list_model`、`track_selection_controller`、mpv mapper 与 QML 测试继续覆盖 A→Opening B→Ready B 整表替换、缺失 selected ID 不假选中、stable ID 命令、显式 subtitle off 及提交失败不改 UI 真值。
-- 当前连接环境没有 Qt/CMake 工具链，未执行 Windows build、Quick/Full；R8-09 保持 Candidate，不记为已通过。无新增生产依赖或 QML/CMake target。
+- 用户在 HEAD `68a7aa92353d95e5b9e713c2c0b6f482405ce3f1` 的 Windows 锁定环境完成 build；Quick **106/106 PASS，0 failed（46.30 s）**，Full **114/114 PASS，0 failed（79.29 s）**，`playback_reducer`、`playback_media_generation`、`track_list_model` 与 `player_track_selection_qml` 均通过；startup-smoke **3.06 s**，8 项 windowed-render 合计 **39.30 s**。**R8-09 正式 Complete**。无新增生产依赖或 QML/CMake target。
 
 ### 2026-08-20 — R8-08 Chapter UI Complete
 
