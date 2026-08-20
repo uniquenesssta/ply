@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-06 Complete；R8-07 Candidate**。R8-06 后续 Windows Full **110/110 PASS，0 failed（78.43 s）**，`audio_delay_flow` 与 `audio_delay_controller` 均通过，startup-smoke **3.06 s**、8 项 windowed-render 合计 **38.52 s**。R8-07 已建立 Chapter decoder / Snapshot readonly model 候选；本轮 Windows build、Quick/Full 尚待执行，未进入 R8-08 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-07 Complete；R8-08 Pending**。R8-07 Chapter decoder / Snapshot readonly model 已在 Windows 锁定环境完成重新 configure/build；Quick **104/104 PASS（44.88 s）**、Full **112/112 PASS（79.70 s）**，`application_container`、`mpv_chapter_list_decoder` 与 `chapter_model` 均通过，startup-smoke **3.05 s**、8 项 windowed-render 合计 **39.46 s**。R8-07 正式收口，尚未进入 R8-08 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -121,12 +121,12 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-20 — R8-07 Chapter Decoder / Model Candidate
+### 2026-08-20 — R8-07 Chapter Decoder / Model Complete
 
 - 新增独立 `MpvChapterListDecoder` infrastructure responsibility：只把已复制为 Qt value tree 的 mpv `chapter-list` 解码为 `QList<ChapterDescriptor>`。每项必须包含有限、非负的 numeric `time`，`title` 保持 optional；backend 数组顺序直接生成稳定 chapter index，重复时间戳不去重，长标题不截断，未知额外字段忽略，非法 payload 整体拒绝并返回诊断。既有 `MpvChapterModelMapper` 仅保留 property unavailable/error/event 适配，未改 PlaybackSession、Reducer 或 property registry。
 - 新增独立 `src/chapters/presentation/ChapterModel`，只消费现有 generation-gated `PlaybackSnapshot::chapters()` 并提供 readonly `index / title / time` roles；无标题或空标题显示 `Chapter N` fallback。ApplicationContainer 将同一 `StatePublisher::snapshotPublished` 接到该 model，因此 Opening/new-media Snapshot 会先清空旧章节，再由当前 generation Snapshot 替换；没有 QML 暴露、Seek intent 或 timeline thumb mutation，R8-08 边界保持不变。
 - 新增 `mpv_chapter_list_decoder` 与 `chapter_model` CTest，并扩展 `application_container` ownership 回归；覆盖无章节、多章节、重复时间、长标题、缺失标题 fallback、未知字段、malformed payload、media switch clear/replace 与 readonly role contract。没有新增生产依赖。
-- 当前连接环境无法执行 Windows Qt/MSVC build/CTest，仓库也没有可替代本地门禁的 GitHub workflow/status。源码/CMake/最终 diff 已复核，但本轮 build、Quick/Full 尚未执行，因此 R8-07 保持 **Candidate**，不得进入 R8-08。
+- 用户已在 HEAD `188ca44f1e51f13a2d585be5dc012682d6f74aca` 的 Windows 锁定环境完成重新 configure/build；Quick **104/104 PASS，0 failed（44.88 s）**，Full **112/112 PASS，0 failed（79.70 s）**。`application_container`、`mpv_chapter_list_decoder` 与 `chapter_model` 在 Quick/Full 中均通过；Full 的 startup-smoke **3.05 s**，8 项 windowed-render 合计 **39.46 s**。**R8-07 正式 Complete；尚未进入 R8-08。**
 
 ### 2026-08-20 — R8-06 Audio Delay Complete
 
