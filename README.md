@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-07 Complete；R8-08 Candidate**。R8-08 已建立 Chapter Inspector、只读 Timeline markers 与独立 `ChapterNavigationViewModel`；章节点击/上一章/下一章只提交 Absolute Seek intent，current 仍由 generation-gated Snapshot position 推导，pending 不写 Timeline thumb。Windows configure/build、Quick/Full 与真实多章节/non-seekable smoke 尚待执行 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-08 Complete**。R8-08 Chapter Inspector、只读 Timeline markers 与独立 `ChapterNavigationViewModel` 已完成；Windows build PASS，Quick **106/106 PASS（40.21 s）**、Full **114/114 PASS（78.79 s）**，startup-smoke **3.07 s**，8 项 windowed-render 合计 **38.71 s**。R8-08 正式收口；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -121,11 +121,12 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-20 — R8-08 Chapter UI Candidate
+### 2026-08-20 — R8-08 Chapter UI Complete
 
 - 新增独立 `ChapterNavigationViewModel`：只消费 generation-gated `PlaybackSnapshot`，由 position 推导 current chapter，并单独维护当前 generation 的 pending chapter target。章节 row、上一章与下一章只发出 absolute-seconds intent；`ApplicationContainer` 将 intent 显式包装为 `SeekCommand{Absolute}` 并复用既有 PlaybackCommandBus。媒体切换、non-seekable、提交失败、异步 request failure 或 Snapshot 到达目标都会清理 pending，不建立第二套 Timeline/Playback 真值。
 - 按 Figma canonical `Chapters / Content`（`200:2168`）与 `Standard Inspector / Chapters`（`623:1611`）接入 Chapter Inspector：复用 `PlayerInspectorShell`、既有 token 与 58px row geometry，区分 Default / Current / Pending / Focus，并提供无章节 empty state 与 footer 上一章/下一章。OSC 新增 Chapters 入口；Timeline 只从 readonly chapter model 绘制 marker，chapter QML 不调用 scrub API、不写 `timelineSlider.value`、不接触 PlaybackSession/mpv。
-- `ChapterModel` 新增只读 `timeText` role；新增 `chapter_navigation_view_model` 与 `player_chapters_qml` CTest，并扩展 ChapterModel、ApplicationContainer、Playlist/Chrome policy 回归，覆盖重复时间戳、点击不改 current、Snapshot acknowledgement、non-seekable、previous/next、request failure、media switch、QML wiring 与 timeline 双写禁令。当前连接环境没有 Qt/CMake/QML 工具链，未执行 Windows configure/build、QML lint、Quick/Full 或真实媒体 smoke，因此本轮保持 Candidate，不虚构通过结果；无新增生产依赖。
+- `ChapterModel` 新增只读 `timeText` role；新增 `chapter_navigation_view_model` 与 `player_chapters_qml` CTest，并扩展 ChapterModel、ApplicationContainer、Playlist/Chrome policy 回归，覆盖重复时间戳、点击不改 current、Snapshot acknowledgement、non-seekable、previous/next、request failure、media switch、QML wiring 与 timeline 双写禁令；无新增生产依赖。
+- 最终修复 Chapter feature 对内部 `ButtonBase` 的运行时越界引用，并为 Timeline delegate 启用 bound component behavior。用户在 HEAD `f8a4c5245b2be337700ed605672808b0e841fe7b` 的 Windows 锁定环境完成 build；Quick **106/106 PASS，0 failed（40.21 s）**，Full **114/114 PASS，0 failed（78.79 s）**，`qml_module_boundaries`、`player_chapters_qml` 与 `player_app_startup_smoke` 均通过；startup-smoke **3.07 s**，8 项 windowed-render 合计 **38.71 s**。**R8-08 正式 Complete**；多轨/字幕/章节联合真实媒体 smoke 继续保留为 Stage R8 关闭项，不记为已执行。
 
 ### 2026-08-20 — R8-07 Chapter Decoder / Model Complete
 
