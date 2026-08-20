@@ -3,6 +3,8 @@ target_sources(
     PRIVATE
         mpv_cache_status_mapper.cpp
         mpv_cache_status_mapper.h
+        mpv_chapter_list_decoder.cpp
+        mpv_chapter_list_decoder.h
         mpv_chapter_model_mapper.cpp
         mpv_chapter_model_mapper.h
         mpv_media_model_value_reader.cpp
