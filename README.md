@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-09 Complete；R8-10 Candidate**。R8-10 复用既有 RequestTracker 的 Audio/Subtitle/Video 独立 supersession lane、`requestId + MediaGeneration` reply 归因和 generation-change cancellation；最终 selected 仍只来自 Snapshot，不新增 UI pending 真值。Track 专项仲裁回归已补齐，Windows build、Quick/Full 尚待执行；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-10 Complete**。R8-10 复用既有 RequestTracker 的 Audio/Subtitle/Video 独立 supersession lane、`requestId + MediaGeneration` reply 归因和 generation-change cancellation；最终 selected 仍只来自 Snapshot，不新增 UI pending 真值。Windows build 通过，Quick **106/106 PASS（56.05 s）**、Full **114/114 PASS（82.75 s）**；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -121,11 +121,11 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-21 — R8-10 Track Selection Request Arbitration Candidate
+### 2026-08-21 — R8-10 Track Selection Request Arbitration Complete
 
 - Track selection 继续复用通用 `RequestTracker`：Audio、Subtitle、Video 各自拥有独立 same-kind latest-wins lane；每次提交记录 stable `RequestId + MediaGeneration`，superseded、cancelled、duplicate、unknown 或 stale-generation reply 均不能进入当前 selected 状态。新 media generation 通过统一 generation-change cancellation 清理旧 track-selection request，不新增 Track 专属 request owner。
 - 新增 Track 专项仲裁回归，把同 generation Audio A→Audio B supersession、Audio/Subtitle lane 并行、旧 Audio late failure 丢弃、最新 Audio reply 仅按匹配 request/generation 完成、media switch 取消剩余 Audio/Subtitle pending，以及取消后的 late reply 不复活串成一个确定性序列。既有 QML/TrackListModel 契约继续保证提交只发 intent，最终 selected 只读取 Snapshot；本轮不增加 optimistic UI mutation。
-- 当前连接环境没有 Qt/CMake 工具链，未执行 Windows build、Quick/Full；R8-10 保持 Candidate，不记为已通过。无生产代码、依赖、QML 或 CMake target 变化。
+- 用户在 HEAD `de9ce51930e891a9282413902ac31a1dde513f56` 的 Windows 锁定环境完成 build；Quick **106/106 PASS，0 failed（56.05 s）**，Full **114/114 PASS，0 failed（82.75 s）**，`playback_request_tracker` 与 `player_track_selection_qml` 均通过；startup-smoke **6.00 s**，8 项 windowed-render 合计 **42.43 s**。**R8-10 正式 Complete**。无生产代码、依赖、QML 或 CMake target 变化；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续保留为阶段关闭项，不记为已执行。
 
 ### 2026-08-20 — R8-09 Track List Generation Scope Complete
 
