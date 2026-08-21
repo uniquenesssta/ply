@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-11 Complete；R8-12 Candidate**。R8-12 将 chapter start 的 finite/non-negative/duration-bound 校验收口到 Playback Chapter domain，ChapterModel 只投影已验证行及 `normalizedTime`；Chapter QML 只发统一 absolute seek intent，Timeline marker 只读 model role，不再在 QML 修正越界数据，position 仍只来自 generation-gated Snapshot。Windows build、Quick/Full 尚待执行；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-12 Complete**。R8-12 将 chapter start 的 finite/non-negative/duration-bound 校验收口到 Playback Chapter domain，ChapterModel 只投影已验证行及 `normalizedTime`；Chapter QML 只发统一 absolute seek intent，Timeline marker 只读 model role，不再在 QML 修正越界数据，position 仍只来自 generation-gated Snapshot。Windows build 已完成，Quick **106/106 PASS（49.22 s）**、Full **114/114 PASS（79.19 s）**；startup-smoke **3.06 s**，8 项 windowed-render 合计 **39.29 s**。Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -121,11 +121,11 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-21 — R8-12 Chapter/Timeline One-way Collaboration Candidate
+### 2026-08-21 — R8-12 Chapter/Timeline One-way Collaboration Complete
 
 - `PlaybackChapterState::validatedForDuration()` 现在是 chapter/timeline 跨轴校验边界：无论 duration 事件先后，均从 Snapshot 保存的 raw chapter list 保序投影，过滤负 index、非有限/负 start，并仅在 duration 有效时过滤 `start > duration`；等于 duration 的合法尾端 marker 保留。`MpvChapterListDecoder` 回归同步补齐 infinity/NaN 原子拒绝。
 - `ChapterModel` 新增只读 `normalizedTime` role，Inspector 与 Timeline marker 使用同一份已校验行；Timeline QML 直接消费该 role，移除对 `time / duration` 的 `Math.min/Math.max` 修正。`ChapterDisplayFormatter` 统一 Model 与 Navigation 的缺失/空标题 `Chapter N` fallback；章节点击仍只经 `ChapterNavigationViewModel → SeekCommand{Absolute} → PlaybackCommandBus`，不写 Timeline slider，current chapter/position 仍只由 generation-gated Snapshot 确认。
-- 扩展 `playback_snapshot`、`mpv_chapter_list_decoder`、`chapter_model`、`chapter_navigation_view_model`、`player_chapters_qml` 与 `player_timeline_controls` 既有回归，覆盖未知/有效/变化 duration、边界等于/超过 duration、非法 start/index、统一 fallback、只读 normalized marker 及 QML 无越界修正。当前连接环境没有 Qt/CMake 工具链，未执行 Windows build、Quick/Full；R8-12 保持 Candidate。无新增依赖或 CTest target。
+- 扩展 `playback_snapshot`、`mpv_chapter_list_decoder`、`chapter_model`、`chapter_navigation_view_model`、`player_chapters_qml` 与 `player_timeline_controls` 既有回归，覆盖未知/有效/变化 duration、边界等于/超过 duration、非法 start/index、统一 fallback、只读 normalized marker 及 QML 无越界修正。用户在 HEAD `aeeef9e1b75c560679032a0c2e394547b46d0f90` 的 Windows 锁定环境完成 build；Quick **106/106 PASS，0 failed（49.22 s）**，Full **114/114 PASS，0 failed（79.19 s）**，上述六项专项回归在两轮均通过；startup-smoke **3.06 s**，8 项 windowed-render 合计 **39.29 s**。**R8-12 正式 Complete**。无新增依赖或 CTest target；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续保留为阶段关闭项，不记为已执行。
 
 ### 2026-08-21 — R8-11 External Subtitle Idempotency Complete
 
