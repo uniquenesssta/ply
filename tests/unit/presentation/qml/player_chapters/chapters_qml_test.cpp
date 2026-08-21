@@ -1,6 +1,5 @@
 #include <QAbstractListModel>
 #include <QByteArray>
-#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
@@ -10,6 +9,8 @@
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
+#include <QQuickItem>
+#include <QQuickWindow>
 #include <QSignalSpy>
 #include <QString>
 #include <QStringList>
@@ -195,7 +196,15 @@ void ChaptersQmlTest::chapterDelegateReceivesRequiredModelRolesAtRuntime()
         component.createWithInitialProperties(initialProperties));
     const QString createDiagnostics = componentDiagnostics(component);
     QVERIFY2(content != nullptr, qPrintable(createDiagnostics));
-    QCoreApplication::processEvents();
+
+    auto* contentItem = qobject_cast<QQuickItem*>(content.get());
+    QVERIFY(contentItem != nullptr);
+
+    QQuickWindow window;
+    window.setGeometry(0, 0, 480, 320);
+    contentItem->setParentItem(window.contentItem());
+    window.show();
+    QTest::qWait(50);
 
     QTRY_COMPARE_WITH_TIMEOUT(
         content->findChildren<QObject*>(QStringLiteral("chapterRow")).size(),
