@@ -13,6 +13,7 @@
 #include <QDebug>
 #include <QObject>
 #include <QString>
+#include <QTimer>
 #include <QtGlobal>
 
 #include <array>
@@ -49,6 +50,11 @@ constexpr std::array<MpvPropertyId, 19> kMediaRefreshProperties{
 constexpr std::array<MpvPropertyId, 2> kExternalSubtitleRefreshProperties{
     MpvPropertyId::TrackList,
     MpvPropertyId::SelectedSubtitleTrack,
+};
+
+constexpr std::array<int, 2> kExternalSubtitleRefreshDelaysMilliseconds{
+    50,
+    250,
 };
 
 constexpr std::array<MpvPropertyId, 1> kSubtitleDelayRefreshProperties{
@@ -254,6 +260,19 @@ void PlaybackSessionBackend::refreshExternalSubtitleTrackState(
     player::playback::domain::MediaGeneration generation)
 {
     refreshProperties(generation, kExternalSubtitleRefreshProperties);
+
+    if (eventLoop_ == nullptr) {
+        return;
+    }
+
+    for (const int delayMilliseconds : kExternalSubtitleRefreshDelaysMilliseconds) {
+        QTimer::singleShot(
+            delayMilliseconds,
+            eventLoop_.get(),
+            [this, generation]() {
+                refreshProperties(generation, kExternalSubtitleRefreshProperties);
+            });
+    }
 }
 
 void PlaybackSessionBackend::refreshSubtitleDelayState(

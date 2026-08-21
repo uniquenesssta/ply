@@ -136,6 +136,25 @@ PlaybackComposition::PlaybackComposition()
                 requestFailureObserver_(requestType, diagnostic);
             }
         });
+    QObject::connect(
+        playbackThread_.get(),
+        &player::playback::application::PlaybackSessionThread::requestFinished,
+        playbackThread_.get(),
+        [this](
+            quint8 requestType,
+            quint64 requestId,
+            quint64 generation,
+            bool succeeded,
+            const QString& diagnostic) {
+            if (requestOutcomeObserver_) {
+                requestOutcomeObserver_(
+                    requestType,
+                    player::ids::RequestId{requestId},
+                    player::playback::domain::MediaGeneration{generation},
+                    succeeded,
+                    diagnostic);
+            }
+        });
 
     QObject::connect(
         transportViewModel_.get(),
@@ -318,6 +337,11 @@ void PlaybackComposition::setRequestFailureObserver(RequestFailureObserver obser
     requestFailureObserver_ = std::move(observer);
 }
 
+void PlaybackComposition::setRequestOutcomeObserver(RequestOutcomeObserver observer)
+{
+    requestOutcomeObserver_ = std::move(observer);
+}
+
 bool PlaybackComposition::submitMediaLoad(const QString& canonicalSource)
 {
     if (canonicalSource.isEmpty()) {
@@ -350,28 +374,29 @@ bool PlaybackComposition::submitMediaStop()
     return submitTransport(TransportAction::Stop);
 }
 
-bool PlaybackComposition::submitExternalSubtitle(
+std::optional<player::ids::RequestId> PlaybackComposition::submitExternalSubtitle(
     const player::playback::domain::AddExternalSubtitleCommand& subtitle)
 {
     auto* bus = playbackThread_->commandBus();
     if (bus == nullptr || !bus->isAcceptingCommands()) {
         qCWarning(player::logging::uiInteraction)
             << "External subtitle intent ignored because PlaybackCommandBus is unavailable";
-        return false;
+        return std::nullopt;
     }
 
     QString diagnostic;
+    const player::ids::RequestId requestId = requestIdGenerator_->next();
     const player::playback::domain::PlaybackCommand command{
-        requestIdGenerator_->next(),
+        requestId,
         subtitle};
     if (!bus->submit(command, &diagnostic)) {
         qCWarning(player::logging::uiInteraction).noquote()
             << "External subtitle command submission failed:"
             << diagnostic;
-        return false;
+        return std::nullopt;
     }
 
-    return true;
+    return requestId;
 }
 
 bool PlaybackComposition::submitSubtitleDelay(

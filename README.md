@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-10 Complete**。R8-10 复用既有 RequestTracker 的 Audio/Subtitle/Video 独立 supersession lane、`requestId + MediaGeneration` reply 归因和 generation-change cancellation；最终 selected 仍只来自 Snapshot，不新增 UI pending 真值。Windows build 通过，Quick **106/106 PASS（56.05 s）**、Full **114/114 PASS（82.75 s）**；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-10 Complete；R8-11 Candidate**。R8-11 为外挂字幕补齐 current-generation canonical-path 去重、`requestId + MediaGeneration` 精确异步回执、media-switch/shutdown cancellation 与成功后的有界 track refresh retry；最终列表仍只进入 generation-gated Snapshot/TrackDescriptor，不新增 QML 字幕列表。Windows build、Quick/Full 尚待执行；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -120,6 +120,12 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-21 — R8-11 External Subtitle Idempotency Candidate
+
+- `ExternalSubtitleLoader` 现在只保存当前 MediaGeneration 的 workflow bookkeeping：本地路径规范化为 canonical key，同一路径在 pending、成功回执后或 Snapshot 已存在 external track 时均幂等返回成功且不重复提交；不同 media generation、shutdown 与 stale result 会清理旧 pending/accepted key。该状态不投影字幕行、不替代 `PlaybackSnapshot::tracks()`，QML 仍只消费既有 `TrackDescriptor` 模型。
+- 外挂字幕提交现在返回稳定 RequestId；PlaybackSession/Thread/Composition 将完成结果按 `request type + requestId + MediaGeneration` 送回 Loader，使并行路径的 backend/parse failure 只清理对应 pending，并暴露 `backend-rejected`。提交前缺失、不可读和不支持扩展名在本地边界拒绝；校验后文件被删除或 backend parse failure 则由精确异步回执收敛；既有 `sub-add cached` 保留 backend duplicate gate。成功回执后除立即读取 `track-list/sid` 外，再在 **50 ms / 250 ms** 执行两次有界刷新；所有结果携带原 generation，媒体切换后的 stale refresh 继续由既有 gate 丢弃，shutdown 时 timer context 随 backend 一并销毁。
+- 扩展既有 `external_subtitle_flow` 回归，覆盖 pending/成功/Snapshot 三态同路径去重、backend 判重成功但未新增 Track 行、不同请求精确失败、文件校验后被删除、unsupported/parse failure、media switch late result、shutdown cancellation、`sub-add cached` 编码和 QML 不建立额外列表。当前连接环境没有 Qt/CMake 工具链，未执行 Windows build、Quick/Full；R8-11 保持 Candidate。无新增依赖、QML 文件或 CMake target。
 
 ### 2026-08-21 — R8-10 Track Selection Request Arbitration Complete
 

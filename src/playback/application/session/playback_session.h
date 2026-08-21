@@ -36,6 +36,12 @@ signals:
     void startupFailed(const QString& diagnostic);
     void snapshotCommitted(const player::playback::domain::PlaybackSnapshot& snapshot);
     void requestFailed(quint8 requestType, const QString& diagnostic);
+    void requestFinished(
+        quint8 requestType,
+        quint64 requestId,
+        quint64 generation,
+        bool succeeded,
+        const QString& diagnostic);
     void invariantViolationDetected(int violationCount);
     void stopped();
 
@@ -58,6 +64,10 @@ private:
         const player::playback::domain::PlaybackCommand& command,
         QString diagnostic);
     void commitTrackingFailure(RequestTrackStatus status);
+    void publishRequestFinished(
+        const PlaybackRequestRecord& record,
+        bool succeeded,
+        const QString& diagnostic = {});
 
     [[nodiscard]] bool isOnOwningThread() const noexcept;
     [[nodiscard]] player::playback::domain::MediaGeneration allocateMediaGeneration() noexcept;

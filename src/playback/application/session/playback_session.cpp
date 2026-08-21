@@ -258,6 +258,9 @@ void PlaybackSession::handleCommandReply(const CommandReplyEvent& reply)
                 backend_->refreshAudioDelayState(*resolution.record->generation);
             }
         }
+        if (resolution.record.has_value()) {
+            publishRequestFinished(*resolution.record, true);
+        }
         return;
     }
 
@@ -268,6 +271,7 @@ void PlaybackSession::handleCommandReply(const CommandReplyEvent& reply)
             QStringLiteral("Playback backend returned a failed command reply without diagnostics."));
 
     if (resolution.record.has_value()) {
+        publishRequestFinished(*resolution.record, false, failure.diagnostic);
         emit requestFailed(
             static_cast<quint8>(resolution.record->type),
             failure.diagnostic);
@@ -352,6 +356,7 @@ void PlaybackSession::beginMediaLoad(const PlaybackCommand& command)
             command.requestId(),
             PlaybackRequestCancellationReason::SubmissionFailed);
         if (trackedRecord.has_value()) {
+            publishRequestFinished(*trackedRecord, false, error);
             emit requestFailed(
                 static_cast<quint8>(trackedRecord->type),
                 error);
@@ -381,6 +386,7 @@ void PlaybackSession::submitTrackedCommand(const PlaybackCommand& command)
             command.requestId(),
             PlaybackRequestCancellationReason::SubmissionFailed);
         if (trackedRecord.has_value()) {
+            publishRequestFinished(*trackedRecord, false, error);
             emit requestFailed(
                 static_cast<quint8>(trackedRecord->type),
                 error);
@@ -433,6 +439,19 @@ void PlaybackSession::commitTrackingFailure(RequestTrackStatus status)
         PlaybackEvent{PlaybackFailureEvent{makeFailure(
             PlaybackFailureCategory::Protocol,
             requestTrackDiagnostic(status))}}));
+}
+
+void PlaybackSession::publishRequestFinished(
+    const PlaybackRequestRecord& record,
+    bool succeeded,
+    const QString& diagnostic)
+{
+    emit requestFinished(
+        static_cast<quint8>(record.type),
+        record.requestId.value(),
+        record.generation.has_value() ? record.generation->value() : quint64{0},
+        succeeded,
+        diagnostic);
 }
 
 bool PlaybackSession::isOnOwningThread() const noexcept

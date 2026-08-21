@@ -1,16 +1,19 @@
 #pragma once
 
+#include "foundation/ids/request_id.h"
 #include "playback/domain/commands/audio_delay_command.h"
 #include "playback/domain/commands/external_subtitle_command.h"
 #include "playback/domain/commands/seek_command.h"
 #include "playback/domain/commands/subtitle_delay_command.h"
 #include "playback/domain/commands/track_selection_command.h"
 #include "playback/domain/commands/transport_command.h"
+#include "playback/domain/state/media_generation.h"
 
 #include <QtGlobal>
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 class QObject;
 class QString;
@@ -39,6 +42,12 @@ class PlaybackComposition final
 public:
     using PlaybackSupersessionObserver = std::function<void()>;
     using RequestFailureObserver = std::function<void(quint8, const QString&)>;
+    using RequestOutcomeObserver = std::function<void(
+        quint8,
+        player::ids::RequestId,
+        player::playback::domain::MediaGeneration,
+        bool,
+        const QString&)>;
 
     PlaybackComposition();
     ~PlaybackComposition();
@@ -63,9 +72,10 @@ public:
 
     void setPlaybackSupersessionObserver(PlaybackSupersessionObserver observer);
     void setRequestFailureObserver(RequestFailureObserver observer);
+    void setRequestOutcomeObserver(RequestOutcomeObserver observer);
     [[nodiscard]] bool submitMediaLoad(const QString& canonicalSource);
     [[nodiscard]] bool submitMediaStop();
-    [[nodiscard]] bool submitExternalSubtitle(
+    [[nodiscard]] std::optional<player::ids::RequestId> submitExternalSubtitle(
         const player::playback::domain::AddExternalSubtitleCommand& subtitle);
     [[nodiscard]] bool submitSubtitleDelay(
         const player::playback::domain::SetSubtitleDelayCommand& delay);
@@ -96,6 +106,7 @@ private:
     std::unique_ptr<player::presentation::HudMessageQueue> hudMessageQueue_;
     PlaybackSupersessionObserver playbackSupersessionObserver_;
     RequestFailureObserver requestFailureObserver_;
+    RequestOutcomeObserver requestOutcomeObserver_;
 };
 
 } // namespace player::app

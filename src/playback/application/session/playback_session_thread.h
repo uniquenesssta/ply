@@ -37,6 +37,12 @@ signals:
     void renderCoreReady(quintptr nativeHandle);
     void startupFailed(const QString& diagnostic);
     void requestFailed(quint8 requestType, const QString& diagnostic);
+    void requestFinished(
+        quint8 requestType,
+        quint64 requestId,
+        quint64 generation,
+        bool succeeded,
+        const QString& diagnostic);
     void stopped();
 
 private:

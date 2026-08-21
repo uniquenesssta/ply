@@ -33,6 +33,7 @@
 #include <QObject>
 #include <QString>
 
+#include <optional>
 #include <utility>
 
 namespace player::app {
@@ -91,7 +92,8 @@ ApplicationContainer::ApplicationContainer(
         std::make_unique<player::tracks::application::ExternalSubtitleLoader>(
             [this](const player::playback::domain::AddExternalSubtitleCommand& subtitle) {
                 return playbackComposition_ != nullptr
-                    && playbackComposition_->submitExternalSubtitle(subtitle);
+                    ? playbackComposition_->submitExternalSubtitle(subtitle)
+                    : std::nullopt;
             }))
     , subtitleDelayController_(
         std::make_unique<player::tracks::application::SubtitleDelayController>(
@@ -177,8 +179,30 @@ ApplicationContainer::ApplicationContainer(
                     << diagnostic;
             }
         });
+    playbackComposition_->setRequestOutcomeObserver(
+        [this](
+            quint8 requestType,
+            player::ids::RequestId requestId,
+            player::playback::domain::MediaGeneration generation,
+            bool succeeded,
+            const QString& diagnostic) {
+            using player::playback::application::PlaybackRequestType;
+            if (requestType == static_cast<quint8>(PlaybackRequestType::AddExternalSubtitle)
+                && externalSubtitleLoader_ != nullptr) {
+                externalSubtitleLoader_->acceptRequestResult(
+                    requestId,
+                    generation,
+                    succeeded,
+                    diagnostic);
+            }
+        });
 
     auto& publisher = playbackComposition_->statePublisher();
+    QObject::connect(
+        &publisher,
+        &player::playback::application::StatePublisher::snapshotPublished,
+        externalSubtitleLoader_.get(),
+        &player::tracks::application::ExternalSubtitleLoader::acceptSnapshot);
     QObject::connect(
         &publisher,
         &player::playback::application::StatePublisher::snapshotPublished,
@@ -399,6 +423,10 @@ void ApplicationContainer::shutdown() noexcept
     mediaOpenCoordinator_.reset();
     if (playbackComposition_ != nullptr) {
         playbackComposition_->setRequestFailureObserver({});
+        playbackComposition_->setRequestOutcomeObserver({});
+    }
+    if (externalSubtitleLoader_ != nullptr) {
+        externalSubtitleLoader_->beginShutdown();
     }
     audioDelayController_.reset();
     subtitleDelayController_.reset();
