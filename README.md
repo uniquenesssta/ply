@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-10 Complete；R8-11 Candidate**。R8-11 为外挂字幕补齐 current-generation canonical-path 去重、`requestId + MediaGeneration` 精确异步回执、media-switch/shutdown cancellation 与成功后的有界 track refresh retry；最终列表仍只进入 generation-gated Snapshot/TrackDescriptor，不新增 QML 字幕列表。Windows build、Quick/Full 尚待执行；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-11 Complete**。R8-11 为外挂字幕补齐 current-generation canonical-path 去重、`requestId + MediaGeneration` 精确异步回执、media-switch/shutdown cancellation 与成功后的有界 track refresh retry；最终列表仍只进入 generation-gated Snapshot/TrackDescriptor，不新增 QML 字幕列表。Windows Debug build 通过，Quick **106/106 PASS（42.99 s）**、Full **114/114 PASS（81.78 s）**；startup-smoke **3.09 s**，8 项 windowed-render 合计 **41.37 s**。Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -34,7 +34,7 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Chapter 的 raw `chapter-list` node 只在 mpv infrastructure 内转换；`MpvChapterListDecoder` 把 Qt value tree 映射为 `ChapterDescriptor`，保持 backend 数组顺序、重复时间戳与原始长标题，不排序、不去重。`PlaybackSnapshot::chapters()` 继续是章节列表的唯一播放真值。
 - `ChapterModel` 位于独立 `src/chapters/presentation` responsibility，只消费已 generation-gated 的 `PlaybackSnapshot` 并投影只读 `index / title / time / timeText`；无标题或空标题使用确定性 `Chapter N` fallback，Opening/new-media Snapshot 清空旧章节。`ChapterNavigationViewModel` 只拥有当前 generation 的 chapter-seek pending target；current chapter 始终从 Snapshot position 投影。QML 只发章节 intent，Absolute Seek 进入既有 PlaybackCommand 主链，Timeline thumb 不接受章节 UI 直接写入。
 - Track selection 只走 `QML intent → TrackSelectionController → PlaybackCommand(RequestId + MediaGeneration) → mpv aid/sid → generation-gated PlaybackSnapshot → TrackListModel`。同类 Audio/Subtitle selection 复用 RequestTracker supersession lane；Subtitle Off 是显式 `sid=no` 状态；UI 不乐观改写 selected，最终 selected 始终由 backend/Snapshot 决定。
-- 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → 成功回执后确定性读取 track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`；mpv property observer 仍保留正常增量通知，但不再作为外部字幕成功后的唯一刷新来源。Loader 只接受可读本地 SRT/ASS 并提交规范化路径；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测与更完整的重复加载治理仍按 R8 后续任务处理。
+- 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → 成功回执后立即/50 ms/250 ms 有界读取 track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`；mpv property observer 仍保留正常增量通知，但不再作为外部字幕成功后的唯一刷新来源。Loader 只接受可读本地 SRT/ASS 并提交规范化路径，以当前 generation 的 pending/accepted/Snapshot external path key 保证幂等；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测仍按 R8 后续任务处理。
 - 字幕延迟只走 `QML intent → SubtitleDelayController → SetSubtitleDelayCommand(RequestId + MediaGeneration) → mpv sub-delay → property observer/成功回执确定性回读 → generation-gated PlaybackSnapshot.controls.subtitleDelaySeconds → Controller/HUD`。Controller 只拥有 pending target，不乐观改写确认值；同 generation 字幕延迟请求使用独立 latest-wins supersession lane。固定范围 **-2.0 s ~ +2.0 s**、步进 **50 ms**，reset 回到 `0 ms`。
 - 音频延迟独立走 `QML intent → AudioDelayController → SetAudioDelayCommand(RequestId + MediaGeneration) → mpv audio-delay → property observer/成功回执确定性回读 → generation-gated PlaybackSnapshot.controls.audioDelaySeconds → Controller/HUD`。Audio/Subtitle Delay 拥有各自 request supersession lane、pending target、Snapshot 字段和 HUD category，互不覆盖；Audio Delay 同样固定 **-2.0 s ~ +2.0 s**、步进 **50 ms**、reset `0 ms`。Figma `Tracks / Audio Delay Control` canonical node 为 `183:670`，QML 只拥有 adjustment UI，committed value 仍归 application state。
 - `PlaylistAdvanceArbiter` 只拥有当前已观测 MediaGeneration 的 manual/terminal advance 竞争门禁，不拥有 queue/current，也不创建第二套 Playback generation。
@@ -121,11 +121,11 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 
 ## Change log
 
-### 2026-08-21 — R8-11 External Subtitle Idempotency Candidate
+### 2026-08-21 — R8-11 External Subtitle Idempotency Complete
 
 - `ExternalSubtitleLoader` 现在只保存当前 MediaGeneration 的 workflow bookkeeping：本地路径规范化为 canonical key，同一路径在 pending、成功回执后或 Snapshot 已存在 external track 时均幂等返回成功且不重复提交；不同 media generation、shutdown 与 stale result 会清理旧 pending/accepted key。该状态不投影字幕行、不替代 `PlaybackSnapshot::tracks()`，QML 仍只消费既有 `TrackDescriptor` 模型。
 - 外挂字幕提交现在返回稳定 RequestId；PlaybackSession/Thread/Composition 将完成结果按 `request type + requestId + MediaGeneration` 送回 Loader，使并行路径的 backend/parse failure 只清理对应 pending，并暴露 `backend-rejected`。提交前缺失、不可读和不支持扩展名在本地边界拒绝；校验后文件被删除或 backend parse failure 则由精确异步回执收敛；既有 `sub-add cached` 保留 backend duplicate gate。成功回执后除立即读取 `track-list/sid` 外，再在 **50 ms / 250 ms** 执行两次有界刷新；所有结果携带原 generation，媒体切换后的 stale refresh 继续由既有 gate 丢弃，shutdown 时 timer context 随 backend 一并销毁。
-- 扩展既有 `external_subtitle_flow` 回归，覆盖 pending/成功/Snapshot 三态同路径去重、backend 判重成功但未新增 Track 行、不同请求精确失败、文件校验后被删除、unsupported/parse failure、media switch late result、shutdown cancellation、`sub-add cached` 编码和 QML 不建立额外列表。当前连接环境没有 Qt/CMake 工具链，未执行 Windows build、Quick/Full；R8-11 保持 Candidate。无新增依赖、QML 文件或 CMake target。
+- 扩展既有 `external_subtitle_flow` 回归，覆盖 pending/成功/Snapshot 三态同路径去重、backend 判重成功但未新增 Track 行、不同请求精确失败、文件校验后被删除、unsupported/parse failure、media switch late result、shutdown cancellation、`sub-add cached` 编码和 QML 不建立额外列表。用户在 HEAD `f28020d24a1afd7574ebecda585dcbcc5833c2b3` 的 Windows 锁定环境完成 build；Quick **106/106 PASS，0 failed（42.99 s）**，Full **114/114 PASS，0 failed（81.78 s）**，`external_subtitle_flow` 在两轮均通过；startup-smoke **3.09 s**，8 项 windowed-render 合计 **41.37 s**。**R8-11 正式 Complete**。无新增依赖、QML 文件或 CMake target；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续保留为阶段关闭项，不记为已执行。
 
 ### 2026-08-21 — R8-10 Track Selection Request Arbitration Complete
 
