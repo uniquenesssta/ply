@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-12 Complete**。R8-12 将 chapter start 的 finite/non-negative/duration-bound 校验收口到 Playback Chapter domain，ChapterModel 只投影已验证行及 `normalizedTime`；Chapter QML 只发统一 absolute seek intent，Timeline marker 只读 model role，不再在 QML 修正越界数据，position 仍只来自 generation-gated Snapshot。Windows build 已完成，Quick **106/106 PASS（49.22 s）**、Full **114/114 PASS（79.19 s）**；startup-smoke **3.06 s**，8 项 windowed-render 合计 **39.29 s**。Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-12 Complete**。R8-12 将 chapter start 的 finite/non-negative/duration-bound 校验收口到 Playback Chapter domain，ChapterModel 只投影已验证行及 `normalizedTime`；Chapter QML 只发统一 absolute seek intent，Timeline marker 只读 model role，不再在 QML 修正越界数据，position 仍只来自 generation-gated Snapshot。Windows build 已完成，Quick **106/106 PASS（49.22 s）**、Full **114/114 PASS（79.19 s）**；startup-smoke **3.06 s**，8 项 windowed-render 合计 **39.29 s**。Stage R8 首轮联合真实媒体 smoke 的自动证据门禁正确拒绝了未关闭 Player、未记录外挂字幕提交/去重与未执行媒体清理切换的结果，并暴露 Chapter delegate 必填 role 遮蔽警告；修复候选仍待 Windows build、Quick/Full 与完整联合 smoke 复验 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -120,6 +120,12 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-22 — R8 Stage Smoke Chapter Delegate Repair Candidate
+
+- Stage R8 首轮联合真实媒体 smoke 的人工输入虽记录 R8-S1 ~ R8-S10 PASS，但自动证据确认 `Player.exe` 主窗口仍存在并持续响应，日志没有外挂字幕提交/去重或清理媒体切换记录，因此该轮不构成阶段收口证据；自动门禁保持 FAIL，未把 R8 误记为 Complete。
+- 该轮日志同时暴露 Chapter Inspector delegate 创建失败：`ChapterContent` 在 `ChapterRow` 实例上重新声明 `title/timeText`，遮蔽了行组件自身的同名 required 属性。现移除遮蔽声明，让 ListView 按 `ChapterModel` role 直接初始化 `ChapterRow` 的 required 属性，并把 `player_chapters_qml` 扩展为 offscreen runtime delegate 创建回归，校验 index/title/timeText 实值且无 QML warning。
+- 当前为候选：尚未执行 Windows configure/build、Quick/Full、startup/windowed-render 或联合真实媒体复验；Stage R8 继续保持 In Progress。
 
 ### 2026-08-21 — R8-12 Chapter/Timeline One-way Collaboration Complete
 

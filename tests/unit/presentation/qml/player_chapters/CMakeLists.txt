@@ -22,11 +22,21 @@ target_compile_definitions(
 target_link_libraries(
     player_chapters_qml_tests
     PRIVATE
-        Qt6::Core
+        player_presentation_theme
+        player_presentation_primitives
+        player_presentation_controls
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
         Qt6::Test
 )
 
 add_test(
     NAME player_chapters_qml
     COMMAND player_chapters_qml_tests
+)
+
+set_tests_properties(
+    player_chapters_qml
+    PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )

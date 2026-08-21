@@ -24,8 +24,6 @@ Item {
 
         delegate: ChapterRow {
             required property var index
-            required property string title
-            required property string timeText
 
             width: chapterList.width
             chapterIndex: index

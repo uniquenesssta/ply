@@ -1,8 +1,24 @@
+#include <QAbstractListModel>
+#include <QByteArray>
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QGuiApplication>
+#include <QHash>
+#include <QList>
+#include <QModelIndex>
+#include <QQmlComponent>
+#include <QQmlEngine>
+#include <QQmlError>
+#include <QSignalSpy>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
+#include <QVariant>
+#include <QVariantMap>
 #include <QtTest>
+
+#include <memory>
 
 namespace player::presentation::qml {
 namespace {
@@ -23,6 +39,80 @@ void verifyAbsent(const QString& source, const QStringList& forbidden)
     }
 }
 
+QString componentDiagnostics(const QQmlComponent& component)
+{
+    QStringList diagnostics;
+    for (const QQmlError& error : component.errors()) {
+        diagnostics.append(error.toString());
+    }
+    return diagnostics.join(QLatin1Char('\n'));
+}
+
+bool waitForComponentResolution(QQmlComponent& component)
+{
+    if (component.status() != QQmlComponent::Loading) {
+        return true;
+    }
+
+    QSignalSpy statusSpy(&component, &QQmlComponent::statusChanged);
+    return statusSpy.wait(5000);
+}
+
+class ChapterRowsModel final : public QAbstractListModel
+{
+    Q_OBJECT
+    Q_PROPERTY(int count READ count CONSTANT)
+
+public:
+    enum Role {
+        IndexRole = Qt::UserRole + 1,
+        TitleRole,
+        TimeTextRole,
+    };
+
+    explicit ChapterRowsModel(QObject* parent = nullptr)
+        : QAbstractListModel(parent)
+    {
+    }
+
+    [[nodiscard]] int rowCount(const QModelIndex& parent = QModelIndex{}) const override
+    {
+        return parent.isValid() ? 0 : 1;
+    }
+
+    [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override
+    {
+        if (!index.isValid() || index.row() != 0) {
+            return {};
+        }
+
+        switch (role) {
+        case IndexRole:
+            return 0;
+        case TitleRole:
+            return QStringLiteral("Intro");
+        case TimeTextRole:
+            return QStringLiteral("00:00:00");
+        default:
+            return {};
+        }
+    }
+
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override
+    {
+        return {
+            {IndexRole, QByteArrayLiteral("index")},
+            {TitleRole, QByteArrayLiteral("title")},
+            {TimeTextRole, QByteArrayLiteral("timeText")},
+        };
+    }
+
+    [[nodiscard]] int count() const noexcept
+    {
+        return 1;
+    }
+};
+
 } // namespace
 
 class ChaptersQmlTest final : public QObject
@@ -31,6 +121,7 @@ class ChaptersQmlTest final : public QObject
 
 private slots:
     void chapterRowsUseReadonlyModelAndExplicitSeekIntent();
+    void chapterDelegateReceivesRequiredModelRolesAtRuntime();
     void chapterCurrentPendingAndNonSeekableStatesRemainSeparate();
     void inspectorReusesCanonicalShellAndChapterGeometry();
     void screenAndBootstrapPassChapterDependencies();
@@ -51,7 +142,10 @@ void ChaptersQmlTest::chapterRowsUseReadonlyModelAndExplicitSeekIntent()
     QVERIFY(!row.contains(QStringLiteral("ButtonBase {")));
     QVERIFY(content.contains(QStringLiteral("model: root.chapterModel")));
     QVERIFY(content.contains(QStringLiteral("required property var index")));
-    QVERIFY(content.contains(QStringLiteral("required property string timeText")));
+    QVERIFY(!content.contains(QStringLiteral("required property string title")));
+    QVERIFY(!content.contains(QStringLiteral("required property string timeText")));
+    QVERIFY(row.contains(QStringLiteral("required property string title")));
+    QVERIFY(row.contains(QStringLiteral("required property string timeText")));
     QVERIFY(content.contains(QStringLiteral(
         "root.navigationViewModel.requestChapterSeek(requestedIndex)")));
     QVERIFY(row.contains(QStringLiteral("signal seekRequested(var chapterIndex)")));
@@ -65,6 +159,54 @@ void ChaptersQmlTest::chapterRowsUseReadonlyModelAndExplicitSeekIntent()
                   QStringLiteral("PlaybackSession"),
                   QStringLiteral("PlaybackCommandBus"),
                   QStringLiteral("mpv_")});
+}
+
+void ChaptersQmlTest::chapterDelegateReceivesRequiredModelRolesAtRuntime()
+{
+    QQmlEngine engine;
+    QStringList qmlWarnings;
+    QObject::connect(
+        &engine,
+        &QQmlEngine::warnings,
+        &engine,
+        [&qmlWarnings](const QList<QQmlError>& warnings) {
+            for (const QQmlError& warning : warnings) {
+                qmlWarnings.append(warning.toString());
+            }
+        });
+
+    const QString path = QStringLiteral(
+        PLAYER_SOURCE_DIR "/src/presentation/qml/features/chapters/ChapterContent.qml");
+    QQmlComponent component(&engine, QUrl::fromLocalFile(path));
+    const bool resolved = waitForComponentResolution(component);
+    const QString loadDiagnostics = componentDiagnostics(component);
+    QVERIFY2(resolved, qPrintable(loadDiagnostics));
+    QVERIFY2(component.isReady(), qPrintable(loadDiagnostics));
+
+    ChapterRowsModel model;
+    QVariantMap initialProperties;
+    initialProperties.insert(QStringLiteral("width"), 480);
+    initialProperties.insert(QStringLiteral("height"), 320);
+    initialProperties.insert(
+        QStringLiteral("chapterModel"),
+        QVariant::fromValue(static_cast<QObject*>(&model)));
+
+    std::unique_ptr<QObject> content(
+        component.createWithInitialProperties(initialProperties));
+    const QString createDiagnostics = componentDiagnostics(component);
+    QVERIFY2(content != nullptr, qPrintable(createDiagnostics));
+    QCoreApplication::processEvents();
+
+    QTRY_COMPARE_WITH_TIMEOUT(
+        content->findChildren<QObject*>(QStringLiteral("chapterRow")).size(),
+        1,
+        1000);
+    QObject* row = content->findChild<QObject*>(QStringLiteral("chapterRow"));
+    QVERIFY(row != nullptr);
+    QCOMPARE(row->property("chapterIndex").toLongLong(), qint64{0});
+    QCOMPARE(row->property("title").toString(), QStringLiteral("Intro"));
+    QCOMPARE(row->property("timeText").toString(), QStringLiteral("00:00:00"));
+    QVERIFY2(qmlWarnings.isEmpty(), qPrintable(qmlWarnings.join(QLatin1Char('\n'))));
 }
 
 void ChaptersQmlTest::chapterCurrentPendingAndNonSeekableStatesRemainSeparate()
@@ -206,5 +348,11 @@ void ChaptersQmlTest::qmlRegistrationIncludesChapterFeature()
 
 } // namespace player::presentation::qml
 
-QTEST_GUILESS_MAIN(player::presentation::qml::ChaptersQmlTest)
+int main(int argc, char* argv[])
+{
+    QGuiApplication application(argc, argv);
+    player::presentation::qml::ChaptersQmlTest test;
+    return QTest::qExec(&test, argc, argv);
+}
+
 #include "chapters_qml_test.moc"
