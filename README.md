@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-11 Complete**。R8-11 为外挂字幕补齐 current-generation canonical-path 去重、`requestId + MediaGeneration` 精确异步回执、media-switch/shutdown cancellation 与成功后的有界 track refresh retry；最终列表仍只进入 generation-gated Snapshot/TrackDescriptor，不新增 QML 字幕列表。Windows Debug build 通过，Quick **106/106 PASS（42.99 s）**、Full **114/114 PASS（81.78 s）**；startup-smoke **3.09 s**，8 项 windowed-render 合计 **41.37 s**。Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
+| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-11 Complete；R8-12 Candidate**。R8-12 将 chapter start 的 finite/non-negative/duration-bound 校验收口到 Playback Chapter domain，ChapterModel 只投影已验证行及 `normalizedTime`；Chapter QML 只发统一 absolute seek intent，Timeline marker 只读 model role，不再在 QML 修正越界数据，position 仍只来自 generation-gated Snapshot。Windows build、Quick/Full 尚待执行；Stage R8 的多轨/字幕/章节联合真实媒体 smoke 继续作为阶段关闭项 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -31,8 +31,8 @@ R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化�
 - Playlist row 的 `selected / keyboard focus / hover` 继续属于 QML interaction state；`PlaylistEntryPlaybackState` 只从已 generation-gated 的 `PlaybackSnapshot` 投影 `pendingLoading / unavailable` 到稳定 EntryId，不拥有 queue/current/generation，也不建立第二套播放真值。
 - Track 的 raw `mpv_node` 只在 infrastructure 内转换；`MpvTrackListDecoder` 只把已经复制为 Qt value tree 的 `track-list` 映射为 `TrackDescriptor`，稳定 backend track ID 保持为产品身份，PlaybackSnapshot 继续是 track list/selection 的唯一播放真值，上层与 QML 不解析 mpv node。
 - `TrackListModel` 只消费已 generation-gated 的 `PlaybackSnapshot` 并按 Audio/Subtitle kind 投影只读行；`selected` 由 Snapshot 的 `selectedAudioId / selectedSubtitleId` 推导，model 不拥有 generation、selection mutation 或第二套 Track 真值。Opening/new-media Snapshot 清空旧轨道后，后续 current-generation Snapshot 整表替换新轨道。
-- Chapter 的 raw `chapter-list` node 只在 mpv infrastructure 内转换；`MpvChapterListDecoder` 把 Qt value tree 映射为 `ChapterDescriptor`，保持 backend 数组顺序、重复时间戳与原始长标题，不排序、不去重。`PlaybackSnapshot::chapters()` 继续是章节列表的唯一播放真值。
-- `ChapterModel` 位于独立 `src/chapters/presentation` responsibility，只消费已 generation-gated 的 `PlaybackSnapshot` 并投影只读 `index / title / time / timeText`；无标题或空标题使用确定性 `Chapter N` fallback，Opening/new-media Snapshot 清空旧章节。`ChapterNavigationViewModel` 只拥有当前 generation 的 chapter-seek pending target；current chapter 始终从 Snapshot position 投影。QML 只发章节 intent，Absolute Seek 进入既有 PlaybackCommand 主链，Timeline thumb 不接受章节 UI 直接写入。
+- Chapter 的 raw `chapter-list` node 只在 mpv infrastructure 内转换；`MpvChapterListDecoder` 把 Qt value tree 映射为 `ChapterDescriptor`，保持 backend 数组顺序、重复时间戳与原始长标题，不排序、不去重，并原子拒绝非数值、非有限或负 start。`PlaybackSnapshot::chapters()` 继续是章节列表的唯一播放真值；`PlaybackChapterState::validatedForDuration()` 在每次投影时保序过滤非法索引/start，并在 duration 有效时过滤 `start > duration`，因此 duration 后到或修正不会永久丢失 raw chapter。
+- `ChapterModel` 位于独立 `src/chapters/presentation` responsibility，只消费已 generation-gated 的 `PlaybackSnapshot` 并投影只读 `index / title / time / timeText / normalizedTime`；`ChapterDisplayFormatter` 是无标题或空标题 `Chapter N` fallback 的唯一 owner，Opening/new-media Snapshot 清空旧章节。`ChapterNavigationViewModel` 与 Timeline marker 消费同一 duration-validated chapter projection；Navigation 只拥有当前 generation 的 chapter-seek pending target，current chapter 与 Timeline position 始终从 Snapshot position 投影。QML 只发章节 intent，Absolute Seek 进入既有 PlaybackCommand 主链；marker 只读取 `normalizedTime`，不计算、不 clamp backend start，Timeline thumb 不接受章节 UI 直接写入。
 - Track selection 只走 `QML intent → TrackSelectionController → PlaybackCommand(RequestId + MediaGeneration) → mpv aid/sid → generation-gated PlaybackSnapshot → TrackListModel`。同类 Audio/Subtitle selection 复用 RequestTracker supersession lane；Subtitle Off 是显式 `sid=no` 状态；UI 不乐观改写 selected，最终 selected 始终由 backend/Snapshot 决定。
 - 外挂字幕只走 `QML file-picker intent → ExternalSubtitleLoader → AddExternalSubtitleCommand(RequestId + MediaGeneration) → mpv sub-add cached → 成功回执后立即/50 ms/250 ms 有界读取 track-list/sid → generation-gated PlaybackSnapshot → 既有 TrackListModel`；mpv property observer 仍保留正常增量通知，但不再作为外部字幕成功后的唯一刷新来源。Loader 只接受可读本地 SRT/ASS 并提交规范化路径，以当前 generation 的 pending/accepted/Snapshot external path key 保证幂等；外挂字幕不建立独立列表或 selection 真值，也不占用 Track selection supersession lane。编码检测仍按 R8 后续任务处理。
 - 字幕延迟只走 `QML intent → SubtitleDelayController → SetSubtitleDelayCommand(RequestId + MediaGeneration) → mpv sub-delay → property observer/成功回执确定性回读 → generation-gated PlaybackSnapshot.controls.subtitleDelaySeconds → Controller/HUD`。Controller 只拥有 pending target，不乐观改写确认值；同 generation 字幕延迟请求使用独立 latest-wins supersession lane。固定范围 **-2.0 s ~ +2.0 s**、步进 **50 ms**，reset 回到 `0 ms`。
@@ -120,6 +120,12 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-21 — R8-12 Chapter/Timeline One-way Collaboration Candidate
+
+- `PlaybackChapterState::validatedForDuration()` 现在是 chapter/timeline 跨轴校验边界：无论 duration 事件先后，均从 Snapshot 保存的 raw chapter list 保序投影，过滤负 index、非有限/负 start，并仅在 duration 有效时过滤 `start > duration`；等于 duration 的合法尾端 marker 保留。`MpvChapterListDecoder` 回归同步补齐 infinity/NaN 原子拒绝。
+- `ChapterModel` 新增只读 `normalizedTime` role，Inspector 与 Timeline marker 使用同一份已校验行；Timeline QML 直接消费该 role，移除对 `time / duration` 的 `Math.min/Math.max` 修正。`ChapterDisplayFormatter` 统一 Model 与 Navigation 的缺失/空标题 `Chapter N` fallback；章节点击仍只经 `ChapterNavigationViewModel → SeekCommand{Absolute} → PlaybackCommandBus`，不写 Timeline slider，current chapter/position 仍只由 generation-gated Snapshot 确认。
+- 扩展 `playback_snapshot`、`mpv_chapter_list_decoder`、`chapter_model`、`chapter_navigation_view_model`、`player_chapters_qml` 与 `player_timeline_controls` 既有回归，覆盖未知/有效/变化 duration、边界等于/超过 duration、非法 start/index、统一 fallback、只读 normalized marker 及 QML 无越界修正。当前连接环境没有 Qt/CMake 工具链，未执行 Windows build、Quick/Full；R8-12 保持 Candidate。无新增依赖或 CTest target。
 
 ### 2026-08-21 — R8-11 External Subtitle Idempotency Complete
 

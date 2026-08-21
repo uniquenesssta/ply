@@ -9,6 +9,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <limits>
 #include <variant>
 
 namespace player::playback::mpv {
@@ -115,6 +116,12 @@ void MpvChapterListDecoderTest::malformedPayloadsAreRejectedAtomically()
     QVariantMap negativeTime{
         {QStringLiteral("time"), -1.0},
     };
+    QVariantMap infiniteTime{
+        {QStringLiteral("time"), std::numeric_limits<double>::infinity()},
+    };
+    QVariantMap notANumberTime{
+        {QStringLiteral("time"), std::numeric_limits<double>::quiet_NaN()},
+    };
     QVariantMap invalidTitle{
         {QStringLiteral("time"), 1.0},
         {QStringLiteral("title"), 42},
@@ -126,6 +133,8 @@ void MpvChapterListDecoderTest::malformedPayloadsAreRejectedAtomically()
         QVariant{QVariantList{missingTime}},
         QVariant{QVariantList{invalidTime}},
         QVariant{QVariantList{negativeTime}},
+        QVariant{QVariantList{infiniteTime}},
+        QVariant{QVariantList{notANumberTime}},
         QVariant{QVariantList{invalidTitle}},
     };
 

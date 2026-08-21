@@ -3,6 +3,7 @@ add_subdirectory(reducer)
 target_sources(
     player_playback_domain
     PRIVATE
+        playback_chapter_state.cpp
         playback_invariants.cpp
         playback_selectors.cpp
         playback_snapshot.cpp

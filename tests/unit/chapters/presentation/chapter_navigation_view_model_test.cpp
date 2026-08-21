@@ -64,6 +64,7 @@ private slots:
     void projectsCurrentChapterFromSnapshotPosition();
     void chapterClickEmitsAbsoluteTargetWithoutChangingCurrentProjection();
     void rejectsNonSeekableAndUnknownChapterRequests();
+    void excludesChaptersPastKnownDuration();
     void previousAndNextUseSnapshotChapterOrder();
     void requestFailureAndMediaSwitchClearPendingTarget();
 };
@@ -114,6 +115,37 @@ void ChapterNavigationViewModelTest::rejectsNonSeekableAndUnknownChapterRequests
     QVERIFY(!viewModel.requestChapterSeek(99));
     QVERIFY(!viewModel.requestChapterSeek(-1));
     QCOMPARE(seekSpy.size(), 0);
+}
+
+void ChapterNavigationViewModelTest::excludesChaptersPastKnownDuration()
+{
+    PlaybackSnapshotState state;
+    state.generation = MediaGeneration{4};
+    state.lifecycle = PlaybackLifecycleState::Ready;
+    state.timeline.positionSeconds = 15.0;
+    state.timeline.durationSeconds = 20.0;
+    state.timeline.seekable = true;
+    state.chapters.chapters = {
+        makeChapter(0, 0.0, QStringLiteral("Opening")),
+        makeChapter(1, 10.0, QString{}),
+        makeChapter(2, 21.0, QStringLiteral("Past Duration")),
+    };
+    state.capabilities.hasChapters = true;
+
+    ChapterNavigationViewModel viewModel;
+    QSignalSpy seekSpy(&viewModel, &ChapterNavigationViewModel::seekRequested);
+    viewModel.acceptSnapshot(PlaybackSnapshot{std::move(state)});
+
+    QCOMPARE(viewModel.chapterCount(), 2);
+    QCOMPARE(viewModel.currentChapterIndex(), qint64{1});
+    QCOMPARE(viewModel.currentChapterTitle(), QStringLiteral("Chapter 2"));
+    QVERIFY(!viewModel.canSeekNext());
+    QVERIFY(!viewModel.requestChapterSeek(2));
+    QCOMPARE(seekSpy.size(), 0);
+
+    QVERIFY(viewModel.requestChapterSeek(1));
+    QCOMPARE(seekSpy.size(), 1);
+    QCOMPARE(seekSpy.constFirst().constFirst().toDouble(), 10.0);
 }
 
 void ChapterNavigationViewModelTest::previousAndNextUseSnapshotChapterOrder()

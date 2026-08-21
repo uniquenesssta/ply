@@ -1,5 +1,6 @@
 #include "chapters/presentation/chapter_navigation_view_model.h"
 
+#include "chapters/presentation/chapter_display_formatter.h"
 #include "playback/domain/state/playback_selectors.h"
 
 #include <cmath>
@@ -119,12 +120,14 @@ void ChapterNavigationViewModel::acceptSnapshot(
     }
     generation_ = nextGeneration;
 
+    const auto chapters = snapshot.chapters().validatedForDuration(
+        snapshot.timeline().durationSeconds);
     QVector<Row> nextRows;
-    nextRows.reserve(snapshot.chapters().chapters.size());
-    for (const auto& chapter : snapshot.chapters().chapters) {
+    nextRows.reserve(chapters.size());
+    for (const auto& chapter : chapters) {
         nextRows.push_back(Row{
             static_cast<qint64>(chapter.index),
-            displayTitle(chapter),
+            ChapterDisplayFormatter::title(chapter),
             chapter.startSeconds,
         });
     }
@@ -217,15 +220,6 @@ qsizetype ChapterNavigationViewModel::currentRowForPosition(
         }
     }
     return currentRow;
-}
-
-QString ChapterNavigationViewModel::displayTitle(
-    const player::playback::domain::ChapterDescriptor& chapter)
-{
-    if (chapter.title.has_value() && !chapter.title->isEmpty()) {
-        return *chapter.title;
-    }
-    return QStringLiteral("Chapter %1").arg(static_cast<qlonglong>(chapter.index + 1));
 }
 
 } // namespace player::chapters::presentation

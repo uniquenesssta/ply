@@ -131,17 +131,7 @@ Item {
             model: root.chapterModel
 
             delegate: Rectangle {
-                required property double time
-
-                readonly property real normalizedTime: root.viewModel !== null
-                                                       && root.viewModel.durationSeconds > 0
-                                                       ? Math.max(
-                                                           0,
-                                                           Math.min(
-                                                               1,
-                                                               time
-                                                               / root.viewModel.durationSeconds))
-                                                       : 0
+                required property double normalizedTime
 
                 x: LayoutTokens.sliderTrackInset
                    + Math.round(

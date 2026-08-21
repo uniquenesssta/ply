@@ -1,6 +1,8 @@
 add_library(
     player_chapters_presentation
     STATIC
+        chapter_display_formatter.cpp
+        chapter_display_formatter.h
         chapter_model.cpp
         chapter_model.h
         chapter_navigation_view_model.cpp

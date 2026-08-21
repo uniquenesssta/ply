@@ -140,12 +140,27 @@ void ChaptersQmlTest::screenAndBootstrapPassChapterDependencies()
     QVERIFY(screen.contains(QStringLiteral("chapterModel: root.chapterModel")));
     const QString timeline = readSource(QStringLiteral(
         "src/presentation/qml/features/player/timeline/TimelineControls.qml"));
+    const QString chapterModel = readSource(QStringLiteral(
+        "src/chapters/presentation/chapter_model.cpp"));
+    const QString chapterState = readSource(QStringLiteral(
+        "src/playback/domain/state/playback_chapter_state.cpp"));
     QVERIFY(timeline.contains(QStringLiteral("property var chapterModel: null")));
     QVERIFY(timeline.startsWith(QStringLiteral("pragma ComponentBehavior: Bound")));
     QVERIFY(timeline.contains(QStringLiteral("model: root.chapterModel")));
-    QVERIFY(timeline.contains(QStringLiteral("required property double time")));
+    QVERIFY(timeline.contains(QStringLiteral(
+        "required property double normalizedTime")));
     QVERIFY(timeline.contains(QStringLiteral("root.viewModel.durationSeconds")));
+    QVERIFY(!timeline.contains(QStringLiteral("required property double time")));
+    QVERIFY(!timeline.contains(QStringLiteral("Math.min(")));
+    QVERIFY(!timeline.contains(QStringLiteral(
+        "time / root.viewModel.durationSeconds")));
     QVERIFY(!timeline.contains(QStringLiteral("timelineSlider.value = time")));
+    QVERIFY(!timeline.contains(QStringLiteral(
+        "timelineSlider.value = normalizedTime")));
+    QVERIFY(chapterModel.contains(QStringLiteral("NormalizedTimeRole")));
+    QVERIFY(chapterModel.contains(QStringLiteral("validatedForDuration")));
+    QVERIFY(chapterState.contains(QStringLiteral(
+        "chapter.startSeconds > *durationSeconds")));
     QVERIFY(screen.contains(QStringLiteral(
         "navigationViewModel: root.chapterNavigationViewModel")));
     QVERIFY(utility.contains(QStringLiteral("ChapterControls {")));

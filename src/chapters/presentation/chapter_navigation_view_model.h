@@ -69,8 +69,6 @@ private:
     [[nodiscard]] static qsizetype currentRowForPosition(
         const QVector<Row>& rows,
         const std::optional<double>& positionSeconds) noexcept;
-    [[nodiscard]] static QString displayTitle(
-        const player::playback::domain::ChapterDescriptor& chapter);
 
     player::playback::domain::MediaGeneration generation_;
     QVector<Row> rows_;

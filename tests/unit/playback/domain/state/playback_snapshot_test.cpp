@@ -2,6 +2,8 @@
 
 #include <QtTest/QTest>
 
+#include <limits>
+#include <optional>
 #include <utility>
 
 namespace player::playback::domain {
@@ -15,6 +17,7 @@ private slots:
     void openingSnapshotOwnsMediaIdentity();
     void stoppedSnapshotClearsMediaScopedState();
     void explicitStatePreservesIndependentAxes();
+    void chapterValidationBoundsRowsWhenDurationIsKnown();
     void failureStateCarriesTypedDiagnostic();
 };
 
@@ -166,6 +169,34 @@ void PlaybackSnapshotTest::explicitStatePreservesIndependentAxes()
     QVERIFY(snapshot.streams().audio.has_value());
     QCOMPARE(*snapshot.streams().audio->sampleRate, qint64{48000});
     QVERIFY(!snapshot.failure().has_value());
+}
+
+void PlaybackSnapshotTest::chapterValidationBoundsRowsWhenDurationIsKnown()
+{
+    PlaybackChapterState state;
+    state.chapters = {
+        ChapterDescriptor{0, 0.0, QStringLiteral("Opening")},
+        ChapterDescriptor{1, 90.0, QStringLiteral("At Duration")},
+        ChapterDescriptor{2, 90.01, QStringLiteral("Past Duration")},
+        ChapterDescriptor{3, -1.0, QStringLiteral("Negative")},
+        ChapterDescriptor{-1, 1.0, QStringLiteral("Invalid Index")},
+        ChapterDescriptor{
+            4,
+            std::numeric_limits<double>::infinity(),
+            QStringLiteral("Infinite")},
+    };
+
+    const auto unbounded = state.validatedForDuration(std::nullopt);
+    QCOMPARE(unbounded.size(), 3);
+    QCOMPARE(unbounded.at(0).index, qsizetype{0});
+    QCOMPARE(unbounded.at(1).index, qsizetype{1});
+    QCOMPARE(unbounded.at(2).index, qsizetype{2});
+
+    const auto bounded = state.validatedForDuration(90.0);
+    QCOMPARE(bounded.size(), 2);
+    QCOMPARE(bounded.at(0).index, qsizetype{0});
+    QCOMPARE(bounded.at(1).index, qsizetype{1});
+    QCOMPARE(bounded.at(1).startSeconds, 90.0);
 }
 
 void PlaybackSnapshotTest::failureStateCarriesTypedDiagnostic()

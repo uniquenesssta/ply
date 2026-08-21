@@ -58,6 +58,15 @@ void TimelineControlsTest::timelineUsesCanonicalGeometryAndGenericSlider()
     QVERIFY(source.contains(QStringLiteral("\"CommitPending\"")));
     QVERIFY(source.contains(QStringLiteral("\"Hovering\"")));
     QVERIFY(source.contains(QStringLiteral("\"Idle\"")));
+    QVERIFY(source.contains(QStringLiteral("id: chapterMarkerLayer")));
+    QVERIFY(source.contains(QStringLiteral("model: root.chapterModel")));
+    QVERIFY(source.contains(QStringLiteral(
+        "required property double normalizedTime")));
+    QVERIFY(!source.contains(QStringLiteral("Math.min(")));
+    QVERIFY(!source.contains(QStringLiteral(
+        "time / root.viewModel.durationSeconds")));
+    QVERIFY(!source.contains(QStringLiteral(
+        "timelineSlider.value = normalizedTime")));
 
     const QString sliderSource = readSource(QStringLiteral(
         "src/presentation/qml/controls/sliders/Slider.qml"));

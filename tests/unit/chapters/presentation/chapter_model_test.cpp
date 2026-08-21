@@ -10,6 +10,7 @@
 #include <QModelIndex>
 #include <QString>
 
+#include <cmath>
 #include <optional>
 #include <utility>
 
@@ -36,11 +37,13 @@ ChapterDescriptor makeChapter(
 
 PlaybackSnapshot makeSnapshot(
     quint64 generation,
-    QList<ChapterDescriptor> chapters)
+    QList<ChapterDescriptor> chapters,
+    std::optional<double> durationSeconds = std::nullopt)
 {
     PlaybackSnapshotState state;
     state.generation = MediaGeneration{generation};
     state.lifecycle = PlaybackLifecycleState::Ready;
+    state.timeline.durationSeconds = durationSeconds;
     state.chapters.chapters = std::move(chapters);
     state.capabilities.hasChapters = !state.chapters.chapters.isEmpty();
     return PlaybackSnapshot{std::move(state)};
@@ -56,6 +59,7 @@ private slots:
     void emptySnapshotProducesStableEmptyModel();
     void mapsSnapshotRowsDeterministically();
     void preservesDuplicateTimesLongTitlesAndMissingTitle();
+    void validatesDurationAndProjectsNormalizedMarkers();
     void mediaSwitchClearsThenReplacesRows();
     void exposesReadonlyRoleContract();
 };
@@ -116,6 +120,45 @@ void ChapterModelTest::preservesDuplicateTimesLongTitlesAndMissingTitle()
     QCOMPARE(model.data(model.index(1, 0), ChapterModel::TimeRole).toDouble(), 42.5);
 }
 
+void ChapterModelTest::validatesDurationAndProjectsNormalizedMarkers()
+{
+    const auto chapters = []() {
+        return QList<ChapterDescriptor>{
+            makeChapter(0, 0.0, QString{}),
+            makeChapter(1, 60.0),
+            makeChapter(2, 120.0, QStringLiteral("At Duration")),
+            makeChapter(3, 121.0, QStringLiteral("Past Duration")),
+        };
+    };
+
+    ChapterModel model;
+    model.acceptSnapshot(makeSnapshot(1, chapters(), 120.0));
+
+    QCOMPARE(model.count(), 3);
+    QCOMPARE(
+        model.data(model.index(0, 0), ChapterModel::TitleRole).toString(),
+        QStringLiteral("Chapter 1"));
+    QCOMPARE(
+        model.data(model.index(1, 0), ChapterModel::TitleRole).toString(),
+        QStringLiteral("Chapter 2"));
+    QCOMPARE(
+        model.data(model.index(0, 0), ChapterModel::NormalizedTimeRole).toDouble(),
+        0.0);
+    QCOMPARE(
+        model.data(model.index(1, 0), ChapterModel::NormalizedTimeRole).toDouble(),
+        0.5);
+    QCOMPARE(
+        model.data(model.index(2, 0), ChapterModel::NormalizedTimeRole).toDouble(),
+        1.0);
+
+    model.acceptSnapshot(makeSnapshot(1, chapters(), 200.0));
+    QCOMPARE(model.count(), 4);
+    QVERIFY(std::abs(
+                model.data(model.index(3, 0), ChapterModel::NormalizedTimeRole).toDouble()
+                - 0.605)
+            < 0.0000001);
+}
+
 void ChapterModelTest::mediaSwitchClearsThenReplacesRows()
 {
     ChapterModel model;
@@ -151,6 +194,9 @@ void ChapterModelTest::exposesReadonlyRoleContract()
     QCOMPARE(roles.value(ChapterModel::TitleRole), QByteArrayLiteral("title"));
     QCOMPARE(roles.value(ChapterModel::TimeRole), QByteArrayLiteral("time"));
     QCOMPARE(roles.value(ChapterModel::TimeTextRole), QByteArrayLiteral("timeText"));
+    QCOMPARE(
+        roles.value(ChapterModel::NormalizedTimeRole),
+        QByteArrayLiteral("normalizedTime"));
 
     const QModelIndex index = model.index(0, 0);
     QVERIFY(model.flags(index).testFlag(Qt::ItemIsEnabled));

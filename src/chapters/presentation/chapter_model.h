@@ -22,6 +22,7 @@ public:
         TitleRole,
         TimeRole,
         TimeTextRole,
+        NormalizedTimeRole,
     };
     Q_ENUM(Role)
 
@@ -46,6 +47,7 @@ private:
         QString title;
         double timeSeconds = 0.0;
         QString timeText;
+        double normalizedTime = 0.0;
 
         bool operator==(const Row&) const = default;
     };
