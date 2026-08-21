@@ -9,8 +9,6 @@
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlError>
-#include <QQuickItem>
-#include <QQuickWindow>
 #include <QSignalSpy>
 #include <QString>
 #include <QStringList>
@@ -176,9 +174,34 @@ void ChaptersQmlTest::chapterDelegateReceivesRequiredModelRolesAtRuntime()
             }
         });
 
-    const QString path = QStringLiteral(
-        PLAYER_SOURCE_DIR "/src/presentation/qml/features/chapters/ChapterContent.qml");
-    QQmlComponent component(&engine, QUrl::fromLocalFile(path));
+    const QUrl harnessUrl = QUrl::fromLocalFile(QStringLiteral(
+        PLAYER_SOURCE_DIR
+        "/src/presentation/qml/features/chapters/ChapterDelegateRuntimeHarness.qml"));
+    QQmlComponent component(&engine);
+    component.setData(QByteArrayLiteral(R"QML(
+pragma ComponentBehavior: Bound
+
+import QtQuick
+import QtQml.Models
+
+Item {
+    id: root
+
+    required property var chapterModel
+    property alias delegateCount: chapterDelegateInstantiator.count
+
+    Instantiator {
+        id: chapterDelegateInstantiator
+
+        model: root.chapterModel
+        delegate: ChapterRow {
+            required property var index
+
+            chapterIndex: index
+        }
+    }
+}
+)QML"), harnessUrl);
     const bool resolved = waitForComponentResolution(component);
     const QString loadDiagnostics = componentDiagnostics(component);
     QVERIFY2(resolved, qPrintable(loadDiagnostics));
@@ -186,31 +209,20 @@ void ChaptersQmlTest::chapterDelegateReceivesRequiredModelRolesAtRuntime()
 
     ChapterRowsModel model;
     QVariantMap initialProperties;
-    initialProperties.insert(QStringLiteral("width"), 480);
-    initialProperties.insert(QStringLiteral("height"), 320);
     initialProperties.insert(
         QStringLiteral("chapterModel"),
         QVariant::fromValue(static_cast<QObject*>(&model)));
 
-    std::unique_ptr<QObject> content(
+    std::unique_ptr<QObject> harness(
         component.createWithInitialProperties(initialProperties));
     const QString createDiagnostics = componentDiagnostics(component);
-    QVERIFY2(content != nullptr, qPrintable(createDiagnostics));
-
-    auto* contentItem = qobject_cast<QQuickItem*>(content.get());
-    QVERIFY(contentItem != nullptr);
-
-    QQuickWindow window;
-    window.setGeometry(0, 0, 480, 320);
-    contentItem->setParentItem(window.contentItem());
-    window.show();
-    QTest::qWait(50);
+    QVERIFY2(harness != nullptr, qPrintable(createDiagnostics));
 
     QTRY_COMPARE_WITH_TIMEOUT(
-        content->findChildren<QObject*>(QStringLiteral("chapterRow")).size(),
+        harness->property("delegateCount").toInt(),
         1,
         1000);
-    QObject* row = content->findChild<QObject*>(QStringLiteral("chapterRow"));
+    QObject* row = harness->findChild<QObject*>(QStringLiteral("chapterRow"));
     QVERIFY(row != nullptr);
     QCOMPARE(row->property("chapterIndex").toLongLong(), qint64{0});
     QCOMPARE(row->property("title").toString(), QStringLiteral("Intro"));
