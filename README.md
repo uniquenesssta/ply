@@ -14,7 +14,7 @@ README 只维护**项目入口、当前状态、关键架构边界和简短变�
 | R5 — UI 设计系统 | Complete | R5-01 ~ R5-10 Complete；最终 Windows Debug build、QML lint、51/51 CTest 与 startup smoke 已验证 |
 | R6 — 播放器主界面与基础交互 | Complete | R6-01 ~ R6-16 Complete；最终 Windows Debug build、QML lint、76/76 CTest 与 startup/exit smoke 已验证 |
 | R7 — 媒体打开与播放列表 | Complete | **R7-01 ~ R7-14 Complete**。R7-14 Queue UI 状态解耦已在 Windows 锁定环境完成 configure/build，Quick **94/94 PASS（55.79 s）**、Full **102/102 PASS（82.32 s）**；startup-smoke **5.98 s**，8 项 windowed-render 合计 **42.10 s**。R7 功能阶段正式收口；剩余 UI/Figma 视觉打磨继续按既定计划后置，不属于 R7 功能收口阻塞项 |
-| R8 — 音轨、字幕、章节 | In Progress | **R8-01 ~ R8-12 Complete**。R8-12 将 chapter start 的 finite/non-negative/duration-bound 校验收口到 Playback Chapter domain，ChapterModel 只投影已验证行及 `normalizedTime`；Chapter QML 只发统一 absolute seek intent，Timeline marker 只读 model role，不再在 QML 修正越界数据，position 仍只来自 generation-gated Snapshot。Windows build 已完成，Quick **106/106 PASS（49.22 s）**、Full **114/114 PASS（79.19 s）**；startup-smoke **3.06 s**，8 项 windowed-render 合计 **39.29 s**。Stage R8 首轮联合真实媒体 smoke 暴露的 Chapter delegate 必填 role 遮蔽已修复，runtime 回归也已改为同步 Instantiator 契约验证。HEAD `d6194d6` 的复验中 Player 正常退出且未触发致命日志门禁，但中文包弯引号导致部分操作文本被 PowerShell 截断；自动证据仅记录外挂字幕 submitted=1 / deduplicated=0、cleanup media=0，因此该轮仍为 FAIL。新候选 Quick/Full 与修订包完整联合 smoke 待复验 |
+| R8 — 音轨、字幕、章节 | Complete (Validation Exception) | **R8-01 ~ R8-12 Complete**。音轨、字幕、延迟、章节与 Chapter/Timeline 单向协作的实现及各 Atomic Task 锁定验证均已完成；阶段最终联合 smoke 中 Player 正常退出且未触发致命日志门禁，但自动证据仅记录外挂字幕 submitted=1 / deduplicated=0、cleanup media=0，最终结果仍为 FAIL。按项目 owner 当前收口要求，Stage R8 以明确验证例外正式关闭；该状态不把失败 smoke 描述为通过，缺失的外挂字幕去重与清理媒体重载证据作为已知验收债保留 |
 
 R0/R1 属于既有项目基线。R4 后置 `PlaybackSession` 职责边界优化属于独立可选任务，不阻断后续 Stage。`成熟播放器行为补强与验收矩阵.md` 是跨 Stage 强制补充基线。
 
@@ -120,6 +120,11 @@ powershell -ExecutionPolicy Bypass -File scripts\test.ps1 -Quick -SkipBuild
 `-Quick` 会排除真实 `windowed-render` 回归，不能替代 Atomic Task / Stage 收口或发布前完整验证。不得把未执行、被阻塞或失败的验证描述为通过。
 
 ## Change log
+
+### 2026-08-22 — R8 Stage Complete with Validation Exception
+
+- 项目 owner 在已知最终联合 smoke 自动结果仍为 FAIL 的前提下要求收口。Stage R8 现标记为 **Complete (Validation Exception)**：R8-01 ~ R8-12 的产品实现、架构边界及各 Atomic Task 锁定验证保持 Complete；最终 smoke 已确认 Player 以 0 正常退出、主媒体加载 2 次且未触发致命日志门禁，但外挂字幕只观测到 submitted=1 / deduplicated=0，cleanup media 加载为 0。README 原样保留这些缺失证据，不宣称联合 smoke 通过；外挂字幕重复提交/去重与清理媒体重载作为已知验收债，不再阻塞后续 Stage。
+- 本次收口不修改生产代码、依赖、构建目标或架构真值；修订后的中文多行 smoke 包继续保留，可在后续需要时补做验证并消除例外。
 
 ### 2026-08-22 — R8 Stage Smoke Chapter Delegate Repair Candidate
 
